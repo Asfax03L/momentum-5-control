@@ -99,7 +99,7 @@ pub struct DiagnosticInput<'a> {
     /// Système, si connu (« Windows 10.0.26300 », « Bazzite 44 »).
     pub os_version: Option<&'a str>,
     pub connected: bool,
-    /// Modèle non validé (lecture seule), s'il y a lieu.
+    /// Raison de la lecture seule (modèle ou micrologiciel), s'il y a lieu.
     pub read_only: Option<&'a str>,
     pub info: Option<&'a DeviceInfo>,
     pub state: Option<&'a HeadsetState>,
@@ -160,8 +160,8 @@ pub fn build(input: &DiagnosticInput) -> String {
             }
         ),
     ];
-    if let Some(model) = input.read_only {
-        lines.push(format!("Lecture seule : modèle « {model} » non validé"));
+    if let Some(reason) = input.read_only {
+        lines.push(format!("Lecture seule : {reason}"));
     }
     if let Some(info) = input.info {
         lines.push(format!(

@@ -5,6 +5,18 @@ M5 » signifie : écriture capturée dans Smart Control Plus, puis rejouée
 depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
 6.21.5, Windows 11. La CI (fmt, clippy, tests) ne se connecte à aucun casque.
 
+## Non publié
+
+### Sécurité du protocole
+- Écritures réservées au MOMENTUM 5 **en micrologiciel 6.21.5**, le seul
+  sur lequel elles ont été vérifiées : à la connexion, le micrologiciel
+  (`1201`) est lu après le modèle ; un autre micrologiciel, ou un
+  micrologiciel illisible, met le service et `ctl` en lecture seule, avec
+  la raison dans le bandeau (« micrologiciel 6.22.0 non validé »).
+  `DeviceError::ModelNotValidated` devient `WritesBlocked`.
+- Essayé sur le M5 (6.21.5) le 21/10/2026 : écritures toujours permises
+  (anti-vent inversé puis remis, relu).
+
 ## v0.8.0 — 21/10/2026
 
 ### Retrait de l'icône Slint (étape 4 de docs/ARCHITECTURE.md)

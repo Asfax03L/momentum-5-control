@@ -98,7 +98,8 @@ pub enum WorkerCommand {
 #[derive(Debug, Clone)]
 pub enum WorkerEvent {
     Searching,
-    /// `read_only` : modèle lu, s'il n'est pas validé pour les écritures.
+    /// `read_only` : raison de la lecture seule (modèle ou micrologiciel non
+    /// validé pour les écritures).
     Connected {
         name: String,
         read_only: Option<String>,
@@ -135,10 +136,10 @@ pub fn run(commands: Receiver<WorkerCommand>, notify: impl Fn(WorkerEvent)) {
         notify(WorkerEvent::Searching);
         match connect() {
             Ok((name, mut headset)) => {
-                // Écritures réservées au modèle validé ; la lecture reste
-                // possible sur tout casque GAIA.
-                let model = headset.identify();
-                let read_only = (!headset.writes_allowed()).then_some(model);
+                // Écritures réservées au modèle et au micrologiciel
+                // validés ; la lecture reste possible sur tout casque GAIA.
+                headset.identify();
+                let read_only = headset.write_block_reason().map(str::to_string);
                 info!(%name, ?read_only, "casque connecté");
                 notify(WorkerEvent::Connected { name, read_only });
                 match session(headset, &commands, &notify) {

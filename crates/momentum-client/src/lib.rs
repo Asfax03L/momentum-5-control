@@ -113,7 +113,7 @@ pub enum Event {
     Searching,
     Connected {
         name: String,
-        /// Modèle non validé : lecture seule.
+        /// Raison de la lecture seule (modèle ou micrologiciel non validé).
         read_only: Option<String>,
     },
     State(HeadsetState),
@@ -132,6 +132,7 @@ pub enum Event {
 pub struct Snapshot {
     /// Nom annoncé à la connexion ; `None` : recherche du casque.
     pub device_name: Option<String>,
+    /// Raison de la lecture seule (modèle ou micrologiciel non validé).
     pub read_only: Option<String>,
     /// `None` tant que l'état n'a pas été lu.
     pub state: Option<HeadsetState>,

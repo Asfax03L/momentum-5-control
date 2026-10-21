@@ -466,9 +466,9 @@ mod app {
         let (transport, device_name) = connect(args, &filters)?;
         let mut headset = Headset::new(transport, Duration::from_millis(args.timeout_ms));
         println!("Connecté à « {device_name} ».");
-        let model = headset.identify();
-        if !headset.writes_allowed() {
-            println!("Modèle « {model} » non validé : lecture seule.");
+        headset.identify();
+        if let Some(reason) = headset.write_block_reason() {
+            println!("Lecture seule : {reason}.");
         }
 
         match args.command {

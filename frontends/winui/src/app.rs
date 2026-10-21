@@ -1764,7 +1764,7 @@ impl Root {
             .snapshot
             .read_only
             .as_ref()
-            .map(|model| format!("Modèle « {model} » non validé : lecture seule"));
+            .map(|reason| format!("Lecture seule : {reason}"));
         let problem = self
             .service_error
             .as_ref()
