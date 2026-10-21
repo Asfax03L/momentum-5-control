@@ -230,6 +230,12 @@ pub mod qobject {
         /// Relit l'historique de la batterie sur la période choisie.
         #[qinvokable]
         fn reload_battery(self: Pin<&mut Headset>, span: i32);
+        /// Copie `batterie.csv` dans Documents ; message à afficher.
+        #[qinvokable]
+        fn export_battery(self: &Headset) -> QString;
+        /// Efface l'historique (fait par le service) puis le relit.
+        #[qinvokable]
+        fn clear_battery(self: Pin<&mut Headset>) -> QString;
         /// Courbe de la batterie en tracé SVG, à la taille donnée.
         #[qinvokable]
         fn battery_chart(self: &Headset, width: f64, height: f64) -> QString;
@@ -284,6 +290,23 @@ fn unix_now() -> u64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_secs())
+}
+
+/// Copie `batterie.csv` dans Documents ; renvoie le message à afficher.
+fn export_battery_history() -> String {
+    let Some(source) = paths::battery_file() else {
+        return "Export impossible : dossier des données introuvable.".to_string();
+    };
+    let Some(target) = paths::export_file("momentum-batterie", "csv", unix_now()) else {
+        return "Export impossible : dossier Documents introuvable.".to_string();
+    };
+    match std::fs::copy(&source, &target) {
+        Ok(_) => format!("Historique exporté dans {}.", target.display()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            "Aucun historique à exporter pour l'instant.".to_string()
+        }
+        Err(e) => format!("Export de l'historique impossible : {e}."),
+    }
 }
 
 /// Remet un tracé du repère 1000 × 100 (`battery_log::chart_path`) à la
@@ -1192,6 +1215,31 @@ impl qobject::Headset {
 
     fn battery_chart(&self, width: f64, height: f64) -> QString {
         QString::from(scale_path(&self.rust().battery_path, width, height).as_str())
+    }
+
+    fn export_battery(&self) -> QString {
+        QString::from(export_battery_history().as_str())
+    }
+
+    fn clear_battery(mut self: Pin<&mut Self>) -> QString {
+        let Some(tx) = self.rust().commands.clone() else {
+            return QString::from("Effacement impossible : service injoignable.");
+        };
+        if tx.send(Command::ClearBatteryHistory).is_err() {
+            return QString::from("Effacement impossible : service injoignable.");
+        }
+        // Le service réécrit le fichier : relecture un peu plus tard.
+        let qt_thread = self.qt_thread();
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(600));
+            let _ = qt_thread.queue(|mut headset| {
+                let span = *headset.battery_span();
+                headset.as_mut().reload_battery(span);
+            });
+        });
+        let span = *self.battery_span();
+        self.as_mut().reload_battery(span);
+        QString::from("Historique de la batterie effacé.")
     }
 
     fn open_shortcut_settings(&self) {

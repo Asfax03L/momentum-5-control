@@ -23,14 +23,18 @@ impl Control {
         let command: Command = serde_json::from_str(&json)
             .map_err(|e| zbus::fdo::Error::InvalidArgs(format!("commande illisible : {e}")))?;
         let worker_command = {
-            let shared = self.shared.lock().map_err(|_| {
+            let mut shared = self.shared.lock().map_err(|_| {
                 zbus::fdo::Error::Failed("état du service inaccessible".to_string())
             })?;
-            service::to_worker(command, &shared).map_err(zbus::fdo::Error::Failed)?
+            service::handle(command, &mut shared).map_err(zbus::fdo::Error::Failed)?
         };
-        self.commands
-            .send(worker_command)
-            .map_err(|_| zbus::fdo::Error::Failed("le worker s'est arrêté".to_string()))
+        match worker_command {
+            Some(c) => self
+                .commands
+                .send(c)
+                .map_err(|_| zbus::fdo::Error::Failed("le worker s'est arrêté".to_string())),
+            None => Ok(()),
+        }
     }
 
     /// État courant en JSON (`momentum_client::Snapshot`).

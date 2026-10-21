@@ -956,8 +956,29 @@ Kirigami.ApplicationWindow {
     Component {
         id: batteryPage
         Kirigami.ScrollablePage {
+            id: batteryScroll
             title: "Batterie"
+            property string notice: ""
             Component.onCompleted: headset.reloadBattery(headset.batterySpan)
+            actions: [
+                Kirigami.Action {
+                    text: "Exporter (CSV)"
+                    icon.name: "document-export"
+                    onTriggered: batteryScroll.notice = headset.exportBattery()
+                },
+                Kirigami.Action {
+                    text: "Effacer l'historique…"
+                    icon.name: "edit-clear-history"
+                    onTriggered: clearBatteryDialog.open()
+                }
+            ]
+            Kirigami.PromptDialog {
+                id: clearBatteryDialog
+                title: "Effacer l'historique de la batterie ?"
+                subtitle: "Toutes les mesures enregistrées sur ce PC sont supprimées. Exporter d'abord pour les garder."
+                standardButtons: Kirigami.Dialog.Ok | Kirigami.Dialog.Cancel
+                onAccepted: batteryScroll.notice = headset.clearBattery()
+            }
             Timer {
                 interval: 60000
                 running: true
@@ -967,6 +988,13 @@ Kirigami.ApplicationWindow {
             ColumnLayout {
                 spacing: Kirigami.Units.largeSpacing
                 StatusHeader {}
+                Kirigami.InlineMessage {
+                    Layout.fillWidth: true
+                    visible: batteryScroll.notice !== ""
+                    text: batteryScroll.notice
+                    showCloseButton: true
+                    onVisibleChanged: if (!visible) batteryScroll.notice = ""
+                }
                 RowLayout {
                     Kirigami.Heading {
                         Layout.fillWidth: true
