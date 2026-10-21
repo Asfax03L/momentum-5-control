@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Guide de contribution
+    url: https://github.com/Asfax03L/openheadset-control/blob/main/CONTRIBUTING.md
+    about: Règles du projet (lecture seule par défaut, rien d'inventé) et vérifications avant une PR.

@@ -17,6 +17,12 @@ depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
 - Essayé sur le M5 (6.21.5) le 21/10/2026 : écritures toujours permises
   (anti-vent inversé puis remis, relu).
 
+### Contributions
+- `CONTRIBUTING.md` : règles du projet (rien d'inventé, lecture seule par
+  défaut, données personnelles), environnement, vérifications avant une PR.
+- Modèles d'issue (bogue, compatibilité, idée) et de PR.
+- README : tableau des modèles et micrologiciels testés.
+
 ## v0.8.0 — 21/10/2026
 
 ### Retrait de l'icône Slint (étape 4 de docs/ARCHITECTURE.md)

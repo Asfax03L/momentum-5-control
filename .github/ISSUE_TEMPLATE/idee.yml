@@ -1,0 +1,16 @@
+name: Idée
+description: Proposer une amélioration
+labels: ["idée"]
+body:
+  - type: textarea
+    id: besoin
+    attributes:
+      label: Besoin
+      description: Ce que vous voulez faire et pourquoi.
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: Commande du casque concernée (s'il y en a une)
+      description: Une nouvelle écriture n'est ajoutée qu'après capture dans l'application officielle et vérification sur le casque. Indiquez d'où vient la commande ; n'en inventez aucune.

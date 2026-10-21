@@ -1,0 +1,43 @@
+name: Compatibilité (autre casque ou micrologiciel)
+description: Signaler un modèle ou un micrologiciel non encore validé
+labels: ["compatibilité"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Sur un modèle ou un micrologiciel non validé, OpenHeadset Control reste en **lecture seule** : aucun réglage n'est envoyé. Ce rapport aide à décider quoi vérifier. Le projet ne propose jamais de mise à jour du micrologiciel ni de réinitialisation.
+  - type: input
+    id: modele
+    attributes:
+      label: Modèle lu
+      description: Ligne « Modèle » de `probe --deep` ou de la page « À propos ».
+      placeholder: "M5AEBT Black"
+    validations:
+      required: true
+  - type: input
+    id: micrologiciel
+    attributes:
+      label: Micrologiciel lu
+      placeholder: "6.21.5"
+    validations:
+      required: true
+  - type: input
+    id: systeme
+    attributes:
+      label: Système
+      placeholder: "Windows 11, ou Linux (distribution, bureau)"
+    validations:
+      required: true
+  - type: textarea
+    id: probe
+    attributes:
+      label: Sortie de `probe --deep`
+      description: Adresses et numéro de série sont masqués par défaut (ne pas utiliser `--show-address`). Relisez avant de coller.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: remarques
+    attributes:
+      label: Remarques
+      description: Ce qui fonctionne ou non en lecture, messages affichés.
