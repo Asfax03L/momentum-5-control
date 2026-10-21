@@ -1,0 +1,83 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/momentum-core",
+    "crates/momentum-service",
+    "crates/momentum-cli",
+    "crates/momentum-client",
+    "crates/momentum-daemon",
+    "frontends/slint",
+    "frontends/kirigami",
+    "frontends/winui",
+]
+# Le client Kirigami demande Qt 6 : il n'est pas compilé par défaut
+# (`cargo build -p momentum-kirigami` sous Linux).
+default-members = [
+    "crates/momentum-core",
+    "crates/momentum-service",
+    "crates/momentum-cli",
+    "crates/momentum-client",
+    "crates/momentum-daemon",
+    "frontends/slint",
+    "frontends/winui",
+]
+
+[workspace.package]
+version = "0.7.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Asfax03L/openheadset-control"
+publish = false
+
+[workspace.dependencies]
+momentum-core = { path = "crates/momentum-core" }
+momentum-service = { path = "crates/momentum-service" }
+anyhow = "1.0.104"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+zbus = "5.19.0"
+momentum-client = { path = "crates/momentum-client" }
+clap = { version = "4.6.7", features = ["derive"] }
+thiserror = "2.0.21"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
+slint = { version = "1.18.1", default-features = false, features = ["std", "compat-1-2", "backend-winit", "renderer-software", "accessibility"] }
+slint-build = "1.18.1"
+embed-resource = "3.0.12"
+tray-icon = "0.26.1"
+bluer = { version = "0.17.4", features = ["bluetoothd", "rfcomm"] }
+tokio = { version = "1.53.3", features = ["rt-multi-thread", "net", "time", "io-util", "macros"] }
+futures = "0.3.31"
+dbus = "0.9.12"
+libc = "0.2.190"
+gtk = "0.18.2"
+windows = { version = "0.62.2", features = [
+    "Foundation",
+    "Foundation_Collections",
+    "Devices_Bluetooth",
+    "Devices_Bluetooth_Rfcomm",
+    "Devices_Bluetooth_GenericAttributeProfile",
+    "Devices_Enumeration",
+    "Networking",
+    "Networking_Sockets",
+    "Storage_Streams",
+    "System_Profile",
+    "Data_Xml_Dom",
+    "UI_Notifications",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_System_WinRT", "Win32_System_Registry", "Win32_System_Threading", "Win32_Foundation", "Win32_Security",
+    "Win32_Security_Authorization", "Win32_System_Pipes", "Win32_Storage_FileSystem", "Win32_System_IO",
+    "Win32_System_Com", "Win32_UI_Shell", "Win32_UI_Shell_Common", "Win32_Graphics_Gdi",
+    "Win32_Media_Audio", "Win32_Media_Audio_Endpoints", "Win32_Media_Multimedia",
+    "Win32_System_Com_StructuredStorage", "Win32_System_Variant", "Win32_UI_Shell_PropertiesSystem",
+    "Win32_System_SystemInformation", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole",
+] }
+
+# Binaires légers : optimisation, LTO et symboles retirés.
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+opt-level = "z"
+panic = "abort"

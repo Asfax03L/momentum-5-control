@@ -1,0 +1,259 @@
+//! Partie commune du service, quel que soit le transport : état courant,
+//! traduction des commandes de l'API, boucle des événements du worker
+//! (historique de la batterie, notifications).
+
+use std::sync::Mutex;
+use std::sync::mpsc::{self, Receiver};
+
+use anyhow::Context;
+use momentum_client::{Command, ConnectionInfo, Event, Snapshot};
+use momentum_core::alerts::{Alert, AlertTracker};
+use momentum_core::battery_log::BatteryLog;
+use momentum_core::device::Connection;
+use momentum_core::{paths, scenes};
+use momentum_service::worker::{self, WorkerCommand, WorkerEvent};
+
+/// État partagé entre le transport et la boucle des événements.
+#[derive(Default)]
+pub struct Shared {
+    pub snapshot: Snapshot,
+    /// Appareils appairés avec leur adresse (jamais envoyée aux interfaces).
+    pub devices: Vec<Connection>,
+}
+
+/// Traduit une commande de l'API en commande du worker ; `Err` : refusée
+/// par le service (raison).
+pub fn to_worker(command: Command, shared: &Shared) -> Result<WorkerCommand, String> {
+    let writable = shared.snapshot.state.is_some() && shared.snapshot.read_only.is_none();
+    if !writable {
+        return Err("casque absent ou en lecture seule".to_string());
+    }
+    Ok(match command {
+        Command::SetMode(m) => WorkerCommand::SetMode(m),
+        Command::SetLevel(l) => WorkerCommand::SetLevel(l.min(100)),
+        Command::SetAntiWind(on) => WorkerCommand::SetAntiWind(on),
+        Command::SetSpatial(on) => WorkerCommand::SetSpatial(on),
+        Command::SetHeadTracking(on) => WorkerCommand::SetHeadTracking(on),
+        Command::SetMultipoint(on) => WorkerCommand::SetMultipoint(on),
+        Command::SetEqBand(band, gain) => WorkerCommand::SetEqBand(band, gain),
+        Command::SetEqFlat => WorkerCommand::SetEqFlat,
+        Command::SetEqGains(gains) => WorkerCommand::SetEqGains(gains),
+        Command::SetBassBoost(on) => WorkerCommand::SetBassBoost(on),
+        Command::SetSpeechClarity(on) => WorkerCommand::SetSpeechClarity(on),
+        Command::SetSoundProfile(on) => WorkerCommand::SetSoundProfile(on),
+        Command::SetTouchControls(on) => WorkerCommand::SetTouchControls(on),
+        Command::SetBatteryProtection(on) => WorkerCommand::SetBatteryProtection(on),
+        Command::SetSmartPause(on) => WorkerCommand::SetSmartPause(on),
+        Command::SetAutoAnswer(on) => WorkerCommand::SetAutoAnswer(on),
+        Command::SetComfortCall(on) => WorkerCommand::SetComfortCall(on),
+        Command::SetAutoOff(s) => WorkerCommand::SetAutoOff(s),
+        Command::SetPromptMode(m) => WorkerCommand::SetPromptMode(m),
+        Command::SetPromptVolume(v) => WorkerCommand::SetPromptVolume(v),
+        Command::SetName(n) => WorkerCommand::SetName(n),
+        Command::ToggleConnection {
+            index,
+            name,
+            connect,
+        } => {
+            // L'appareil affiché à cette position, s'il porte toujours ce
+            // nom ; le worker le retrouve ensuite par son adresse.
+            let device = shared
+                .devices
+                .get(index)
+                .filter(|d| d.name == name)
+                .cloned()
+                .ok_or_else(|| format!("appareil « {name} » introuvable dans la liste"))?;
+            WorkerCommand::ToggleConnection { device, connect }
+        }
+        Command::ApplyScene(name) => {
+            let (list, _) = paths::load_scenes();
+            let scene = scenes::find(&list, &name)
+                .cloned()
+                .ok_or_else(|| format!("scène « {name} » introuvable dans le fichier"))?;
+            WorkerCommand::ApplyScene {
+                scene,
+                presets: paths::scene_presets(),
+                reply: None,
+            }
+        }
+        Command::ExportProfile(path) => WorkerCommand::ExportProfile(path),
+    })
+}
+
+/// Événement du worker → événement de l'API (les adresses restent ici).
+fn to_api(event: WorkerEvent, shared: &mut Shared) -> Event {
+    match event {
+        WorkerEvent::Searching => Event::Searching,
+        WorkerEvent::Connected { name, read_only } => Event::Connected { name, read_only },
+        WorkerEvent::State(s) => Event::State(s),
+        WorkerEvent::Equalizer(eq) => Event::Equalizer(eq),
+        WorkerEvent::Connections(devices) => {
+            let list = devices
+                .iter()
+                .map(|d| ConnectionInfo {
+                    name: d.name.clone(),
+                    connected: d.connected,
+                    this_device: d.this_device,
+                })
+                .collect();
+            shared.devices = devices;
+            Event::Connections(list)
+        }
+        WorkerEvent::Info(info) => Event::Info(info),
+        WorkerEvent::Exported(r) => Event::Exported(r),
+        WorkerEvent::Lost(reason) => Event::Lost(reason),
+        WorkerEvent::Refused(reason) => Event::Refused(reason),
+        WorkerEvent::SceneApplied(report) => Event::SceneApplied(report),
+    }
+}
+
+fn unix_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs())
+}
+
+fn load_battery_log() -> BatteryLog {
+    paths::battery_file()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .map(|text| BatteryLog::parse(&text, unix_now()))
+        .unwrap_or_default()
+}
+
+fn store_battery_log(log: &BatteryLog) {
+    let Some(path) = paths::battery_file() else {
+        return;
+    };
+    if let Err(e) = path
+        .parent()
+        .map_or(Ok(()), std::fs::create_dir_all)
+        .and_then(|()| std::fs::write(&path, log.to_text()))
+    {
+        tracing::warn!(%e, "enregistrement de l'historique de la batterie");
+    }
+}
+
+fn toast(alert: Option<Alert>) {
+    if let Some(a) = alert {
+        momentum_service::desktop::show_toast(&a.title, &a.body);
+    }
+}
+
+/// Lance le worker (seul propriétaire de la connexion) ; ses événements
+/// arrivent sur le récepteur rendu.
+pub fn spawn_worker(commands: Receiver<WorkerCommand>) -> anyhow::Result<Receiver<WorkerEvent>> {
+    let (events_tx, events_rx) = mpsc::channel::<WorkerEvent>();
+    std::thread::Builder::new()
+        .name("casque".into())
+        .spawn(move || {
+            worker::run(commands, |event| {
+                let _ = events_tx.send(event);
+            });
+        })
+        .context("lancement du thread casque")?;
+    Ok(events_rx)
+}
+
+/// Boucle des événements du worker : historique de la batterie,
+/// notifications, état partagé, puis `publish` pour le transport. Revient
+/// quand le worker s'arrête.
+pub fn pump(
+    events: Receiver<WorkerEvent>,
+    shared: &Mutex<Shared>,
+    mut publish: impl FnMut(&Event),
+) {
+    let mut battery_log = load_battery_log();
+    let mut alerts = AlertTracker::new();
+    for event in events {
+        match &event {
+            WorkerEvent::Connected { name, .. } => {
+                tracing::info!(%name, "casque connecté");
+                toast(alerts.on_connected(name));
+            }
+            WorkerEvent::State(s) => {
+                toast(alerts.on_battery(s.battery));
+                if battery_log.record(unix_now(), s.battery) {
+                    store_battery_log(&battery_log);
+                }
+            }
+            WorkerEvent::Lost(reason) => {
+                tracing::warn!(%reason, "connexion perdue");
+                toast(alerts.on_lost());
+                if battery_log.interrupt(unix_now()) {
+                    store_battery_log(&battery_log);
+                }
+            }
+            WorkerEvent::Refused(reason) => tracing::warn!(%reason, "réglage refusé"),
+            _ => {}
+        }
+        let api_event = {
+            let Ok(mut s) = shared.lock() else { break };
+            let api_event = to_api(event, &mut s);
+            s.snapshot.apply(&api_event);
+            api_event
+        };
+        publish(&api_event);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use momentum_core::device::{HeadsetState, NoiseModeRequest};
+
+    fn connected() -> Shared {
+        let mut s = Shared::default();
+        s.snapshot.device_name = Some("MOMENTUM 5".into());
+        s.snapshot.state = Some(HeadsetState::default());
+        s
+    }
+
+    #[test]
+    fn commands_need_a_writable_headset() {
+        let absent = Shared::default();
+        assert!(to_worker(Command::SetAntiWind(true), &absent).is_err());
+        let mut read_only = connected();
+        read_only.snapshot.read_only = Some("autre modèle".into());
+        assert!(to_worker(Command::SetAntiWind(true), &read_only).is_err());
+        assert!(matches!(
+            to_worker(Command::SetMode(NoiseModeRequest::Off), &connected()),
+            Ok(WorkerCommand::SetMode(NoiseModeRequest::Off))
+        ));
+    }
+
+    #[test]
+    fn connection_toggle_checks_the_name_at_that_position() {
+        let mut s = connected();
+        s.devices = vec![Connection::synthetic(1, "Téléphone", true)];
+        assert!(
+            to_worker(
+                Command::ToggleConnection {
+                    index: 0,
+                    name: "Tablette".into(),
+                    connect: false
+                },
+                &s
+            )
+            .is_err()
+        );
+        assert!(
+            to_worker(
+                Command::ToggleConnection {
+                    index: 0,
+                    name: "Téléphone".into(),
+                    connect: false
+                },
+                &s
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn level_is_capped_at_100() {
+        assert!(matches!(
+            to_worker(Command::SetLevel(250), &connected()),
+            Ok(WorkerCommand::SetLevel(100))
+        ));
+    }
+}

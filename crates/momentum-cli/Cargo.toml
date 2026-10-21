@@ -1,0 +1,30 @@
+[package]
+name = "momentum-cli"
+description = "Outils en ligne de commande : ctl et probe"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+momentum-core.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+momentum-client.workspace = true
+windows.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+momentum-client.workspace = true
+
+[[bin]]
+name = "ctl"
+path = "src/bin/ctl.rs"
+
+[[bin]]
+name = "probe"
+path = "src/bin/probe.rs"

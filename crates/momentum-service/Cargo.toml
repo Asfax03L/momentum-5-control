@@ -1,0 +1,19 @@
+[package]
+name = "momentum-service"
+description = "Service applicatif : seul propriétaire de la connexion au casque, canal local, intégration système"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+momentum-core.workspace = true
+tracing.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+dbus.workspace = true
+libc.workspace = true

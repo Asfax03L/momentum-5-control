@@ -1,0 +1,21 @@
+[package]
+name = "momentum-core"
+description = "Protocole GAIA, casque, scènes et modèles d'affichage (sans interface)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+tracing.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+bluer.workspace = true
+tokio.workspace = true
+futures.workspace = true

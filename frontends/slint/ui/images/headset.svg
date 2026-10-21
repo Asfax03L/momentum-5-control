@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 400">
+  <!-- Illustration originale d'OpenHeadset Control : casque circum-auriculaire
+       générique vu de trois quarts (ce n'est pas une photo du produit).
+       Licence du dépôt : MIT OU Apache-2.0. -->
+  <defs>
+    <linearGradient id="band" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a556d"/>
+      <stop offset="0.45" stop-color="#232a3a"/>
+      <stop offset="1" stop-color="#0d1119"/>
+    </linearGradient>
+    <linearGradient id="bandPad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a3243"/>
+      <stop offset="1" stop-color="#121722"/>
+    </linearGradient>
+    <linearGradient id="yoke" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#151a25"/>
+      <stop offset="0.5" stop-color="#3a4357"/>
+      <stop offset="1" stop-color="#151a25"/>
+    </linearGradient>
+    <radialGradient id="cupFront" cx="0.38" cy="0.32" r="0.85">
+      <stop offset="0" stop-color="#4b556c"/>
+      <stop offset="0.35" stop-color="#262d3d"/>
+      <stop offset="0.8" stop-color="#11151e"/>
+      <stop offset="1" stop-color="#090c12"/>
+    </radialGradient>
+    <radialGradient id="cupBack" cx="0.6" cy="0.35" r="0.9">
+      <stop offset="0" stop-color="#2d3445"/>
+      <stop offset="1" stop-color="#0a0d14"/>
+    </radialGradient>
+    <radialGradient id="cushion" cx="0.5" cy="0.45" r="0.6">
+      <stop offset="0" stop-color="#05070b"/>
+      <stop offset="0.62" stop-color="#151a25"/>
+      <stop offset="0.85" stop-color="#2a3142"/>
+      <stop offset="1" stop-color="#191e2a"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#5aa2ff" stop-opacity="0"/>
+      <stop offset="0.55" stop-color="#5aa2ff" stop-opacity="0.15"/>
+      <stop offset="1" stop-color="#7fb6ff" stop-opacity="0.95"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#000000" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Ombre au sol -->
+  <ellipse cx="215" cy="378" rx="165" ry="16" fill="url(#shadow)"/>
+
+  <!-- Arceau -->
+  <path d="M88 232 C 70 112, 160 34, 222 34 C 290 34, 362 104, 344 232"
+        fill="none" stroke="url(#band)" stroke-width="30" stroke-linecap="round"/>
+  <path d="M104 214 C 98 126, 168 62, 222 62 C 278 62, 336 120, 330 214"
+        fill="none" stroke="url(#bandPad)" stroke-width="14" stroke-linecap="round"/>
+  <path d="M96 210 C 84 118, 162 44, 222 44 C 286 44, 352 108, 338 210"
+        fill="none" stroke="#7fb6ff" stroke-opacity="0.35" stroke-width="1.6"/>
+
+  <!-- Fourches -->
+  <rect x="74" y="206" width="26" height="70" rx="11" fill="url(#yoke)"/>
+  <rect x="330" y="206" width="28" height="76" rx="12" fill="url(#yoke)"/>
+
+  <!-- Oreillette arrière (gauche) : coussinet visible -->
+  <ellipse cx="92" cy="290" rx="62" ry="84" fill="url(#cupBack)"/>
+  <ellipse cx="104" cy="290" rx="46" ry="68" fill="url(#cushion)"/>
+  <ellipse cx="106" cy="290" rx="24" ry="40" fill="#06080c"/>
+
+  <!-- Oreillette avant (droite) : coque -->
+  <ellipse cx="320" cy="296" rx="78" ry="98" fill="url(#cupFront)"/>
+  <ellipse cx="320" cy="296" rx="78" ry="98" fill="none" stroke="url(#rim)" stroke-width="3"/>
+  <ellipse cx="312" cy="292" rx="58" ry="76" fill="#121722" stroke="#2a3346" stroke-width="2"/>
+  <ellipse cx="300" cy="262" rx="40" ry="38" fill="url(#sheen)"/>
+
+  <!-- Repère discret sur la coque -->
+  <path d="M300 304 V294 A12 12 0 0 1 324 294 V304" fill="none"
+        stroke="#8a98b6" stroke-width="3.2" stroke-linecap="round"/>
+</svg>

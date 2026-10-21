@@ -1,0 +1,14 @@
+[Unit]
+Description=OpenHeadset Control — service du casque (seul propriétaire de la connexion)
+Documentation=https://github.com/Asfax03L/openheadset-control/blob/main/docs/ARCHITECTURE.md
+After=bluetooth.target
+
+[Service]
+Type=dbus
+BusName=org.openheadset.Control
+ExecStart=%h/.local/bin/momentum-daemon
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

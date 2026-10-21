@@ -1,0 +1,28 @@
+[package]
+name = "momentum-kirigami"
+description = "Client Qt 6 / Kirigami (KDE) pour Linux"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "momentum-kirigami"
+path = "src/main.rs"
+
+[dependencies]
+momentum-core.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+momentum-client.workspace = true
+zbus.workspace = true
+ksni = { version = "0.3.7", default-features = false, features = ["async-io", "blocking"] }
+cxx = "1.0.205"
+cxx-qt = "0.10.0"
+cxx-qt-lib = { version = "0.10.0", features = ["qt_gui", "qt_qml"] }
+
+[target.'cfg(target_os = "linux")'.build-dependencies]
+cxx-qt-build = { version = "0.10.0", features = ["link_qt_object_files"] }

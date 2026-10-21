@@ -1,0 +1,25 @@
+[package]
+name = "momentum-winui"
+description = "Client WinUI 3 (windows-reactor) du service OpenHeadset Control, pour Windows"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "momentum-winui"
+path = "src/main.rs"
+
+[dependencies]
+momentum-core.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+momentum-client.workspace = true
+momentum-service.workspace = true
+tray-icon.workspace = true
+windows.workspace = true
+windows-reactor = "0.100.0"
+
+[build-dependencies]
+embed-resource.workspace = true

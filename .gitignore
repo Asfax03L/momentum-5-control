@@ -1,0 +1,4 @@
+/target
+
+# Rapports du probe : noms d'appareils personnels, ne pas versionner.
+rapport*.txt

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Logo d'OpenHeadset Control : casque et ondes sonores sur fond bleu nuit.
+       Création originale du projet, licence MIT OU Apache-2.0. -->
+  <defs>
+    <linearGradient id="fond" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a1633"/>
+      <stop offset="0.55" stop-color="#123a8c"/>
+      <stop offset="1" stop-color="#2f7bff"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.62" r="0.5">
+      <stop offset="0" stop-color="#5aa2ff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#5aa2ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="reflet" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="coque" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#d6e6ff"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Fond -->
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#fond)"/>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#halo)"/>
+  <rect x="16" y="16" width="480" height="240" rx="112" fill="url(#reflet)"/>
+
+  <!-- Arceau -->
+  <path d="M120 318 V286 A136 136 0 0 1 392 286 V318" fill="none"
+        stroke="#ffffff" stroke-width="34" stroke-linecap="round"/>
+
+  <!-- Oreillettes -->
+  <rect x="92" y="286" width="84" height="138" rx="34" fill="url(#coque)"/>
+  <rect x="336" y="286" width="84" height="138" rx="34" fill="url(#coque)"/>
+  <rect x="148" y="304" width="16" height="102" rx="8" fill="#2f7bff" opacity="0.55"/>
+  <rect x="348" y="304" width="16" height="102" rx="8" fill="#2f7bff" opacity="0.55"/>
+
+  <!-- Ondes sonores -->
+  <g stroke="#8cc8ff" stroke-width="20" stroke-linecap="round">
+    <line x1="216" y1="338" x2="216" y2="374"/>
+    <line x1="256" y1="312" x2="256" y2="400"/>
+    <line x1="296" y1="338" x2="296" y2="374"/>
+  </g>
+</svg>

@@ -1,0 +1,66 @@
+name: Publication
+
+# Pousser une étiquette « v0.8.0 » (par exemple) compile la version
+# release, vérifie les tests et publie deux archives prêtes à installer sans
+# Rust : Windows (WinUI 3, service, icône Slint, ctl, probe et
+# installer.ps1) et Linux (client KDE, service, icône Slint, ctl et
+# installer-linux.sh).
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test
+      - run: cargo build --release --bins
+      - name: Archive
+        shell: pwsh
+        run: |
+          $dir = "openheadset-control-${{ github.ref_name }}-windows-x86_64"
+          New-Item -ItemType Directory $dir | Out-Null
+          Copy-Item target/release/momentum-winui.exe, target/release/momentum-daemon.exe, target/release/momentum-tray.exe, target/release/ctl.exe, target/release/probe.exe $dir
+          Copy-Item scripts/installer.ps1, README.md, LICENSE-MIT, LICENSE-APACHE $dir
+          Compress-Archive -Path $dir -DestinationPath "$dir.zip"
+          (Get-FileHash "$dir.zip" -Algorithm SHA256).Hash | Out-File -Encoding ascii "$dir.zip.sha256"
+      - name: Publication GitHub
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $dir = "openheadset-control-${{ github.ref_name }}-windows-x86_64"
+          gh release create "${{ github.ref_name }}" "$dir.zip" "$dir.zip.sha256" `
+            --title "OpenHeadset Control ${{ github.ref_name }}" `
+            --notes "Windows : décompresser, puis lancer installer.ps1 (clic droit > Exécuter avec PowerShell) ; interface WinUI 3 par défaut (Windows App Runtime 2 requis), ou -Interface slint. Linux : décompresser, puis ./installer-linux.sh (Qt 6 et Kirigami requis pour le client KDE). Projet non officiel. Exécutables non signés : Windows SmartScreen peut demander une confirmation."
+
+  linux:
+    needs: release
+    runs-on: ubuntu-24.04
+    env:
+      QMAKE: /usr/bin/qmake6
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet
+      - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config libgtk-3-dev libxdo-dev libxkbcommon-dev libfontconfig1-dev libwayland-dev qt6-base-dev qt6-declarative-dev qmake6
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release -p momentum-cli -p momentum-daemon -p momentum-tray -p momentum-kirigami
+      - name: Archive et publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          dir="openheadset-control-${{ github.ref_name }}-linux-x86_64"
+          mkdir -p "$dir/assets"
+          cp target/release/ctl target/release/momentum-daemon target/release/momentum-tray target/release/momentum-kirigami "$dir/"
+          cp -r assets/linux assets/logo "$dir/assets/"
+          cp scripts/installer-linux.sh README.md LICENSE-MIT LICENSE-APACHE "$dir/"
+          tar -czf "$dir.tar.gz" "$dir"
+          sha256sum "$dir.tar.gz" | cut -d' ' -f1 > "$dir.tar.gz.sha256"
+          gh release upload "${{ github.ref_name }}" "$dir.tar.gz" "$dir.tar.gz.sha256"
