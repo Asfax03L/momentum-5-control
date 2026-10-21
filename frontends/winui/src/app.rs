@@ -14,6 +14,7 @@ use momentum_core::diagnostic::{self, DiagnosticInput};
 use momentum_core::hotkeys::{self, HotkeyAction};
 use momentum_core::paths;
 use momentum_core::presets::{self, AbCompare, Preset};
+use momentum_core::quick_panel::PanelPrefs;
 use momentum_core::scenes::Scene;
 use momentum_core::tray_menu::{self, MenuAction, MenuContext, MenuEntry};
 use momentum_core::ui::{IconKind, band_label, icon_rgba, tooltip};
@@ -210,6 +211,11 @@ enum Msg {
     ToggleAb,
     ExportProfile,
     HotkeyText(usize, String),
+    /// Contenu du panneau rapide : bruit, curseur, profil.
+    PanelNoise(bool),
+    PanelLevel(bool),
+    PanelProfile(bool),
+    PanelScene(String, bool),
     SaveHotkeys,
     ToggleConnection(usize),
     Confirmed,
@@ -279,6 +285,10 @@ struct Root {
     /// dernier enregistrement.
     hotkey_rows: Vec<(HotkeyAction, String)>,
     hotkey_notice: Option<String>,
+    /// Contenu du panneau rapide (`panneau.txt`) et résultat du dernier
+    /// enregistrement.
+    panel_prefs: PanelPrefs,
+    panel_notice: Option<String>,
     /// Raccourcis invalides ou déjà pris par une autre application.
     hotkey_problem: Option<String>,
     start_hidden: bool,
@@ -395,6 +405,21 @@ impl Root {
     fn reload_hotkey_rows(&mut self) {
         let names: Vec<String> = self.scenes.iter().map(|s| s.name.clone()).collect();
         self.hotkey_rows = hotkeys::editor_rows(&paths::load_hotkey_config(), &names);
+    }
+
+    /// Écrit `panneau.txt` (pris en compte à la prochaine ouverture du
+    /// panneau).
+    fn store_panel_prefs(&mut self) {
+        let written = paths::panel_file()
+            .ok_or_else(|| "dossier des données introuvable".to_string())
+            .and_then(|path| {
+                paths::write_user_file(&path, &self.panel_prefs.to_text())
+                    .map_err(|e| e.to_string())
+            });
+        self.panel_notice = Some(match written {
+            Ok(()) => "Panneau enregistré : pris en compte à sa prochaine ouverture.".to_string(),
+            Err(e) => format!("Panneau non enregistré : {e}."),
+        });
     }
 
     /// Écrit `raccourcis.txt` puis réenregistre les raccourcis.
@@ -799,6 +824,8 @@ impl Component for Root {
             hotkeys: hotkey_thread,
             hotkey_rows: Vec::new(),
             hotkey_notice: None,
+            panel_prefs: paths::load_panel_prefs(),
+            panel_notice: None,
             hotkey_problem: (!errors.is_empty())
                 .then(|| format!("Raccourcis clavier : {}", errors.join(" ; "))),
             start_hidden,
@@ -1213,6 +1240,25 @@ impl Component for Root {
                 }
             }
             Msg::SaveHotkeys => self.save_hotkeys(),
+            Msg::PanelNoise(on) => {
+                self.panel_prefs.noise = on;
+                self.store_panel_prefs();
+            }
+            Msg::PanelLevel(on) => {
+                self.panel_prefs.level = on;
+                self.store_panel_prefs();
+            }
+            Msg::PanelProfile(on) => {
+                self.panel_prefs.profile = on;
+                self.store_panel_prefs();
+            }
+            Msg::PanelScene(name, shown) => {
+                let all: Vec<String> = self.scenes.iter().map(|s| s.name.clone()).collect();
+                match self.panel_prefs.set_scene(&all, &name, shown) {
+                    Ok(()) => self.store_panel_prefs(),
+                    Err(reason) => self.panel_notice = Some(reason),
+                }
+            }
             Msg::ExportProfile => match paths::export_file("momentum-profil", "json", unix_now()) {
                 Some(path) => self.send(Command::ExportProfile(path)),
                 None => {
@@ -1974,6 +2020,58 @@ impl Root {
                         )),
                 )
             });
+        let all_scenes: Vec<String> = self.scenes.iter().map(|s| s.name.clone()).collect();
+        let shown = self.panel_prefs.shown_scenes(&all_scenes);
+        let scene_boxes = all_scenes.iter().map(|name| {
+            let n = name.clone();
+            KeyedView::new(
+                format!("panneau-{name}"),
+                CheckBox::new()
+                    .is_checked(shown.contains(name))
+                    .on_is_checked_changed(
+                        context.callback(move |on| Msg::PanelScene(n.clone(), on)),
+                    )
+                    .content(name.clone()),
+            )
+        });
+        let panel = card(
+            "Panneau rapide (clic sur l'icône)",
+            StackPanel::new().spacing(8.0).children((
+                switch_row(
+                    "Contrôle du bruit",
+                    "",
+                    self.panel_prefs.noise,
+                    true,
+                    context.callback(Msg::PanelNoise),
+                ),
+                switch_row(
+                    "Curseur ANC ↔ transparence",
+                    "",
+                    self.panel_prefs.level,
+                    true,
+                    context.callback(Msg::PanelLevel),
+                ),
+                switch_row(
+                    "Profil personnalisé",
+                    "",
+                    self.panel_prefs.profile,
+                    true,
+                    context.callback(Msg::PanelProfile),
+                ),
+                TextBlock::new().text(format!(
+                    "Scènes montrées ({} au plus) :",
+                    momentum_core::quick_panel::MAX_PANEL_SCENES
+                )),
+                StackPanel::new().spacing(4.0).keyed_children(scene_boxes),
+                TextBlock::new()
+                    .text(self.panel_notice.clone().unwrap_or_else(|| {
+                        "Anti-vent, batterie et « Ouvrir » sont toujours affichés.".to_string()
+                    }))
+                    .font_size(12.0)
+                    .opacity(0.7)
+                    .text_wrapping(TextWrapping::Wrap),
+            )),
+        );
         let shortcuts = card(
             "Raccourcis clavier",
             StackPanel::new().spacing(8.0).children((
@@ -2001,6 +2099,7 @@ impl Root {
                     .text_wrapping(TextWrapping::Wrap)
                     .opacity(0.8),
                 app,
+                panel,
                 shortcuts,
             ));
         }
@@ -2107,6 +2206,7 @@ impl Root {
                 )),
             ),
             app,
+            panel,
             shortcuts,
         ))
     }
