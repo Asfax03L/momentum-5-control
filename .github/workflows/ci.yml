@@ -6,6 +6,13 @@ on:
   pull_request:
 
 jobs:
+  # Rien de personnel ni de confidentiel dans ce dépôt public.
+  confidentialite:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sh scripts/verifier-confidentialite.sh
+
   check:
     runs-on: windows-latest
     steps:
