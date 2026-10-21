@@ -7,6 +7,17 @@ depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
 
 ## Non publié
 
+### Widget Plasma
+- `plasma/org.openheadset.control.plasmoid` : widget Plasma 6 en QML,
+  client de l'API D-Bus du service : batterie, mode de réduction de bruit,
+  curseur ANC ↔ transparence, anti-vent, audio spatial, ouverture de la
+  fenêtre. Ne démarre pas le service de lui-même. Installé par
+  `installer-linux.sh`, livré dans l'archive Linux.
+- Test de contrat : les commandes JSON écrites par le widget sont lues par
+  `momentum_client::Command`.
+- Essayé sur Bazzite 44 (Plasma 6.7) avec le M5 : état lu, anti-vent
+  inversé puis remis par le même appel `Command` (relu).
+
 ### Sécurité du protocole
 - Écritures réservées au MOMENTUM 5 **en micrologiciel 6.21.5**, le seul
   sur lequel elles ont été vérifiées : à la connexion, le micrologiciel

@@ -177,6 +177,21 @@ fictives).
   simulé, sans service ni Bluetooth (bandeau « Démonstration : données
   simulées » permanent ; aucun fichier de l'utilisateur n'est modifié).
 
+### Widget Plasma
+
+Sous KDE Plasma, un widget à poser sur le panneau ou le bureau (« Ajouter
+des composants graphiques » > OpenHeadset Control) : batterie, mode de
+réduction de bruit, curseur ANC ↔ transparence, anti-vent, audio spatial et
+bouton d'ouverture de la fenêtre. C'est un client de l'API D-Bus du service
+(`org.openheadset.Control1`), en QML seul : il n'envoie que les commandes de
+l'API, que le service vérifie, et n'affiche que l'état relu. Il ne démarre
+pas le service de lui-même (bouton « Démarrer le service »). Installé par
+`installer-linux.sh` ; avec le Flatpak, l'installer depuis l'archive :
+
+```bash
+kpackagetool6 --type Plasma/Applet --install plasma/org.openheadset.control.plasmoid
+```
+
 ### Icône de la zone de notification
 
 - **Clic gauche** : sous Windows, panneau rapide près de l'horloge

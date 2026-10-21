@@ -210,6 +210,35 @@ mod tests {
         assert_eq!(serde_json::from_str::<Event>(&json).unwrap(), event);
     }
 
+    /// Commandes écrites telles quelles par le widget Plasma
+    /// (`plasma/…/main.qml`) : elles doivent rester lisibles par le service.
+    #[test]
+    fn plasma_widget_commands_are_valid() {
+        for (json, command) in [
+            (
+                r#"{"SetMode":"Adaptive"}"#,
+                Command::SetMode(NoiseModeRequest::Adaptive),
+            ),
+            (
+                r#"{"SetMode":"Custom"}"#,
+                Command::SetMode(NoiseModeRequest::Custom),
+            ),
+            (
+                r#"{"SetMode":"Off"}"#,
+                Command::SetMode(NoiseModeRequest::Off),
+            ),
+            (r#"{"SetLevel":35}"#, Command::SetLevel(35)),
+            (r#"{"SetAntiWind":true}"#, Command::SetAntiWind(true)),
+            (r#"{"SetSpatial":false}"#, Command::SetSpatial(false)),
+        ] {
+            assert_eq!(
+                serde_json::from_str::<Command>(json).unwrap(),
+                command,
+                "{json}"
+            );
+        }
+    }
+
     #[test]
     fn snapshot_follows_events() {
         let mut s = Snapshot::default();
