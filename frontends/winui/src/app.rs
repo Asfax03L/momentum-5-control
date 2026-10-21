@@ -14,6 +14,8 @@ use momentum_core::diagnostic::{self, DiagnosticInput};
 use momentum_core::hotkeys::{self, HotkeyAction};
 use momentum_core::paths;
 use momentum_core::presets::{self, AbCompare, Preset};
+use momentum_core::quick_panel::PanelPrefs;
+use momentum_core::scene_editor::{self, SceneEditor};
 use momentum_core::scenes::Scene;
 use momentum_core::tray_menu::{self, MenuAction, MenuContext, MenuEntry};
 use momentum_core::ui::{IconKind, band_label, icon_rgba, tooltip};
@@ -165,6 +167,18 @@ pub(crate) enum Incoming {
     Error(String),
 }
 
+/// Liste déroulante du formulaire de scène.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SceneField {
+    Sound,
+    Spatial,
+    Noise,
+    AntiWind,
+    Touch,
+    Equalizer,
+    Bass,
+}
+
 /// Action à confirmer avant l'envoi.
 #[derive(Clone, Debug, PartialEq)]
 enum Confirm {
@@ -210,6 +224,11 @@ enum Msg {
     ToggleAb,
     ExportProfile,
     HotkeyText(usize, String),
+    /// Contenu du panneau rapide : bruit, curseur, profil.
+    PanelNoise(bool),
+    PanelLevel(bool),
+    PanelProfile(bool),
+    PanelScene(String, bool),
     SaveHotkeys,
     ToggleConnection(usize),
     Confirmed,
@@ -223,6 +242,18 @@ enum Msg {
     Autostart(bool),
     ApplyScene(usize),
     ReloadScenes,
+    /// Éditeur de scènes.
+    SceneSelect(Option<usize>),
+    SceneNew,
+    SceneDuplicate,
+    SceneDelete,
+    SceneMove(isize),
+    SceneName(String),
+    SceneLevel(String),
+    /// Liste déroulante du formulaire (champ, choix).
+    SceneChoice(SceneField, Option<usize>),
+    SceneSave,
+    SceneDiscard,
     EditScenes,
     BatterySpan(Option<usize>),
     ReadWindowsAudio,
@@ -279,12 +310,21 @@ struct Root {
     /// dernier enregistrement.
     hotkey_rows: Vec<(HotkeyAction, String)>,
     hotkey_notice: Option<String>,
+    /// Contenu du panneau rapide (`panneau.txt`) et résultat du dernier
+    /// enregistrement.
+    panel_prefs: PanelPrefs,
+    panel_notice: Option<String>,
     /// Raccourcis invalides ou déjà pris par une autre application.
     hotkey_problem: Option<String>,
     start_hidden: bool,
     autostart: bool,
     scenes: Vec<Scene>,
     scene_problems: Vec<String>,
+    /// Éditeur : brouillon de `scenes.txt`, formulaire affiché (gardé tel
+    /// que saisi, même invalide) et résultat du dernier enregistrement.
+    scene_editor: SceneEditor,
+    scene_form: viewmodel::SceneForm,
+    scene_notice: Option<String>,
     /// Compte rendu de la dernière scène et réussite complète.
     scene_result: Option<(String, bool)>,
     battery_span: usize,
@@ -389,12 +429,74 @@ impl Root {
         self.scenes = scenes;
         self.scene_problems = errors;
         self.reload_hotkey_rows();
+        // Une modification en cours dans l'éditeur n'est pas perdue.
+        if !self.scene_editor.dirty() {
+            self.reload_scene_editor();
+        }
+    }
+
+    /// Rouvre l'éditeur sur `scenes.txt` (modifications abandonnées).
+    fn reload_scene_editor(&mut self) {
+        let text = paths::scenes_file().and_then(|p| std::fs::read_to_string(p).ok());
+        let selected = self.scene_editor.selected();
+        self.scene_editor = SceneEditor::load(text, paths::scene_presets());
+        self.scene_editor
+            .select(selected.min(self.scene_editor.names().len().saturating_sub(1)));
+        self.scene_form = self.scene_editor.form();
+    }
+
+    /// Le formulaire a changé : le brouillon suit s'il est valide.
+    fn scene_form_changed(&mut self) {
+        self.scene_editor.set_form(&self.scene_form);
+        self.scene_notice = None;
+    }
+
+    /// La liste a changé : le formulaire montre la scène choisie.
+    fn scene_list_changed(&mut self) {
+        self.scene_form = self.scene_editor.form();
+        self.scene_notice = None;
+    }
+
+    /// Enregistre le brouillon ; raccourcis et panneau suivent les
+    /// renommages.
+    fn save_scenes(&mut self) {
+        match scene_editor::save(&self.scene_editor) {
+            Ok((message, hotkeys_changed)) => {
+                if hotkeys_changed {
+                    if let Some(thread) = self.hotkeys.take() {
+                        thread.stop();
+                    }
+                    let (thread, _) = register_hotkeys(&paths::load_hotkey_config());
+                    self.hotkeys = thread;
+                }
+                self.panel_prefs = paths::load_panel_prefs();
+                self.reload_scene_editor();
+                self.reload_scenes();
+                self.scene_notice = Some(message);
+            }
+            Err(reason) => self.scene_notice = Some(format!("Non enregistré : {reason}")),
+        }
     }
 
     /// Remplit l'éditeur des raccourcis depuis `raccourcis.txt`.
     fn reload_hotkey_rows(&mut self) {
         let names: Vec<String> = self.scenes.iter().map(|s| s.name.clone()).collect();
         self.hotkey_rows = hotkeys::editor_rows(&paths::load_hotkey_config(), &names);
+    }
+
+    /// Écrit `panneau.txt` (pris en compte à la prochaine ouverture du
+    /// panneau).
+    fn store_panel_prefs(&mut self) {
+        let written = paths::panel_file()
+            .ok_or_else(|| "dossier des données introuvable".to_string())
+            .and_then(|path| {
+                paths::write_user_file(&path, &self.panel_prefs.to_text())
+                    .map_err(|e| e.to_string())
+            });
+        self.panel_notice = Some(match written {
+            Ok(()) => "Panneau enregistré : pris en compte à sa prochaine ouverture.".to_string(),
+            Err(e) => format!("Panneau non enregistré : {e}."),
+        });
     }
 
     /// Écrit `raccourcis.txt` puis réenregistre les raccourcis.
@@ -799,12 +901,17 @@ impl Component for Root {
             hotkeys: hotkey_thread,
             hotkey_rows: Vec::new(),
             hotkey_notice: None,
+            panel_prefs: paths::load_panel_prefs(),
+            panel_notice: None,
             hotkey_problem: (!errors.is_empty())
                 .then(|| format!("Raccourcis clavier : {}", errors.join(" ; "))),
             start_hidden,
             autostart: Autostart::named(AUTOSTART_VALUE).is_enabled(),
             scenes: Vec::new(),
             scene_problems: Vec::new(),
+            scene_editor: SceneEditor::default(),
+            scene_form: viewmodel::SceneForm::default(),
+            scene_notice: None,
             scene_result: None,
             battery_span: 0,
             battery: None,
@@ -894,6 +1001,64 @@ impl Component for Root {
                 }
             }
             Msg::ReloadScenes => self.reload_scenes(),
+            Msg::SceneSelect(Some(i)) => {
+                if i != self.scene_editor.selected() {
+                    self.scene_editor.select(i);
+                    self.scene_list_changed();
+                }
+            }
+            Msg::SceneSelect(None) => {}
+            Msg::SceneNew => {
+                self.scene_editor.new_scene();
+                self.scene_list_changed();
+            }
+            Msg::SceneDuplicate => {
+                self.scene_editor.duplicate();
+                self.scene_list_changed();
+            }
+            Msg::SceneDelete => {
+                self.scene_editor.delete();
+                self.scene_list_changed();
+            }
+            Msg::SceneMove(delta) => {
+                self.scene_editor.move_by(delta);
+                self.scene_list_changed();
+            }
+            Msg::SceneName(text) => {
+                if text != self.scene_form.name {
+                    self.scene_form.name = text;
+                    self.scene_form_changed();
+                }
+            }
+            Msg::SceneLevel(text) => {
+                if text != self.scene_form.level {
+                    self.scene_form.level = text;
+                    self.scene_form_changed();
+                }
+            }
+            Msg::SceneChoice(field, Some(i)) => {
+                let value = i32::try_from(i).unwrap_or(0);
+                let f = &mut self.scene_form;
+                let slot = match field {
+                    SceneField::Sound => &mut f.sound,
+                    SceneField::Spatial => &mut f.spatial,
+                    SceneField::Noise => &mut f.noise,
+                    SceneField::AntiWind => &mut f.anti_wind,
+                    SceneField::Touch => &mut f.touch,
+                    SceneField::Equalizer => &mut f.equalizer,
+                    SceneField::Bass => &mut f.bass_boost,
+                };
+                if *slot != value {
+                    *slot = value;
+                    self.scene_form_changed();
+                }
+            }
+            Msg::SceneChoice(_, None) => {}
+            Msg::SceneSave => self.save_scenes(),
+            Msg::SceneDiscard => {
+                self.reload_scene_editor();
+                self.scene_notice = Some("Modifications abandonnées.".to_string());
+            }
             Msg::EditScenes => {
                 // Éditeur associé aux .txt (fichier créé s'il manque).
                 self.reload_scenes();
@@ -1213,6 +1378,25 @@ impl Component for Root {
                 }
             }
             Msg::SaveHotkeys => self.save_hotkeys(),
+            Msg::PanelNoise(on) => {
+                self.panel_prefs.noise = on;
+                self.store_panel_prefs();
+            }
+            Msg::PanelLevel(on) => {
+                self.panel_prefs.level = on;
+                self.store_panel_prefs();
+            }
+            Msg::PanelProfile(on) => {
+                self.panel_prefs.profile = on;
+                self.store_panel_prefs();
+            }
+            Msg::PanelScene(name, shown) => {
+                let all: Vec<String> = self.scenes.iter().map(|s| s.name.clone()).collect();
+                match self.panel_prefs.set_scene(&all, &name, shown) {
+                    Ok(()) => self.store_panel_prefs(),
+                    Err(reason) => self.panel_notice = Some(reason),
+                }
+            }
             Msg::ExportProfile => match paths::export_file("momentum-profil", "json", unix_now()) {
                 Some(path) => self.send(Command::ExportProfile(path)),
                 None => {
@@ -1974,6 +2158,58 @@ impl Root {
                         )),
                 )
             });
+        let all_scenes: Vec<String> = self.scenes.iter().map(|s| s.name.clone()).collect();
+        let shown = self.panel_prefs.shown_scenes(&all_scenes);
+        let scene_boxes = all_scenes.iter().map(|name| {
+            let n = name.clone();
+            KeyedView::new(
+                format!("panneau-{name}"),
+                CheckBox::new()
+                    .is_checked(shown.contains(name))
+                    .on_is_checked_changed(
+                        context.callback(move |on| Msg::PanelScene(n.clone(), on)),
+                    )
+                    .content(name.clone()),
+            )
+        });
+        let panel = card(
+            "Panneau rapide (clic sur l'icône)",
+            StackPanel::new().spacing(8.0).children((
+                switch_row(
+                    "Contrôle du bruit",
+                    "",
+                    self.panel_prefs.noise,
+                    true,
+                    context.callback(Msg::PanelNoise),
+                ),
+                switch_row(
+                    "Curseur ANC ↔ transparence",
+                    "",
+                    self.panel_prefs.level,
+                    true,
+                    context.callback(Msg::PanelLevel),
+                ),
+                switch_row(
+                    "Profil personnalisé",
+                    "",
+                    self.panel_prefs.profile,
+                    true,
+                    context.callback(Msg::PanelProfile),
+                ),
+                TextBlock::new().text(format!(
+                    "Scènes montrées ({} au plus) :",
+                    momentum_core::quick_panel::MAX_PANEL_SCENES
+                )),
+                StackPanel::new().spacing(4.0).keyed_children(scene_boxes),
+                TextBlock::new()
+                    .text(self.panel_notice.clone().unwrap_or_else(|| {
+                        "Anti-vent, batterie et « Ouvrir » sont toujours affichés.".to_string()
+                    }))
+                    .font_size(12.0)
+                    .opacity(0.7)
+                    .text_wrapping(TextWrapping::Wrap),
+            )),
+        );
         let shortcuts = card(
             "Raccourcis clavier",
             StackPanel::new().spacing(8.0).children((
@@ -2001,6 +2237,7 @@ impl Root {
                     .text_wrapping(TextWrapping::Wrap)
                     .opacity(0.8),
                 app,
+                panel,
                 shortcuts,
             ));
         }
@@ -2107,6 +2344,7 @@ impl Root {
                 )),
             ),
             app,
+            panel,
             shortcuts,
         ))
     }
@@ -2174,14 +2412,152 @@ impl Root {
                         .children((
                             Button::new()
                                 .on_click(context.message(Msg::EditScenes))
-                                .content("Modifier scenes.txt"),
+                                .content("Ouvrir scenes.txt"),
                             Button::new()
                                 .on_click(context.message(Msg::ReloadScenes))
                                 .content("Relire"),
                         )),
                 )),
             ),
+            self.scene_editor_card(context),
         ))
+    }
+
+    /// Carte « Modifier les scènes » : liste, formulaire, enregistrement.
+    fn scene_editor_card(&self, context: &mut ViewContext<Self>) -> View {
+        let e = &self.scene_editor;
+        let f = &self.scene_form;
+        let choice = |label: &str, items: Vec<String>, value: i32, field: SceneField| {
+            Grid::new()
+                .columns([GridLength::Pixel(160.0), GridLength::Star(1.0)])
+                .children((
+                    TextBlock::new()
+                        .text(label)
+                        .vertical_alignment(VerticalAlignment::Center),
+                    Border::new().grid_column(1).content(
+                        ComboBox::new()
+                            .items_source(items)
+                            .selected_index(index(value))
+                            .on_selection_changed(
+                                context.callback(move |i| Msg::SceneChoice(field, i)),
+                            ),
+                    ),
+                ))
+        };
+        let strings = |list: &[&str]| list.iter().map(|s| (*s).to_string()).collect::<Vec<_>>();
+        let switches = || strings(&viewmodel::SCENE_SWITCH_CHOICES);
+        let form: View = if e.is_empty() {
+            TextBlock::new()
+                .text("Aucune scène : « Nouvelle » en crée une.")
+                .opacity(0.7)
+                .into()
+        } else {
+            StackPanel::new().spacing(6.0).children((
+                TextBox::new()
+                    .text(f.name.clone())
+                    .placeholder_text("Nom de la scène")
+                    .on_text_changed(context.callback(Msg::SceneName)),
+                choice(
+                    "Mode audio",
+                    strings(&viewmodel::SCENE_SOUND_CHOICES),
+                    f.sound,
+                    SceneField::Sound,
+                ),
+                choice("Audio spatial", switches(), f.spatial, SceneField::Spatial),
+                choice(
+                    "Contrôle du bruit",
+                    strings(&viewmodel::SCENE_NOISE_CHOICES),
+                    f.noise,
+                    SceneField::Noise,
+                ),
+                TextBox::new()
+                    .text(f.level.clone())
+                    .placeholder_text("Niveau ANC ↔ transparence, 0 à 100 (vide = inchangé)")
+                    .on_text_changed(context.callback(Msg::SceneLevel)),
+                choice("Anti-vent", switches(), f.anti_wind, SceneField::AntiWind),
+                choice("Commandes tactiles", switches(), f.touch, SceneField::Touch),
+                choice(
+                    "Préréglage d'égaliseur",
+                    e.eq_choices().to_vec(),
+                    f.equalizer,
+                    SceneField::Equalizer,
+                ),
+                choice(
+                    "Amplification des basses",
+                    switches(),
+                    f.bass_boost,
+                    SceneField::Bass,
+                ),
+                TextBlock::new()
+                    .text(e.preview())
+                    .font_size(12.0)
+                    .opacity(0.8)
+                    .text_wrapping(TextWrapping::Wrap),
+            ))
+        };
+        let notice = e
+            .problem()
+            .map(|p| format!("⚠ {p}"))
+            .or_else(|| self.scene_notice.clone())
+            .unwrap_or_else(|| {
+                "Le brouillon n'est écrit qu'avec « Enregistrer » ; rien n'est envoyé au casque. \
+                 Les raccourcis et le panneau suivent les renommages."
+                    .to_string()
+            });
+        card(
+            "Modifier les scènes",
+            StackPanel::new().spacing(10.0).children((
+                RadioButtons::new()
+                    .items_source(e.names())
+                    .max_columns(3)
+                    .selected_index((!e.is_empty()).then_some(e.selected()))
+                    .on_selection_changed(context.callback(Msg::SceneSelect)),
+                StackPanel::new()
+                    .orientation(Orientation::Horizontal)
+                    .spacing(8.0)
+                    .children((
+                        Button::new()
+                            .on_click(context.message(Msg::SceneNew))
+                            .content("Nouvelle"),
+                        Button::new()
+                            .is_enabled(!e.is_empty())
+                            .on_click(context.message(Msg::SceneDuplicate))
+                            .content("Dupliquer"),
+                        Button::new()
+                            .is_enabled(!e.is_empty())
+                            .on_click(context.message(Msg::SceneDelete))
+                            .content("Supprimer"),
+                        Button::new()
+                            .is_enabled(e.selected() > 0)
+                            .on_click(context.message(Msg::SceneMove(-1)))
+                            .content("Monter"),
+                        Button::new()
+                            .is_enabled(e.selected() + 1 < e.names().len())
+                            .on_click(context.message(Msg::SceneMove(1)))
+                            .content("Descendre"),
+                    )),
+                form,
+                StackPanel::new()
+                    .orientation(Orientation::Horizontal)
+                    .spacing(8.0)
+                    .children((
+                        Button::new()
+                            .style(ButtonStyle::Accent)
+                            .is_enabled(e.can_save())
+                            .on_click(context.message(Msg::SceneSave))
+                            .content("Enregistrer"),
+                        Button::new()
+                            .is_enabled(e.dirty())
+                            .on_click(context.message(Msg::SceneDiscard))
+                            .content("Annuler les modifications"),
+                    )),
+                TextBlock::new()
+                    .text(notice)
+                    .font_size(12.0)
+                    .opacity(0.8)
+                    .text_wrapping(TextWrapping::Wrap),
+            )),
+        )
     }
 
     fn battery_page(&self, context: &mut ViewContext<Self>) -> View {

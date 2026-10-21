@@ -953,6 +953,142 @@ Kirigami.ApplicationWindow {
                         }
                     }
                 }
+
+                // Éditeur : le brouillon n'est écrit qu'avec « Enregistrer ».
+                Kirigami.AbstractCard {
+                    id: sceneEditor
+                    Layout.fillWidth: true
+                    function send() {
+                        headset.setSceneForm(sceneName.text, sceneLevel.text, [sceneSound.currentIndex,
+                            sceneSpatial.currentIndex, sceneNoise.currentIndex,
+                            sceneAntiWind.currentIndex, sceneTouch.currentIndex,
+                            sceneEq.currentIndex, sceneBass.currentIndex].join(","))
+                    }
+                    header: Kirigami.Heading {
+                        text: "Modifier les scènes"
+                        level: 3
+                    }
+                    contentItem: ColumnLayout {
+                        spacing: Kirigami.Units.smallSpacing
+                        Flow {
+                            Layout.fillWidth: true
+                            spacing: Kirigami.Units.smallSpacing
+                            Repeater {
+                                model: headset.sceneEditNames
+                                QQC2.Button {
+                                    required property int index
+                                    required property string modelData
+                                    text: modelData
+                                    checkable: true
+                                    checked: headset.sceneEditSelected === index
+                                    onClicked: {
+                                        headset.sceneEditSelect(index)
+                                        checked = Qt.binding(() => headset.sceneEditSelected === index)
+                                    }
+                                }
+                            }
+                        }
+                        RowLayout {
+                            QQC2.Button { text: "Nouvelle"; icon.name: "list-add"; onClicked: headset.sceneEditAction("nouvelle") }
+                            QQC2.Button { text: "Dupliquer"; icon.name: "edit-copy"; enabled: headset.sceneEditNames.length > 0; onClicked: headset.sceneEditAction("dupliquer") }
+                            QQC2.Button { text: "Supprimer"; icon.name: "edit-delete"; enabled: headset.sceneEditNames.length > 0; onClicked: headset.sceneEditAction("supprimer") }
+                            QQC2.Button { text: "Monter"; icon.name: "go-up"; enabled: headset.sceneEditSelected > 0; onClicked: headset.sceneEditAction("monter") }
+                            QQC2.Button { text: "Descendre"; icon.name: "go-down"; enabled: headset.sceneEditSelected + 1 < headset.sceneEditNames.length; onClicked: headset.sceneEditAction("descendre") }
+                        }
+                        Kirigami.FormLayout {
+                            Layout.fillWidth: true
+                            visible: headset.sceneEditNames.length > 0
+                            QQC2.TextField {
+                                id: sceneName
+                                Kirigami.FormData.label: "Nom :"
+                                text: headset.sceneFormName
+                                onTextEdited: sceneEditor.send()
+                            }
+                            QQC2.ComboBox {
+                                id: sceneSound
+                                Kirigami.FormData.label: "Mode audio :"
+                                model: headset.sceneSoundChoices
+                                currentIndex: headset.sceneFormSound
+                                onActivated: sceneEditor.send()
+                            }
+                            QQC2.ComboBox {
+                                id: sceneSpatial
+                                Kirigami.FormData.label: "Audio spatial :"
+                                model: headset.sceneSwitchChoices
+                                currentIndex: headset.sceneFormSpatial
+                                onActivated: sceneEditor.send()
+                            }
+                            QQC2.ComboBox {
+                                id: sceneNoise
+                                Kirigami.FormData.label: "Contrôle du bruit :"
+                                model: headset.sceneNoiseChoices
+                                currentIndex: headset.sceneFormNoise
+                                onActivated: sceneEditor.send()
+                            }
+                            QQC2.TextField {
+                                id: sceneLevel
+                                Kirigami.FormData.label: "Niveau (0 à 100) :"
+                                placeholderText: "vide = inchangé"
+                                text: headset.sceneFormLevel
+                                onTextEdited: sceneEditor.send()
+                            }
+                            QQC2.ComboBox {
+                                id: sceneAntiWind
+                                Kirigami.FormData.label: "Anti-vent :"
+                                model: headset.sceneSwitchChoices
+                                currentIndex: headset.sceneFormAntiWind
+                                onActivated: sceneEditor.send()
+                            }
+                            QQC2.ComboBox {
+                                id: sceneTouch
+                                Kirigami.FormData.label: "Commandes tactiles :"
+                                model: headset.sceneSwitchChoices
+                                currentIndex: headset.sceneFormTouch
+                                onActivated: sceneEditor.send()
+                            }
+                            QQC2.ComboBox {
+                                id: sceneEq
+                                Kirigami.FormData.label: "Préréglage d'égaliseur :"
+                                model: headset.sceneEqChoices
+                                currentIndex: headset.sceneFormEqualizer
+                                onActivated: sceneEditor.send()
+                            }
+                            QQC2.ComboBox {
+                                id: sceneBass
+                                Kirigami.FormData.label: "Amplification des basses :"
+                                model: headset.sceneSwitchChoices
+                                currentIndex: headset.sceneFormBass
+                                onActivated: sceneEditor.send()
+                            }
+                        }
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            text: headset.sceneEditPreview
+                            opacity: 0.8
+                        }
+                        RowLayout {
+                            QQC2.Button {
+                                text: "Enregistrer"
+                                icon.name: "document-save"
+                                enabled: headset.sceneEditCanSave
+                                onClicked: headset.sceneEditAction("enregistrer")
+                            }
+                            QQC2.Button {
+                                text: "Annuler les modifications"
+                                icon.name: "edit-undo"
+                                enabled: headset.sceneEditDirty
+                                onClicked: headset.sceneEditAction("annuler")
+                            }
+                        }
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            text: headset.sceneEditNotice
+                            opacity: 0.8
+                        }
+                    }
+                }
             }
         }
     }

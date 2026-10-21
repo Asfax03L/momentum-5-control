@@ -22,6 +22,7 @@ pub mod presets;
 pub mod profile;
 pub mod protocol;
 pub mod quick_panel;
+pub mod scene_editor;
 pub mod scenes;
 pub mod sdp;
 pub mod transport;
