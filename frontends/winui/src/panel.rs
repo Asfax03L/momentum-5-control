@@ -207,6 +207,7 @@ impl Component for Panel {
         context.window_visuals(
             WindowVisuals::new()
                 .backdrop(WindowBackdrop::Acrylic)
+                .theme(crate::app::window_theme(momentum_core::appearance::load()))
                 .client_size(460.0, height),
         );
         let v = self.view_model();

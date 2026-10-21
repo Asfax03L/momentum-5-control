@@ -7,6 +7,7 @@
 //! - [`sdp`] : lecture des attributs SDP, pour le diagnostic.
 
 pub mod alerts;
+pub mod appearance;
 pub mod audio_check;
 pub mod battery_log;
 pub mod client;

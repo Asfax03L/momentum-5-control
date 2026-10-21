@@ -24,6 +24,8 @@ pub mod qobject {
         include!("momentum-kirigami/src/identity.h");
         /// Nom, fichier .desktop et icône de l'application (identity.cpp).
         fn openheadset_set_identity();
+        /// Thème demandé à Qt : 0 système, 1 clair, 2 sombre (identity.cpp).
+        fn openheadset_set_color_scheme(scheme: i32);
     }
 
     #[auto_cxx_name]
@@ -142,6 +144,8 @@ pub mod qobject {
         #[qproperty(i32, battery_revision)]
         // Page « Connexion et audio » : change à chaque mise à jour.
         #[qproperty(i32, audio_revision)]
+        // Thème choisi : -1 aucun (système), 0 clair, 1 sombre.
+        #[qproperty(i32, theme_choice)]
         // Lancement à l'ouverture de session.
         #[qproperty(bool, autostart)]
         type Headset = super::HeadsetRust;
@@ -283,6 +287,9 @@ pub mod qobject {
         /// Ouvre la page Raccourcis de la Configuration du système.
         #[qinvokable]
         fn open_shortcut_settings(self: &Headset);
+        /// Enregistre et applique le thème (0 clair, 1 sombre).
+        #[qinvokable]
+        fn choose_theme(self: Pin<&mut Headset>, choice: i32);
         /// Diagnostic expurgé à copier dans un rapport.
         #[qinvokable]
         fn diagnostic(self: &Headset) -> QString;
@@ -479,6 +486,7 @@ pub struct HeadsetRust {
     battery_details: QStringList,
     battery_revision: i32,
     audio_revision: i32,
+    theme_choice: i32,
     /// Heure de chaque lecture (page « Connexion et audio »).
     control_since: Option<String>,
     connections_at: Option<String>,
@@ -618,6 +626,7 @@ impl Default for HeadsetRust {
             battery_details: QStringList::default(),
             battery_revision: 0,
             audio_revision: 0,
+            theme_choice: momentum_core::appearance::load().map_or(-1, i32::from),
             control_since: None,
             connections_at: None,
             codec_since: None,
@@ -1539,6 +1548,15 @@ impl qobject::Headset {
         let span = *self.battery_span();
         self.as_mut().reload_battery(span);
         QString::from("Historique de la batterie effacé.")
+    }
+
+    fn choose_theme(mut self: Pin<&mut Self>, choice: i32) {
+        let dark = choice == 1;
+        if let Err(e) = momentum_core::appearance::store(dark) {
+            tracing::warn!(%e, "apparence.txt");
+        }
+        qobject::openheadset_set_color_scheme(if dark { 2 } else { 1 });
+        self.as_mut().set_theme_choice(i32::from(dark));
     }
 
     fn open_shortcut_settings(&self) {

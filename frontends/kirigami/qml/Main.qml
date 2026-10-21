@@ -731,6 +731,24 @@ Kirigami.ApplicationWindow {
                             root.confirmed(autostartSwitch, () => headset.autostart)
                         }
                     }
+                    RowLayout {
+                        Kirigami.FormData.label: "Thème :"
+                        QQC2.RadioButton {
+                            text: "Clair"
+                            checked: headset.themeChoice === 0
+                            onClicked: headset.chooseTheme(0)
+                        }
+                        QQC2.RadioButton {
+                            text: "Sombre"
+                            checked: headset.themeChoice === 1
+                            onClicked: headset.chooseTheme(1)
+                        }
+                        QQC2.Label {
+                            visible: headset.themeChoice < 0
+                            text: "(pour l'instant celui de Plasma)"
+                            opacity: 0.7
+                        }
+                    }
                     QQC2.Button {
                         Kirigami.FormData.label: "Raccourcis clavier :"
                         text: "Modifier dans KDE…"
