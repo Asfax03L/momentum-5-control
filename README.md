@@ -119,6 +119,27 @@ Elles offrent les mêmes fonctions et partagent les mêmes fichiers de
 réglages (`scenes.txt`, `raccourcis.txt`, `prereglages.txt`,
 `panneau.txt`, `apparence.txt`, `batterie.csv`).
 
+Captures en mode démonstration (`--demo` : casque simulé, valeurs
+fictives).
+
+**Windows 11 (WinUI 3)**
+
+| Accueil | Égaliseur |
+|---|---|
+| ![Accueil sous Windows, thème sombre](docs/captures/windows-accueil-sombre.jpg) | ![Égaliseur sous Windows](docs/captures/windows-son-sombre.jpg) |
+| **Scènes** | **Paramètres** |
+| ![Scènes et éditeur sous Windows](docs/captures/windows-scenes-sombre.jpg) | ![Paramètres sous Windows](docs/captures/windows-reglages-sombre.jpg) |
+| **Thème clair** | **Panneau rapide** (clic sur l'icône) |
+| ![Accueil sous Windows, thème clair](docs/captures/windows-accueil-clair.jpg) | ![Panneau rapide sous Windows](docs/captures/windows-panneau-sombre.jpg) |
+
+**KDE Plasma (Qt 6 / Kirigami)**
+
+| Accueil | Égaliseur |
+|---|---|
+| ![Accueil sous KDE Plasma](docs/captures/kde-accueil-sombre.jpg) | ![Égaliseur sous KDE Plasma](docs/captures/kde-son-sombre.jpg) |
+| **Scènes** | **Paramètres** |
+| ![Scènes et éditeur sous KDE Plasma](docs/captures/kde-scenes-sombre.jpg) | ![Paramètres sous KDE Plasma](docs/captures/kde-reglages-sombre.jpg) |
+
 - **Pages** : **Accueil** (batterie, modes de bruit, curseur ANC ↔
   transparence, anti-vent, audio spatial et suivi de tête, appareils
   appairés au casque avec Connecter / Déconnecter sauf ce PC, Multipoint
@@ -136,8 +157,10 @@ réglages (`scenes.txt`, `raccourcis.txt`, `prereglages.txt`,
   extinction automatique, protection de la batterie, invites et volume des
   invites, nom du casque, commandes tactiles ; langue des invites et
   priorité du mode audio en lecture seule ; thème **clair ou sombre**
-  (gardé dans `apparence.txt` ; sans choix, celui du système ; sous KDE, il
-  faut Qt 6.8 ou plus récent pour l'appliquer) ; contenu du panneau rapide ;
+  (gardé dans `apparence.txt` ; sans choix, celui du système ; sous KDE
+  Plasma, le jeu de couleurs de Plasma reste prioritaire pour l'instant :
+  « Clair » n'est pas appliqué si Plasma est en sombre, correction
+  prévue) ; contenu du panneau rapide ;
   éditeur des raccourcis clavier globaux.
 - **Batterie** : courbe sur 24 h, 7 ou 30 jours (fichier local
   `batterie.csv`, export CSV, effacement confirmé) ; les périodes sans
