@@ -12,9 +12,11 @@ est dans [`MOMENTUM5.md`](MOMENTUM5.md), l'historique daté en fin de page.
 
 ## Principes
 
-- **Garder Slint et l'architecture actuelle** : thread `worker` (seul
-  propriétaire de la connexion GAIA) et interface sur la boucle Slint.
-  Aucune réécriture sans nécessité démontrée.
+- **Un service, des interfaces natives** (depuis la v0.8.0) : le service
+  `momentum-daemon` (thread `worker`) est seul propriétaire de la connexion
+  GAIA ; WinUI 3 sous Windows et Kirigami sous KDE en sont clientes, comme
+  `ctl`. L'icône Slint des versions 0.7 et avant est retirée. Aucune
+  réécriture sans nécessité démontrée.
 - **Rien d'inventé** : chaque écriture provient d'une capture de l'app puis
   d'une validation sur le casque. Ce qui n'est pas validé s'affiche en
   lecture seule, ou n'apparaît pas.
@@ -96,17 +98,18 @@ Statuts : ✅ écrit et validé sur le M5 (firmware 6.21.5) ; 👁 lu seulement 
    `ctl` partagent la connexion ; archive Linux dans les publications ;
    limiter aussi les écritures au micrologiciel validé (6.21.5) ; essai
    d'une interface WinUI 3.
-7. **Séparer le service des interfaces** (prévu, détail et étapes dans
-   [ARCHITECTURE.md](ARCHITECTURE.md)) : `momentum-daemon` seul
+7. **Séparer le service des interfaces** (fait, publié en v0.8.0 ;
+   détail et étapes dans [ARCHITECTURE.md](ARCHITECTURE.md)) : `momentum-daemon` seul
    propriétaire de la connexion, API D-Bus (Linux) ou canal nommé
    (Windows), interfaces natives clientes (Kirigami + icône SNI sous KDE,
-   WinUI 3 sous Windows), tout en Rust.
+   WinUI 3 sous Windows), tout en Rust ; puis retrait de l'icône Slint,
+   après reprise de toutes ses fonctions par les deux interfaces.
 8. **Migration vers zbus 6** (plus tard, quand elle apporte un gain
    concret) : zbus 6.0 (16/10/2026) supprime l'API bloquante et les proxys
    bloquants utilisés par `momentum-daemon` et `momentum-client`, et
    remplace `async-io` par son propre moteur (`zruntime`). La migration
    demande de passer le service et le client en asynchrone ; d'ici là, le
-   projet reste sur zbus 5.19 (déjà compilé par Slint). Guide amont :
+   projet reste sur zbus 5.19. Guide amont :
    « Upgrading to zbus 6.0 ».
 
 ## Historique

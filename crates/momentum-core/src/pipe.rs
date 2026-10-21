@@ -1,10 +1,9 @@
-//! Named pipe Windows du canal local `ctl` ↔ icône (protocole : [`crate::ipc`]),
-//! et du service `momentum-daemon` (même mécanique, autre nom et protocole
-//! JSON de `momentum-client`).
+//! Named pipe Windows du service `momentum-daemon` (protocole JSON de
+//! `momentum-client`).
 //!
 //! Sécurité : nom propre à l'utilisateur (SID), descripteur qui n'autorise que
 //! lui, clients distants refusés, et première instance exigée (si le nom est
-//! déjà pris, l'icône renonce au canal au lieu de le partager). Les lectures
+//! déjà pris, le service renonce au canal au lieu de le partager). Les lectures
 //! et écritures du serveur ont un délai : un client muet ne bloque pas le
 //! canal.
 //!
@@ -39,7 +38,8 @@ use windows::Win32::System::Pipes::{
 use windows::Win32::System::Threading::{CreateEventW, GetCurrentProcess, OpenProcessToken};
 use windows::core::{HSTRING, PWSTR};
 
-use crate::ipc::{MAX_REQUEST_LEN, pipe_name};
+/// Taille maximale d'une requête, en octets.
+const MAX_REQUEST_LEN: usize = 1024;
 
 /// Délai laissé au client pour envoyer sa requête et lire la réponse.
 const CLIENT_IO_TIMEOUT: Duration = Duration::from_secs(5);
@@ -83,11 +83,6 @@ pub fn current_user_sid() -> windows::core::Result<String> {
     }
 }
 
-/// Nom du pipe de l'utilisateur courant.
-pub fn user_pipe_name() -> windows::core::Result<String> {
-    Ok(pipe_name(&current_user_sid()?))
-}
-
 /// Serveur : une connexion à la fois, une requête par connexion.
 pub struct PipeServer {
     pipe: Handle,
@@ -99,12 +94,6 @@ pub struct PipeServer {
 unsafe impl Send for PipeServer {}
 
 impl PipeServer {
-    /// Crée le pipe de l'icône pour l'utilisateur courant, accessible à
-    /// lui seul.
-    pub fn create() -> windows::core::Result<Self> {
-        Self::create_named(pipe_name)
-    }
-
     /// Crée un pipe de l'utilisateur courant, accessible à lui seul ;
     /// `name` donne son nom d'après le SID.
     pub fn create_named(name: fn(&str) -> String) -> windows::core::Result<Self> {
@@ -227,11 +216,11 @@ impl PipeServer {
             request.extend_from_slice(&chunk[..n as usize]);
         }
         let reply = if request.len() > MAX_REQUEST_LEN {
-            crate::ipc::Reply::Error("requête trop longue".to_string()).encode()
+            "ERREUR requête trop longue\n".to_string()
         } else {
             match std::str::from_utf8(&request) {
                 Ok(text) => handler(text.lines().next().unwrap_or("")),
-                Err(_) => crate::ipc::Reply::Error("requête non UTF-8".to_string()).encode(),
+                Err(_) => "ERREUR requête non UTF-8\n".to_string(),
             }
         };
         let reply = reply.replace(' ', "") + " ";
@@ -252,15 +241,10 @@ impl PipeServer {
 
 /// Résultat d'une requête côté client.
 pub enum ClientOutcome {
-    /// Pas d'icône à l'écoute.
+    /// Pas de serveur à l'écoute.
     NoServer,
-    /// Réponse brute de l'icône.
+    /// Réponse brute du serveur.
     Reply(String),
-}
-
-/// Envoie une requête à l'icône et attend sa réponse au plus `timeout`.
-pub fn request(line: &str, timeout: Duration) -> Result<ClientOutcome, String> {
-    request_named(pipe_name, line, timeout)
 }
 
 /// Envoie une requête au pipe `name` (d'après le SID) de l'utilisateur et
@@ -279,7 +263,7 @@ pub fn request_named(
         let _ = tx.send(exchange(&name, &line));
     });
     rx.recv_timeout(timeout)
-        .map_err(|_| format!("pas de réponse de l'icône après {timeout:?}"))?
+        .map_err(|_| format!("pas de réponse du service après {timeout:?}"))?
 }
 
 fn exchange(name: &str, line: &str) -> Result<ClientOutcome, String> {
@@ -309,7 +293,7 @@ fn exchange(name: &str, line: &str) -> Result<ClientOutcome, String> {
                 // SAFETY: simple attente sur le nom du pipe.
                 let _ = unsafe { WaitNamedPipeW(&name, 2000) };
             }
-            Err(e) => return Err(format!("ouverture du canal de l'icône : {e}")),
+            Err(e) => return Err(format!("ouverture du canal du service : {e}")),
         }
     };
     // SAFETY: poignée ouverte ci-dessus ; tampons valides pendant les appels.

@@ -4,9 +4,10 @@
 
 **OpenHeadset Control** : contrôle léger des casques Sennheiser **MOMENTUM 5**
 sous Windows 11 et Linux (KDE Plasma, Bazzite ; Wayland natif), en Rust, comme
-alternative à l'application mobile Smart Control Plus : une icône dans la
-barre système, une fenêtre principale, un client natif KDE (Qt 6 / Kirigami)
-et deux outils en ligne de commande.
+alternative à l'application mobile Smart Control Plus : une interface
+native par système (WinUI 3 sous Windows, Qt 6 / Kirigami sous KDE) avec son
+icône dans la zone de notification, un service qui tient seul la connexion
+au casque, et deux outils en ligne de commande.
 
 > ⚠️ **Projet non officiel, non affilié à Sennheiser ni à Sonova.** Le protocole
 > a été reconstitué à partir de documentation publique et de captures de
@@ -23,19 +24,20 @@ et deux outils en ligne de commande.
 | 2 | `probe` : diagnostic Bluetooth en lecture seule | ✅ |
 | 3 | Réglages du bruit et de l'audio spatial (`ctl`) | ✅ validé sur M5 |
 | 4 | Icône dans la barre système, notifications, reconnexion | ✅ validé sur M5 |
-| 5 | Fenêtre d'égaliseur (Slint, thème Fluent) | ✅ validé sur M5 |
+| 5 | Fenêtre d'égaliseur | ✅ validé sur M5 |
 | A–D | Fenêtre principale complète : Accueil, Mon son, Réglages, À propos | ✅ validé sur M5 |
 | E | Raccourcis clavier globaux, notifications Windows, archive publiée | ✅ validé sur le PC (v0.2.0) |
 | F | Expériences sur le casque : volume des invites, nom, connexions | ✅ validé sur M5 (v0.3.0) |
 | G | Espace de travail Cargo : cœur, service, outils, interfaces séparés | ✅ (v0.7.0) |
-| H | Linux : `ctl` et icône Slint par BlueZ, KDE Plasma sous Wayland | ✅ validé sur M5 (v0.7.0) |
+| H | Linux : `ctl` et icône par BlueZ, KDE Plasma sous Wayland | ✅ validé sur M5 (v0.7.0) |
 | I | Interface OpenHeadset Control (thèmes, disposition adaptative, démo) | ✅ validé sur M5 (v0.7.0) |
-| J | Client natif KDE Qt 6 / Kirigami (Linux), logo, entrées de menu ; client du service, icône de la zone de notification, raccourcis KDE | 🟡 essayé sur M5, non publié |
-| K | Service `momentum-daemon` et API D-Bus, `ctl` client du service (Linux) | 🟡 essayé sur M5 (lecture et écriture), non publié |
-| L | Logo sous Windows : exécutable, menu Démarrer, notifications, icône d'état | 🟡 non publié |
-| M | Service sous Windows (canal nommé) et client WinUI 3 (`windows-reactor`) | 🟡 essayé sur M5 (lecture), non publié |
+| J | Client natif KDE Qt 6 / Kirigami (Linux), logo, entrées de menu ; client du service, icône de la zone de notification, raccourcis KDE | ✅ essayé sur M5 (v0.8.0) |
+| K | Service `momentum-daemon` et API D-Bus, `ctl` client du service (Linux) | ✅ essayé sur M5, lecture et écriture (v0.8.0) |
+| L | Logo sous Windows : exécutable, menu Démarrer, notifications, icône d'état | ✅ (v0.8.0) |
+| M | Service sous Windows (canal nommé) et client WinUI 3 (`windows-reactor`) | ✅ essayé sur M5 (v0.8.0) |
+| N | Fonctions de l'icône Slint reprises par WinUI et KDE, puis retrait de Slint | ✅ essayé sur M5 (v0.8.0) |
 
-Dernière publication : **v0.7.0** (page Releases du dépôt). Le détail des
+Dernière publication : **v0.8.0** (page Releases du dépôt). Le détail des
 étapes est dans [`docs/ROADMAP.md`](docs/ROADMAP.md), les nouveautés de chaque
 version dans [`CHANGELOG.md`](CHANGELOG.md).
 
@@ -63,15 +65,15 @@ powershell -ExecutionPolicy Bypass -File scripts\installer.ps1
 
 Le script installe, sans droits administrateur, dans
 `%LOCALAPPDATA%\Programs\momentum-ctl-win` :
-- par défaut l'interface **WinUI 3** (`momentum-winui.exe`), le service
-  `momentum-daemon.exe` qu'elle lance au besoin, et `ctl.exe`. Il faut le
-  Windows App Runtime 2 (le script prévient s'il manque) ;
-- avec `-Interface slint`, l'ancienne icône Slint (`momentum-tray.exe`).
+l'interface **WinUI 3** (`momentum-winui.exe`), le service
+`momentum-daemon.exe` qu'elle lance au besoin, et `ctl.exe`. Il faut le
+Windows App Runtime 2 (le script prévient s'il manque).
 
 Il prend les exécutables posés à côté de lui (archive) ou, à défaut,
-compile la version release. Il inscrit l'interface choisie au démarrage de
-Windows (WinUI démarre caché : l'icône seule), retire l'autre, ajoute
-« OpenHeadset Control » au menu Démarrer et la lance. Pour tout retirer :
+compile la version release. Il inscrit l'interface au démarrage de Windows
+(elle démarre cachée : l'icône seule), retire l'ancienne icône Slint si
+elle est installée, ajoute « OpenHeadset Control » au menu Démarrer et
+lance l'interface. Pour tout retirer :
 `scripts\installer.ps1 -Desinstaller`.
 
 **Linux (KDE Plasma)** : depuis l'archive, `./installer-linux.sh` ; depuis
@@ -90,152 +92,109 @@ Le script installe pour l'utilisateur courant, sans `sudo` : binaires dans
 dans le menu des applications (KDE y trouve aussi l'icône des fenêtres sous
 Wayland), service avec son unité systemd utilisateur et son activation
 D-Bus. Le client Kirigami demande Qt 6 et Kirigami (présents sous KDE).
+L'ancienne icône Slint (`momentum-tray`), si elle est installée, est retirée.
 
-Pour un simple essai sans installation :
+Pour un simple essai sans installation (Windows) :
 
 ```bash
-cargo run --release --bin momentum-tray
+cargo run --release --bin momentum-winui
 ```
 
 L'icône d'un casque apparaît près de l'horloge (au besoin, dans les icônes
-cachées, flèche **^**). Avec `--fenetre`, la fenêtre principale s'ouvre dès
-le lancement ; avec `--egaliseur`, elle s'ouvre sur la page « Mon son ». Le téléphone peut rester connecté au casque en même
-temps : le M5 accepte le PC en multipoint.
+cachées, flèche **^**). Avec `--page son` (ou `scenes`, `batterie`, `audio`,
+`reglages`, `apropos`), la fenêtre s'ouvre sur cette page ; avec `--cache`,
+elle démarre cachée (l'icône seule). Le téléphone peut rester connecté au
+casque en même temps : le M5 accepte le PC en multipoint.
 
-## Interface OpenHeadset Control
+## Interfaces OpenHeadset Control
 
-Fenêtre Slint au thème bleu nuit (thème clair dans Paramètres ou dans la
-navigation, choix gardé dans `apparence.txt`). Cinq sections : **Accueil**
-(tableau de bord), **Appareil** (connexion et audio, batterie), **Égaliseur**
-(mode audio, courbe, préréglages, fichiers, A/B), **Commandes** (tactile,
-raccourcis, scènes, panneau rapide), **Paramètres** (casque, application).
+Deux interfaces natives, clientes du service `momentum-daemon` qui tient
+seul la connexion au casque :
 
-![Accueil, thème sombre (mode démonstration)](docs/captures/accueil-sombre.jpg)
+- **Windows** : `momentum-winui`, en WinUI 3 (fond Mica, contrôles Fluent) ;
+- **KDE Plasma** : `momentum-kirigami`, en Qt 6 / Kirigami (couleurs du
+  thème Plasma, Wayland natif).
 
-Thème clair, petite fenêtre : [accueil clair](docs/captures/accueil-clair.jpg),
-[accueil mobile](docs/captures/accueil-mobile.jpg),
-[égaliseur mobile](docs/captures/egaliseur-mobile-clair.jpg). Captures du mode
-démonstration (`--capture`) : valeurs simulées.
+Elles offrent les mêmes fonctions et partagent les mêmes fichiers de
+réglages (`scenes.txt`, `raccourcis.txt`, `prereglages.txt`,
+`panneau.txt`, `apparence.txt`, `batterie.csv`).
 
-- **S'adapte à la taille réelle de la fenêtre** : navigation latérale et
-  tableau de bord sur deux colonnes (≥ 1100 px), navigation en rail et
-  colonnes qui se replient (720 à 1100 px), une colonne avec navigation en
-  bas sous 720 px.
-- **Rien n'est présenté comme appliqué avant la réponse du casque** : au
-  clic, un interrupteur ou une tuile garde l'état confirmé et affiche une
-  roue d'attente ; « Envoi au casque… » s'affiche en haut jusqu'à l'état
-  relu (ou au refus, signalé dans le bandeau).
-- **Construite d'après le casque** : nombre de bandes, fréquences et plage
-  de l'égaliseur, réglages disponibles et micrologiciel viennent des
-  lectures ; un réglage non lu est affiché comme indisponible.
-- **Mode démonstration** : `momentum-tray --demo` montre l'interface avec des
-  données simulées, sans Bluetooth (bandeau « Démonstration : données
-  simulées » permanent ; ni historique de batterie, ni notification, ni
-  lecture du système). `momentum-tray --capture <dossier>` enregistre en PNG
-  le rendu de chaque section à plusieurs tailles (vérification de la
-  disposition), puis s'arrête.
+- **Pages** : **Accueil** (batterie, modes de bruit, curseur ANC ↔
+  transparence, anti-vent, audio spatial et suivi de tête, appareils
+  appairés au casque avec Connecter / Déconnecter sauf ce PC, Multipoint
+  avec confirmation), **Égaliseur** (mode audio : égaliseur, Speech Clarity
+  ou profil personnalisé ; 8 bandes ; préréglages de l'app et les vôtres ;
+  export et import de courbes ; comparaison A/B ; export du profil dans
+  Documents), **Scènes** (boutons et éditeur), **Batterie**, **Connexion et
+  audio**, **Paramètres**, **À propos**.
+- **Rien n'est présenté comme appliqué avant la réponse du casque** : un
+  réglage affiche l'état relu, et un refus est signalé dans un bandeau.
+- **Construites d'après le casque** : nombre de bandes, plage de
+  l'égaliseur et réglages disponibles viennent des lectures ; un réglage
+  non lu est affiché comme indisponible.
+- **Paramètres** : Smart Pause, réponse automatique, appels confortables,
+  extinction automatique, protection de la batterie, invites et volume des
+  invites, nom du casque, commandes tactiles ; langue des invites et
+  priorité du mode audio en lecture seule ; thème **clair ou sombre**
+  (gardé dans `apparence.txt` ; sans choix, celui du système ; sous KDE, il
+  faut Qt 6.8 ou plus récent pour l'appliquer) ; contenu du panneau rapide ;
+  éditeur des raccourcis clavier globaux.
+- **Batterie** : courbe sur 24 h, 7 ou 30 jours (fichier local
+  `batterie.csv`, export CSV, effacement confirmé) ; les périodes sans
+  mesure restent vides, et ni état de charge, ni santé, ni cycles ne sont
+  inventés.
+- **Connexion et audio** : état de la liaison, heure des dernières lectures
+  et, sous Windows, vérification de la sortie audio du système (lecture
+  seule).
+- **À propos** : modèle, micrologiciel, révision matérielle, et
+  **diagnostic expurgé** à copier dans un rapport de bogue (ni nom, ni
+  adresse Bluetooth, ni numéro de série, ni chemin personnel, ni profil
+  auditif ; affiché avant toute copie, rien n'est envoyé).
+- **Mode démonstration** : `--demo` montre l'interface avec un casque
+  simulé, sans service ni Bluetooth (bandeau « Démonstration : données
+  simulées » permanent ; aucun fichier de l'utilisateur n'est modifié).
 
-## Icône dans la barre système (`momentum-tray`)
+### Icône de la zone de notification
 
-- **Panneau rapide** (clic gauche sur l'icône, ou `momentum-tray --panneau`) :
-  petit panneau près de l'horloge avec la batterie, les trois modes de bruit,
-  le curseur ANC ↔ transparence, le profil personnalisé, quatre scènes au plus
-  et « Ouvrir la fenêtre ». Il se ferme avec Échap, « Fermer », ou dès qu'une
-  autre fenêtre passe au premier plan.
-- **Fenêtre principale** (« Ouvrir la fenêtre » du panneau, ou « Ouvrir la
-  fenêtre… ») : navigation Accueil, Mon son (égaliseur), Réglages, Batterie,
-  À propos ;
-  en-tête avec le casque, la connexion, le codec (« aptX · 44,1 kHz ») et
-  la batterie ; bandeau pour les incidents et le mode audio. **Accueil** :
-  modes de bruit, curseur ANC ↔ transparence, anti-vent, audio spatial
-  (grisé tant que le profil personnalisé est sélectionné) et suivi de tête
-  (réglable avec l'audio spatial actif), commandes
-  tactiles, scènes, appareils appairés au casque avec Connecter / Déconnecter
-  (sauf ce PC) et interrupteur Multipoint (confirmation avant de le couper,
-  car un seul appareil reste alors connecté). **Mon son** :
-  choix du mode audio (égaliseur, Speech Clarity, profil personnalisé),
-  export du profil dans Documents, égaliseur, préréglages (« Neutre » et
-  « Audiophile » de l'app, plus les vôtres, enregistrés dans
-  `%LOCALAPPDATA%\momentum-ctl-win\prereglages.txt`), saisie des 8 gains au
-  clavier (« -3,5 ; -1 ; … »), export et import de courbes (fichier texte
-  versionné, refusé pour un autre modèle ou un autre nombre de bandes),
-  comparaison A/B des gains. **Réglages** : Smart
-  Pause, réponse automatique, appels confortables, extinction automatique,
-  protection de la batterie, invites et volume des invites (curseur en %,
-  échelle relevée dans l'app), nom du casque, éditeur des raccourcis
-  clavier (scènes comprises) ; langue des invites et priorité
-  du mode audio en lecture seule. **Batterie** : courbe sur 24 h, 7 ou
-  30 jours (fichier local `batterie.csv`, export CSV, effacement confirmé),
-  estimation du temps restant seulement après une heure de décharge continue ;
-  les périodes sans mesure restent vides, et ni état de charge, ni santé, ni
-  cycles ne sont inventés. **À propos** : modèle, micrologiciel, révision
-  matérielle, et **diagnostic expurgé** à copier dans un rapport de bogue
-  (ni nom, ni adresse Bluetooth, ni numéro de série, ni chemin personnel, ni
-  profil auditif ; affiché avant toute copie, rien n'est envoyé).
-- **Clic droit** : mode (ANC adaptatif / Personnalisé / Désactivé), curseur
-  ANC ↔ transparence en 5 crans, anti-vent, audio spatial, Speech Clarity,
-  Personnalisation du son (profil déjà enregistré ; coupe Dolby Atmos comme
-  l'app),
-  **Égaliseur…** (fenêtre sur « Mon son »), Réglages du casque (Smart Pause, réponse automatique aux
-  appels, appels confortables, extinction automatique, invites, commandes
-  tactiles, protection de la batterie), Scènes, Lancer au démarrage de
-  Windows, Quitter.
-- **Infobulle** : nom du casque, batterie, mode actuel, et le mode audio
-  s'il n'est pas l'égaliseur.
-- **Mode audio et profil** : une ligne du menu montre le mode audio
-  (égaliseur, Speech Clarity, mode 3, valeur inconnue) et, séparément,
-  l'état du profil de personnalisation du son.
-- **Incidents visibles** : une connexion perdue ou un réglage refusé
-  s'affiche en tête du menu, dans l'infobulle et dans la fenêtre de
-  l'égaliseur, jusqu'à la reconnexion ou la commande suivante. La fenêtre
-  signale aussi quand le mode audio actif n'est pas l'égaliseur graphique.
-- **Commandes regroupées** : si plusieurs réglages s'empilent (curseur au
-  clavier, clics rapides), seule la dernière valeur de chacun est envoyée,
-  avec une seule relecture.
-- **Réglages non lus grisés** : si le casque refuse la lecture d'un réglage
-  facultatif, seul ce réglage est grisé (« non lu » dans `ctl etat`) ; le
-  reste fonctionne.
-- **Couleur de l'icône** : bleu = ANC, vert d'eau = adaptatif, orange =
-  transparence (curseur > 50 %), gris clair = désactivé, gris = déconnecté.
-- Reste synchronisée avec l'app du téléphone et les boutons du casque
-  (notifications GAIA). Si le casque disparaît, la perte est détectée
-  aussitôt et l'icône se reconnecte seule (essai toutes les 5 s).
-- **Lancer au démarrage de Windows** : case à cocher dans le menu.
-- **Raccourcis clavier globaux** (page Réglages, ou fichier
-  `%LOCALAPPDATA%\momentum-ctl-win\raccourcis.txt`, créé au premier
-  lancement ; une scène s'écrit `scene:Nom = Ctrl+Alt+1`) : **Ctrl+Alt+N** mode de bruit
-  suivant (Adaptatif → Personnalisé → Arrêt), **Ctrl+Alt+P** profil
-  personnalisé ou égaliseur, **Ctrl+Alt+M** ouvrir la fenêtre. Un raccourci
-  déjà pris par une autre application est signalé dans le bandeau.
-- **Notifications Windows** : batterie faible (une fois sous 15 %, réarmée
-  au-dessus de 20 %), casque déconnecté, puis reconnecté (jamais au simple
-  démarrage).
-- **Une seule instance** : relancer l'application (raccourci, menu Démarrer)
-  ouvre simplement la fenêtre de l'égaliseur de l'instance déjà lancée.
-- Fermer la fenêtre de l'égaliseur la cache seulement ; « Quitter » arrête
-  l'application.
-- **Journal** : `%LOCALAPPDATA%\momentum-ctl-win\momentum-tray.log` (archivé
-  en `.old.log` au-delà de 1 Mo, y compris pendant que l'icône tourne). Plus de détails avec la variable
-  d'environnement `RUST_LOG=momentum_tray=debug`.
+- **Clic gauche** : sous Windows, panneau rapide près de l'horloge
+  (batterie, modes de bruit, curseur, profil, scènes ; contenu choisi dans
+  les Paramètres) ; sous KDE, la fenêtre.
+- **Clic droit** : mode de bruit, curseur ANC ↔ transparence en 5 crans,
+  anti-vent, audio spatial, Speech Clarity, profil personnalisé,
+  Égaliseur…, réglages du casque, scènes, lancement à l'ouverture de
+  session, Quitter.
+- **Infobulle et couleur** : nom du casque, batterie, mode actuel ; bleu =
+  ANC, vert d'eau = adaptatif, orange = transparence, gris clair =
+  désactivé, gris = déconnecté.
+- **Raccourcis clavier globaux** (éditeur des Paramètres, ou fichier
+  `raccourcis.txt` ; une scène s'écrit `scene:Nom = Ctrl+Alt+1`) :
+  **Ctrl+Alt+N** mode de bruit suivant, **Ctrl+Alt+P** profil personnalisé
+  ou égaliseur, **Ctrl+Alt+M** ouvrir la fenêtre. Sous KDE, ils sont
+  enregistrés auprès de KGlobalAccel et modifiables dans la Configuration
+  du système.
+- **Notifications** (par le service) : batterie faible (une fois sous
+  15 %, réarmée au-dessus de 20 %), casque déconnecté, puis reconnecté.
+- **Une seule instance** : relancer l'application montre la fenêtre de
+  l'instance déjà lancée ; fermer la fenêtre la cache seulement.
+- **Journal du service** : `momentum-daemon.log` dans le dossier des
+  données (`%LOCALAPPDATA%\momentum-ctl-win` sous Windows ; archivé en
+  `.old.log` au-delà de 1 Mo).
 
-### Fenêtre d'égaliseur
+### Égaliseur
 
-8 curseurs verticaux (90 Hz, 325 Hz, 1,5 kHz, 2,5 kHz, 4,5 kHz, 8 kHz, 13 kHz,
-16 kHz ; de −6 à +6 dB, par pas de 0,5 dB), remplis à partir de 0 dB,
-Amplification des basses et « Remettre à plat ». Au clavier : flèches
-haut/bas (un pas), Origine (0 dB). Le gain est envoyé au relâchement du curseur, puis
-l'égaliseur est relu : la fenêtre affiche toujours l'état réel du casque et
-suit aussi les changements faits sur le téléphone.
-
-Les préréglages de l'app (Rock, Jazz…) n'existent que dans l'app : pour le
+8 bandes (90 Hz, 325 Hz, 1,5 kHz, 2,5 kHz, 4,5 kHz, 8 kHz, 13 kHz, 16 kHz ;
+de −6 à +6 dB), Amplification des basses et « Remettre à plat ». Chaque
+gain est relu après l'envoi : la fenêtre affiche toujours l'état réel du
+casque et suit aussi les changements faits sur le téléphone. Les
+préréglages de l'app (Rock, Jazz…) n'existent que dans l'app : pour le
 casque, un préréglage n'est qu'une suite de 8 gains.
 
 ### Scènes
 
 Une scène applique plusieurs réglages d'un coup (« Transport » : ANC maximal
-et anti-vent, par exemple). Fichier
-`%LOCALAPPDATA%\momentum-ctl-win\scenes.txt`, créé avec trois exemples
-(Travail, Transport, Écoute) au premier lancement :
+et anti-vent, par exemple). Elles se créent dans l'éditeur de la page
+Scènes, ou dans le fichier `scenes.txt` du dossier des données, créé avec
+trois exemples (Travail, Transport, Écoute) au premier lancement :
 
 ```ini
 [Transport]
@@ -252,22 +211,19 @@ scène incohérente (niveau sans mode Personnalisé, égaliseur sans
 `son = egaliseur`, audio spatial avec le profil…) est refusée avec le numéro
 de ligne. Les réglages partent un par un dans un ordre fixe ; ce n'est pas
 une transaction : à la première erreur, l'application s'arrête et le rapport
-dit ce qui a été appliqué. Accès : boutons de l'Accueil, sous-menu
-« Scènes » de l'icône, `ctl scene <nom>`. Détails : [`docs/PLAN-SCENES-IPC.md`](docs/PLAN-SCENES-IPC.md).
+dit ce qui a été appliqué. Accès : page Scènes, sous-menu « Scènes » de
+l'icône, raccourcis, `ctl scene <nom>`.
 
-### `ctl` pendant que l'icône tourne
+### `ctl` et le service
 
-L'icône ouvre un canal local (named pipe réservé à l'utilisateur Windows
-courant, fermé au réseau) : `ctl etat`, `ctl etat --json`, `ctl scenes` et
-`ctl scene <nom>` passent alors par elle, qui reste seule à tenir la
-connexion GAIA. Les autres sous-commandes de `ctl`, et `probe`, ont besoin
-de la connexion pour eux seuls : `ctl` le dit clairement et il faut quitter
-l'icône pour les utiliser.
+Quand le service `momentum-daemon` tourne (lancé par l'interface, ou par
+activation D-Bus sous Linux), `ctl` passe par lui : il reste seul à tenir
+la connexion GAIA. Sans service, `ctl` se connecte lui-même au casque.
 
 ## Ligne de commande : `ctl`
 
-> **Linux (en cours)** : `ctl` se connecte aussi par BlueZ, non validé sur le
-> matériel. Voir [docs/LINUX.md](docs/LINUX.md).
+> **Linux** : `ctl` passe par le service, ou se connecte lui-même par
+> BlueZ. Voir [docs/LINUX.md](docs/LINUX.md).
 
 ```bash
 cargo run --release --bin ctl -- etat
@@ -387,29 +343,32 @@ crates/momentum-core/      protocole, casque, scènes, modèles d'affichage (san
   src/device.rs            couche casque : état, réglages validés, notifications
   src/viewmodel.rs, ui.rs  modèles d'affichage et libellés, communs à toutes les interfaces
   tests/                   captures vérifiées (ACCENTUM/M4 et M5)
-crates/momentum-service/   seul propriétaire de la connexion (worker), canal local,
-                           notifications, raccourcis, démarrage auto, instance unique
+crates/momentum-service/   worker (seul propriétaire de la connexion), notifications,
+                           raccourcis, démarrage auto et instance unique (Windows)
+crates/momentum-client/    API du service : Command, Event, Snapshot ; client D-Bus / canal nommé
+crates/momentum-daemon/    momentum-daemon : le service (D-Bus sous Linux, canal nommé sous Windows)
 crates/momentum-cli/       ctl (réglages en ligne de commande), probe (diagnostic en lecture seule)
-frontends/slint/           momentum-tray : icône de la barre système et fenêtre Slint
-scripts/                   installer.ps1 (installation utilisateur, démarrage auto)
+frontends/winui/           momentum-winui : interface WinUI 3 (Windows)
+frontends/kirigami/        momentum-kirigami : interface Qt 6 / Kirigami (KDE Plasma)
+scripts/                   installer.ps1, installer-linux.sh (installation utilisateur)
 ```
 
 Choix principaux :
 
-- **Pas de Tokio** : les appels WinRT sont bloqués dans un thread dédié au
-  casque, qui communique avec l'interface par un canal `mpsc`.
-- **Une seule boucle d'événements** (celle de Slint) pour l'icône et la
-  fenêtre, donc une seule connexion GAIA.
+- **Un seul propriétaire de la connexion** : le service ; les interfaces
+  et `ctl` lui envoient des commandes et reçoivent l'état et les
+  événements, donc une seule connexion GAIA.
+- **Pas de Tokio sous Windows** : les appels WinRT sont bloqués dans un
+  thread dédié au casque, qui communique avec le service par un canal
+  `mpsc`.
 - **Écritures uniquement capturées** : chaque commande d'écriture provient
   d'une capture de l'app officielle, puis est validée sur le casque.
 - **Écritures réservées au M5** : à la connexion, le nom de modèle (`1206`)
-  est lu ; s'il ne commence pas par `M5AEBT`, l'icône et `ctl` passent en
-  lecture seule (aucune trame de réglage envoyée).
+  est lu ; s'il ne commence pas par `M5AEBT`, le service et `ctl` passent
+  en lecture seule (aucune trame de réglage envoyée).
 - **Délais maximaux** : recherche du casque, connexion et envoi ont chacun un
-  délai (10 s, 15 s, 5 s) ; une pile Bluetooth figée ne bloque plus l'icône.
-
-Binaires release (`opt-level = "z"`, LTO) : environ 9 Mo pour
-`momentum-tray` (Slint inclus), 1,5 Mo pour `ctl` et `probe`.
+  délai (10 s, 15 s, 5 s) ; une pile Bluetooth figée ne bloque pas le
+  service.
 
 ## Sources
 
@@ -423,9 +382,4 @@ Binaires release (`opt-level = "z"`, LTO) : environ 9 Mo pour
 ## Licence
 
 Code du projet : au choix [MIT](LICENSE-MIT) ou [Apache-2.0](LICENSE-APACHE).
-
-L'application `momentum-tray` utilise [Slint](https://slint.dev), sous sa
-licence « royalty-free » pour applications de bureau, qui impose
-l'attribution affichée dans la fenêtre de l'égaliseur (« Made with Slint »).
-Toute redistribution du binaire doit respecter cette licence.
 

@@ -1,8 +1,8 @@
 //! Modèle de vue de la fenêtre principale, en Rust pur (testable partout).
 //!
 //! Toute la logique d'affichage est ici : textes en français, valeurs « non
-//! lu », bandeau d'avertissement. La fenêtre Slint se contente d'afficher
-//! ces champs ; elle ne décide de rien.
+//! lu », bandeau d'avertissement. Les interfaces (WinUI, client KDE) se
+//! contentent d'afficher ces champs ; elle ne décide de rien.
 
 use crate::audio_check::{
     ControlLink, Level, WindowsAudio, describe_link_state, describe_output, findings, format_mix,
@@ -41,7 +41,7 @@ pub const BATTERY_SPANS: [(&str, u64); 3] = [
 /// Page « Batterie ».
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct BatteryView {
-    /// Tracé Slint (repère 1000 × 100), vide sans mesure sur la période.
+    /// Tracé SVG (repère 1000 × 100), vide sans mesure sur la période.
     pub path: String,
     /// « 70 % » ou « non connecté ».
     pub current: String,

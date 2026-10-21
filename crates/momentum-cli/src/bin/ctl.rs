@@ -36,16 +36,16 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Command {
-    /// Affiche l'état du casque. Passe par l'icône si elle tourne.
+    /// Affiche l'état du casque. Passe par le service s'il tourne.
     Etat {
         /// État en JSON (version 1, `null` pour une valeur non lue).
         #[arg(long)]
         json: bool,
     },
-    /// Liste les scènes du fichier scenes.txt. Passe par l'icône si elle tourne.
+    /// Liste les scènes du fichier scenes.txt.
     Scenes,
     /// Applique une scène (réglages un par un, arrêt à la première erreur).
-    /// Passe par l'icône si elle tourne.
+    /// Passe par le service s'il tourne.
     Scene { nom: String },
     /// Change le mode de contrôle du bruit.
     Mode { mode: Mode },
@@ -195,12 +195,8 @@ mod app {
     use momentum_core::device::{
         AudioMode, EqState, Headset, HeadsetState, NoiseModeRequest, NoiseState, PromptMode,
     };
-    #[cfg(windows)]
-    use momentum_core::ipc::Reply;
-    use momentum_core::ipc::{Request, state_json};
+    use momentum_core::json::state_json;
     use momentum_core::paths;
-    #[cfg(windows)]
-    use momentum_core::pipe::{self, ClientOutcome};
     use momentum_core::protocol::messages::M5NoiseMode;
     use momentum_core::scenes;
     #[cfg(target_os = "linux")]
@@ -216,72 +212,6 @@ mod app {
     use windows::Win32::System::WinRT::{RO_INIT_MULTITHREADED, RoInitialize};
 
     use super::{Args, Command, Mode, Prompts};
-
-    /// Délai d'attente d'une réponse de l'icône.
-    #[cfg(windows)]
-    const ICON_TIMEOUT: Duration = Duration::from_secs(90);
-
-    /// Envoie une requête à l'icône si elle tourne. `None` : pas d'icône.
-    #[cfg(windows)]
-    fn ask_icon(request: &Request) -> anyhow::Result<Option<String>> {
-        match pipe::request(&request.to_line(), ICON_TIMEOUT).map_err(anyhow::Error::msg)? {
-            ClientOutcome::NoServer => Ok(None),
-            ClientOutcome::Reply(text) => match Reply::decode(&text) {
-                Reply::Ok(body) => Ok(Some(body)),
-                Reply::Error(reason) => bail!("l'icône a refusé : {reason}"),
-            },
-        }
-    }
-
-    /// Pas encore d'icône sous Linux : `ctl` se connecte toujours lui-même.
-    #[cfg(not(windows))]
-    fn ask_icon(_request: &Request) -> anyhow::Result<Option<String>> {
-        Ok(None)
-    }
-
-    /// Rapport d'une scène reçu de l'icône : « complet » ou « partiel » puis
-    /// le détail.
-    fn print_scene_reply(body: &str) -> anyhow::Result<()> {
-        let (status, details) = body.split_once('\n').unwrap_or((body, ""));
-        print!("{details}");
-        if status != "complet" {
-            bail!("scène appliquée en partie (voir ci-dessus)");
-        }
-        Ok(())
-    }
-
-    /// Commandes servies par l'icône quand elle tourne ; `true` si c'est
-    /// fait, `false` s'il faut une connexion directe.
-    fn through_icon(command: &Command) -> anyhow::Result<bool> {
-        let request = match command {
-            Command::Etat { json: true } => Request::Status,
-            Command::Etat { json: false } => Request::StatusText,
-            Command::Scenes => Request::ListScenes,
-            Command::Scene { nom } => Request::ApplyScene(nom.clone()),
-            // Les autres sous-commandes ouvrent leur propre connexion : on
-            // vérifie seulement que l'icône ne la tient pas déjà.
-            _ => {
-                if ask_icon(&Request::Status)?.is_some() {
-                    bail!(
-                        "l'icône momentum-tray tourne et tient la connexion au casque : \
-                         seules « etat », « scenes » et « scene » passent par elle ; \
-                         utiliser sa fenêtre, ou la quitter pour cette commande"
-                    );
-                }
-                return Ok(false);
-            }
-        };
-        let Some(body) = ask_icon(&request)? else {
-            return Ok(false);
-        };
-        eprintln!("(par l'icône momentum-tray)");
-        match command {
-            Command::Etat { .. } => println!("{}", body.trim_end()),
-            Command::Scene { .. } => print_scene_reply(&body)?,
-            _ => print!("{body}"),
-        }
-        Ok(true)
-    }
 
     /// Délai d'attente de la réponse du casque à une commande passée par le
     /// service.
@@ -515,9 +445,6 @@ mod app {
         // Si le service tourne, il tient la connexion ; on passe par lui
         // plutôt que d'en ouvrir une seconde.
         if through_daemon(&args.command)? {
-            return Ok(());
-        }
-        if through_icon(&args.command)? {
             return Ok(());
         }
         // Liste des scènes : aucun besoin du casque.

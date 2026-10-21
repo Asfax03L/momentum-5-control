@@ -76,7 +76,7 @@ impl PanelPrefs {
     pub fn to_text(&self) -> String {
         let yn = |b: bool| if b { "oui" } else { "non" };
         let mut out = format!(
-            "# Panneau rapide de momentum-tray (fenêtre, page Scènes).\n\
+            "# Panneau rapide d'OpenHeadset Control (fenêtre, page Scènes).\n\
              bruit = {}\nniveau = {}\nprofil = {}\n",
             yn(self.noise),
             yn(self.level),

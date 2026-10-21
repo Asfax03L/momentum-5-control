@@ -4,7 +4,8 @@
 #   - logo dans le thème d'icônes (~/.local/share/icons/hicolor) ;
 #   - entrées de menu dans ~/.local/share/applications (KDE y trouve aussi
 #     l'icône des fenêtres sous Wayland).
-# Rien n'est supprimé ; une version déjà installée est remplacée.
+# Une version déjà installée est remplacée ; seule l'ancienne icône Slint
+# (momentum-tray, son entrée de menu et son démarrage automatique) est retirée.
 #
 # Depuis le dépôt : binaires de target/release. Depuis une archive publiée :
 # binaires et dossier assets posés à côté de ce script.
@@ -22,7 +23,7 @@ data=${XDG_DATA_HOME:-$HOME/.local/share}
 bin=$HOME/.local/bin
 mkdir -p "$bin" "$data/applications" "$data/icons/hicolor/scalable/apps"
 
-for exe in momentum-daemon momentum-tray momentum-kirigami ctl; do
+for exe in momentum-daemon momentum-kirigami ctl; do
     if [ -x "$bins/$exe" ]; then
         install -m 755 "$bins/$exe" "$bin/$exe"
         echo "installé : $bin/$exe"
@@ -37,10 +38,18 @@ for size in 16 22 24 32 48 64 128 256; do
     install -m 644 "$assets/logo/png/$size.png" \
         "$data/icons/hicolor/${size}x${size}/apps/org.openheadset.control.png"
 done
-for entry in momentum-kirigami momentum-tray; do
-    install -m 644 "$assets/linux/$entry.desktop" "$data/applications/$entry.desktop"
+install -m 644 "$assets/linux/momentum-kirigami.desktop" "$data/applications/momentum-kirigami.desktop"
+echo "logo et entrée de menu installés"
+
+# Ancienne icône Slint (versions 0.7 et avant) : remplacée par le client KDE.
+config=${XDG_CONFIG_HOME:-$HOME/.config}
+for old in "$bin/momentum-tray" "$data/applications/momentum-tray.desktop" \
+    "$config/autostart/momentum-ctl-win.desktop"; do
+    if [ -e "$old" ]; then
+        rm -f "$old"
+        echo "retiré (ancienne icône Slint) : $old"
+    fi
 done
-echo "logo et entrées de menu installés"
 
 # Service : unité systemd utilisateur et activation D-Bus (le service
 # démarre tout seul dès qu'une interface ou ctl l'appelle).
