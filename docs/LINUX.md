@@ -1,21 +1,19 @@
 # OpenHeadset Control sous Linux (KDE Plasma, Bazzite)
 
-Trois programmes, essayés sur le MOMENTUM 5 le 20/10/2026 (Bazzite 44, KDE
-Plasma, session **Wayland**) :
+Trois programmes, essayés sur le MOMENTUM 5 (Bazzite 44, KDE Plasma,
+session **Wayland**) :
 
 | Programme | Rôle | État |
 |---|---|---|
 | `ctl` | ligne de commande, connexion par BlueZ | ✅ lecture validée |
-| `momentum-tray` | icône de la zone de notification + fenêtre Slint (OpenHeadset Control) | ✅ validé (v0.7.0) |
-| `momentum-kirigami` | client natif KDE du service : Qt 6, Kirigami, style Breeze, icône de la zone de notification, raccourcis globaux | 🟡 essayé, non publié |
-| `momentum-daemon` | service : seul propriétaire de la connexion, API D-Bus `org.openheadset.Control1` | 🟡 essayé (lecture et écriture), non publié |
+| `momentum-kirigami` | client natif KDE du service : Qt 6, Kirigami, style Breeze, icône de la zone de notification, raccourcis globaux | ✅ essayé sur M5 (v0.8.0) |
+| `momentum-daemon` | service : seul propriétaire de la connexion, API D-Bus `org.openheadset.Control1` | ✅ essayé sur M5, lecture et écriture (v0.8.0) |
 
 Le service tient la connexion ; `ctl` et le client Kirigami passent par
 lui et peuvent tourner ensemble. Il démarre tout seul au premier appel
-(activation D-Bus, unité systemd `momentum-daemon.service`). L'icône Slint
-embarque encore sa propre connexion jusqu'à l'étape 4 de
-[ARCHITECTURE.md](ARCHITECTURE.md) : ne pas la lancer en même temps que le
-service.
+(activation D-Bus, unité systemd `momentum-daemon.service`). L'ancienne
+icône Slint (`momentum-tray`, v0.7.0 et avant) est retirée par le script
+d'installation.
 
 Client Kirigami sous KDE Plasma :
 - **icône de la zone de notification** (StatusNotifierItem) : logo teinté
@@ -27,9 +25,12 @@ Client Kirigami sous KDE Plasma :
   (ouvrir la fenêtre). À changer dans Configuration du système >
   Raccourcis > OpenHeadset Control ;
 - **pages** : accueil avec les appareils appairés au casque (connecter,
-  déconnecter après confirmation), égaliseur, scènes (`scenes.txt`,
-  modifiable depuis la page), batterie (courbe enregistrée par le
-  service), paramètres, à propos avec « Copier le diagnostic » ;
+  déconnecter après confirmation), égaliseur, scènes (application et
+  éditeur), batterie (courbe enregistrée par le service, export,
+  effacement), connexion et audio, paramètres (dont thème clair ou sombre,
+  avec Qt 6.8 ou plus récent), à propos avec « Copier le diagnostic » ;
+- **mode démonstration** : `momentum-kirigami --demo` (casque simulé, sans
+  service) ;
 - **ouverture de session** (Paramètres > Application) : lance le client
   caché (`momentum-kirigami --cache`), l'icône seule apparaît ;
 - **une seule fenêtre** : relancer le client montre la fenêtre déjà
@@ -42,30 +43,29 @@ systemctl --user status momentum-daemon
 busctl --user introspect org.openheadset.Control /org/openheadset/Control
 ```
 
-**Wayland** : l'icône Slint et le client Kirigami sont des clients Wayland
-natifs (aucune connexion X11/XWayland, vérifié sur les sockets du
+**Wayland** : le client Kirigami est un client Wayland natif (aucune connexion X11/XWayland, vérifié sur les sockets du
 processus). Sous Wayland, KDE trouve l'icône d'une fenêtre dans le fichier
 `.desktop` du même nom : d'où les entrées installées par le script.
 
 Pas encore sous Linux : panneau rapide, lecture des sorties audio
-(PipeWire). Le client Kirigami applique les scènes mais ne les édite pas
-encore (fichier `scenes.txt` ou fenêtre Slint).
+(PipeWire).
 
 ## Installer
 
 ```bash
-cargo build --release -p momentum-tray -p momentum-cli -p momentum-kirigami -p momentum-daemon
+cargo build --release -p momentum-cli -p momentum-kirigami -p momentum-daemon
 ```
 ```bash
 sh scripts/installer-linux.sh
 ```
 
-Le script (sans `sudo`, rien n'est supprimé) copie les binaires dans
+Le script (sans `sudo` ; seule l'ancienne icône Slint est retirée) copie
+les binaires dans
 `~/.local/bin`, le logo dans `~/.local/share/icons/hicolor`, les entrées de
 menu dans `~/.local/share/applications`, l'unité systemd utilisateur du
 service et son fichier d'activation D-Bus
 (`~/.local/share/dbus-1/services`). Lancer ensuite
-« OpenHeadset Control » depuis le menu, ou `momentum-tray --fenetre`.
+« OpenHeadset Control » depuis le menu, ou `momentum-kirigami`.
 
 État : **lecture validée** le 20/10/2026 sur Bazzite 44 (KDE Plasma) :
 `ctl etat` lit tout l'état du MOMENTUM 5 par le profil client BlueZ, sans
@@ -77,9 +77,7 @@ réglage n'a encore été écrit sous Linux.
 Bazzite est en lecture seule : on compile dans une boîte distrobox Fedora
 (`momentum-dev`, sans effet sur le système), avec Rust (`rustup`) et :
 
-- icône Slint et `ctl` : `gcc gcc-c++ pkgconf-pkg-config dbus-devel
-  libxkbcommon-devel wayland-devel fontconfig-devel freetype-devel
-  gtk3-devel libxdo-devel` ;
+- service et `ctl` : `gcc gcc-c++ pkgconf-pkg-config dbus-devel` ;
 - client Kirigami : `qt6-qtbase-devel qt6-qtdeclarative-devel
   kf6-kirigami-devel kf6-qqc2-desktop-style`.
 

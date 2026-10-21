@@ -2,7 +2,7 @@
 //!
 //! Client du service `momentum-daemon` (API D-Bus) : le service tient la
 //! connexion au casque, ce client ne fait qu'afficher et demander. Mêmes
-//! modèles de vue (`momentum_core::viewmodel`) que l'icône Slint.
+//! modèles de vue (`momentum_core::viewmodel`) que l'interface WinUI.
 
 #[cfg(target_os = "linux")]
 mod autostart;

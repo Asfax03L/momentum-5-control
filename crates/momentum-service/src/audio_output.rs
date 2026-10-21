@@ -161,7 +161,7 @@ unsafe fn property_text(
 #[cfg(test)]
 mod tests {
     /// Lecture réelle des sorties de ce PC (lecture seule) ; lancée à la
-    /// main : `cargo test --bin momentum-tray audio_output -- --ignored --nocapture`.
+    /// main : `cargo test -p momentum-service audio_output -- --ignored --nocapture`.
     #[test]
     #[ignore = "dépend des sorties audio du PC"]
     fn read_this_pc() {

@@ -235,7 +235,7 @@ pub fn chart_polylines(
         .collect()
 }
 
-/// Tracé pour Slint (`Path.commands`) dans un repère de 1000 × 100 :
+/// Tracé SVG (commandes `M`/`L`) dans un repère de 1000 × 100 :
 /// x = temps sur la période, y = 100 − pourcentage. Chaque segment continu
 /// commence par un `M` : les périodes inconnues restent vides.
 pub fn chart_path(log: &BatteryLog, now: u64, span_seconds: u64) -> String {

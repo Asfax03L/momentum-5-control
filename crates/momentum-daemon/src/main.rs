@@ -1,5 +1,5 @@
 //! `momentum-daemon` : service sans fenêtre, seul propriétaire de la
-//! connexion au casque. Les interfaces (Kirigami, WinUI, Slint, `ctl`) lui
+//! connexion au casque. Les interfaces (Kirigami, WinUI, `ctl`) lui
 //! parlent par l'API de `momentum-client`.
 //!
 //! Linux : bus de session D-Bus, nom `org.openheadset.Control`, interface

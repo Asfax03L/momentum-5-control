@@ -6,26 +6,27 @@ directement au casque : elles passent toutes par le service.
 ```
 momentum-core      protocole, casque, modèles d'affichage (viewmodel, ui)
       │
-momentum-service   worker : seul propriétaire de la connexion au casque
-      │            WorkerCommand  ← interface
-      │            WorkerEvent    → interface
-      │
+momentum-daemon    service : seul propriétaire de la connexion au casque
+      │            (worker de momentum-service)
+momentum-client    API : Command  ← interface
+      │                 Event, Snapshot → interface
+      │            (D-Bus sous Linux, canal nommé sous Windows)
 frontends/<nom>    affichage + appels système propres aux fenêtres
 ```
 
 ## Règles pour une interface
 
 1. **Ne jamais ouvrir de connexion au casque.** Envoyer des
-   `momentum_service::worker::WorkerCommand` et afficher les
-   `WorkerEvent`. Le worker regroupe les commandes, relit l'état et garde
-   les notifications ; une interface ne doit pas refaire ce travail.
+   `momentum_client::Command` au service et afficher le `Snapshot` et les
+   `Event` reçus (`momentum_client::Client`). Le service regroupe les
+   commandes, relit l'état et garde les notifications ; une interface ne
+   doit pas refaire ce travail.
 2. **Réutiliser les modèles d'affichage** de `momentum_core::viewmodel` et
    `momentum_core::ui` (libellés, listes de choix, pages). Ils sont testés
    et identiques pour toutes les interfaces.
 3. **Garder ici seulement ce qui touche aux fenêtres** : placement, focus,
-   boîtes de dialogue (exemple : `slint/src/window.rs`). Notifications,
-   raccourcis, démarrage automatique et instance unique sont dans le
-   service.
+   boîtes de dialogue (exemple : `winui/src/desktop.rs`). Les
+   notifications sont envoyées par le service.
 4. Mêmes règles de sécurité que le reste du projet (voir `CLAUDE.md`) :
    lecture seule tant qu'une commande n'est pas validée, aucune donnée
    personnelle dans les journaux.
@@ -34,9 +35,8 @@ frontends/<nom>    affichage + appels système propres aux fenêtres
 
 | Dossier | Bibliothèque | Systèmes | État |
 |---|---|---|---|
-| `slint/` | Slint (Rust) | Windows et Linux | utilisée au quotidien (v0.7.0) |
-| `kirigami/` | Qt 6 / Kirigami (KDE), pont cxx-qt | Linux KDE | premier client natif : accueil, égaliseur, paramètres |
-| `winui/` | WinUI 3 via [`windows-reactor`](https://github.com/microsoft/windows-rs) (Microsoft, 100 % Rust) | Windows | client du service : accueil, égaliseur, paramètres (étape 3 de [ARCHITECTURE.md](../docs/ARCHITECTURE.md)) |
+| `kirigami/` | Qt 6 / Kirigami (KDE), pont cxx-qt | Linux KDE | interface KDE (v0.8.0) |
+| `winui/` | WinUI 3 via [`windows-reactor`](https://github.com/microsoft/windows-rs) (Microsoft, 100 % Rust) | Windows | interface Windows (v0.8.0) |
 | `gtk/` | GTK 4 / libadwaita (GNOME) | Linux GNOME | à explorer |
 
 Notes pour les pistes « à explorer » (à vérifier au moment de s'y mettre) :
@@ -64,7 +64,7 @@ Notes pour les pistes « à explorer » (à vérifier au moment de s'y mettre) :
 ## Ajouter une interface
 
 1. Créer `frontends/<nom>/` avec son `Cargo.toml` (dépendances
-   `momentum-core` et `momentum-service` de l'espace de travail).
+   `momentum-core` et `momentum-client` de l'espace de travail).
 2. L'ajouter à `members` dans le `Cargo.toml` racine.
 3. Limiter ses dépendances système à `cfg(windows)` ou
    `cfg(target_os = "linux")` pour que `cargo build --workspace` passe

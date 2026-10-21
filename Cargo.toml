@@ -6,7 +6,6 @@ members = [
     "crates/momentum-cli",
     "crates/momentum-client",
     "crates/momentum-daemon",
-    "frontends/slint",
     "frontends/kirigami",
     "frontends/winui",
 ]
@@ -18,7 +17,6 @@ default-members = [
     "crates/momentum-cli",
     "crates/momentum-client",
     "crates/momentum-daemon",
-    "frontends/slint",
     "frontends/winui",
 ]
 
@@ -41,16 +39,12 @@ clap = { version = "4.6.7", features = ["derive"] }
 thiserror = "2.0.21"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt"] }
-slint = { version = "1.18.1", default-features = false, features = ["std", "compat-1-2", "backend-winit", "renderer-software", "accessibility"] }
-slint-build = "1.18.1"
 embed-resource = "3.0.12"
 tray-icon = "0.26.1"
 bluer = { version = "0.17.4", features = ["bluetoothd", "rfcomm"] }
 tokio = { version = "1.53.3", features = ["rt-multi-thread", "net", "time", "io-util", "macros"] }
 futures = "0.3.31"
 dbus = "0.9.12"
-libc = "0.2.190"
-gtk = "0.18.2"
 windows = { version = "0.62.2", features = [
     "Foundation",
     "Foundation_Collections",

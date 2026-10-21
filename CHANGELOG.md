@@ -7,6 +7,45 @@ depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
 
 ## Non publié
 
+### Retrait de l'icône Slint (étape 4 de docs/ARCHITECTURE.md)
+- `momentum-tray` (icône et fenêtre Slint) est retiré : WinUI 3 sous
+  Windows et le client KDE en reprennent toutes les fonctions, en clients
+  du service. Plus de dépendance à Slint ni à GTK.
+- `ctl` ne passe plus que par le service (ou se connecte lui-même sans
+  service) ; le canal texte de l'icône (`ipc`, `ipc_server`) est retiré,
+  seul le JSON d'état de `ctl etat --json` reste (`momentum_core::json`,
+  format inchangé).
+- `installer.ps1` n'a plus d'option `-Interface` ; il retire l'ancienne
+  icône (`momentum-tray.exe`, entrée de démarrage `momentum-ctl-win`).
+  `installer-linux.sh` retire aussi `momentum-tray`, son entrée de menu et
+  son démarrage automatique.
+
+### Fonctions reprises de l'icône Slint (WinUI 3 et client KDE)
+- Volume des invites et nom du casque ; export du profil ; export et
+  import de courbes d'égaliseur ; comparaison A/B.
+- Menu complet de l'icône (mode, curseur en 5 crans, anti-vent, audio
+  spatial, Speech Clarity, profil, réglages du casque, scènes, démarrage),
+  construit par `momentum_core::tray_menu` pour les deux interfaces.
+- Éditeur des raccourcis globaux (scènes comprises) ; sous KDE, les
+  scènes sont aussi enregistrées auprès de KGlobalAccel.
+- Batterie : export CSV et effacement confirmé de l'historique
+  (`Command::ClearBatteryHistory`, traité par le service).
+- Page « Connexion et audio » : heure des dernières lectures et, sous
+  Windows, vérification de la sortie audio du système (lecture seule).
+- Panneau rapide (Windows) : contenu choisi dans les Paramètres
+  (`panneau.txt`), bascule du profil, boutons de scènes.
+- Éditeur de scènes dans la fenêtre (`momentum_core::scene_editor` :
+  créer, dupliquer, renommer, déplacer, supprimer ; un renommage suit dans
+  `raccourcis.txt` et `panneau.txt`).
+- Thème clair ou sombre (`apparence.txt`) ; sans choix, celui du système.
+  Sous KDE, appliqué avec Qt 6.8 ou plus récent.
+- Mode démonstration `--demo` (`momentum_client::demo`) : casque simulé,
+  sans service ni Bluetooth, bandeau permanent.
+- Essayé le 21/10/2026 : volume des invites (77 → 50 → 77) et A/B sur le
+  M5, valeurs remises ; menu de l'icône (anti-vent) sous Windows et KDE ;
+  éditeur de raccourcis, export et effacement de la batterie, éditeur de
+  scènes (fichiers sauvegardés puis remis) ; captures des autres pages.
+
 ### Service et API (étape 1 de docs/ARCHITECTURE.md, Linux)
 - `momentum-daemon` : service sans fenêtre, seul propriétaire de la
   connexion ; historique de la batterie et notifications ; API D-Bus
@@ -21,16 +60,15 @@ depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
   écriture (anti-vent coupé puis remis par `ctl`, relu par le service).
 
 ### Installation et publication (étape 5)
-- `installer.ps1` : interface WinUI 3 par défaut (WinUI, service et `ctl`,
-  démarrage caché à l'ouverture de session), ou `-Interface slint` ;
-  avertit si le Windows App Runtime 2 manque ; retire l'interface non
-  choisie et son entrée de démarrage ; `-Desinstaller` retire les deux.
+- `installer.ps1` : interface WinUI 3 (WinUI, service et `ctl`, démarrage
+  caché à l'ouverture de session) ; avertit si le Windows App Runtime 2
+  manque ; `-Desinstaller` retire tout.
 - `installer-linux.sh` : fonctionne aussi depuis une archive publiée
   (binaires et `assets` à côté du script).
 - Publication : archives `openheadset-control-vX.Y.Z-windows-x86_64.zip`
-  (WinUI, service, icône Slint, ctl, probe) et
+  (WinUI, service, ctl, probe) et
   `openheadset-control-vX.Y.Z-linux-x86_64.tar.gz` (client KDE, service,
-  icône Slint, ctl), avec leur empreinte SHA-256.
+  ctl), avec leur empreinte SHA-256.
 
 ### Client WinUI 3 (Windows)
 - `momentum-winui` : client du service en WinUI 3 natif, écrit en Rust

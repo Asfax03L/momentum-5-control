@@ -1,45 +1,17 @@
-//! Intégration au bureau Linux : notifications par D-Bus
-//! (`org.freedesktop.Notifications`, affichées par KDE ou GNOME). Même
-//! interface que la version Windows (`desktop.rs`).
-//!
-//! Raccourcis clavier globaux : pas encore pris en charge (sous Wayland,
-//! ils passent par le portail `GlobalShortcuts`, à faire).
+//! Intégration au bureau Linux : notifications du service par D-Bus
+//! (`org.freedesktop.Notifications`, affichées par KDE ou GNOME), comme
+//! `show_toast` de la version Windows (`desktop.rs`). Les raccourcis globaux
+//! sont enregistrés par le client KDE (KGlobalAccel).
 
 use std::time::Duration;
 
 use dbus::blocking::Connection;
-use momentum_core::hotkeys::{Hotkey, HotkeyAction};
-use tracing::{info, warn};
+use tracing::warn;
 
 /// Nom de l'application dans les notifications.
 const APP_NAME: &str = "MOMENTUM 5 (non officiel)";
 /// Délai maximal de l'appel D-Bus.
 const DBUS_TIMEOUT: Duration = Duration::from_secs(2);
-
-/// Thread des raccourcis (aucun sous Linux pour l'instant).
-pub struct HotkeyThread;
-
-impl HotkeyThread {
-    pub fn stop(self) {}
-}
-
-/// Raccourcis globaux non pris en charge : rien n'est enregistré, et ce
-/// n'est pas une erreur de l'utilisateur (une ligne d'information suffit).
-pub fn spawn_hotkeys(
-    keys: Vec<(HotkeyAction, Hotkey)>,
-    _on_hotkey: impl Fn(HotkeyAction) + Send + 'static,
-) -> (Option<HotkeyThread>, Vec<String>) {
-    if !keys.is_empty() {
-        info!(
-            nombre = keys.len(),
-            "raccourcis globaux pas encore pris en charge sous Linux : ignorés"
-        );
-    }
-    (None, Vec::new())
-}
-
-/// Rien à déclarer : le nom de l'application accompagne chaque notification.
-pub fn register_notifications() {}
 
 /// Affiche une notification du bureau ; un échec est seulement journalisé.
 pub fn show_toast(title: &str, body: &str) {

@@ -15,7 +15,7 @@ pub mod device;
 pub mod diagnostic;
 pub mod hex;
 pub mod hotkeys;
-pub mod ipc;
+pub mod json;
 pub mod paths;
 #[cfg(windows)]
 pub mod pipe;

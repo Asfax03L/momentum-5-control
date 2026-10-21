@@ -1,25 +1,28 @@
 # Architecture d'OpenHeadset Control
 
-État au 20/10/2026 et direction choisie : **séparer le back (un service qui
-tient le casque) des fronts (interfaces natives de chaque système)**, tout
-en Rust.
+Direction choisie le 20/10/2026, en place depuis la v0.8.0 : **séparer le
+back (un service qui tient le casque) des fronts (interfaces natives de
+chaque système)**, tout en Rust.
 
-## Aujourd'hui (v0.7.0)
+## Avant (v0.7.0)
+
+Chaque interface (icône Slint, client KDE) **embarquait** le worker : une
+seule à la fois pouvait tenir la connexion au casque (il fallait quitter
+l'icône pour lancer `ctl` ou le client Kirigami), et chaque interface
+devait refaire l'intégration système (notifications, démarrage
+automatique…).
+
+## Depuis la v0.8.0 : un service, des interfaces clientes
 
 ```
 crates/momentum-core      protocole GAIA, casque, scènes, modèles d'affichage
 crates/momentum-service   worker (connexion), intégration système
+crates/momentum-client    API du service (messages, clients D-Bus et canal nommé)
+crates/momentum-daemon    le service
 crates/momentum-cli       ctl, probe
-frontends/slint           icône + fenêtre (Windows, Linux) ← contient le worker
-frontends/kirigami        client KDE (Linux)               ← contient le worker
+frontends/winui           interface Windows (WinUI 3)
+frontends/kirigami        interface KDE (Qt 6 / Kirigami)
 ```
-
-Chaque interface **embarque** le worker : une seule à la fois peut tenir la
-connexion au casque (il faut quitter l'icône pour lancer `ctl` ou le client
-Kirigami), et chaque interface doit refaire l'intégration système
-(notifications, démarrage automatique…).
-
-## Cible : un service, des interfaces clientes
 
 ```
                          ┌────────────────────────────────────┐
@@ -29,11 +32,11 @@ Kirigami), et chaque interface doit refaire l'intégration système
                          └───────────────┬────────────────────┘
           API locale : Linux → D-Bus (bus de session, zbus, Rust pur)
                        Windows → canal nommé (JSON, utilisateur courant)
-        ┌───────────────┬───────────────┼────────────────┬──────────────┐
-  momentum-kirigami  momentum-winui   momentum-tray     ctl        (widget Plasma,
-  KDE : Kirigami,    Windows :        Slint, de         ligne de    autres clients
-  icône SNI (ksni),  WinUI 3 par      secours sur les   commande    D-Bus)
-  KGlobalAccel       windows-reactor, deux systèmes
+        ┌───────────────┬───────────────┼────────────────┐
+  momentum-kirigami  momentum-winui      ctl         (widget Plasma,
+  KDE : Kirigami,    Windows :           ligne de     autres clients
+  icône SNI (ksni),  WinUI 3 par         commande     D-Bus)
+  KGlobalAccel       windows-reactor,
                      Mica, toasts,
                      Shell_NotifyIcon
 ```
@@ -45,8 +48,8 @@ Kirigami), et chaque interface doit refaire l'intégration système
   partagée `momentum-client` qui cache le transport. Sous Linux, D-Bus est
   le transport natif de KDE : propriétés, méthodes et signaux
   (`org.openheadset.Control1`), utilisables aussi par un widget Plasma ou
-  un script. Sous Windows, le canal nommé existant (déjà utilisé par `ctl`)
-  est étendu aux événements.
+  un script. Sous Windows, un canal nommé propre à l'utilisateur porte les
+  mêmes messages et les événements.
 - **Les règles de sécurité restent dans le service** : liste fermée de
   commandes validées, garde du modèle, relecture après écriture. Une
   interface ne peut rien envoyer d'autre.
@@ -59,7 +62,6 @@ Kirigami), et chaque interface doit refaire l'intégration système
 |---|---|---|---|
 | KDE Plasma (Bazzite) | `momentum-kirigami` | Kirigami/Breeze, thème Plasma, icône de zone de notification StatusNotifierItem (`ksni`), notifications D-Bus, raccourcis globaux KGlobalAccel (D-Bus), lancement XDG, Wayland natif | Rust ; écran décrit en QML (seul moyen d'utiliser Kirigami) ; cale C++ minimale pour l'icône (absente de cxx-qt) |
 | Windows 11 | `momentum-winui` | WinUI 3 (`windows-reactor`, Microsoft), NavigationView, fond Mica, thème du système, toasts, icône de zone de notification `Shell_NotifyIcon`, raccourcis `RegisterHotKey`, lancement au démarrage | 100 % Rust (Windows App Runtime 2.x requis) |
-| Les deux | `momentum-tray` (Slint) | interface commune de secours, jusqu'à ce que les deux interfaces natives couvrent tout | Rust + Slint |
 
 ## Étapes (une PR chacune, validée sur le casque)
 
@@ -111,8 +113,9 @@ Les interfaces relèvent les événements toutes les 150 ms ; le client
    Raccourcis). Puis : appareils appairés (connecter, déconnecter avec
    confirmation), scènes, courbe de la batterie, diagnostic expurgé,
    lancement à l'ouverture de session (icône seule), instance unique
-   (D-Bus `org.openheadset.ControlWindow`). Reste : sorties audio du
-   système (PipeWire), édition des scènes dans la fenêtre.
+   (D-Bus `org.openheadset.ControlWindow`), éditeur de scènes, thème
+   clair ou sombre, mode démonstration. Reste : sorties audio du système
+   (PipeWire).
 3. **Windows** — 🟡 en partie (21/10/2026) : service sur canal nommé ;
    `momentum-winui` (`windows-reactor` 0.100, chaîne GNU suffisante),
    client du service : NavigationView, Mica, pages Accueil (bruit,
@@ -122,13 +125,12 @@ Les interfaces relèvent les événements toutes les 150 ms ; le client
    (`raccourcis.txt`), lancement à l'ouverture de session (`--cache`),
    service lancé au besoin ; pages Scènes (application et compte rendu),
    Batterie (courbe 24 h / 7 j / 30 j), diagnostic à copier ; panneau
-   rapide au clic sur l'icône. Fait (21/10/2026), sauf l'installation
-   (étape 5).
-4. **Slint** : client du service, ou retrait quand les deux interfaces
-   natives couvrent tout.
-5. **Distribution** — 🟡 (21/10/2026) : `installer.ps1` installe WinUI,
-   le service et `ctl` par défaut (ou l'icône Slint avec `-Interface
-   slint`), vérifie le Windows App Runtime 2, inscrit le démarrage caché ;
-   `installer-linux.sh` fonctionne aussi depuis l'archive ; la publication
-   joint une archive Windows et une archive Linux. Reste : première
-   publication (la CI GitHub est bloquée par la facturation du compte).
+   rapide au clic sur l'icône ; puis éditeur de scènes, sortie audio du
+   système, thème clair ou sombre, mode démonstration. ✅ (21/10/2026)
+4. **Slint** — ✅ retiré (v0.8.0) : ses fonctions ont été reprises par les
+   deux interfaces natives ; `ctl` ne passe plus que par le service.
+5. **Distribution** — ✅ (v0.8.0) : `installer.ps1` installe WinUI, le
+   service et `ctl`, vérifie le Windows App Runtime 2, inscrit le
+   démarrage caché ; `installer-linux.sh` fonctionne aussi depuis
+   l'archive ; les deux retirent l'ancienne icône Slint ; la publication
+   joint une archive Windows et une archive Linux.
