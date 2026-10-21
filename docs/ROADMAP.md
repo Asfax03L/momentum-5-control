@@ -82,7 +82,7 @@ Statuts : ✅ écrit et validé sur le M5 (firmware 6.21.5) ; 👁 lu seulement 
    cycles inventés), panneau rapide au clic sur l'icône, saisie numérique et
    import/export des courbes d'égaliseur, raccourcis éditables, bouton
    « Copier un diagnostic » expurgé.
-4. **Recherche séparée** (faite, publiée en v0.5.0, voir [`RECHERCHE-ETAPE4.md`](RECHERCHE-ETAPE4.md) ;
+4. **Recherche séparée** (faite, publiée en v0.5.0 ; résultats dans [`MOMENTUM5.md`](MOMENTUM5.md) ;
    lecture d'abord, écriture seulement après capture
    et accord) : intensité du sidetone, suivi de tête, audio USB, paramètres
    du profil de personnalisation. Reste non qualifié : les notifications de

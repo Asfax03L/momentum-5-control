@@ -58,3 +58,18 @@ jobs:
             target/release/momentum-daemon
             target/release/momentum-kirigami
           if-no-files-found: error
+
+  # Client KDE avec un Qt récent (Fedora 44 : Qt 6.11, comme Bazzite) : le
+  # code réservé à Qt 6.8 et plus (thème clair ou sombre) n'est compilé
+  # qu'ici, la tâche Ubuntu ayant Qt 6.4.
+  kde-qt-recent:
+    runs-on: ubuntu-24.04
+    container: fedora:44
+    env:
+      QMAKE: /usr/bin/qmake6
+      CARGO_PROFILE_DEV_DEBUG: 0
+    steps:
+      - run: dnf install -y --setopt=install_weak_deps=False git gcc gcc-c++ pkgconf-pkg-config dbus-devel qt6-qtbase-devel qt6-qtdeclarative-devel rust cargo clippy
+      - uses: actions/checkout@v4
+      - run: qmake6 -query QT_VERSION && cargo --version
+      - run: cargo clippy -p momentum-kirigami --all-targets -- -D warnings

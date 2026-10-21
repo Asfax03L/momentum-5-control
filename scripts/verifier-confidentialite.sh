@@ -2,7 +2,8 @@
 # Refuse ce qui ne doit pas être publié dans ce dépôt public : adresse
 # Bluetooth complète (sauf exemples fictifs : 00:…, 02:…, AA:BB:CC:…,
 # aa:bb:cc:…, 11:22:33:…), chemin d'un dossier personnel Windows ou Linux,
-# APK, captures Bluetooth brutes, export de profil auditif. Lancé par la CI ;
+# APK, captures Bluetooth brutes, export de profil auditif, lien vers un
+# document privé. Lancé par la CI ;
 # à lancer aussi avant un commit : sh scripts/verifier-confidentialite.sh
 set -u
 status=0
@@ -30,6 +31,16 @@ forbidden=$(printf '%s\n' "$files" | grep -iE '\.(apk|xapk|apks|btsnoop|pcap|pca
 if [ -n "$forbidden" ]; then
     echo "Fichier à garder hors du dépôt public :"
     echo "$forbidden"
+    status=1
+fi
+
+# Documents restés dans l'archive privée : aucun lien vers eux (il serait
+# cassé, et dévoilerait leur existence).
+private=$(printf '%s
+' "$files" | grep -E '\.md$' | xargs grep -nIE 'RECHERCHE-ETAPE4|docs/research/|docs/claude/' 2>/dev/null)
+if [ -n "$private" ]; then
+    echo "Lien vers un document privé (le retirer ou résumer le fait public) :"
+    echo "$private"
     status=1
 fi
 
