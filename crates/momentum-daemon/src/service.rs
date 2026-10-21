@@ -19,11 +19,25 @@ pub struct Shared {
     pub snapshot: Snapshot,
     /// Appareils appairés avec leur adresse (jamais envoyée aux interfaces).
     pub devices: Vec<Connection>,
+    /// Historique de la batterie, écrit dans `batterie.csv` à chaque mesure.
+    pub battery_log: BatteryLog,
 }
 
-/// Traduit une commande de l'API en commande du worker ; `Err` : refusée
+/// Traite une commande de l'API : `Some` pour le worker (casque), `None`
+/// si le service l'a faite lui-même ; `Err` : refusée (raison).
+pub fn handle(command: Command, shared: &mut Shared) -> Result<Option<WorkerCommand>, String> {
+    if command == Command::ClearBatteryHistory {
+        shared.battery_log.clear();
+        store_battery_log(&shared.battery_log);
+        tracing::info!("historique de la batterie effacé");
+        return Ok(None);
+    }
+    to_worker(command, shared).map(Some)
+}
+
+/// Traduit une commande du casque en commande du worker ; `Err` : refusée
 /// par le service (raison).
-pub fn to_worker(command: Command, shared: &Shared) -> Result<WorkerCommand, String> {
+fn to_worker(command: Command, shared: &Shared) -> Result<WorkerCommand, String> {
     let writable = shared.snapshot.state.is_some() && shared.snapshot.read_only.is_none();
     if !writable {
         return Err("casque absent ou en lecture seule".to_string());
@@ -77,6 +91,7 @@ pub fn to_worker(command: Command, shared: &Shared) -> Result<WorkerCommand, Str
             }
         }
         Command::ExportProfile(path) => WorkerCommand::ExportProfile(path),
+        Command::ClearBatteryHistory => unreachable!("traitée par `handle`"),
     })
 }
 
@@ -162,7 +177,9 @@ pub fn pump(
     shared: &Mutex<Shared>,
     mut publish: impl FnMut(&Event),
 ) {
-    let mut battery_log = load_battery_log();
+    if let Ok(mut s) = shared.lock() {
+        s.battery_log = load_battery_log();
+    }
     let mut alerts = AlertTracker::new();
     for event in events {
         match &event {
@@ -172,15 +189,19 @@ pub fn pump(
             }
             WorkerEvent::State(s) => {
                 toast(alerts.on_battery(s.battery));
-                if battery_log.record(unix_now(), s.battery) {
-                    store_battery_log(&battery_log);
+                if let Ok(mut sh) = shared.lock()
+                    && sh.battery_log.record(unix_now(), s.battery)
+                {
+                    store_battery_log(&sh.battery_log);
                 }
             }
             WorkerEvent::Lost(reason) => {
                 tracing::warn!(%reason, "connexion perdue");
                 toast(alerts.on_lost());
-                if battery_log.interrupt(unix_now()) {
-                    store_battery_log(&battery_log);
+                if let Ok(mut sh) = shared.lock()
+                    && sh.battery_log.interrupt(unix_now())
+                {
+                    store_battery_log(&sh.battery_log);
                 }
             }
             WorkerEvent::Refused(reason) => tracing::warn!(%reason, "réglage refusé"),
@@ -206,6 +227,20 @@ mod tests {
         s.snapshot.device_name = Some("MOMENTUM 5".into());
         s.snapshot.state = Some(HeadsetState::default());
         s
+    }
+
+    #[test]
+    fn battery_history_is_cleared_without_the_headset() {
+        let mut shared = Shared::default();
+        shared.battery_log.record(1_000, 80);
+        shared.battery_log.record(2_000, 79);
+        assert!(!shared.battery_log.entries().is_empty());
+        // Casque absent : la commande est quand même faite, sans le worker.
+        assert!(matches!(
+            handle(Command::ClearBatteryHistory, &mut shared),
+            Ok(None)
+        ));
+        assert!(shared.battery_log.entries().is_empty());
     }
 
     #[test]

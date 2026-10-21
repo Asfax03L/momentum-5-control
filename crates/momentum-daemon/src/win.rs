@@ -46,14 +46,15 @@ fn handle(
         },
         Request::Command(command) => {
             let worker_command = match shared.lock() {
-                Ok(s) => service::to_worker(command, &s),
+                Ok(mut s) => service::handle(command, &mut s),
                 Err(_) => return unavailable(),
             };
             match worker_command {
-                Ok(c) => match commands.send(c) {
+                Ok(Some(c)) => match commands.send(c) {
                     Ok(()) => Reply::Ok,
                     Err(_) => Reply::Error("le worker s'est arrêté".to_string()),
                 },
+                Ok(None) => Reply::Ok,
                 Err(reason) => Reply::Error(reason),
             }
         }

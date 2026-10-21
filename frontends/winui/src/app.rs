@@ -166,6 +166,7 @@ pub(crate) enum Incoming {
 #[derive(Clone, Debug, PartialEq)]
 enum Confirm {
     MultipointOff,
+    ClearBattery,
     Disconnect { index: usize, name: String },
 }
 
@@ -221,6 +222,9 @@ enum Msg {
     ReloadScenes,
     EditScenes,
     BatterySpan(Option<usize>),
+    ExportBattery,
+    ClearBattery,
+    ReloadBattery,
     CopyDiagnostic,
 }
 
@@ -281,6 +285,8 @@ struct Root {
     scene_result: Option<(String, bool)>,
     battery_span: usize,
     battery: Option<BatteryPage>,
+    /// Résultat du dernier export ou effacement de l'historique.
+    battery_notice: Option<String>,
     /// Incidents récents : (heure Unix, message).
     incidents: Vec<(u64, String)>,
     diagnostic_copied: Option<bool>,
@@ -763,6 +769,7 @@ impl Component for Root {
             scene_result: None,
             battery_span: 0,
             battery: None,
+            battery_notice: None,
             incidents: Vec::new(),
             diagnostic_copied: None,
         };
@@ -855,6 +862,9 @@ impl Component for Root {
                 self.reload_battery();
             }
             Msg::BatterySpan(None) => {}
+            Msg::ExportBattery => self.battery_notice = Some(export_battery_history()),
+            Msg::ClearBattery => self.confirm = Some(Confirm::ClearBattery),
+            Msg::ReloadBattery => self.reload_battery(),
             Msg::CopyDiagnostic => {
                 self.diagnostic_copied = Some(desktop::copy_text(&self.diagnostic()));
             }
@@ -1199,6 +1209,21 @@ impl Component for Root {
             }
             Msg::Confirmed => match self.confirm.take() {
                 Some(Confirm::MultipointOff) => self.send(Command::SetMultipoint(false)),
+                Some(Confirm::ClearBattery) => {
+                    // Le service tient l'historique : il l'efface et
+                    // réécrit le fichier, relu ensuite par la page.
+                    self.battery_notice = Some(
+                        if self.commands.send(Command::ClearBatteryHistory).is_ok() {
+                            "Historique de la batterie effacé.".to_string()
+                        } else {
+                            "Effacement impossible : service injoignable.".to_string()
+                        },
+                    );
+                    context.spawn_background(|_| {
+                        std::thread::sleep(Duration::from_millis(600));
+                        Msg::ReloadBattery
+                    });
+                }
                 Some(Confirm::Disconnect { index, name }) => self.send(Command::ToggleConnection {
                     index,
                     name,
@@ -1351,6 +1376,23 @@ fn menu_item(
     })
 }
 
+/// Copie `batterie.csv` dans Documents ; renvoie le message à afficher.
+fn export_battery_history() -> String {
+    let Some(source) = paths::battery_file() else {
+        return "Export impossible : dossier des données introuvable.".to_string();
+    };
+    let Some(target) = paths::export_file("momentum-batterie", "csv", unix_now()) else {
+        return "Export impossible : dossier Documents introuvable.".to_string();
+    };
+    match std::fs::copy(&source, &target) {
+        Ok(_) => format!("Historique exporté dans {}.", target.display()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            "Aucun historique à exporter pour l'instant.".to_string()
+        }
+        Err(e) => format!("Export de l'historique impossible : {e}."),
+    }
+}
+
 /// Enregistre les raccourcis de `config` ; renvoie le fil qui les écoute
 /// et les erreurs (ligne invalide, combinaison déjà prise).
 fn register_hotkeys(config: &str) -> (Option<HotkeyThread>, Vec<String>) {
@@ -1462,6 +1504,13 @@ impl Root {
                     "Sans Multipoint, le casque ne garde qu'un appareil : l'autre est déconnecté."
                         .to_string(),
                     "Couper le Multipoint",
+                ),
+                Confirm::ClearBattery => (
+                    "Effacer l'historique de la batterie ?",
+                    "Toutes les mesures enregistrées sur ce PC sont supprimées. Exporter \
+                     d'abord pour les garder."
+                        .to_string(),
+                    "Effacer",
                 ),
                 Confirm::Disconnect { name, .. } => (
                     "Déconnecter cet appareil ?",
@@ -2168,6 +2217,31 @@ impl Root {
                 )),
             ),
             card("Détails", StackPanel::new().spacing(4.0).keyed_children(details)),
+            card(
+                "Historique",
+                StackPanel::new().spacing(8.0).children((
+                    StackPanel::new()
+                        .orientation(Orientation::Horizontal)
+                        .spacing(8.0)
+                        .children((
+                            Button::new()
+                                .on_click(context.message(Msg::ExportBattery))
+                                .content("Exporter (CSV)"),
+                            Button::new()
+                                .on_click(context.message(Msg::ClearBattery))
+                                .content("Effacer l'historique…"),
+                        )),
+                    TextBlock::new()
+                        .text(self.battery_notice.clone().unwrap_or_else(|| {
+                            "Mesures gardées sur ce PC (batterie.csv, 30 jours) ; l'export \
+                             va dans Documents."
+                                .to_string()
+                        }))
+                        .font_size(12.0)
+                        .opacity(0.7)
+                        .text_wrapping(TextWrapping::Wrap),
+                )),
+            ),
         ))
     }
 
