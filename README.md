@@ -305,6 +305,21 @@ contiennent les noms de vos appareils.
 
 ## Compatibilité MOMENTUM 5
 
+### Modèles et micrologiciels testés
+
+| Casque (modèle lu) | Micrologiciel | Systèmes essayés | Écritures |
+|---|---|---|---|
+| MOMENTUM 5 Wireless (`M5AEBT Black`) | 6.21.5 | Windows 11 ; Bazzite 44 (KDE Plasma 6, Wayland) | ✅ validées (tableau ci-dessous) |
+| MOMENTUM 5, autre micrologiciel | — | — | 🔒 lecture seule (non vérifié) |
+| Autre casque GAIA (ACCENTUM, MOMENTUM 4…) | — | jamais essayé | 🔒 lecture seule |
+
+Un autre modèle ou micrologiciel reste en lecture seule (aucun réglage
+envoyé) tant que chaque écriture n'y a pas été vérifiée. Pour en signaler
+un, ouvrez une issue « Compatibilité » avec la sortie de `probe --deep`
+(voir [CONTRIBUTING.md](CONTRIBUTING.md)).
+
+### Détail des commandes
+
 Relevé sur un M5 « M5AEBT Black », firmware 6.21.5, en octobre 2026.
 Transport : Bluetooth Classic RFCOMM, service SDP « GAIA »
 (UUID `A2129FF3-081B-4C45-8AFE-469D9C4842EC`). Windows n'a joint aucun
@@ -405,6 +420,12 @@ Choix principaux :
   capture du journal HCI Bluetooth d'Android (détails dans la fiche).
 - Aucun code tiers n'est copié : tout est réimplémenté à partir des faits
   documentés ou observés.
+
+## Contribuer
+
+Rapports de bogue, de compatibilité et PR sont les bienvenus : voir
+[CONTRIBUTING.md](CONTRIBUTING.md) (règles du projet, vérifications avant
+une PR).
 
 ## Licence
 
