@@ -148,6 +148,9 @@ pub mod qobject {
         #[qproperty(i32, theme_choice)]
         // Lancement à l'ouverture de session.
         #[qproperty(bool, autostart)]
+        // Lancé dans le bac à sable Flatpak (Configuration du système hors
+        // d'atteinte).
+        #[qproperty(bool, sandboxed)]
         type Headset = super::HeadsetRust;
 
         /// Clic sur l'icône de la zone de notification : montrer la fenêtre.
@@ -494,6 +497,7 @@ pub struct HeadsetRust {
     codec_since: Option<String>,
     rate_since: Option<String>,
     autostart: bool,
+    sandboxed: bool,
 
     commands: Option<Sender<Command>>,
     tray: Option<ksni::blocking::Handle<HeadsetTray>>,
@@ -633,6 +637,7 @@ impl Default for HeadsetRust {
             codec_since: None,
             rate_since: None,
             autostart: autostart::is_enabled(),
+            sandboxed: autostart::in_flatpak(),
             commands: None,
             tray: None,
             snapshot: Snapshot::default(),

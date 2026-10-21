@@ -76,7 +76,11 @@ elle est installée, ajoute « OpenHeadset Control » au menu Démarrer et
 lance l'interface. Pour tout retirer :
 `scripts\installer.ps1 -Desinstaller`.
 
-**Linux (KDE Plasma)** : depuis l'archive, `./installer-linux.sh` ; depuis
+**Linux (KDE Plasma)** : sur Bazzite et les systèmes en lecture seule, le
+**Flatpak** de la page Releases (`flatpak install --user
+openheadset-control-vX.Y.Z-x86_64.flatpak`, détails dans
+[docs/LINUX.md](docs/LINUX.md)) ; sinon, depuis l'archive,
+`./installer-linux.sh` ; depuis
 les sources (voir [docs/LINUX.md](docs/LINUX.md) pour les paquets ; sur
 Bazzite, dans une boîte distrobox) :
 

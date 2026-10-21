@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.openheadset.Control</id>
+  <name>OpenHeadset Control</name>
+  <summary>Réglages du casque Sennheiser MOMENTUM 5 (non officiel)</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT OR Apache-2.0</project_license>
+  <developer id="io.github.asfax03l">
+    <name>Asfax03L</name>
+  </developer>
+  <description>
+    <p>
+      Contrôle léger du casque Sennheiser MOMENTUM 5 depuis le bureau, en
+      alternative à l'application mobile : réduction de bruit, curseur ANC ↔
+      transparence, anti-vent, audio spatial, égaliseur 8 bandes et
+      préréglages, scènes, historique de la batterie, raccourcis globaux et
+      icône de la zone de notification.
+    </p>
+    <p>
+      Projet non officiel, sans lien avec Sennheiser ni Sonova. Seules les
+      écritures capturées puis vérifiées sur le casque sont envoyées, et
+      uniquement au modèle et au micrologiciel validés ; tout autre casque
+      reste en lecture seule. Ni mise à jour du micrologiciel, ni
+      réinitialisation d'usine.
+    </p>
+  </description>
+  <launchable type="desktop-id">org.openheadset.Control.desktop</launchable>
+  <url type="homepage">https://github.com/Asfax03L/openheadset-control</url>
+  <url type="bugtracker">https://github.com/Asfax03L/openheadset-control/issues</url>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Accueil (mode démonstration)</caption>
+      <image>https://raw.githubusercontent.com/Asfax03L/openheadset-control/main/docs/captures/kde-accueil-sombre.jpg</image>
+    </screenshot>
+    <screenshot>
+      <caption>Égaliseur (mode démonstration)</caption>
+      <image>https://raw.githubusercontent.com/Asfax03L/openheadset-control/main/docs/captures/kde-son-sombre.jpg</image>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <requires>
+    <control>pointing</control>
+  </requires>
+  <releases>
+    <release version="0.8.0" date="2026-10-21"/>
+  </releases>
+</component>

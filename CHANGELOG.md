@@ -34,6 +34,16 @@ depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
 - Modèles d'issue (bogue, compatibilité, idée) et de PR.
 - README : tableau des modèles et micrologiciels testés.
 
+### Flatpak (Linux)
+- Paquet Flatpak `org.openheadset.Control` (environnement KDE 6.11 de
+  Flathub) : client KDE, service lancé par activation D-Bus, `ctl`.
+  Construit par la CI (`.github/workflows/flatpak.yml`) et joint aux
+  publications. Manifeste : `packaging/flatpak/`.
+- Fiche AppStream (`org.openheadset.Control.metainfo.xml`) pour Discover.
+- Client KDE dans le bac à sable : fichier .desktop à l'identifiant de
+  l'application, lancement à l'ouverture de session par le portail
+  `Background`, bouton « Modifier dans KDE… » masqué.
+
 ## v0.8.0 — 21/10/2026
 
 ### Retrait de l'icône Slint (étape 4 de docs/ARCHITECTURE.md)
