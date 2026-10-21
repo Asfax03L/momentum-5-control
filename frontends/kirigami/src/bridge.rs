@@ -1025,7 +1025,7 @@ impl qobject::Headset {
         let read_only = s
             .read_only
             .as_ref()
-            .map(|model| format!("Modèle « {model} » non validé : lecture seule"));
+            .map(|reason| format!("Lecture seule : {reason}"));
         let problem = r
             .service_error
             .as_ref()

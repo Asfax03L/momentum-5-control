@@ -212,10 +212,10 @@ pub enum DeviceError {
     #[error("sélection du mode audio refusée par le casque (0983, {})", describe_audio_mode_error(.0))]
     AudioModeRefused(Vec<u8>),
     #[error(
-        "modèle « {0} » non validé : lecture seule (les écritures n'ont été vérifiées \
-         que sur le MOMENTUM 5)"
+        "{0} : lecture seule (les écritures n'ont été vérifiées que sur le \
+         MOMENTUM 5, micrologiciel {VALIDATED_FIRMWARE})"
     )]
-    ModelNotValidated(String),
+    WritesBlocked(String),
 }
 
 /// État du contrôle du bruit, lu en trois GET.
@@ -605,12 +605,31 @@ pub enum NoiseModeRequest {
 /// écritures ont été capturées puis validées : le MOMENTUM 5 (« M5AEBT »).
 pub const VALIDATED_MODEL_PREFIX: &str = "M5AEBT";
 
+/// Micrologiciel (`1201`) sur lequel ces écritures ont été validées. Un
+/// autre micrologiciel peut changer le sens d'une commande : lecture seule
+/// tant qu'il n'a pas été vérifié à son tour.
+pub const VALIDATED_FIRMWARE: &str = "6.21.5";
+
+/// Raison de refuser les écritures pour ce modèle et ce micrologiciel, ou
+/// `None` s'ils sont validés. Un micrologiciel illisible n'est pas validé.
+pub fn write_block(model: &str, firmware: Option<&str>) -> Option<String> {
+    if !model.starts_with(VALIDATED_MODEL_PREFIX) {
+        return Some(format!("modèle « {model} » non validé"));
+    }
+    match firmware {
+        Some(VALIDATED_FIRMWARE) => None,
+        Some(other) => Some(format!("micrologiciel {other} non validé")),
+        None => Some("micrologiciel illisible".to_string()),
+    }
+}
+
 pub struct Headset<T: Transport> {
     client: GaiaClient<T>,
     timeout: Duration,
-    /// Modèle lu par `identify` quand il n'est pas validé : les écritures
-    /// sont alors refusées sans rien envoyer.
-    unvalidated_model: Option<String>,
+    /// Raison donnée par `identify` quand le modèle ou le micrologiciel
+    /// n'est pas validé : les écritures sont alors refusées sans rien
+    /// envoyer.
+    write_block: Option<String>,
 }
 
 /// Notification qui rend caduque une lecture « profil déjà sélectionné » :
@@ -633,28 +652,44 @@ impl<T: Transport> Headset<T> {
         Self {
             client: GaiaClient::new(transport),
             timeout,
-            unvalidated_model: None,
+            write_block: None,
         }
     }
 
-    /// Lit le nom de modèle et n'autorise les écritures que sur le modèle
-    /// validé. À appeler juste après la connexion : sans cet appel, aucune
-    /// vérification n'est faite (cas des tests). Un modèle illisible compte
-    /// comme non validé. Renvoie le nom lu (ou « inconnu »).
+    /// Lit le nom de modèle puis le micrologiciel, et n'autorise les
+    /// écritures que sur le couple validé ([`write_block`]). À appeler juste
+    /// après la connexion : sans cet appel, aucune vérification n'est faite
+    /// (cas des tests). Un modèle illisible compte comme non validé.
+    /// Renvoie le nom lu (ou « inconnu »).
     pub fn identify(&mut self) -> String {
         let model = self
             .optional(|h| Ok(parse_model_name(&h.get(get::MODEL_NAME)?)?))
             .ok()
             .flatten()
             .unwrap_or_else(|| "inconnu".to_string());
-        self.unvalidated_model =
-            (!model.starts_with(VALIDATED_MODEL_PREFIX)).then(|| model.clone());
+        // Autre modèle : inutile de lire son micrologiciel.
+        let firmware = if model.starts_with(VALIDATED_MODEL_PREFIX) {
+            self.optional(|h| {
+                let (a, b, c) = parse_firmware_version(&h.get(get::FIRMWARE_VERSION)?)?;
+                Ok(format!("{a}.{b}.{c}"))
+            })
+            .ok()
+            .flatten()
+        } else {
+            None
+        };
+        self.write_block = write_block(&model, firmware.as_deref());
         model
     }
 
-    /// Faux si `identify` a trouvé un modèle non validé.
+    /// Faux si `identify` a trouvé un modèle ou un micrologiciel non validé.
     pub fn writes_allowed(&self) -> bool {
-        self.unvalidated_model.is_none()
+        self.write_block.is_none()
+    }
+
+    /// Raison de la lecture seule (« micrologiciel 6.22.0 non validé »…).
+    pub fn write_block_reason(&self) -> Option<&str> {
+        self.write_block.as_deref()
     }
 
     pub fn client(&mut self) -> &mut GaiaClient<T> {
@@ -671,16 +706,16 @@ impl<T: Transport> Headset<T> {
     /// Envoie une écriture de réglage et attend l'accusé (réponse vide sur
     /// M5). Refusée sans rien envoyer si le modèle n'est pas validé.
     fn write(&mut self, command: CommandId, payload: Vec<u8>) -> Result<(), DeviceError> {
-        if let Some(model) = &self.unvalidated_model {
-            return Err(DeviceError::ModelNotValidated(model.clone()));
+        if let Some(reason) = &self.write_block {
+            return Err(DeviceError::WritesBlocked(reason.clone()));
         }
         self.ack(command, payload)
     }
 
     /// Écriture du core Qualcomm (vendor 0x001D), mêmes garde-fous.
     fn write_core(&mut self, command: CommandId, payload: Vec<u8>) -> Result<(), DeviceError> {
-        if let Some(model) = &self.unvalidated_model {
-            return Err(DeviceError::ModelNotValidated(model.clone()));
+        if let Some(reason) = &self.write_block {
+            return Err(DeviceError::WritesBlocked(reason.clone()));
         }
         self.ack_vendor(VENDOR_QUALCOMM, command, payload)
     }
@@ -1881,7 +1916,7 @@ mod tests {
         assert!(!headset.writes_allowed());
         assert!(matches!(
             headset.set_spatial_audio(true),
-            Err(DeviceError::ModelNotValidated(m)) if m == "M4AE"
+            Err(DeviceError::WritesBlocked(m)) if m == "modèle « M4AE » non validé"
         ));
         headset.ack(REGISTER_NOTIFICATION, vec![3]).unwrap();
         assert_eq!(headset.client().transport().sent().len(), 2);
@@ -1894,6 +1929,11 @@ mod tests {
                 &h("FF 03 00 00 04 95 12 06"),
                 &h("FF 03 00 0D 04 95 13 06 4D 35 41 45 42 54 20 42 6C 61 63 6B 00"),
             )
+            // Micrologiciel 6.21.5.
+            .expect(
+                &h("FF 03 00 00 04 95 12 01"),
+                &h("FF 03 00 06 04 95 13 01 00 06 00 15 00 05"),
+            )
             .expect(
                 &h("FF 03 00 01 04 95 36 04 01"),
                 &h("FF 03 00 00 04 95 37 04"),
@@ -1902,6 +1942,44 @@ mod tests {
         assert_eq!(headset.identify(), "M5AEBT Black");
         headset.set_spatial_audio(true).unwrap();
         assert!(headset.client().transport().is_exhausted());
+    }
+
+    #[test]
+    fn another_firmware_of_the_validated_model_is_read_only() {
+        let mock = MockTransport::new()
+            .expect(
+                &h("FF 03 00 00 04 95 12 06"),
+                &h("FF 03 00 0D 04 95 13 06 4D 35 41 45 42 54 20 42 6C 61 63 6B 00"),
+            )
+            // Micrologiciel 6.22.0.
+            .expect(
+                &h("FF 03 00 00 04 95 12 01"),
+                &h("FF 03 00 06 04 95 13 01 00 06 00 16 00 00"),
+            );
+        let mut headset = Headset::new(mock, T);
+        headset.identify();
+        assert_eq!(
+            headset.write_block_reason(),
+            Some("micrologiciel 6.22.0 non validé")
+        );
+        assert!(matches!(
+            headset.set_spatial_audio(true),
+            Err(DeviceError::WritesBlocked(_))
+        ));
+        assert!(headset.client().transport().is_exhausted());
+    }
+
+    #[test]
+    fn write_block_names_the_reason() {
+        assert_eq!(write_block("M5AEBT Black", Some(VALIDATED_FIRMWARE)), None);
+        assert_eq!(
+            write_block("M4AE", Some(VALIDATED_FIRMWARE)).as_deref(),
+            Some("modèle « M4AE » non validé")
+        );
+        assert_eq!(
+            write_block("M5AEBT White", None).as_deref(),
+            Some("micrologiciel illisible")
+        );
     }
 
     #[test]

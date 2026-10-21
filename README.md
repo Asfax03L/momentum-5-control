@@ -386,9 +386,13 @@ Choix principaux :
   `mpsc`.
 - **Écritures uniquement capturées** : chaque commande d'écriture provient
   d'une capture de l'app officielle, puis est validée sur le casque.
-- **Écritures réservées au M5** : à la connexion, le nom de modèle (`1206`)
-  est lu ; s'il ne commence pas par `M5AEBT`, le service et `ctl` passent
-  en lecture seule (aucune trame de réglage envoyée).
+- **Écritures réservées au M5 en micrologiciel validé** : à la connexion,
+  le nom de modèle (`1206`) puis le micrologiciel (`1201`) sont lus ; si le
+  modèle ne commence pas par `M5AEBT` ou si le micrologiciel n'est pas
+  6.21.5 (le seul sur lequel les écritures ont été vérifiées), le service et
+  `ctl` passent en lecture seule (aucune trame de réglage envoyée) et le
+  bandeau en donne la raison. Un nouveau micrologiciel est ajouté après
+  vérification de chaque écriture.
 - **Délais maximaux** : recherche du casque, connexion et envoi ont chacun un
   délai (10 s, 15 s, 5 s) ; une pile Bluetooth figée ne bloque pas le
   service.
