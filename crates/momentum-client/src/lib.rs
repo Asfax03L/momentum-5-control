@@ -85,6 +85,25 @@ pub struct ConnectionInfo {
     pub name: String,
     pub connected: bool,
     pub this_device: bool,
+    /// État brut de la fiche (`140E`), pour la page « Connexion et audio » ;
+    /// 0 avec un service plus ancien.
+    #[serde(default)]
+    pub state: u8,
+}
+
+impl ConnectionInfo {
+    /// Fiche du cœur pour `viewmodel::audio_view` (adresse fictive, jamais
+    /// utilisée pour une commande).
+    pub fn to_connection(&self, index: usize) -> momentum_core::device::Connection {
+        let mut c = momentum_core::device::Connection::synthetic(
+            u8::try_from(index).unwrap_or(u8::MAX),
+            &self.name,
+            self.connected,
+        );
+        c.state = self.state;
+        c.this_device = self.this_device;
+        c
+    }
 }
 
 /// Événement du service.

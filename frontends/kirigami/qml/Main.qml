@@ -26,7 +26,7 @@ Kirigami.ApplicationWindow {
     Component.onCompleted: {
         const pages = {
             "son": soundPage, "scenes": scenesPage, "batterie": batteryPage,
-            "reglages": settingsPage, "apropos": aboutPage
+            "reglages": settingsPage, "apropos": aboutPage, "audio": audioPage
         }
         if (pages[headset.startPage])
             root.pageStack.replace(pages[headset.startPage])
@@ -103,6 +103,11 @@ Kirigami.ApplicationWindow {
                 text: "Paramètres"
                 icon.name: "configure"
                 onTriggered: root.pageStack.replace(settingsPage)
+            },
+            Kirigami.Action {
+                text: "Connexion et audio"
+                icon.name: "audio-card"
+                onTriggered: root.pageStack.replace(audioPage)
             },
             Kirigami.Action {
                 text: "À propos"
@@ -948,6 +953,56 @@ Kirigami.ApplicationWindow {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // Connexion et audio : chaque valeur avec sa source et l'heure de lecture.
+    component AudioSection: ColumnLayout {
+        required property string title
+        required property string section
+        Layout.fillWidth: true
+        spacing: Kirigami.Units.smallSpacing
+        Kirigami.Heading {
+            text: parent.title
+            level: 3
+        }
+        Repeater {
+            model: {
+                headset.audioRevision
+                return headset.audioRows(parent.section)
+            }
+            ColumnLayout {
+                required property string modelData
+                Layout.fillWidth: true
+                spacing: 0
+                QQC2.Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: modelData.split("\t")[0]
+                }
+                QQC2.Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    visible: modelData.indexOf("\t") >= 0
+                    text: modelData.split("\t")[1] || ""
+                    opacity: 0.6
+                    font: Kirigami.Theme.smallFont
+                }
+            }
+        }
+    }
+    Component {
+        id: audioPage
+        Kirigami.ScrollablePage {
+            title: "Connexion et audio"
+            ColumnLayout {
+                spacing: Kirigami.Units.largeSpacing
+                StatusHeader {}
+                AudioSection { title: "Constats"; section: "constats" }
+                AudioSection { title: "Pilotage du casque"; section: "pilotage" }
+                AudioSection { title: "Sortie audio du système"; section: "systeme" }
+                AudioSection { title: "Flux Bluetooth"; section: "flux" }
             }
         }
     }
