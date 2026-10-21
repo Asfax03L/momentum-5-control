@@ -307,6 +307,7 @@ use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QStringList};
 use ksni::blocking::TrayMethods;
 use momentum_client::dbus::Client;
+use momentum_client::demo::{self, Demo};
 use momentum_client::{Command, Event, Snapshot};
 use momentum_core::audio_check::LINUX_OUTPUTS_UNREAD;
 use momentum_core::battery_log::BatteryLog;
@@ -682,6 +683,29 @@ impl cxx_qt::Initialize for qobject::Headset {
             });
         if let Err(e) = shortcuts {
             tracing::error!(%e, "lancement du thread des raccourcis");
+        }
+
+        // Mode démonstration : casque simulé, le service n'est pas joint.
+        if demo::requested() {
+            let mut simulated = Demo::new();
+            let snapshot = simulated.snapshot();
+            let qt_thread = self.qt_thread();
+            let _ = qt_thread.queue(move |headset| headset.on_snapshot(snapshot));
+            let spawned = std::thread::Builder::new()
+                .name("demo".into())
+                .spawn(move || {
+                    for command in rx {
+                        // Délai d'un vrai casque : l'interface montre son envoi.
+                        std::thread::sleep(Duration::from_millis(450));
+                        for event in simulated.apply(command) {
+                            let _ = qt_thread.queue(move |headset| headset.on_event(event));
+                        }
+                    }
+                });
+            if let Err(e) = spawned {
+                tracing::error!(%e, "lancement du casque simulé");
+            }
+            return;
         }
 
         let qt_thread = self.qt_thread();
@@ -1084,7 +1108,12 @@ impl qobject::Headset {
         h.as_mut().set_connected(v.connected);
         h.as_mut().set_writable(v.writable);
         h.as_mut().set_waiting(QString::from(v.waiting.as_str()));
-        h.as_mut().set_banner(QString::from(v.banner.as_str()));
+        let banner = if v.banner.is_empty() && demo::requested() {
+            demo::BANNER.to_string()
+        } else {
+            v.banner.clone()
+        };
+        h.as_mut().set_banner(QString::from(banner.as_str()));
         h.as_mut().set_banner_warning(v.banner_is_warning);
         h.as_mut().set_battery(battery);
         h.as_mut()

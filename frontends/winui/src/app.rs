@@ -4,6 +4,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
+use momentum_client::demo::{self, Demo};
 use momentum_client::{Client, ClientError, Command, Event, Snapshot};
 use momentum_core::audio_check::WindowsAudio;
 use momentum_core::battery_log::{self, BatteryLog};
@@ -350,8 +351,24 @@ struct Root {
 
 /// Suit le service dans un fil dédié (reconnexion toutes les 3 s) ; avec
 /// `launch_daemon`, lance le service s'il manque (au plus toutes les 30 s).
+/// Mode démonstration : casque simulé partagé par la fenêtre et le panneau,
+/// et leurs fils d'écoute.
+type DemoHub = Mutex<(Demo, Vec<Sender<Incoming>>)>;
+
+fn demo_hub() -> &'static DemoHub {
+    static HUB: OnceLock<DemoHub> = OnceLock::new();
+    HUB.get_or_init(|| Mutex::new((Demo::new(), Vec::new())))
+}
+
 pub(crate) fn spawn_listener(launch_daemon: bool) -> Arc<Mutex<Receiver<Incoming>>> {
     let (in_tx, in_rx) = mpsc::channel::<Incoming>();
+    if demo::requested() {
+        if let Ok(mut hub) = demo_hub().lock() {
+            let _ = in_tx.send(Incoming::Snapshot(hub.0.snapshot()));
+            hub.1.push(in_tx);
+        }
+        return Arc::new(Mutex::new(in_rx));
+    }
     std::thread::spawn(move || {
         let mut launched: Option<Instant> = None;
         loop {
@@ -385,6 +402,23 @@ pub(crate) fn spawn_listener(launch_daemon: bool) -> Arc<Mutex<Receiver<Incoming
 /// l'état n'est pas confirmé et l'écoute signale le service injoignable.
 pub(crate) fn spawn_sender() -> Sender<Command> {
     let (tx, rx) = mpsc::channel::<Command>();
+    if demo::requested() {
+        std::thread::spawn(move || {
+            for command in rx {
+                // Délai d'un vrai casque : l'interface montre son envoi.
+                std::thread::sleep(Duration::from_millis(450));
+                if let Ok(mut hub) = demo_hub().lock() {
+                    let events = hub.0.apply(command);
+                    hub.1.retain(|sub| {
+                        events
+                            .iter()
+                            .all(|e| sub.send(Incoming::Event(e.clone())).is_ok())
+                    });
+                }
+            }
+        });
+        return tx;
+    }
     std::thread::spawn(move || {
         for command in rx {
             let _ = Client.send(&command);
@@ -1817,6 +1851,11 @@ impl Root {
                         .height(16.0),
                     TextBlock::new().text(status).opacity(0.8),
                 )),
+            InfoBar::new()
+                .is_open(demo::requested())
+                .is_closable(false)
+                .severity(InfoBarSeverity::Informational)
+                .message(demo::BANNER),
             InfoBar::new()
                 .is_open(!v.banner.is_empty())
                 .is_closable(false)
