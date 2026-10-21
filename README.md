@@ -31,12 +31,13 @@ au casque, et deux outils en ligne de commande.
 | G | Espace de travail Cargo : cœur, service, outils, interfaces séparés | ✅ (v0.7.0) |
 | H | Linux : `ctl` et icône par BlueZ, KDE Plasma sous Wayland | ✅ validé sur M5 (v0.7.0) |
 | I | Interface OpenHeadset Control (thèmes, disposition adaptative, démo) | ✅ validé sur M5 (v0.7.0) |
-| J | Client natif KDE Qt 6 / Kirigami (Linux), logo, entrées de menu ; client du service, icône de la zone de notification, raccourcis KDE | 🟡 essayé sur M5, non publié |
-| K | Service `momentum-daemon` et API D-Bus, `ctl` client du service (Linux) | 🟡 essayé sur M5 (lecture et écriture), non publié |
-| L | Logo sous Windows : exécutable, menu Démarrer, notifications, icône d'état | 🟡 non publié |
-| M | Service sous Windows (canal nommé) et client WinUI 3 (`windows-reactor`) | 🟡 essayé sur M5 (lecture), non publié |
+| J | Client natif KDE Qt 6 / Kirigami (Linux), logo, entrées de menu ; client du service, icône de la zone de notification, raccourcis KDE | ✅ essayé sur M5 (v0.8.0) |
+| K | Service `momentum-daemon` et API D-Bus, `ctl` client du service (Linux) | ✅ essayé sur M5, lecture et écriture (v0.8.0) |
+| L | Logo sous Windows : exécutable, menu Démarrer, notifications, icône d'état | ✅ (v0.8.0) |
+| M | Service sous Windows (canal nommé) et client WinUI 3 (`windows-reactor`) | ✅ essayé sur M5 (v0.8.0) |
+| N | Fonctions de l'icône Slint reprises par WinUI et KDE, puis retrait de Slint | ✅ essayé sur M5 (v0.8.0) |
 
-Dernière publication : **v0.7.0** (page Releases du dépôt). Le détail des
+Dernière publication : **v0.8.0** (page Releases du dépôt). Le détail des
 étapes est dans [`docs/ROADMAP.md`](docs/ROADMAP.md), les nouveautés de chaque
 version dans [`CHANGELOG.md`](CHANGELOG.md).
 
@@ -221,8 +222,8 @@ la connexion GAIA. Sans service, `ctl` se connecte lui-même au casque.
 
 ## Ligne de commande : `ctl`
 
-> **Linux (en cours)** : `ctl` se connecte aussi par BlueZ, non validé sur le
-> matériel. Voir [docs/LINUX.md](docs/LINUX.md).
+> **Linux** : `ctl` passe par le service, ou se connecte lui-même par
+> BlueZ. Voir [docs/LINUX.md](docs/LINUX.md).
 
 ```bash
 cargo run --release --bin ctl -- etat

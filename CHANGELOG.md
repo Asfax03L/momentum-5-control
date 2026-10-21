@@ -5,7 +5,7 @@ M5 » signifie : écriture capturée dans Smart Control Plus, puis rejouée
 depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
 6.21.5, Windows 11. La CI (fmt, clippy, tests) ne se connecte à aucun casque.
 
-## Non publié
+## v0.8.0 — 21/10/2026
 
 ### Retrait de l'icône Slint (étape 4 de docs/ARCHITECTURE.md)
 - `momentum-tray` (icône et fenêtre Slint) est retiré : WinUI 3 sous
