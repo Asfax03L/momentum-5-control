@@ -59,6 +59,7 @@ jobs:
           mkdir -p "$dir/assets"
           cp target/release/ctl target/release/momentum-daemon target/release/momentum-kirigami "$dir/"
           cp -r assets/linux assets/logo "$dir/assets/"
+          cp -r plasma "$dir/"
           cp scripts/installer-linux.sh README.md LICENSE-MIT LICENSE-APACHE "$dir/"
           tar -czf "$dir.tar.gz" "$dir"
           sha256sum "$dir.tar.gz" | cut -d' ' -f1 > "$dir.tar.gz.sha256"

@@ -51,6 +51,19 @@ for old in "$bin/momentum-tray" "$data/applications/momentum-tray.desktop" \
     fi
 done
 
+# Widget Plasma (client de l'API D-Bus du service), à ajouter au panneau
+# ou au bureau depuis « Ajouter des composants graphiques ».
+# Dépôt ou archive : le dossier plasma est à côté de assets.
+widget="$assets/../plasma/org.openheadset.control.plasmoid"
+if command -v kpackagetool6 >/dev/null && [ -d "$widget" ]; then
+    if kpackagetool6 --type Plasma/Applet --show org.openheadset.control.plasmoid >/dev/null 2>&1; then
+        kpackagetool6 --type Plasma/Applet --upgrade "$widget" >/dev/null
+    else
+        kpackagetool6 --type Plasma/Applet --install "$widget" >/dev/null
+    fi
+    echo "widget Plasma installé (org.openheadset.control.plasmoid)"
+fi
+
 # Service : unité systemd utilisateur et activation D-Bus (le service
 # démarre tout seul dès qu'une interface ou ctl l'appelle).
 if [ -x "$bin/momentum-daemon" ]; then

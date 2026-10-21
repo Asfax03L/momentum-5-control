@@ -73,6 +73,16 @@ service et son fichier d'activation D-Bus
 canal imposé, et la lecture audio continue pendant et après. Aucun
 réglage n'a encore été écrit sous Linux.
 
+## Widget Plasma
+
+`plasma/org.openheadset.control.plasmoid` (Plasma 6, QML seul, module
+`org.kde.plasma.workspace.dbus`) : client de l'API D-Bus du service, comme
+le client Kirigami. Il lit `Snapshot` (toutes les 3 s quand il est ouvert,
+30 s sinon, et après chaque événement) et envoie des `Command` JSON de
+l'API ; `DBusServiceWatcher` suit l'arrivée du service, qu'il ne démarre
+qu'à la demande. Essayé sur Bazzite 44 (Plasma 6.7) avec le M5 : lecture
+de l'état, et anti-vent inversé puis remis par le même appel `Command`.
+
 ## Compiler sur Bazzite
 
 Bazzite est en lecture seule : on compile dans une boîte distrobox Fedora
