@@ -257,6 +257,8 @@ enum Msg {
     EditScenes,
     BatterySpan(Option<usize>),
     ReadWindowsAudio,
+    /// Thème : 0 clair, 1 sombre.
+    Theme(Option<usize>),
     ExportBattery,
     ClearBattery,
     ReloadBattery,
@@ -314,6 +316,8 @@ struct Root {
     /// enregistrement.
     panel_prefs: PanelPrefs,
     panel_notice: Option<String>,
+    /// Thème choisi (`apparence.txt`) ; `None` : celui du système.
+    dark: Option<bool>,
     /// Raccourcis invalides ou déjà pris par une autre application.
     hotkey_problem: Option<String>,
     start_hidden: bool,
@@ -903,6 +907,7 @@ impl Component for Root {
             hotkey_notice: None,
             panel_prefs: paths::load_panel_prefs(),
             panel_notice: None,
+            dark: momentum_core::appearance::load(),
             hotkey_problem: (!errors.is_empty())
                 .then(|| format!("Raccourcis clavier : {}", errors.join(" ; "))),
             start_hidden,
@@ -1074,6 +1079,16 @@ impl Component for Root {
             }
             Msg::BatterySpan(None) => {}
             Msg::ReadWindowsAudio => self.read_windows_audio(),
+            Msg::Theme(Some(i)) => {
+                let dark = i == 1;
+                if self.dark != Some(dark) {
+                    if let Err(e) = momentum_core::appearance::store(dark) {
+                        eprintln!("apparence.txt : {e}");
+                    }
+                    self.dark = Some(dark);
+                }
+            }
+            Msg::Theme(None) => {}
             Msg::ExportBattery => self.battery_notice = Some(export_battery_history()),
             Msg::ClearBattery => self.confirm = Some(Confirm::ClearBattery),
             Msg::ReloadBattery => self.reload_battery(),
@@ -1509,6 +1524,7 @@ impl Component for Root {
         context.window_visuals(
             WindowVisuals::new()
                 .backdrop(WindowBackdrop::Mica)
+                .theme(window_theme(self.dark))
                 .client_size(1100.0, 780.0)
                 .constraints(WindowConstraints {
                     min_width: Some(420.0),
@@ -1637,6 +1653,15 @@ fn register_hotkeys(config: &str) -> (Option<HotkeyThread>, Vec<String>) {
     });
     errors.extend(refused);
     (thread, errors)
+}
+
+/// Thème de fenêtre d'après le choix enregistré (`None` : le système).
+pub(crate) fn window_theme(dark: Option<bool>) -> WindowTheme {
+    match dark {
+        Some(true) => WindowTheme::Dark,
+        Some(false) => WindowTheme::Light,
+        None => WindowTheme::System,
+    }
 }
 
 fn card(title: &str, content: impl Into<View>) -> View {
@@ -2125,13 +2150,25 @@ impl Root {
     fn settings(&self, context: &mut ViewContext<Self>) -> View {
         let app = card(
             "Application",
-            StackPanel::new().spacing(8.0).children((switch_row(
-                "Lancer à l'ouverture de session",
-                "L'icône apparaît près de l'horloge, la fenêtre reste fermée",
-                self.autostart,
-                true,
-                context.callback(Msg::Autostart),
-            ),)),
+            StackPanel::new().spacing(8.0).children((
+                TextBlock::new().text(if self.dark.is_none() {
+                    "Thème (pour l'instant celui de Windows) :"
+                } else {
+                    "Thème :"
+                }),
+                RadioButtons::new()
+                    .items_source(["Clair", "Sombre"])
+                    .max_columns(2)
+                    .selected_index(self.dark.map(usize::from))
+                    .on_selection_changed(context.callback(Msg::Theme)),
+                switch_row(
+                    "Lancer à l'ouverture de session",
+                    "L'icône apparaît près de l'horloge, la fenêtre reste fermée",
+                    self.autostart,
+                    true,
+                    context.callback(Msg::Autostart),
+                ),
+            )),
         );
         let hotkey_rows = self
             .hotkey_rows

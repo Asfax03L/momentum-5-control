@@ -53,6 +53,14 @@ mod app {
         let mut app = QGuiApplication::new();
         // Après la création de l'application, avant la première fenêtre.
         crate::bridge::qobject::openheadset_set_identity();
+        // Thème choisi dans `apparence.txt` (sinon celui du système).
+        crate::bridge::qobject::openheadset_set_color_scheme(
+            match momentum_core::appearance::load() {
+                Some(true) => 2,
+                Some(false) => 1,
+                None => 0,
+            },
+        );
         let mut engine = QQmlApplicationEngine::new();
         if let Some(engine) = engine.as_mut() {
             engine.load(&QUrl::from(
