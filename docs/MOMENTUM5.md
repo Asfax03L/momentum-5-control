@@ -71,7 +71,7 @@ ne prouve pas un « GAIA v5 »).
 | Son | Faible latence | désactivée | `0818` |
 | Appels | Décroché auto | activé | `080B` |
 | Appels | Comfort Call | activé | `0815` |
-| Appels | Sidetone | 0 | `0806` (notification `0886` ; réglage absent de l'app pour le M5, voir `RECHERCHE-ETAPE4.md`) |
+| Appels | Sidetone | 0 | `0806` (notification `0886` ; réglage absent de l'app pour le M5) |
 | Général | Smart Pause | activée | `080D` |
 | Général | Détection de port | activée | `0401` |
 | Général | Invites | tonalités + voix, en français | `0802`, `0807` |

@@ -61,6 +61,22 @@ fn handle(
     }
 }
 
+/// Réponse JSON à une requête du canal, refus de lecture compris (requête
+/// trop longue ou non UTF-8) : le client lit toujours une `Reply`.
+fn answer(
+    line: Result<&str, &str>,
+    shared: &Mutex<Shared>,
+    log: &Mutex<EventLog>,
+    commands: &Sender<WorkerCommand>,
+) -> String {
+    let reply = match line {
+        Ok(line) => handle(line, shared, log, commands),
+        Err(reason) => Reply::Error(reason.to_string()),
+    };
+    serde_json::to_string(&reply)
+        .unwrap_or_else(|e| format!("{{\"Error\":\"réponse non sérialisable : {e}\"}}"))
+}
+
 pub fn run() -> anyhow::Result<()> {
     // Première instance exigée : un service déjà lancé garde le canal.
     let server = PipeServer::create_named(wire::pipe_name)
@@ -77,12 +93,7 @@ pub fn run() -> anyhow::Result<()> {
             .name("canal".into())
             .spawn(move || {
                 loop {
-                    let result = server.serve_one(|line| {
-                        let reply = handle(line, &shared, &log, &commands);
-                        serde_json::to_string(&reply).unwrap_or_else(|e| {
-                            format!("{{\"Error\":\"réponse non sérialisable : {e}\"}}")
-                        })
-                    });
+                    let result = server.serve_one(|line| answer(line, &shared, &log, &commands));
                     if let Err(e) = result {
                         tracing::debug!(%e, "client du canal");
                     }
@@ -129,5 +140,17 @@ mod tests {
             handle("n'importe quoi", &shared, &log, &commands),
             Reply::Error(_)
         ));
+    }
+
+    #[test]
+    fn unreadable_requests_get_a_json_error() {
+        let shared = Mutex::new(Shared::default());
+        let log = Mutex::new(EventLog::default());
+        let (commands, _received) = mpsc::channel();
+        let json = answer(Err("requête trop longue"), &shared, &log, &commands);
+        assert_eq!(
+            serde_json::from_str::<Reply>(&json).unwrap(),
+            Reply::Error("requête trop longue".to_string())
+        );
     }
 }

@@ -176,7 +176,12 @@ impl PipeServer {
 
     /// Attend un client, lit sa requête (une ligne), répond avec `handler`
     /// puis ferme la connexion. Une erreur ne concerne que ce client.
-    pub fn serve_one(&self, handler: impl FnOnce(&str) -> String) -> windows::core::Result<()> {
+    /// `handler` reçoit la requête, ou la raison de son refus (trop longue,
+    /// non UTF-8) : la réponse reste ainsi dans le protocole du serveur.
+    pub fn serve_one(
+        &self,
+        handler: impl FnOnce(Result<&str, &str>) -> String,
+    ) -> windows::core::Result<()> {
         let mut overlapped = self.overlapped();
         // SAFETY: appels sur la poignée possédée ; tampons valides pendant
         // chaque opération (attendue avant de sortir de la portée).
@@ -201,7 +206,10 @@ impl PipeServer {
         }
     }
 
-    fn exchange(&self, handler: impl FnOnce(&str) -> String) -> windows::core::Result<()> {
+    fn exchange(
+        &self,
+        handler: impl FnOnce(Result<&str, &str>) -> String,
+    ) -> windows::core::Result<()> {
         let mut request = Vec::new();
         let mut chunk = [0u8; 256];
         while !request.contains(&b'\n') && request.len() <= MAX_REQUEST_LEN {
@@ -215,14 +223,7 @@ impl PipeServer {
             }
             request.extend_from_slice(&chunk[..n as usize]);
         }
-        let reply = if request.len() > MAX_REQUEST_LEN {
-            "ERREUR requête trop longue\n".to_string()
-        } else {
-            match std::str::from_utf8(&request) {
-                Ok(text) => handler(text.lines().next().unwrap_or("")),
-                Err(_) => "ERREUR requête non UTF-8\n".to_string(),
-            }
-        };
+        let reply = handler(request_line(&request));
         let reply = reply.replace(' ', "") + " ";
         let mut overlapped = self.overlapped();
         // SAFETY: `reply` et `overlapped` vivent jusqu'à la fin de l'écriture.
@@ -237,6 +238,15 @@ impl PipeServer {
         self.finish(started, &overlapped, Some(CLIENT_IO_TIMEOUT))?;
         Ok(())
     }
+}
+
+/// Première ligne d'une requête reçue, ou la raison de son refus.
+fn request_line(request: &[u8]) -> Result<&str, &'static str> {
+    if request.len() > MAX_REQUEST_LEN {
+        return Err("requête trop longue");
+    }
+    let text = std::str::from_utf8(request).map_err(|_| "requête non UTF-8")?;
+    Ok(text.lines().next().unwrap_or(""))
 }
 
 /// Résultat d'une requête côté client.
@@ -322,5 +332,19 @@ fn exchange(name: &str, line: &str) -> Result<ClientOutcome, String> {
         Ok(ClientOutcome::Reply(
             String::from_utf8_lossy(&reply).into_owned(),
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn request_line_keeps_the_first_line_and_names_refusals() {
+        assert_eq!(request_line(b"{\"Snapshot\"}\nreste"), Ok("{\"Snapshot\"}"));
+        assert_eq!(request_line(b""), Ok(""));
+        assert_eq!(request_line(&[0xff, b'\n']), Err("requête non UTF-8"));
+        let long = vec![b'a'; MAX_REQUEST_LEN + 1];
+        assert_eq!(request_line(&long), Err("requête trop longue"));
     }
 }
