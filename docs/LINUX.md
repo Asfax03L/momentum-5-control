@@ -28,7 +28,8 @@ Client Kirigami sous KDE Plasma :
   déconnecter après confirmation), égaliseur, scènes (application et
   éditeur), batterie (courbe enregistrée par le service, export,
   effacement), connexion et audio, paramètres (dont thème clair ou sombre,
-  avec Qt 6.8 ou plus récent), à propos avec « Copier le diagnostic » ;
+  pas encore appliqué si le jeu de couleurs de Plasma est l'inverse), à
+  propos avec « Copier le diagnostic » ;
 - **mode démonstration** : `momentum-kirigami --demo` (casque simulé, sans
   service) ;
 - **ouverture de session** (Paramètres > Application) : lance le client
