@@ -51,7 +51,45 @@ processus). Sous Wayland, KDE trouve l'icône d'une fenêtre dans le fichier
 Pas encore sous Linux : panneau rapide, lecture des sorties audio
 (PipeWire).
 
-## Installer
+## Installer avec Flatpak (recommandé sur Bazzite)
+
+Bazzite est en lecture seule : le Flatpak s'installe pour l'utilisateur,
+sans `sudo` ni boîte distrobox, et se met à jour comme les autres
+applications. Télécharger `openheadset-control-vX.Y.Z-x86_64.flatpak` sur
+la page Releases (la CI le construit à chaque publication), puis :
+
+```bash
+flatpak install --user openheadset-control-v0.8.0-x86_64.flatpak
+```
+
+Il contient le client KDE, le service (lancé à la demande par activation
+D-Bus) et `ctl` :
+
+```bash
+flatpak run org.openheadset.Control
+```
+```bash
+flatpak run --command=ctl org.openheadset.Control etat
+```
+
+Le bac à sable n'ouvre que ce qui sert : Wayland, sockets Bluetooth et
+BlueZ (bus système), icône de la zone de notification, raccourcis KDE,
+notifications, et le dossier Documents (exports). Différences avec
+l'installation par script : réglages et historique dans
+`~/.var/app/org.openheadset.Control/` (pas repris de `~/.local/share`),
+lancement à l'ouverture de session par le portail du bureau, et raccourcis
+à modifier dans Configuration du système > Raccourcis. Ne pas installer les
+deux à la fois : un seul service peut porter le nom D-Bus
+`org.openheadset.Control`.
+
+Construction locale (outil `flatpak-builder`, environnement KDE 6.11 de
+Flathub) :
+
+```bash
+flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/org.openheadset.Control.yml
+```
+
+## Installer par script
 
 ```bash
 cargo build --release -p momentum-cli -p momentum-kirigami -p momentum-daemon

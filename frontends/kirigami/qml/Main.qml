@@ -753,6 +753,8 @@ Kirigami.ApplicationWindow {
                         Kirigami.FormData.label: "Raccourcis clavier :"
                         text: "Modifier dans KDE…"
                         icon.name: "preferences-desktop-keyboard-shortcut"
+                        // Flatpak : Configuration du système > Raccourcis.
+                        visible: !headset.sandboxed
                         onClicked: headset.openShortcutSettings()
                     }
                     QQC2.Label {

@@ -10,7 +10,9 @@
 
 void openheadset_set_identity()
 {
-    QGuiApplication::setDesktopFileName(QStringLiteral("momentum-kirigami"));
+    // Dans le Flatpak, le fichier .desktop porte l'identifiant de l'application.
+    QGuiApplication::setDesktopFileName(
+        qEnvironmentVariable("FLATPAK_ID", QStringLiteral("momentum-kirigami")));
     QGuiApplication::setApplicationDisplayName(QStringLiteral("OpenHeadset Control"));
     QGuiApplication::setWindowIcon(QIcon::fromTheme(QStringLiteral("org.openheadset.control"),
                                                     QIcon::fromTheme(QStringLiteral("audio-headphones"))));
