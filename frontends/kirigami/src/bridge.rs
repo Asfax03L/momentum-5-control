@@ -120,6 +120,8 @@ pub mod qobject {
         #[qproperty(QString, battery_axis)]
         #[qproperty(QStringList, battery_details)]
         #[qproperty(i32, battery_revision)]
+        // Page « Connexion et audio » : change à chaque mise à jour.
+        #[qproperty(i32, audio_revision)]
         // Lancement à l'ouverture de session.
         #[qproperty(bool, autostart)]
         type Headset = super::HeadsetRust;
@@ -230,6 +232,11 @@ pub mod qobject {
         /// Relit l'historique de la batterie sur la période choisie.
         #[qinvokable]
         fn reload_battery(self: Pin<&mut Headset>, span: i32);
+        /// Lignes d'une partie de la page « Connexion et audio » :
+        /// `constats` (« ⚠ texte »), `pilotage`, `systeme`, `flux`
+        /// (« libellé : valeur » puis la source après une tabulation).
+        #[qinvokable]
+        fn audio_rows(self: &Headset, section: QString) -> QStringList;
         /// Copie `batterie.csv` dans Documents ; message à afficher.
         #[qinvokable]
         fn export_battery(self: &Headset) -> QString;
@@ -263,6 +270,7 @@ use cxx_qt_lib::{QString, QStringList};
 use ksni::blocking::TrayMethods;
 use momentum_client::dbus::Client;
 use momentum_client::{Command, Event, Snapshot};
+use momentum_core::audio_check::LINUX_OUTPUTS_UNREAD;
 use momentum_core::battery_log::BatteryLog;
 use momentum_core::device::{
     AUTO_OFF_CHOICES, NoiseModeRequest, PromptMode, check_name, prompt_volume_from_percent,
@@ -285,6 +293,12 @@ const BUSY_TIMEOUT: Duration = Duration::from_secs(8);
 const RETRY: Duration = Duration::from_secs(3);
 /// Incidents gardés pour le diagnostic.
 const MAX_INCIDENTS: usize = 20;
+
+/// Heure locale « 14:05:32 ».
+fn clock() -> String {
+    let t = cxx_qt_lib::QTime::current_time();
+    format!("{:02}:{:02}:{:02}", t.hour(), t.minute(), t.second())
+}
 
 fn unix_now() -> u64 {
     std::time::SystemTime::now()
@@ -410,6 +424,12 @@ pub struct HeadsetRust {
     battery_axis: QString,
     battery_details: QStringList,
     battery_revision: i32,
+    audio_revision: i32,
+    /// Heure de chaque lecture (page « Connexion et audio »).
+    control_since: Option<String>,
+    connections_at: Option<String>,
+    codec_since: Option<String>,
+    rate_since: Option<String>,
     autostart: bool,
 
     commands: Option<Sender<Command>>,
@@ -522,6 +542,11 @@ impl Default for HeadsetRust {
             battery_axis: QString::default(),
             battery_details: QStringList::default(),
             battery_revision: 0,
+            audio_revision: 0,
+            control_since: None,
+            connections_at: None,
+            codec_since: None,
+            rate_since: None,
             autostart: autostart::is_enabled(),
             commands: None,
             tray: None,
@@ -657,6 +682,25 @@ impl HeadsetRust {
     }
 
     /// Préréglages de l'app (selon l'égaliseur lu) puis personnels.
+    /// Heure de chaque lecture, pour la page « Connexion et audio ».
+    fn note_reading_times(&mut self, event: &Event) {
+        match event {
+            Event::Searching | Event::Lost(_) => self.control_since = None,
+            Event::Connected { .. } => self.control_since = Some(clock()),
+            Event::Connections(_) => self.connections_at = Some(clock()),
+            Event::State(s) => {
+                let before = self.snapshot.state;
+                if before.is_none_or(|b| b.codec != s.codec) {
+                    self.codec_since = Some(clock());
+                }
+                if before.is_none_or(|b| b.sample_rate_hz != s.sample_rate_hz) {
+                    self.rate_since = Some(clock());
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn all_presets(&self) -> Vec<Preset> {
         let bands = self
             .snapshot
@@ -712,6 +756,7 @@ impl qobject::Headset {
         if !matches!(event, Event::Searching | Event::Connected { .. }) {
             self.as_mut().set_busy(false);
         }
+        self.as_mut().rust_mut().note_reading_times(&event);
         match &event {
             Event::Lost(reason) => {
                 tracing::warn!(%reason, "connexion perdue");
@@ -888,6 +933,7 @@ impl qobject::Headset {
         if let Some(tray) = &r.tray {
             tray.update(|t| t.set_view(tray_view));
         }
+        let audio_revision = r.audio_revision.wrapping_add(1);
         if rows != r.connection_rows {
             let count = i32::try_from(rows.len()).unwrap_or(0);
             let revision = r.connection_revision.wrapping_add(1);
@@ -897,6 +943,7 @@ impl qobject::Headset {
         }
 
         let mut h = self.as_mut();
+        h.as_mut().set_audio_revision(audio_revision);
         h.as_mut().set_title(QString::from(v.title.as_str()));
         h.as_mut()
             .set_connection(QString::from(v.connection.as_str()));
@@ -1215,6 +1262,52 @@ impl qobject::Headset {
 
     fn battery_chart(&self, width: f64, height: f64) -> QString {
         QString::from(scale_path(&self.rust().battery_path, width, height).as_str())
+    }
+
+    fn audio_rows(&self, section: QString) -> QStringList {
+        let r = self.rust();
+        let connections: Vec<_> = r
+            .snapshot
+            .connections
+            .iter()
+            .enumerate()
+            .map(|(i, c)| c.to_connection(i))
+            .collect();
+        let name = r
+            .snapshot
+            .info
+            .as_ref()
+            .and_then(|i| i.name.clone())
+            .or_else(|| r.snapshot.device_name.clone());
+        let unread = Err(LINUX_OUTPUTS_UNREAD.to_string());
+        let v = viewmodel::audio_view(&viewmodel::AudioInputs {
+            device_name: name.as_deref(),
+            state: r.snapshot.state.as_ref(),
+            connections: &connections,
+            control_since: r.control_since.as_deref(),
+            connections_at: r.connections_at.as_deref(),
+            codec_since: r.codec_since.as_deref(),
+            rate_since: r.rate_since.as_deref(),
+            windows: Some(&unread),
+            windows_at: None,
+        });
+        let rows = |rows: Vec<viewmodel::InfoRow>| -> Vec<String> {
+            rows.into_iter()
+                .map(|row| format!("{} : {}\t{}", row.label, row.value, row.source))
+                .collect()
+        };
+        let lines = match section.to_string().as_str() {
+            "constats" => v
+                .findings
+                .into_iter()
+                .map(|(problem, text)| format!("{} {text}", if problem { "⚠" } else { "•" }))
+                .collect(),
+            "pilotage" => rows(v.control),
+            "systeme" => rows(v.windows),
+            "flux" => rows(v.stream),
+            _ => Vec::new(),
+        };
+        string_list(lines.iter().map(String::as_str))
     }
 
     fn export_battery(&self) -> QString {

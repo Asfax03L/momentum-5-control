@@ -109,6 +109,7 @@ fn to_api(event: WorkerEvent, shared: &mut Shared) -> Event {
                     name: d.name.clone(),
                     connected: d.connected,
                     this_device: d.this_device,
+                    state: d.state,
                 })
                 .collect();
             shared.devices = devices;

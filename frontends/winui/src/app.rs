@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use momentum_client::{Client, ClientError, Command, Event, Snapshot};
+use momentum_core::audio_check::WindowsAudio;
 use momentum_core::battery_log::{self, BatteryLog};
 use momentum_core::device::{
     AUTO_OFF_CHOICES, NoiseModeRequest, PromptMode, check_name, prompt_volume_from_percent,
@@ -132,17 +133,19 @@ enum Page {
     Sound,
     Scenes,
     Battery,
+    Audio,
     Settings,
     About,
 }
 
 impl Page {
     /// Page, étiquette, titre et glyphe Segoe Fluent Icons.
-    const ALL: [(Page, &'static str, &'static str, &'static str); 6] = [
+    const ALL: [(Page, &'static str, &'static str, &'static str); 7] = [
         (Page::Home, "accueil", "Accueil", "\u{E80F}"),
         (Page::Sound, "son", "Égaliseur", "\u{E9E9}"),
         (Page::Scenes, "scenes", "Scènes", "\u{E8FD}"),
         (Page::Battery, "batterie", "Batterie", "\u{E83F}"),
+        (Page::Audio, "audio", "Connexion et audio", "\u{E7F5}"),
         (Page::Settings, "reglages", "Paramètres", "\u{E713}"),
         (Page::About, "apropos", "À propos", "\u{E946}"),
     ];
@@ -222,6 +225,7 @@ enum Msg {
     ReloadScenes,
     EditScenes,
     BatterySpan(Option<usize>),
+    ReadWindowsAudio,
     ExportBattery,
     ClearBattery,
     ReloadBattery,
@@ -287,6 +291,14 @@ struct Root {
     battery: Option<BatteryPage>,
     /// Résultat du dernier export ou effacement de l'historique.
     battery_notice: Option<String>,
+    /// Page « Connexion et audio » : heure de chaque lecture, et sorties
+    /// audio de Windows (lecture seule).
+    control_since: Option<String>,
+    connections_at: Option<String>,
+    codec_since: Option<String>,
+    rate_since: Option<String>,
+    windows_audio: Option<Result<WindowsAudio, String>>,
+    windows_at: Option<String>,
     /// Incidents récents : (heure Unix, message).
     incidents: Vec<(u64, String)>,
     diagnostic_copied: Option<bool>,
@@ -366,6 +378,7 @@ impl Root {
         match page {
             Page::Scenes => self.reload_scenes(),
             Page::Battery => self.reload_battery(),
+            Page::Audio => self.read_windows_audio(),
             Page::About => self.diagnostic_copied = None,
             _ => {}
         }
@@ -413,6 +426,32 @@ impl Root {
             format!("Raccourcis enregistrés ; refusés : {}.", errors.join(" ; "))
         });
         self.reload_hotkey_rows();
+    }
+
+    /// Heure de chaque lecture, pour la page « Connexion et audio ».
+    fn note_reading_times(&mut self, event: &Event) {
+        let now = momentum_service::system::clock;
+        match event {
+            Event::Searching | Event::Lost(_) => self.control_since = None,
+            Event::Connected { .. } => self.control_since = Some(now()),
+            Event::Connections(_) => self.connections_at = Some(now()),
+            Event::State(s) => {
+                let before = self.snapshot.state;
+                if before.is_none_or(|b| b.codec != s.codec) {
+                    self.codec_since = Some(now());
+                }
+                if before.is_none_or(|b| b.sample_rate_hz != s.sample_rate_hz) {
+                    self.rate_since = Some(now());
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Lit les sorties audio de Windows (lecture seule).
+    fn read_windows_audio(&mut self) {
+        self.windows_audio = Some(momentum_service::audio_output::read(self.name().as_deref()));
+        self.windows_at = Some(momentum_service::system::clock());
     }
 
     fn reload_battery(&mut self) {
@@ -770,6 +809,12 @@ impl Component for Root {
             battery_span: 0,
             battery: None,
             battery_notice: None,
+            control_since: None,
+            connections_at: None,
+            codec_since: None,
+            rate_since: None,
+            windows_audio: None,
+            windows_at: None,
             incidents: Vec::new(),
             diagnostic_copied: None,
         };
@@ -798,6 +843,7 @@ impl Component for Root {
                         if !matches!(e, Event::Searching | Event::Connected { .. }) {
                             self.busy = false;
                         }
+                        self.note_reading_times(&e);
                         match &e {
                             Event::Lost(r) => self.note_incident(format!("connexion perdue : {r}")),
                             Event::Refused(r) => {
@@ -862,6 +908,7 @@ impl Component for Root {
                 self.reload_battery();
             }
             Msg::BatterySpan(None) => {}
+            Msg::ReadWindowsAudio => self.read_windows_audio(),
             Msg::ExportBattery => self.battery_notice = Some(export_battery_history()),
             Msg::ClearBattery => self.confirm = Some(Confirm::ClearBattery),
             Msg::ReloadBattery => self.reload_battery(),
@@ -1291,6 +1338,7 @@ impl Component for Root {
             Page::Sound => self.sound(context),
             Page::Scenes => self.scenes_page(context),
             Page::Battery => self.battery_page(context),
+            Page::Audio => self.audio_page(context),
             Page::Settings => self.settings(context),
             Page::About => self.about(context),
         };
@@ -2242,6 +2290,72 @@ impl Root {
                         .text_wrapping(TextWrapping::Wrap),
                 )),
             ),
+        ))
+    }
+
+    fn audio_page(&self, context: &mut ViewContext<Self>) -> View {
+        let connections: Vec<_> = self
+            .snapshot
+            .connections
+            .iter()
+            .enumerate()
+            .map(|(i, c)| c.to_connection(i))
+            .collect();
+        let name = self.name();
+        let v = viewmodel::audio_view(&viewmodel::AudioInputs {
+            device_name: name.as_deref(),
+            state: self.snapshot.state.as_ref(),
+            connections: &connections,
+            control_since: self.control_since.as_deref(),
+            connections_at: self.connections_at.as_deref(),
+            codec_since: self.codec_since.as_deref(),
+            rate_since: self.rate_since.as_deref(),
+            windows: self.windows_audio.as_ref(),
+            windows_at: self.windows_at.as_deref(),
+        });
+        let rows = |prefix: &'static str, rows: Vec<viewmodel::InfoRow>| {
+            StackPanel::new()
+                .spacing(8.0)
+                .keyed_children(rows.into_iter().enumerate().map(move |(i, r)| {
+                    KeyedView::new(
+                        format!("{prefix}-{i}"),
+                        StackPanel::new().children((
+                            TextBlock::new()
+                                .text(format!("{} : {}", r.label, r.value))
+                                .text_wrapping(TextWrapping::Wrap),
+                            TextBlock::new().text(r.source).font_size(12.0).opacity(0.6),
+                        )),
+                    )
+                }))
+        };
+        let findings = v
+            .findings
+            .into_iter()
+            .enumerate()
+            .map(|(i, (problem, text))| {
+                KeyedView::new(
+                    format!("constat-{i}"),
+                    TextBlock::new()
+                        .text(format!("{} {text}", if problem { "⚠" } else { "•" }))
+                        .text_wrapping(TextWrapping::Wrap),
+                )
+            });
+        StackPanel::new().spacing(12.0).children((
+            card(
+                "Constats",
+                StackPanel::new().spacing(6.0).keyed_children(findings),
+            ),
+            card("Pilotage du casque", rows("pilotage", v.control)),
+            card(
+                "Sortie audio de Windows",
+                StackPanel::new().spacing(8.0).children((
+                    rows("windows", v.windows),
+                    Button::new()
+                        .on_click(context.message(Msg::ReadWindowsAudio))
+                        .content("Relire les sorties de Windows"),
+                )),
+            ),
+            card("Flux Bluetooth", rows("flux", v.stream)),
         ))
     }
 
