@@ -109,6 +109,26 @@ pub mod qobject {
         #[qproperty(QStringList, scene_names)]
         #[qproperty(QStringList, scene_previews)]
         #[qproperty(QString, scene_problems)]
+        // Éditeur de scènes (brouillon de scenes.txt).
+        #[qproperty(QStringList, scene_edit_names)]
+        #[qproperty(i32, scene_edit_selected)]
+        #[qproperty(bool, scene_edit_dirty)]
+        #[qproperty(bool, scene_edit_can_save)]
+        #[qproperty(QString, scene_edit_preview)]
+        #[qproperty(QString, scene_edit_notice)]
+        #[qproperty(QStringList, scene_eq_choices)]
+        #[qproperty(QStringList, scene_sound_choices)]
+        #[qproperty(QStringList, scene_switch_choices)]
+        #[qproperty(QStringList, scene_noise_choices)]
+        #[qproperty(QString, scene_form_name)]
+        #[qproperty(i32, scene_form_sound)]
+        #[qproperty(i32, scene_form_spatial)]
+        #[qproperty(i32, scene_form_noise)]
+        #[qproperty(QString, scene_form_level)]
+        #[qproperty(i32, scene_form_anti_wind)]
+        #[qproperty(i32, scene_form_touch)]
+        #[qproperty(i32, scene_form_equalizer)]
+        #[qproperty(i32, scene_form_bass)]
         #[qproperty(QString, scene_result)]
         #[qproperty(bool, scene_result_ok)]
         #[qproperty(QString, scenes_url)]
@@ -228,6 +248,17 @@ pub mod qobject {
         fn reload_scenes(self: Pin<&mut Headset>);
         #[qinvokable]
         fn apply_scene(self: Pin<&mut Headset>, index: i32);
+        #[qinvokable]
+        fn scene_edit_select(self: Pin<&mut Headset>, index: i32);
+        /// « nouvelle », « dupliquer », « supprimer », « monter »,
+        /// « descendre », « enregistrer », « annuler ».
+        #[qinvokable]
+        fn scene_edit_action(self: Pin<&mut Headset>, action: QString);
+        /// Formulaire saisi : nom, niveau, puis les choix des listes
+        /// (mode audio, spatial, bruit, anti-vent, tactile, égaliseur,
+        /// basses) séparés par des virgules.
+        #[qinvokable]
+        fn set_scene_form(self: Pin<&mut Headset>, name: QString, level: QString, choices: QString);
 
         /// Relit l'historique de la batterie sur la période choisie.
         #[qinvokable]
@@ -279,6 +310,7 @@ use momentum_core::diagnostic::{self, DiagnosticInput};
 use momentum_core::hotkeys::{self, HotkeyAction};
 use momentum_core::paths;
 use momentum_core::presets::{self, AbCompare, Preset};
+use momentum_core::scene_editor::{self, SceneEditor};
 use momentum_core::scenes::Scene;
 use momentum_core::tray_menu::{self, MenuAction, MenuContext};
 use momentum_core::ui::{IconKind, band_label, tooltip};
@@ -414,6 +446,28 @@ pub struct HeadsetRust {
     scene_names: QStringList,
     scene_previews: QStringList,
     scene_problems: QString,
+    scene_edit_names: QStringList,
+    scene_edit_selected: i32,
+    scene_edit_dirty: bool,
+    scene_edit_can_save: bool,
+    scene_edit_preview: QString,
+    scene_edit_notice: QString,
+    scene_eq_choices: QStringList,
+    scene_sound_choices: QStringList,
+    scene_switch_choices: QStringList,
+    scene_noise_choices: QStringList,
+    scene_form_name: QString,
+    scene_form_sound: i32,
+    scene_form_spatial: i32,
+    scene_form_noise: i32,
+    scene_form_level: QString,
+    scene_form_anti_wind: i32,
+    scene_form_touch: i32,
+    scene_form_equalizer: i32,
+    scene_form_bass: i32,
+    scene_editor: SceneEditor,
+    /// Formulaire tel que saisi (même invalide).
+    scene_form: viewmodel::SceneForm,
     scene_result: QString,
     scene_result_ok: bool,
     scenes_url: QString,
@@ -530,6 +584,27 @@ impl Default for HeadsetRust {
             scene_names: QStringList::default(),
             scene_previews: QStringList::default(),
             scene_problems: QString::default(),
+            scene_edit_names: QStringList::default(),
+            scene_edit_selected: 0,
+            scene_edit_dirty: false,
+            scene_edit_can_save: false,
+            scene_edit_preview: QString::default(),
+            scene_edit_notice: QString::default(),
+            scene_eq_choices: QStringList::default(),
+            scene_sound_choices: string_list(viewmodel::SCENE_SOUND_CHOICES.iter().copied()),
+            scene_switch_choices: string_list(viewmodel::SCENE_SWITCH_CHOICES.iter().copied()),
+            scene_noise_choices: string_list(viewmodel::SCENE_NOISE_CHOICES.iter().copied()),
+            scene_form_name: QString::default(),
+            scene_form_sound: 0,
+            scene_form_spatial: 0,
+            scene_form_noise: 0,
+            scene_form_level: QString::default(),
+            scene_form_anti_wind: 0,
+            scene_form_touch: 0,
+            scene_form_equalizer: 0,
+            scene_form_bass: 0,
+            scene_editor: SceneEditor::default(),
+            scene_form: viewmodel::SceneForm::default(),
             scene_result: QString::default(),
             scene_result_ok: true,
             scenes_url: paths::scenes_file()
@@ -790,6 +865,56 @@ impl qobject::Headset {
         self.as_mut().rust_mut().snapshot.apply(&event);
         self.as_mut().rust_mut().service_error = None;
         self.refresh();
+    }
+
+    /// Rouvre l'éditeur sur `scenes.txt` (modifications abandonnées).
+    fn reload_scene_editor(mut self: Pin<&mut Self>) {
+        let text = paths::scenes_file().and_then(|p| std::fs::read_to_string(p).ok());
+        let selected = self.rust().scene_editor.selected();
+        let mut editor = SceneEditor::load(text, paths::scene_presets());
+        editor.select(selected.min(editor.names().len().saturating_sub(1)));
+        let form = editor.form();
+        self.as_mut().rust_mut().scene_editor = editor;
+        self.as_mut().rust_mut().scene_form = form;
+    }
+
+    /// Recopie l'éditeur et le formulaire dans les propriétés QML.
+    fn push_scene_editor(mut self: Pin<&mut Self>, notice: Option<String>) {
+        let e = self.rust().scene_editor.clone();
+        let f = self.rust().scene_form.clone();
+        let names = e.names();
+        self.as_mut()
+            .set_scene_edit_names(string_list(names.iter().map(String::as_str)));
+        self.as_mut()
+            .set_scene_edit_selected(i32::try_from(e.selected()).unwrap_or(0));
+        self.as_mut().set_scene_edit_dirty(e.dirty());
+        self.as_mut().set_scene_edit_can_save(e.can_save());
+        self.as_mut()
+            .set_scene_edit_preview(QString::from(e.preview().as_str()));
+        self.as_mut()
+            .set_scene_eq_choices(string_list(e.eq_choices().iter().map(String::as_str)));
+        let text = e
+            .problem()
+            .map(|p| format!("⚠ {p}"))
+            .or(notice)
+            .unwrap_or_else(|| {
+                "Le brouillon n'est écrit qu'avec « Enregistrer » ; rien n'est envoyé au casque. \
+             Le panneau et les raccourcis suivent les renommages."
+                    .to_string()
+            });
+        self.as_mut()
+            .set_scene_edit_notice(QString::from(text.as_str()));
+        self.as_mut()
+            .set_scene_form_name(QString::from(f.name.as_str()));
+        self.as_mut().set_scene_form_sound(f.sound);
+        self.as_mut().set_scene_form_spatial(f.spatial);
+        self.as_mut().set_scene_form_noise(f.noise);
+        self.as_mut()
+            .set_scene_form_level(QString::from(f.level.as_str()));
+        self.as_mut().set_scene_form_anti_wind(f.anti_wind);
+        self.as_mut().set_scene_form_touch(f.touch);
+        self.as_mut().set_scene_form_equalizer(f.equalizer);
+        self.as_mut().set_scene_form_bass(f.bass_boost);
     }
 
     /// Choix du menu de l'icône (mêmes actions que WinUI).
@@ -1206,7 +1331,88 @@ impl qobject::Headset {
         });
     }
 
+    fn scene_edit_select(mut self: Pin<&mut Self>, index: i32) {
+        if let Ok(i) = usize::try_from(index)
+            && i != self.rust().scene_editor.selected()
+        {
+            self.as_mut().rust_mut().scene_editor.select(i);
+            let form = self.rust().scene_editor.form();
+            self.as_mut().rust_mut().scene_form = form;
+            self.as_mut().push_scene_editor(None);
+        }
+    }
+
+    fn scene_edit_action(mut self: Pin<&mut Self>, action: QString) {
+        let notice = {
+            let editor = &mut self.as_mut().rust_mut().scene_editor;
+            match action.to_string().as_str() {
+                "nouvelle" => editor.new_scene(),
+                "dupliquer" => editor.duplicate(),
+                "supprimer" => editor.delete(),
+                "monter" => editor.move_by(-1),
+                "descendre" => editor.move_by(1),
+                "enregistrer" => {
+                    let result = scene_editor::save(editor);
+                    let notice = match result {
+                        Ok((message, _)) => message,
+                        Err(reason) => format!("Non enregistré : {reason}"),
+                    };
+                    // Les raccourcis KDE des scènes suivent au prochain
+                    // démarrage du client.
+                    self.as_mut().reload_scene_editor();
+                    self.as_mut().reload_scenes();
+                    self.as_mut().push_scene_editor(Some(notice));
+                    return;
+                }
+                "annuler" => {
+                    self.as_mut().reload_scene_editor();
+                    self.as_mut()
+                        .push_scene_editor(Some("Modifications abandonnées.".to_string()));
+                    return;
+                }
+                _ => return,
+            }
+            None
+        };
+        let form = self.rust().scene_editor.form();
+        self.as_mut().rust_mut().scene_form = form;
+        self.as_mut().push_scene_editor(notice);
+    }
+
+    fn set_scene_form(mut self: Pin<&mut Self>, name: QString, level: QString, choices: QString) {
+        let c: Vec<i32> = choices
+            .to_string()
+            .split(',')
+            .map(|v| v.trim().parse().unwrap_or(0))
+            .collect();
+        let get = |i: usize| c.get(i).copied().unwrap_or(0);
+        let (sound, spatial, noise, anti_wind, touch, equalizer, bass) =
+            (get(0), get(1), get(2), get(3), get(4), get(5), get(6));
+        let form = viewmodel::SceneForm {
+            name: name.to_string(),
+            sound,
+            spatial,
+            noise,
+            level: level.to_string(),
+            anti_wind,
+            touch,
+            equalizer,
+            bass_boost: bass,
+        };
+        if form == self.rust().scene_form {
+            return;
+        }
+        self.as_mut().rust_mut().scene_editor.set_form(&form);
+        self.as_mut().rust_mut().scene_form = form;
+        self.as_mut().push_scene_editor(None);
+    }
+
     fn reload_scenes(mut self: Pin<&mut Self>) {
+        // Une modification en cours dans l'éditeur n'est pas perdue.
+        if !self.rust().scene_editor.dirty() {
+            self.as_mut().reload_scene_editor();
+            self.as_mut().push_scene_editor(None);
+        }
         let (scenes, errors) = paths::load_scenes();
         let names = string_list(scenes.iter().map(|s| s.name.as_str()));
         let previews: Vec<String> = scenes.iter().map(viewmodel::scene_preview).collect();
