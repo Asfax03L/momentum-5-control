@@ -5,7 +5,7 @@
 use std::sync::OnceLock;
 
 use cxx_qt::CxxQtThread;
-use zbus::blocking::Connection;
+use zbus::Connection;
 use zbus::fdo::{RequestNameFlags, RequestNameReply};
 
 use crate::autostart::HIDDEN_FLAG;
@@ -42,20 +42,28 @@ pub fn attach(qt_thread: CxxQtThread<Headset>) {
 }
 
 pub fn acquire() -> zbus::Result<Instance> {
-    let connection = Connection::session()?;
-    connection.object_server().at(PATH, Window)?;
-    // zbus rend un nom déjà pris par l'erreur `NameTaken`.
-    match connection.request_name_with_flags(NAME, RequestNameFlags::DoNotQueue.into()) {
-        Ok(RequestNameReply::PrimaryOwner | RequestNameReply::AlreadyOwner) => {
-            Ok(Instance::First(connection))
-        }
-        Ok(RequestNameReply::Exists | RequestNameReply::InQueue) | Err(zbus::Error::NameTaken) => {
-            // Lancement automatique en double : rien à montrer.
-            if !std::env::args().any(|a| a == HIDDEN_FLAG) {
-                connection.call_method(Some(NAME), PATH, Some(INTERFACE), "Show", &())?;
+    zbus::block_on(async {
+        let connection = Connection::session().await?;
+        connection.object_server().at(PATH, Window).await?;
+        // zbus rend un nom déjà pris par l'erreur `NameTaken`.
+        match connection
+            .request_name_with_flags(NAME, RequestNameFlags::DO_NOT_QUEUE)
+            .await
+        {
+            Ok(RequestNameReply::PrimaryOwner | RequestNameReply::AlreadyOwner) => {
+                Ok(Instance::First(connection))
             }
-            Ok(Instance::AlreadyRunning)
+            Ok(RequestNameReply::Exists | RequestNameReply::InQueue)
+            | Err(zbus::Error::NameTaken) => {
+                // Lancement automatique en double : rien à montrer.
+                if !std::env::args().any(|a| a == HIDDEN_FLAG) {
+                    connection
+                        .call_method(Some(NAME), PATH, Some(INTERFACE), "Show", &())
+                        .await?;
+                }
+                Ok(Instance::AlreadyRunning)
+            }
+            Err(e) => Err(e),
         }
-        Err(e) => Err(e),
-    }
+    })
 }

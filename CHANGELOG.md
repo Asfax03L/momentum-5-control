@@ -5,6 +5,14 @@ M5 » signifie : écriture capturée dans Smart Control Plus, puis rejouée
 depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
 6.21.5, Windows 11. La CI (fmt, clippy, tests) ne se connecte à aucun casque.
 
+## Non publié
+
+### Dépendances
+- zbus 6 (au lieu de 5) pour le client D-Bus, le service Linux et le
+  client KDE : zbus 6 n'a plus d'API bloquante, chaque appel passe par
+  `zbus::block_on`. L'icône de la zone de notification (ksni 0.3) garde
+  zbus 5 tant que ksni n'est pas passé à zbus 6.
+
 ## v0.9.0 — 22/10/2026
 
 ### Consolidation (revue du 21/10/2026)

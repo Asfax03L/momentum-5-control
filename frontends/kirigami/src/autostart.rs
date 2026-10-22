@@ -44,9 +44,8 @@ pub fn in_flatpak() -> bool {
 /// session, caché.
 fn request_background(autostart: bool) -> zbus::Result<()> {
     use std::collections::HashMap;
-    use zbus::zvariant::Value;
+    use zbus::wire::Variant as Value;
 
-    let connection = zbus::blocking::Connection::session()?;
     let mut options: HashMap<&str, Value> = HashMap::new();
     options.insert(
         "reason",
@@ -57,14 +56,19 @@ fn request_background(autostart: bool) -> zbus::Result<()> {
         "commandline",
         Value::from(vec!["momentum-kirigami", HIDDEN_FLAG]),
     );
-    connection.call_method(
-        Some("org.freedesktop.portal.Desktop"),
-        "/org/freedesktop/portal/desktop",
-        Some("org.freedesktop.portal.Background"),
-        "RequestBackground",
-        &("", options),
-    )?;
-    Ok(())
+    zbus::block_on(async {
+        let connection = zbus::Connection::session().await?;
+        connection
+            .call_method(
+                Some("org.freedesktop.portal.Desktop"),
+                "/org/freedesktop/portal/desktop",
+                Some("org.freedesktop.portal.Background"),
+                "RequestBackground",
+                &("", options),
+            )
+            .await?;
+        Ok(())
+    })
 }
 
 pub fn is_enabled() -> bool {
