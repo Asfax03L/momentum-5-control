@@ -10,6 +10,7 @@
 //! Windows ([`wire`], `pipe`). Les messages circulent en JSON.
 
 use momentum_core::device::{DeviceInfo, EqState, HeadsetState, NoiseModeRequest, PromptMode};
+pub use momentum_core::request::Outcome;
 use momentum_core::scenes::SceneReport;
 use serde::{Deserialize, Serialize};
 
@@ -19,6 +20,7 @@ pub mod demo;
 pub mod menu;
 #[cfg(windows)]
 pub mod pipe;
+pub mod tracker;
 pub mod wire;
 
 /// Client du service sur ce système : D-Bus sous Linux, canal nommé sous
@@ -115,6 +117,9 @@ pub enum Event {
         name: String,
         /// Raison de la lecture seule (modèle ou micrologiciel non validé).
         read_only: Option<String>,
+        /// Numéro de cette connexion (croissant ; 0 avec un service ancien).
+        #[serde(default)]
+        session: u64,
     },
     State(HeadsetState),
     Equalizer(EqState),
@@ -125,15 +130,29 @@ pub enum Event {
     /// Réglage refusé par le casque (ou commande refusée par le service).
     Refused(String),
     SceneApplied(SceneReport),
+    /// Résultat de la demande `id` rendue par `submit` : un seul par
+    /// demande. `details` : compte rendu d'une scène, fichier d'un export.
+    Done {
+        id: u64,
+        outcome: Outcome,
+        #[serde(default)]
+        details: Option<String>,
+    },
 }
 
-/// État courant, pour une interface qui arrive.
+/// État courant, pour une interface qui arrive.  Les données d'une connexion
+/// ne survivent pas à sa fin : rien d'un ancien casque n'est présenté comme
+/// actuel.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Snapshot {
     /// Nom annoncé à la connexion ; `None` : recherche du casque.
     pub device_name: Option<String>,
     /// Raison de la lecture seule (modèle ou micrologiciel non validé).
     pub read_only: Option<String>,
+    /// Numéro de la connexion courante, à joindre aux demandes
+    /// (`submit`) ; 0 sans casque ou avec un service ancien.
+    #[serde(default)]
+    pub session: u64,
     /// `None` tant que l'état n'a pas été lu.
     pub state: Option<HeadsetState>,
     pub equalizer: Option<EqState>,
@@ -150,12 +169,18 @@ impl Snapshot {
         match event {
             Event::Searching => {
                 self.device_name = None;
-                self.state = None;
+                self.read_only = None;
+                self.forget_headset();
             }
-            Event::Connected { name, read_only } => {
+            Event::Connected {
+                name,
+                read_only,
+                session,
+            } => {
                 self.device_name = Some(name.clone());
                 self.read_only = read_only.clone();
-                self.state = None;
+                self.session = *session;
+                self.forget_headset();
                 self.problem = None;
             }
             Event::State(s) => self.state = Some(*s),
@@ -163,12 +188,20 @@ impl Snapshot {
             Event::Connections(list) => self.connections = list.clone(),
             Event::Info(info) => self.info = Some(info.clone()),
             Event::Lost(reason) => {
-                self.state = None;
+                self.forget_headset();
                 self.problem = Some(format!("Connexion perdue : {reason}"));
             }
             Event::Refused(reason) => self.problem = Some(format!("Réglage refusé : {reason}")),
-            Event::Exported(_) | Event::SceneApplied(_) => {}
+            Event::Exported(_) | Event::SceneApplied(_) | Event::Done { .. } => {}
         }
+    }
+
+    /// Oublie tout ce qui a été lu sur le casque (F07 de la revue).
+    fn forget_headset(&mut self) {
+        self.state = None;
+        self.equalizer = None;
+        self.info = None;
+        self.connections.clear();
     }
 }
 
@@ -245,6 +278,7 @@ mod tests {
         s.apply(&Event::Connected {
             name: "MOMENTUM 5".into(),
             read_only: None,
+            session: 1,
         });
         s.apply(&Event::State(HeadsetState {
             battery: 55,
@@ -258,7 +292,65 @@ mod tests {
         s.apply(&Event::Connected {
             name: "MOMENTUM 5".into(),
             read_only: None,
+            session: 1,
         });
         assert!(s.problem.is_none());
+    }
+
+    #[test]
+    fn a_new_connection_forgets_the_old_headset() {
+        // F07 : rien de la connexion précédente n'est présenté comme actuel.
+        let mut s = Snapshot::default();
+        s.apply(&Event::Connected {
+            name: "Casque A".into(),
+            read_only: None,
+            session: 1,
+        });
+        s.apply(&Event::Equalizer(EqState {
+            min_gain: -60,
+            max_gain: 60,
+            gains: vec![30; 8],
+            bass_boost: true,
+        }));
+        s.apply(&Event::Info(DeviceInfo {
+            firmware: Some("6.21.5".into()),
+            ..DeviceInfo::default()
+        }));
+        s.apply(&Event::Connections(vec![ConnectionInfo::default()]));
+        s.apply(&Event::Lost("hors de portée".into()));
+        assert!(s.equalizer.is_none() && s.info.is_none() && s.connections.is_empty());
+        s.apply(&Event::Equalizer(EqState::default()));
+        s.apply(&Event::Connected {
+            name: "Casque B".into(),
+            read_only: None,
+            session: 2,
+        });
+        assert_eq!(s.session, 2);
+        assert!(s.equalizer.is_none() && s.state.is_none());
+    }
+
+    /// Format JSON de l'API (contrat avec les interfaces et le widget).
+    #[test]
+    fn api_json_contract() {
+        let done = Event::Done {
+            id: 4,
+            outcome: Outcome::Refused("casque absent".into()),
+            details: None,
+        };
+        assert_eq!(
+            serde_json::to_string(&done).unwrap(),
+            r#"{"Done":{"id":4,"outcome":{"Refused":"casque absent"},"details":null}}"#
+        );
+        // Un service ancien n'envoie ni `session` ni `details`.
+        let old: Event =
+            serde_json::from_str(r#"{"Connected":{"name":"M5","read_only":null}}"#).unwrap();
+        assert!(matches!(old, Event::Connected { session: 0, .. }));
+        let old: Event = serde_json::from_str(r#"{"Done":{"id":1,"outcome":"Applied"}}"#).unwrap();
+        assert!(matches!(old, Event::Done { details: None, .. }));
+        let snapshot: Snapshot = serde_json::from_str(
+            r#"{"device_name":null,"read_only":null,"state":null,"equalizer":null,"info":null,"connections":[],"problem":null}"#,
+        )
+        .unwrap();
+        assert_eq!(snapshot.session, 0);
     }
 }

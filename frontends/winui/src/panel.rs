@@ -10,13 +10,13 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use momentum_client::{Command, Event, Snapshot};
+use momentum_client::{Command, Snapshot};
 use momentum_core::device::NoiseModeRequest;
 use momentum_core::quick_panel::PanelPrefs;
 use momentum_core::{hotkeys, paths, viewmodel};
 use windows_reactor::*;
 
-use crate::app::{Incoming, spawn_listener, spawn_sender};
+use crate::app::{Incoming, Requests, spawn_service};
 use crate::desktop;
 
 const SETTLE: Duration = Duration::from_millis(350);
@@ -39,8 +39,9 @@ pub struct Panel {
     snapshot: Snapshot,
     service_error: Option<String>,
     busy: bool,
+    requests: Requests,
     incoming: Arc<Mutex<Receiver<Incoming>>>,
-    commands: Sender<Command>,
+    commands: Sender<(Command, u64)>,
     pending_level: Option<u8>,
     edits: u64,
     /// Contenu choisi (`panneau.txt`) et scènes montrées.
@@ -79,7 +80,10 @@ impl Panel {
     }
 
     fn send(&mut self, command: Command) {
-        if self.view_model().writable && self.commands.send(command).is_ok() {
+        if self.view_model().writable
+            && self.commands.send((command, self.snapshot.session)).is_ok()
+        {
+            self.requests.sent();
             self.busy = true;
         }
     }
@@ -90,12 +94,14 @@ impl Component for Panel {
     type Message = PanelMsg;
 
     fn create(_input: &(), context: &ComponentContext<Self>) -> Self {
+        let (incoming, commands) = spawn_service(false);
         let panel = Self {
             snapshot: Snapshot::default(),
             service_error: None,
             busy: false,
-            incoming: spawn_listener(false),
-            commands: spawn_sender(),
+            requests: Requests::default(),
+            incoming,
+            commands,
             pending_level: None,
             edits: 0,
             prefs: PanelPrefs::default(),
@@ -114,15 +120,19 @@ impl Component for Panel {
         let controls = self.view_model().controls;
         match message {
             PanelMsg::Service(cell) => {
-                match cell.lock().ok().and_then(|mut c| c.take()) {
+                let incoming = cell.lock().ok().and_then(|mut c| c.take());
+                if let Some(failure) = incoming.as_ref().and_then(|i| self.requests.on_incoming(i))
+                {
+                    self.snapshot.problem = Some(failure);
+                }
+                self.busy = self.requests.busy();
+                match incoming {
                     Some(Incoming::Snapshot(s)) => {
                         self.snapshot = s;
                         self.service_error = None;
                     }
+                    Some(Incoming::Submitted(_) | Incoming::Rejected(_)) => {}
                     Some(Incoming::Event(e)) => {
-                        if !matches!(e, Event::Searching | Event::Connected { .. }) {
-                            self.busy = false;
-                        }
                         self.snapshot.apply(&e);
                         self.service_error = None;
                     }

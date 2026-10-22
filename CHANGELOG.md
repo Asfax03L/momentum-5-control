@@ -13,6 +13,18 @@ depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
   (avant, `Headset::new` les autorisait jusqu'à `identify`). Les tests
   obtiennent un casque validé par un constructeur réservé
   (fonctionnalité `essais`, absente des binaires livrés).
+- F01, F03, F06, F07 : **demandes suivies**. Chaque commande reçoit un
+  numéro (`Submit` sur D-Bus, `Request::Submit` sur le canal Windows) et
+  se termine par un seul `Event::Done` : appliquée et relue, déjà dans cet
+  état, acquittée, refusée, non appliquée, annulée sans envoi, ou résultat
+  inconnu après une coupure (jamais renvoyée). Chaque connexion au casque a
+  un numéro ; une demande faite pour une connexion précédente n'est pas
+  envoyée, et le `Snapshot` oublie les données de l'ancienne connexion.
+  `ctl` n'attend plus que le résultat de sa demande ; WinUI et le client KDE
+  montrent un refus immédiat au lieu d'attendre (KDE ne le prend plus pour
+  une panne du service). L'ancienne méthode `Command` reste disponible.
+  Essayé sur le M5 le 22/10/2026 sous Bazzite et Windows.
+- F10 (en partie) : le nom du casque ne va plus dans les messages `info`.
 
 ### Widget Plasma
 - `plasma/org.openheadset.control.plasmoid` : widget Plasma 6 en QML,

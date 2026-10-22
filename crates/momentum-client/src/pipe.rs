@@ -55,6 +55,18 @@ impl Client {
         }
     }
 
+    /// Envoie une commande suivie ; son résultat arrive en `Event::Done`
+    /// avec le numéro rendu. `Err` : refusée tout de suite par le service.
+    pub fn submit(&self, command: &Command, session: u64) -> Result<u64, ClientError> {
+        match call(&Request::Submit {
+            command: command.clone(),
+            session,
+        })? {
+            Reply::Submitted { id } => Ok(id),
+            other => Err(unexpected(other)),
+        }
+    }
+
     /// Événements du service, dans l'ordre (bloquant). L'itération s'arrête
     /// si le service disparaît ou si des événements ont été perdus : relire
     /// alors l'état avec [`Client::snapshot`].

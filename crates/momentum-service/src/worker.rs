@@ -14,6 +14,7 @@ use momentum_core::device::{
 };
 use momentum_core::presets::Preset;
 use momentum_core::protocol::messages::M5NoiseMode;
+use momentum_core::request::Outcome;
 use momentum_core::scenes::{Scene, SceneReport, apply_scene};
 use momentum_core::transport::Transport;
 #[cfg(target_os = "linux")]
@@ -95,14 +96,50 @@ pub enum WorkerCommand {
     Quit,
 }
 
+/// Demande au worker : une commande, son numéro (0 : aucun résultat
+/// publié) et la connexion pour laquelle elle a été faite (0 : la connexion
+/// courante, quelle qu'elle soit). Une demande faite pour une connexion
+/// précédente est annulée sans rien envoyer.
+#[derive(Debug)]
+pub struct Job {
+    pub id: u64,
+    pub session: u64,
+    pub command: WorkerCommand,
+}
+
+impl Job {
+    /// Commande sans résultat publié (`Quit`, `Query`, essais).
+    pub fn untracked(command: WorkerCommand) -> Self {
+        Self {
+            id: 0,
+            session: 0,
+            command,
+        }
+    }
+}
+
+impl AsRef<WorkerCommand> for Job {
+    fn as_ref(&self) -> &WorkerCommand {
+        &self.command
+    }
+}
+
+impl AsRef<WorkerCommand> for WorkerCommand {
+    fn as_ref(&self) -> &WorkerCommand {
+        self
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum WorkerEvent {
     Searching,
     /// `read_only` : raison de la lecture seule (modèle ou micrologiciel non
-    /// validé pour les écritures).
+    /// validé pour les écritures). `session` : numéro de cette connexion
+    /// (croissant, à partir de 1).
     Connected {
         name: String,
         read_only: Option<String>,
+        session: u64,
     },
     State(HeadsetState),
     Equalizer(EqState),
@@ -118,6 +155,46 @@ pub enum WorkerEvent {
     Refused(String),
     /// Scène appliquée, en tout ou en partie.
     SceneApplied(SceneReport),
+    /// Résultat de la demande `id` (un seul par demande suivie) ;
+    /// `details` : compte rendu d'une scène, fichier d'un export.
+    Done {
+        id: u64,
+        outcome: Outcome,
+        details: Option<String>,
+    },
+}
+
+/// Demande faite pour une autre connexion que `generation` (0 : aucune
+/// connexion précisée).
+fn for_other_session(job: &Job, generation: u64) -> bool {
+    job.session != 0 && job.session != generation
+}
+
+/// Publie le résultat d'une demande suivie.
+fn finish(notify: &impl Fn(WorkerEvent), id: u64, outcome: Outcome, details: Option<String>) {
+    if id != 0 {
+        notify(WorkerEvent::Done {
+            id,
+            outcome,
+            details,
+        });
+    }
+}
+
+/// Annule sans envoi les demandes en attente (connexion perdue). `true` :
+/// le worker doit s'arrêter.
+fn cancel_pending(commands: &Receiver<Job>, notify: &impl Fn(WorkerEvent), reason: &str) -> bool {
+    loop {
+        match commands.try_recv() {
+            Ok(Job {
+                command: WorkerCommand::Quit,
+                ..
+            })
+            | Err(TryRecvError::Disconnected) => return true,
+            Ok(job) => finish(notify, job.id, Outcome::Cancelled(reason.to_string()), None),
+            Err(TryRecvError::Empty) => return false,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -126,12 +203,15 @@ enum SessionEnd {
     Lost(String),
 }
 
-pub fn run(commands: Receiver<WorkerCommand>, notify: impl Fn(WorkerEvent)) {
+pub fn run(commands: Receiver<Job>, notify: impl Fn(WorkerEvent)) {
     // SAFETY: première chose faite par ce thread, avant tout objet WinRT.
     #[cfg(windows)]
     if let Err(e) = unsafe { RoInitialize(RO_INIT_MULTITHREADED) } {
         warn!(%e, "RoInitialize");
     }
+    // Numéro de la connexion courante : une demande faite pour une autre
+    // connexion n'est jamais envoyée.
+    let mut generation = 0u64;
     loop {
         notify(WorkerEvent::Searching);
         match connect() {
@@ -140,13 +220,23 @@ pub fn run(commands: Receiver<WorkerCommand>, notify: impl Fn(WorkerEvent)) {
                 // validés ; la lecture reste possible sur tout casque GAIA.
                 headset.identify();
                 let read_only = headset.write_block_reason().map(str::to_string);
-                info!(%name, ?read_only, "casque connecté");
-                notify(WorkerEvent::Connected { name, read_only });
-                match session(headset, &commands, &notify) {
+                generation += 1;
+                // Le nom du casque peut être personnel : il ne va pas au journal.
+                info!(?read_only, session = generation, "casque connecté");
+                notify(WorkerEvent::Connected {
+                    name,
+                    read_only,
+                    session: generation,
+                });
+                match session(headset, generation, &commands, &notify) {
                     SessionEnd::Quit => return,
                     SessionEnd::Lost(reason) => {
                         warn!(%reason, "connexion perdue");
                         notify(WorkerEvent::Lost(reason));
+                        // Rien de l'ancienne connexion n'est rejoué.
+                        if cancel_pending(&commands, &notify, "connexion perdue") {
+                            return;
+                        }
                     }
                 }
             }
@@ -154,8 +244,18 @@ pub fn run(commands: Receiver<WorkerCommand>, notify: impl Fn(WorkerEvent)) {
         }
         // Attente avant nouvel essai, en restant réactif à « Quitter ».
         match commands.recv_timeout(RETRY_DELAY) {
-            Ok(WorkerCommand::Quit) | Err(RecvTimeoutError::Disconnected) => return,
-            Ok(_) | Err(RecvTimeoutError::Timeout) => {}
+            Ok(Job {
+                command: WorkerCommand::Quit,
+                ..
+            })
+            | Err(RecvTimeoutError::Disconnected) => return,
+            Ok(job) => finish(
+                &notify,
+                job.id,
+                Outcome::Cancelled("casque non connecté".to_string()),
+                None,
+            ),
+            Err(RecvTimeoutError::Timeout) => {}
         }
     }
 }
@@ -182,7 +282,8 @@ fn connect() -> Result<(String, Headset<PlatformTransport>), String> {
 
 fn session<T: Transport>(
     mut headset: Headset<T>,
-    commands: &Receiver<WorkerCommand>,
+    generation: u64,
+    commands: &Receiver<Job>,
     notify: &impl Fn(WorkerEvent),
 ) -> SessionEnd {
     let lost = |e: DeviceError| SessionEnd::Lost(e.to_string());
@@ -222,42 +323,70 @@ fn session<T: Transport>(
         let mut pending = Vec::new();
         loop {
             match commands.try_recv() {
-                Ok(WorkerCommand::Quit) | Err(TryRecvError::Disconnected) => {
+                Ok(Job {
+                    command: WorkerCommand::Quit,
+                    ..
+                })
+                | Err(TryRecvError::Disconnected) => {
                     return SessionEnd::Quit;
                 }
-                Ok(WorkerCommand::Query(reply)) => {
+                Ok(Job {
+                    command: WorkerCommand::Query(reply),
+                    ..
+                }) => {
                     let _ = reply.send(state);
                 }
-                Ok(command) => pending.push(command),
+                Ok(job) if for_other_session(&job, generation) => finish(
+                    notify,
+                    job.id,
+                    Outcome::Cancelled("demande faite pour une connexion précédente".to_string()),
+                    None,
+                ),
+                Ok(job) => pending.push(job),
                 Err(TryRecvError::Empty) => break,
             }
         }
         if !pending.is_empty() {
-            let batch = coalesce(pending);
-            let touches_eq = batch
-                .iter()
-                .any(|c| c.is_eq() || matches!(c, WorkerCommand::ApplyScene { .. }));
-            let touches_state = batch.iter().any(|c| !c.is_eq());
-            if batch.iter().any(|c| {
+            let (batch, superseded) = coalesce(pending);
+            for job in superseded {
+                finish(
+                    notify,
+                    job.id,
+                    Outcome::Cancelled("remplacée par une demande plus récente".to_string()),
+                    None,
+                );
+            }
+            let touches_eq = batch.iter().any(|j| {
+                j.command.is_eq() || matches!(j.command, WorkerCommand::ApplyScene { .. })
+            });
+            let touches_state = batch.iter().any(|j| !j.command.is_eq());
+            if batch.iter().any(|j| {
                 matches!(
-                    c,
+                    j.command,
                     WorkerCommand::SetMultipoint(_) | WorkerCommand::ToggleConnection { .. }
                 )
             }) {
                 links_recheck = Some(Instant::now() + LINKS_RECHECK_DELAY);
             }
-            let touches_info = batch.iter().any(|c| {
+            let touches_info = batch.iter().any(|j| {
                 matches!(
-                    c,
+                    j.command,
                     WorkerCommand::SetPromptVolume(_)
                         | WorkerCommand::SetName(_)
                         | WorkerCommand::SetMultipoint(_)
                 )
             });
-            if let Err(end) = run_batch(&mut headset, batch, &state, &mut eq, &paired, notify) {
-                return end;
-            }
-            // Relecture : l'interface reflète toujours l'état réel du casque.
+            let sent = match run_batch(&mut headset, batch, &state, &mut eq, &paired, notify) {
+                Ok(sent) => sent,
+                Err(end) => return end,
+            };
+            // Relecture : l'interface reflète toujours l'état réel du casque,
+            // et chaque demande acquittée est confirmée sur cette relecture.
+            let unverified = |reason: &str| {
+                for job in &sent {
+                    finish(notify, job.id, Outcome::Unknown(reason.to_string()), None);
+                }
+            };
             if touches_eq {
                 match headset.read_eq() {
                     Ok(e) => {
@@ -265,7 +394,10 @@ fn session<T: Transport>(
                         eq = e;
                         notify(WorkerEvent::Equalizer(eq.clone()));
                     }
-                    Err(e) => return lost(e),
+                    Err(e) => {
+                        unverified("connexion perdue avant la relecture");
+                        return lost(e);
+                    }
                 }
             }
             if touches_info {
@@ -274,7 +406,10 @@ fn session<T: Transport>(
                         info = i;
                         notify(WorkerEvent::Info(info.clone()));
                     }
-                    Err(e) => return lost(e),
+                    Err(e) => {
+                        unverified("connexion perdue avant la relecture");
+                        return lost(e);
+                    }
                 }
             }
             if touches_state {
@@ -285,8 +420,24 @@ fn session<T: Transport>(
                         notify(WorkerEvent::State(state));
                         last_refresh = Instant::now();
                     }
-                    Err(e) => return lost(e),
+                    Err(e) => {
+                        unverified("connexion perdue avant la relecture");
+                        return lost(e);
+                    }
                 }
+            }
+            for (i, job) in sent.iter().enumerate() {
+                // Une demande suivie d'une autre qui touche au même réglage
+                // (ou à un réglage lié) ne peut pas être jugée sur la relecture.
+                let overridden = sent[i + 1..]
+                    .iter()
+                    .any(|later| related(&job.command, &later.command));
+                let outcome = if overridden {
+                    Outcome::Acknowledged
+                } else {
+                    verify(&job.command, &state, &eq, &info)
+                };
+                finish(notify, job.id, outcome, None);
             }
             continue;
         }
@@ -378,84 +529,252 @@ fn session<T: Transport>(
     }
 }
 
-/// Exécute un lot de commandes dans l'ordre. `eq` reste fidèle au casque
+/// Exécute un lot de demandes dans l'ordre. `eq` reste fidèle au casque
 /// entre deux commandes : les écritures d'égaliseur le tiennent à jour, et
 /// il est relu avant la commande d'égaliseur qui suit une scène (la scène
-/// écrit avec sa propre lecture). Une erreur qui désynchronise la session
-/// l'arrête sans rien renvoyer.
+/// écrit avec sa propre lecture). Rend les demandes acquittées, à confirmer
+/// par la relecture ; les autres ont déjà leur résultat. Une erreur qui
+/// désynchronise la session l'arrête sans rien renvoyer : la demande en
+/// cours et celles déjà acquittées ont un résultat inconnu, les suivantes
+/// sont annulées sans envoi.
 fn run_batch<T: Transport>(
     headset: &mut Headset<T>,
-    batch: Vec<WorkerCommand>,
+    batch: Vec<Job>,
     state: &HeadsetState,
     eq: &mut EqState,
     paired: &[Connection],
     notify: &impl Fn(WorkerEvent),
-) -> Result<(), SessionEnd> {
-    let lost = |e: DeviceError| SessionEnd::Lost(e.to_string());
+) -> Result<Vec<Job>, SessionEnd> {
+    let mut sent: Vec<Job> = Vec::new();
     let mut eq_stale = false;
-    for command in batch {
-        if let WorkerCommand::ApplyScene {
-            scene,
-            presets,
-            reply,
-        } = command
-        {
-            let report = apply_scene(headset, &scene, &presets);
-            info!(scene = %report.scene, complete = report.is_complete(), "scène appliquée");
-            if let Some(reply) = reply {
-                let _ = reply.send(report.clone());
-            }
-            notify(WorkerEvent::SceneApplied(report));
-            if headset.client().is_desynchronized() {
-                return Err(SessionEnd::Lost(
-                    "échange interrompu pendant une scène".to_string(),
-                ));
-            }
-            eq_stale = true;
-            continue;
+    let mut jobs = batch.into_iter();
+    // Session perdue pendant `id` : rien n'est renvoyé.
+    let abort = |id: u64,
+                 reason: String,
+                 sent: &[Job],
+                 rest: &mut dyn Iterator<Item = Job>|
+     -> SessionEnd {
+        finish(notify, id, Outcome::Unknown(reason.clone()), None);
+        for job in sent {
+            finish(
+                notify,
+                job.id,
+                Outcome::Unknown("connexion perdue avant la relecture".to_string()),
+                None,
+            );
         }
-        if let WorkerCommand::ToggleConnection { device, connect } = command {
-            let Some(current) = paired.iter().find(|d| d.same_device(&device)) else {
-                notify(WorkerEvent::Refused(
-                    "la liste des appareils a changé, réessaie".to_string(),
-                ));
-                continue;
-            };
-            if current.connected == connect {
-                continue;
-            }
-            if let Err(e) = headset.set_connection(current, connect) {
-                if headset.client().is_desynchronized() {
-                    return Err(lost(e));
+        for job in rest {
+            finish(
+                notify,
+                job.id,
+                Outcome::Cancelled("connexion perdue avant l'envoi".to_string()),
+                None,
+            );
+        }
+        SessionEnd::Lost(reason)
+    };
+    while let Some(job) = jobs.next() {
+        let id = job.id;
+        match job.command {
+            WorkerCommand::ApplyScene {
+                scene,
+                presets,
+                reply,
+            } => {
+                let report = apply_scene(headset, &scene, &presets);
+                info!(complete = report.is_complete(), "scène appliquée");
+                if let Some(reply) = reply {
+                    let _ = reply.send(report.clone());
                 }
-                notify(WorkerEvent::Refused(e.to_string()));
+                let details = Some(report.details());
+                notify(WorkerEvent::SceneApplied(report.clone()));
+                if headset.client().is_desynchronized() {
+                    finish(
+                        notify,
+                        id,
+                        Outcome::Unknown("échange interrompu pendant la scène".to_string()),
+                        details,
+                    );
+                    return Err(abort(
+                        0,
+                        "échange interrompu pendant une scène".to_string(),
+                        &sent,
+                        &mut jobs,
+                    ));
+                }
+                let outcome = if report.is_complete() {
+                    Outcome::Applied
+                } else {
+                    Outcome::NotApplied("scène appliquée en partie".to_string())
+                };
+                finish(notify, id, outcome, details);
+                eq_stale = true;
             }
-            // L'état suit par les notifications 1491/1484.
-            continue;
-        }
-        if let WorkerCommand::ExportProfile(path) = command {
-            let result = export_profile(headset, &path);
-            if headset.client().is_desynchronized() {
-                return Err(SessionEnd::Lost(
-                    "délai dépassé pendant l'export".to_string(),
-                ));
+            WorkerCommand::ToggleConnection { device, connect } => {
+                let Some(current) = paired.iter().find(|d| d.same_device(&device)) else {
+                    let reason = "la liste des appareils a changé, réessaie".to_string();
+                    notify(WorkerEvent::Refused(reason.clone()));
+                    finish(notify, id, Outcome::Refused(reason), None);
+                    continue;
+                };
+                if current.connected == connect {
+                    finish(notify, id, Outcome::AlreadySatisfied, None);
+                    continue;
+                }
+                match headset.set_connection(current, connect) {
+                    // L'état suit par les notifications 1491/1484.
+                    Ok(()) => finish(notify, id, Outcome::Acknowledged, None),
+                    Err(e) if headset.client().is_desynchronized() => {
+                        return Err(abort(id, e.to_string(), &sent, &mut jobs));
+                    }
+                    Err(e) => {
+                        notify(WorkerEvent::Refused(e.to_string()));
+                        finish(notify, id, Outcome::Refused(e.to_string()), None);
+                    }
+                }
             }
-            notify(WorkerEvent::Exported(result.map(|()| path)));
-            continue;
-        }
-        if command.is_eq() && eq_stale {
-            *eq = headset.read_eq().map_err(lost)?;
-            eq_stale = false;
-        }
-        if let Err(e) = apply(headset, state, eq, command) {
-            if headset.client().is_desynchronized() {
-                // Pas de nouvel essai : l'écriture a pu être appliquée.
-                return Err(lost(e));
+            WorkerCommand::ExportProfile(path) => {
+                let result = export_profile(headset, &path);
+                if headset.client().is_desynchronized() {
+                    return Err(abort(
+                        id,
+                        "délai dépassé pendant l'export".to_string(),
+                        &sent,
+                        &mut jobs,
+                    ));
+                }
+                match &result {
+                    Ok(()) => finish(
+                        notify,
+                        id,
+                        Outcome::Applied,
+                        Some(path.display().to_string()),
+                    ),
+                    Err(reason) => finish(notify, id, Outcome::Refused(reason.clone()), None),
+                }
+                notify(WorkerEvent::Exported(result.map(|()| path)));
             }
-            notify(WorkerEvent::Refused(e.to_string()));
+            command => {
+                if command.is_eq() && eq_stale {
+                    match headset.read_eq() {
+                        Ok(fresh) => *eq = fresh,
+                        Err(e) => {
+                            let rest = std::iter::once(Job {
+                                id,
+                                session: job.session,
+                                command,
+                            });
+                            let mut rest = rest.chain(&mut jobs);
+                            return Err(abort(0, e.to_string(), &sent, &mut rest));
+                        }
+                    }
+                    eq_stale = false;
+                }
+                let kept = command.clone_setting();
+                match apply(headset, state, eq, command) {
+                    Ok(()) => sent.push(Job {
+                        id,
+                        session: job.session,
+                        command: kept,
+                    }),
+                    // Pas de nouvel essai : l'écriture a pu être appliquée.
+                    Err(e) if headset.client().is_desynchronized() => {
+                        return Err(abort(id, e.to_string(), &sent, &mut jobs));
+                    }
+                    Err(e) => {
+                        notify(WorkerEvent::Refused(e.to_string()));
+                        finish(notify, id, Outcome::Refused(e.to_string()), None);
+                    }
+                }
+            }
         }
     }
-    Ok(())
+    Ok(sent)
+}
+
+/// Résultat d'une écriture acquittée, d'après la relecture qui suit.
+fn verify(
+    command: &WorkerCommand,
+    state: &HeadsetState,
+    eq: &EqState,
+    info: &DeviceInfo,
+) -> Outcome {
+    use momentum_core::device::AudioMode;
+    let noise = &state.noise;
+    let confirmed = match command {
+        WorkerCommand::SetMode(NoiseModeRequest::Off) => Some(!noise.anc_enabled),
+        WorkerCommand::SetMode(NoiseModeRequest::Adaptive) => {
+            Some(noise.anc_enabled && noise.adaptive)
+        }
+        WorkerCommand::SetMode(NoiseModeRequest::Custom) => {
+            Some(noise.anc_enabled && !noise.adaptive)
+        }
+        WorkerCommand::SetLevel(level) => {
+            Some(noise.anc_enabled && !noise.adaptive && noise.level == *level)
+        }
+        WorkerCommand::SetAntiWind(on) => Some(noise.anti_wind == *on),
+        WorkerCommand::SetSpatial(on) => Some(state.spatial_audio == Some(*on)),
+        WorkerCommand::SetHeadTracking(on) => Some(state.head_tracking == Some(*on)),
+        WorkerCommand::SetMultipoint(on) => Some(info.multipoint == Some(*on)),
+        WorkerCommand::SetEqBand(band, gain) => {
+            Some(eq.gains.get(usize::from(*band)) == Some(gain))
+        }
+        WorkerCommand::SetEqFlat => Some(eq.gains.iter().all(|&g| g == 0)),
+        WorkerCommand::SetEqGains(gains) => Some(&eq.gains == gains),
+        WorkerCommand::SetBassBoost(on) => Some(eq.bass_boost == *on),
+        WorkerCommand::SetSpeechClarity(true) => {
+            Some(state.audio_mode == Some(AudioMode::SpeechClarity))
+        }
+        WorkerCommand::SetSoundProfile(true) => {
+            Some(state.audio_mode == Some(AudioMode::Personalization))
+        }
+        WorkerCommand::SetSpeechClarity(false) | WorkerCommand::SetSoundProfile(false) => {
+            Some(state.audio_mode == Some(AudioMode::Equalizer))
+        }
+        WorkerCommand::SetTouchControls(on) => Some(state.touch_controls == Some(*on)),
+        WorkerCommand::SetBatteryProtection(on) => Some(state.battery_protection == Some(*on)),
+        WorkerCommand::SetSmartPause(on) => Some(state.smart_pause == Some(*on)),
+        WorkerCommand::SetAutoAnswer(on) => Some(state.auto_answer == Some(*on)),
+        WorkerCommand::SetComfortCall(on) => Some(state.comfort_call == Some(*on)),
+        WorkerCommand::SetAutoOff(seconds) => Some(state.auto_off_seconds == Some(*seconds)),
+        WorkerCommand::SetPromptMode(mode) => Some(state.prompt_mode == Some(*mode)),
+        WorkerCommand::SetPromptVolume(value) => Some(info.prompt_volume == Some(*value)),
+        WorkerCommand::SetName(name) => Some(info.name.as_deref() == Some(name.as_str())),
+        WorkerCommand::ToggleConnection { .. }
+        | WorkerCommand::ApplyScene { .. }
+        | WorkerCommand::ExportProfile(_)
+        | WorkerCommand::Query(_)
+        | WorkerCommand::Quit => None,
+    };
+    match confirmed {
+        Some(true) => Outcome::Applied,
+        Some(false) => Outcome::NotApplied(
+            "la relecture ne montre pas la valeur demandée (changée ailleurs ?)".to_string(),
+        ),
+        None => Outcome::Acknowledged,
+    }
+}
+
+/// Deux réglages dont le second peut changer ce que la relecture montre du
+/// premier (même réglage, modes de bruit, modes audio, courbe complète).
+fn related(first: &WorkerCommand, later: &WorkerCommand) -> bool {
+    use WorkerCommand as C;
+    let audio = |c: &WorkerCommand| {
+        matches!(
+            c,
+            C::SetSpatial(_)
+                | C::SetHeadTracking(_)
+                | C::SetSpeechClarity(_)
+                | C::SetSoundProfile(_)
+        )
+    };
+    let noise = |c: &WorkerCommand| matches!(c, C::SetMode(_) | C::SetLevel(_));
+    let curve = |c: &WorkerCommand| matches!(c, C::SetEqFlat | C::SetEqGains(_));
+    let gains = |c: &WorkerCommand| matches!(c, C::SetEqBand(..)) || curve(c);
+    first.key() == later.key()
+        || (audio(first) && audio(later))
+        || (noise(first) && noise(later))
+        || (gains(first) && gains(later) && (curve(first) || curve(later)))
 }
 
 /// Lit le profil (lecture seule) et l'écrit dans un fichier neuf.
@@ -548,6 +867,46 @@ impl WorkerCommand {
         )
     }
 
+    /// Copie d'un réglage, gardée pour la vérifier après la relecture.
+    /// Les actions (scène, connexion, export, requête) ne passent pas par là.
+    fn clone_setting(&self) -> WorkerCommand {
+        use WorkerCommand as C;
+        match self {
+            C::SetMode(m) => C::SetMode(*m),
+            C::SetLevel(l) => C::SetLevel(*l),
+            C::SetAntiWind(on) => C::SetAntiWind(*on),
+            C::SetSpatial(on) => C::SetSpatial(*on),
+            C::SetHeadTracking(on) => C::SetHeadTracking(*on),
+            C::SetMultipoint(on) => C::SetMultipoint(*on),
+            C::SetEqBand(b, g) => C::SetEqBand(*b, *g),
+            C::SetEqFlat => C::SetEqFlat,
+            C::SetEqGains(g) => C::SetEqGains(g.clone()),
+            C::SetBassBoost(on) => C::SetBassBoost(*on),
+            C::SetSpeechClarity(on) => C::SetSpeechClarity(*on),
+            C::SetSoundProfile(on) => C::SetSoundProfile(*on),
+            C::SetTouchControls(on) => C::SetTouchControls(*on),
+            C::SetBatteryProtection(on) => C::SetBatteryProtection(*on),
+            C::SetSmartPause(on) => C::SetSmartPause(*on),
+            C::SetAutoAnswer(on) => C::SetAutoAnswer(*on),
+            C::SetComfortCall(on) => C::SetComfortCall(*on),
+            C::SetAutoOff(s) => C::SetAutoOff(*s),
+            C::SetPromptMode(m) => C::SetPromptMode(*m),
+            C::SetPromptVolume(v) => C::SetPromptVolume(*v),
+            C::SetName(n) => C::SetName(n.clone()),
+            C::ExportProfile(p) => C::ExportProfile(p.clone()),
+            C::ToggleConnection { device, connect } => C::ToggleConnection {
+                device: device.clone(),
+                connect: *connect,
+            },
+            C::ApplyScene { scene, presets, .. } => C::ApplyScene {
+                scene: scene.clone(),
+                presets: presets.clone(),
+                reply: None,
+            },
+            C::Query(_) | C::Quit => C::Quit,
+        }
+    }
+
     /// Réglage visé (avec la bande pour l'égaliseur).
     fn key(&self) -> (std::mem::Discriminant<WorkerCommand>, Option<u8>) {
         let band = match self {
@@ -563,30 +922,38 @@ impl WorkerCommand {
 /// séparent (curseur au clavier, clics rapides). « Remettre à plat » et une
 /// courbe complète annulent les gains de bande demandés avant eux. Toutes les
 /// actions restent, dans l'ordre.
-fn coalesce(commands: Vec<WorkerCommand>) -> Vec<WorkerCommand> {
-    let mut kept: Vec<WorkerCommand> = Vec::with_capacity(commands.len());
-    for command in commands {
+///
+/// Rend les demandes gardées et celles qu'une demande plus récente remplace.
+fn coalesce<J: AsRef<WorkerCommand>>(commands: Vec<J>) -> (Vec<J>, Vec<J>) {
+    let mut kept: Vec<J> = Vec::with_capacity(commands.len());
+    let mut superseded = Vec::new();
+    for item in commands {
+        let command = item.as_ref();
         if matches!(
             command,
             WorkerCommand::SetEqFlat | WorkerCommand::SetEqGains(_)
         ) {
-            kept.retain(|c| !matches!(c, WorkerCommand::SetEqBand(..)));
+            let (bands, others): (Vec<J>, Vec<J>) = kept
+                .into_iter()
+                .partition(|c| matches!(c.as_ref(), WorkerCommand::SetEqBand(..)));
+            superseded.extend(bands);
+            kept = others;
         }
         if command.replaceable() {
             let key = command.key();
             for i in (0..kept.len()).rev() {
-                if kept[i].key() == key {
-                    kept.remove(i);
+                if kept[i].as_ref().key() == key {
+                    superseded.push(kept.remove(i));
                     break;
                 }
-                if !kept[i].independent() {
+                if !kept[i].as_ref().independent() {
                     break;
                 }
             }
         }
-        kept.push(command);
+        kept.push(item);
     }
-    kept
+    (kept, superseded)
 }
 
 fn apply<T: Transport>(
@@ -644,6 +1011,10 @@ fn apply<T: Transport>(
 mod tests {
     use super::*;
 
+    fn jobs(commands: Vec<WorkerCommand>) -> Vec<Job> {
+        commands.into_iter().map(Job::untracked).collect()
+    }
+
     fn bands(commands: &[WorkerCommand]) -> Vec<(u8, i8)> {
         commands
             .iter()
@@ -656,7 +1027,7 @@ mod tests {
 
     #[test]
     fn only_the_last_value_of_each_setting_is_sent() {
-        let out = coalesce(vec![
+        let (out, _) = coalesce(vec![
             WorkerCommand::SetEqBand(0, 5),
             WorkerCommand::SetEqBand(1, 10),
             WorkerCommand::SetEqBand(0, 10),
@@ -671,7 +1042,7 @@ mod tests {
 
     #[test]
     fn flat_cancels_earlier_bands_but_not_later_ones() {
-        let out = coalesce(vec![
+        let (out, _) = coalesce(vec![
             WorkerCommand::SetEqBand(2, 30),
             WorkerCommand::SetEqFlat,
             WorkerCommand::SetEqBand(3, -20),
@@ -682,7 +1053,7 @@ mod tests {
 
     #[test]
     fn a_preset_replaces_pending_band_moves() {
-        let out = coalesce(vec![
+        let (out, _) = coalesce(vec![
             WorkerCommand::SetEqBand(1, 10),
             WorkerCommand::SetEqGains(vec![0; 8]),
             WorkerCommand::SetEqBand(2, 20),
@@ -693,7 +1064,7 @@ mod tests {
 
     #[test]
     fn noise_modes_keep_their_order() {
-        let out = coalesce(vec![
+        let (out, _) = coalesce(vec![
             WorkerCommand::SetMode(NoiseModeRequest::Adaptive),
             WorkerCommand::SetMode(NoiseModeRequest::Custom),
         ]);
@@ -702,7 +1073,7 @@ mod tests {
     // Audit v0.5.0 (Codex) : des actions distinctes ne se remplacent pas.
     #[test]
     fn actions_for_distinct_devices_are_all_kept() {
-        let out = coalesce(vec![
+        let (out, _) = coalesce(vec![
             WorkerCommand::ToggleConnection {
                 device: Connection::synthetic(1, "Appareil A", false),
                 connect: true,
@@ -717,7 +1088,7 @@ mod tests {
 
     #[test]
     fn exports_to_distinct_files_are_all_kept() {
-        let out = coalesce(vec![
+        let (out, _) = coalesce(vec![
             WorkerCommand::ExportProfile("synthetique-a.json".into()),
             WorkerCommand::ExportProfile("synthetique-b.json".into()),
         ]);
@@ -728,7 +1099,7 @@ mod tests {
     fn a_value_is_not_merged_across_a_dependent_setting() {
         // Suivi de tête : refusé sans audio spatial. Fusionner les deux
         // « spatial » enverrait le suivi de tête avant l'activation.
-        let out = coalesce(vec![
+        let (out, _) = coalesce(vec![
             WorkerCommand::SetSpatial(true),
             WorkerCommand::SetHeadTracking(true),
             WorkerCommand::SetSpatial(false),
@@ -736,14 +1107,14 @@ mod tests {
         assert_eq!(out.len(), 3);
         assert!(matches!(out[0], WorkerCommand::SetSpatial(true)));
         // Le niveau dépend du mode de bruit : pas de fusion par-dessus.
-        let out = coalesce(vec![
+        let (out, _) = coalesce(vec![
             WorkerCommand::SetLevel(25),
             WorkerCommand::SetMode(NoiseModeRequest::Adaptive),
             WorkerCommand::SetLevel(50),
         ]);
         assert_eq!(out.len(), 3);
         // Par-dessus un réglage indépendant, la fusion reste permise.
-        let out = coalesce(vec![
+        let (out, _) = coalesce(vec![
             WorkerCommand::SetSpatial(true),
             WorkerCommand::SetAntiWind(true),
             WorkerCommand::SetSpatial(false),
@@ -796,7 +1167,7 @@ mod tests {
         let mut headset = Headset::validated_for_tests(mock, Duration::from_millis(20));
         let result = run_batch(
             &mut headset,
-            coalesce(batch),
+            coalesce(jobs(batch)).0,
             &HeadsetState::default(),
             cache,
             &[],
@@ -883,7 +1254,10 @@ mod tests {
         let mut cache = eq([10, 10]);
         let result = run_batch(
             &mut headset,
-            vec![WorkerCommand::SetEqFlat, WorkerCommand::SetBassBoost(true)],
+            jobs(vec![
+                WorkerCommand::SetEqFlat,
+                WorkerCommand::SetBassBoost(true),
+            ]),
             &HeadsetState::default(),
             &mut cache,
             &[],
@@ -906,7 +1280,7 @@ mod tests {
         let mut headset = Headset::validated_for_tests(mock, Duration::from_millis(20));
         let result = run_batch(
             &mut headset,
-            vec![
+            jobs(vec![
                 WorkerCommand::ToggleConnection {
                     device: Connection::synthetic(2, "Téléphone", false),
                     connect: true,
@@ -916,7 +1290,7 @@ mod tests {
                     device: Connection::synthetic(1, "Téléphone", true),
                     connect: true,
                 },
-            ],
+            ]),
             &HeadsetState::default(),
             &mut eq([0, 0]),
             &paired,
@@ -933,10 +1307,10 @@ mod tests {
             Headset::validated_for_tests(MockTransport::new(), Duration::from_millis(20));
         let result = run_batch(
             &mut headset,
-            vec![WorkerCommand::ToggleConnection {
+            jobs(vec![WorkerCommand::ToggleConnection {
                 device: Connection::synthetic(9, "Ancien", false),
                 connect: true,
-            }],
+            }]),
             &HeadsetState::default(),
             &mut eq([0, 0]),
             &[Connection::synthetic(1, "Ancien", false)],
@@ -967,7 +1341,7 @@ mod tests {
         for _ in 0..2 {
             let result = run_batch(
                 &mut headset,
-                vec![WorkerCommand::SetSoundProfile(true)],
+                jobs(vec![WorkerCommand::SetSoundProfile(true)]),
                 &cache,
                 &mut eq([0, 0]),
                 &[],
@@ -976,5 +1350,203 @@ mod tests {
             assert!(result.is_ok());
         }
         assert!(headset.client().transport().is_exhausted());
+    }
+
+    fn tracked(id: u64, command: WorkerCommand) -> Job {
+        Job {
+            id,
+            session: 0,
+            command,
+        }
+    }
+
+    /// Résultats publiés, par numéro de demande.
+    fn outcomes(events: &[WorkerEvent]) -> Vec<(u64, Outcome)> {
+        events
+            .iter()
+            .filter_map(|e| match e {
+                WorkerEvent::Done { id, outcome, .. } => Some((*id, outcome.clone())),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_lost_session_gives_unknown_then_cancelled_results() {
+        // F06 : la bande 0 part sans réponse (résultat inconnu) ; la demande
+        // suivante n'est pas envoyée (annulée), et rien n'est renvoyé.
+        let events = std::cell::RefCell::new(Vec::new());
+        let mut headset =
+            Headset::validated_for_tests(MockTransport::new(), Duration::from_millis(20));
+        let result = run_batch(
+            &mut headset,
+            vec![
+                tracked(1, WorkerCommand::SetEqFlat),
+                tracked(2, WorkerCommand::SetBassBoost(true)),
+            ],
+            &HeadsetState::default(),
+            &mut eq([10, 10]),
+            &[],
+            &|e| events.borrow_mut().push(e),
+        );
+        assert!(matches!(result, Err(SessionEnd::Lost(_))));
+        let got = outcomes(&events.borrow());
+        assert!(matches!(got[0], (1, Outcome::Unknown(_))), "{got:?}");
+        assert!(matches!(got[1], (2, Outcome::Cancelled(_))), "{got:?}");
+        assert_eq!(headset.client().transport().sent().len(), 1);
+    }
+
+    #[test]
+    fn a_refusal_is_reported_to_its_own_request() {
+        let events = std::cell::RefCell::new(Vec::new());
+        let mut headset =
+            Headset::validated_for_tests(MockTransport::new(), Duration::from_millis(20));
+        let sent = run_batch(
+            &mut headset,
+            vec![tracked(
+                7,
+                WorkerCommand::ToggleConnection {
+                    device: Connection::synthetic(9, "Ancien", false),
+                    connect: true,
+                },
+            )],
+            &HeadsetState::default(),
+            &mut eq([0, 0]),
+            &[Connection::synthetic(1, "Ancien", false)],
+            &|e| events.borrow_mut().push(e),
+        )
+        .unwrap();
+        assert!(sent.is_empty());
+        assert!(matches!(
+            outcomes(&events.borrow())[..],
+            [(7, Outcome::Refused(_))]
+        ));
+    }
+
+    #[test]
+    fn acknowledged_writes_wait_for_the_reading() {
+        // Acquittée : pas encore de résultat, la demande attend la relecture.
+        let mock = ack_band(MockTransport::new(), 0, 5);
+        let events = std::cell::RefCell::new(Vec::new());
+        let mut headset = Headset::validated_for_tests(mock, Duration::from_millis(20));
+        let sent = run_batch(
+            &mut headset,
+            vec![tracked(3, WorkerCommand::SetEqBand(0, 5))],
+            &HeadsetState::default(),
+            &mut eq([0, 0]),
+            &[],
+            &|e| events.borrow_mut().push(e),
+        )
+        .unwrap();
+        assert_eq!(sent.len(), 1);
+        assert!(outcomes(&events.borrow()).is_empty());
+        // Relu à 5 : appliquée ; relu à 0 : non appliquée.
+        let info = DeviceInfo::default();
+        assert_eq!(
+            verify(
+                &sent[0].command,
+                &HeadsetState::default(),
+                &eq([5, 0]),
+                &info
+            ),
+            Outcome::Applied
+        );
+        assert!(matches!(
+            verify(
+                &sent[0].command,
+                &HeadsetState::default(),
+                &eq([0, 0]),
+                &info
+            ),
+            Outcome::NotApplied(_)
+        ));
+    }
+
+    #[test]
+    fn verification_reads_the_requested_value() {
+        let mut state = HeadsetState::default();
+        state.noise.anti_wind = true;
+        let info = DeviceInfo::default();
+        let curve = eq([0, 0]);
+        assert_eq!(
+            verify(&WorkerCommand::SetAntiWind(true), &state, &curve, &info),
+            Outcome::Applied
+        );
+        assert!(matches!(
+            verify(&WorkerCommand::SetAntiWind(false), &state, &curve, &info),
+            Outcome::NotApplied(_)
+        ));
+        // Non relu ici : accepté seulement.
+        assert_eq!(
+            verify(
+                &WorkerCommand::ToggleConnection {
+                    device: Connection::synthetic(1, "Téléphone", true),
+                    connect: false,
+                },
+                &state,
+                &curve,
+                &info
+            ),
+            Outcome::Acknowledged
+        );
+        // Un mode de bruit suivi du curseur : le premier n'est pas jugé seul.
+        assert!(related(
+            &WorkerCommand::SetMode(NoiseModeRequest::Adaptive),
+            &WorkerCommand::SetLevel(20)
+        ));
+        assert!(!related(
+            &WorkerCommand::SetEqBand(0, 5),
+            &WorkerCommand::SetEqBand(1, 5)
+        ));
+    }
+
+    #[test]
+    fn superseded_requests_are_returned_for_cancellation() {
+        let (kept, superseded) = coalesce(vec![
+            tracked(1, WorkerCommand::SetLevel(10)),
+            tracked(2, WorkerCommand::SetLevel(40)),
+            tracked(3, WorkerCommand::SetEqBand(0, 5)),
+            tracked(4, WorkerCommand::SetEqFlat),
+        ]);
+        let ids = |v: &[Job]| v.iter().map(|j| j.id).collect::<Vec<_>>();
+        assert_eq!(ids(&kept), [2, 4]);
+        assert_eq!(ids(&superseded), [1, 3]);
+    }
+
+    #[test]
+    fn requests_waiting_for_a_lost_connection_are_cancelled() {
+        let (tx, rx) = std::sync::mpsc::channel();
+        tx.send(tracked(5, WorkerCommand::SetAntiWind(true)))
+            .unwrap();
+        tx.send(tracked(6, WorkerCommand::SetLevel(30))).unwrap();
+        let events = std::cell::RefCell::new(Vec::new());
+        assert!(!cancel_pending(
+            &rx,
+            &|e| events.borrow_mut().push(e),
+            "connexion perdue"
+        ));
+        let got = outcomes(&events.borrow());
+        assert!(matches!(
+            got[..],
+            [(5, Outcome::Cancelled(_)), (6, Outcome::Cancelled(_))]
+        ));
+        // Rien ne reste pour la connexion suivante ; « Quitter » arrête.
+        tx.send(Job::untracked(WorkerCommand::Quit)).unwrap();
+        assert!(cancel_pending(&rx, &|_| {}, "connexion perdue"));
+    }
+
+    #[test]
+    fn a_request_for_a_previous_connection_is_not_sent() {
+        let job = Job {
+            id: 1,
+            session: 3,
+            command: WorkerCommand::SetAntiWind(true),
+        };
+        assert!(for_other_session(&job, 4));
+        assert!(!for_other_session(&job, 3));
+        assert!(!for_other_session(
+            &Job::untracked(WorkerCommand::SetEqFlat),
+            4
+        ));
     }
 }
