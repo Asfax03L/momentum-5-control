@@ -3,6 +3,10 @@
 // de l'API (liste fermée, validée par le service) et ne parle jamais au
 // casque lui-même. Le service n'est pas démarré tant que l'utilisateur ne
 // le demande pas : le widget seul n'ouvre aucune connexion Bluetooth.
+//
+// Chaque réglage passe par une demande suivie (`Submit`) : le widget
+// affiche son résultat, relu sur le casque, quand le service le publie
+// (`Done`). Les commandes affichées gardent l'état confirmé par le casque.
 import QtQuick
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
@@ -23,8 +27,18 @@ PlasmoidItem {
     // Snapshot du service (JSON de momentum_client::Snapshot), ou null.
     property var snapshot: null
     property string error: ""
+    // Scènes montrées (celles du panneau rapide, `panneau.txt`).
+    property var scenes: []
+    // Demandes envoyées dont le résultat n'est pas encore arrivé.
+    property var pending: []
+    // Résultats arrivés avant le numéro de leur demande : [id, résultat].
+    property var early: []
+    // Dernier résultat d'une demande de ce widget.
+    property string result: ""
+    property bool resultOk: true
 
     readonly property bool running: watcher.registered
+    readonly property bool busy: pending.length > 0
     readonly property var headset: snapshot && snapshot.state ? snapshot.state : null
     readonly property string headsetName: snapshot
         ? ((snapshot.info && snapshot.info.name) || snapshot.device_name || "")
@@ -35,6 +49,11 @@ PlasmoidItem {
     readonly property string mode: !headset ? ""
         : !headset.noise.anc_enabled ? "Off"
         : headset.noise.adaptive ? "Adaptive" : "Custom"
+    // Même règle que momentum_core::hotkeys::profile_toggle : le profil
+    // personnalisé est actif, ou reçu par le casque et sélectionnable.
+    readonly property bool profileOn: !!headset && headset.audio_mode === "Personalization"
+    readonly property bool profileAvailable: profileOn
+        || (!!headset && headset.sound_profile === "Received")
 
     Plasmoid.icon: "org.openheadset.control"
     Plasmoid.status: running ? PlasmaCore.Types.ActiveStatus : PlasmaCore.Types.PassiveStatus
@@ -53,10 +72,15 @@ PlasmoidItem {
         id: watcher
         busType: DBus.BusType.Session
         watchedService: root.service
-        onRegisteredChanged: root.refresh()
+        onRegisteredChanged: {
+            root.pending = [];
+            root.early = [];
+            root.refresh();
+        }
     }
 
-    // Événements du service : relecture immédiate de l'état.
+    // Événements du service : résultat d'une demande, puis relecture de
+    // l'état.
     DBus.SignalWatcher {
         busType: DBus.BusType.Session
         service: root.service
@@ -64,6 +88,12 @@ PlasmoidItem {
         iface: root.iface
         enabled: root.running
         function dbusEvent(json) {
+            let event = null;
+            try {
+                event = JSON.parse(json);
+            } catch (e) {}
+            if (event && event.Done)
+                root.finished(event.Done.id, event.Done.outcome);
             root.refresh();
         }
     }
@@ -77,56 +107,123 @@ PlasmoidItem {
         onTriggered: root.refresh()
     }
 
-    function call(member, args, onReply) {
+    function call(member, args, signature, onReply, onFailure) {
         DBus.SessionBus.asyncCall({
             "service": root.service,
             "path": root.objectPath,
             "iface": root.iface,
             "member": member,
             "arguments": args,
-            "signature": args.length ? "(s)" : ""
+            "signature": signature
         }, function (reply) {
             root.error = "";
             if (onReply)
                 onReply(reply);
         }, function (failure) {
-            root.error = failure && failure.message ? failure.message : "service injoignable";
+            const message = failure && failure.message ? failure.message : "service injoignable";
+            if (onFailure)
+                onFailure(message);
+            else
+                root.error = message;
         });
     }
 
     function refresh() {
         if (!running) {
             snapshot = null;
+            scenes = [];
             return;
         }
-        call("Snapshot", [], function (reply) {
+        call("Snapshot", [], "", function (reply) {
             try {
                 root.snapshot = JSON.parse(reply.value);
             } catch (e) {
                 root.error = "réponse illisible du service";
             }
         });
-    }
-
-    // Une commande de l'API, en JSON (voir momentum_client::Command) ; le
-    // service la refuse si le casque est absent ou en lecture seule.
-    function send(command) {
-        call("Command", [new DBus.string(JSON.stringify(command))], function () {
-            afterCommand.restart();
+        // Service plus ancien sans `Scenes` : pas de boutons de scènes.
+        call("Scenes", [], "", function (reply) {
+            try {
+                root.scenes = JSON.parse(reply.value).panel || [];
+            } catch (e) {
+                root.scenes = [];
+            }
+        }, function () {
+            root.scenes = [];
         });
     }
 
-    // Le service accepte la commande puis le casque l'applique : l'état
-    // relu arrive un peu après la réponse.
+    // Texte d'un résultat (même formulation que Outcome::describe).
+    function describe(outcome) {
+        if (typeof outcome === "string") {
+            return { "Applied": "appliqué et relu", "AlreadySatisfied": "déjà dans cet état",
+                     "Acknowledged": "accepté par le casque" }[outcome] || outcome;
+        }
+        const kind = Object.keys(outcome)[0];
+        const labels = { "Refused": "refusé", "NotApplied": "non appliqué",
+                         "Cancelled": "annulé sans envoi", "Unknown": "résultat inconnu" };
+        return (labels[kind] || kind) + " : " + outcome[kind];
+    }
+
+    // Résultat publié par le service : seuls ceux des demandes de ce widget
+    // sont affichés.
+    function finished(id, outcome) {
+        const index = pending.indexOf(String(id));
+        if (index < 0) {
+            // Peut-être une demande de ce widget dont le numéro n'est pas
+            // encore arrivé : gardé un moment.
+            early = early.concat([[String(id), outcome]]).slice(-16);
+            return;
+        }
+        const rest = pending.slice();
+        rest.splice(index, 1);
+        pending = rest;
+        show(outcome);
+    }
+
+    function show(outcome) {
+        resultOk = typeof outcome === "string";
+        result = describe(outcome);
+        resultTimer.restart();
+    }
+
+    // Une commande de l'API, en JSON (voir momentum_client::Command), pour
+    // la connexion affichée : refusée tout de suite si le casque est absent,
+    // en lecture seule ou si la connexion a changé.
+    function send(command) {
+        const session = snapshot && snapshot.session ? snapshot.session : 0;
+        result = "";
+        call("Submit", [new DBus.string(JSON.stringify(command)), new DBus.uint64(session)], "(st)",
+            function (reply) {
+                const id = String(reply.value);
+                const known = root.early.find(entry => entry[0] === id);
+                if (known) {
+                    root.early = root.early.filter(entry => entry[0] !== id);
+                    root.show(known[1]);
+                } else {
+                    root.pending = root.pending.concat([id]);
+                }
+            }, function (message) {
+                root.resultOk = false;
+                root.result = "refusé : " + message;
+                resultTimer.restart();
+            });
+    }
+
+    // Un résultat réussi s'efface après quelques secondes ; un échec reste
+    // jusqu'à la demande suivante.
     Timer {
-        id: afterCommand
-        interval: 1500
-        onTriggered: root.refresh()
+        id: resultTimer
+        interval: 4000
+        onTriggered: {
+            if (root.resultOk)
+                root.result = "";
+        }
     }
 
     // Démarre le service par activation D-Bus (premier appel).
     function startService() {
-        call("Snapshot", [], function (reply) {
+        call("Snapshot", [], "", function (reply) {
             root.snapshot = JSON.parse(reply.value);
         });
     }
@@ -172,9 +269,9 @@ PlasmoidItem {
     }
 
     fullRepresentation: PlasmaExtras.Representation {
-        Layout.minimumWidth: Kirigami.Units.gridUnit * 16
-        Layout.minimumHeight: Kirigami.Units.gridUnit * 10
-        Layout.preferredHeight: Kirigami.Units.gridUnit * 12
+        Layout.minimumWidth: Kirigami.Units.gridUnit * 18
+        Layout.minimumHeight: Kirigami.Units.gridUnit * 12
+        Layout.preferredHeight: content.implicitHeight + Kirigami.Units.gridUnit * 4
 
         header: PlasmaExtras.PlasmoidHeading {
             RowLayout {
@@ -190,6 +287,12 @@ PlasmoidItem {
                     text: root.headsetName || "OpenHeadset Control"
                     elide: Text.ElideRight
                     Layout.fillWidth: true
+                }
+                PlasmaComponents.BusyIndicator {
+                    visible: root.busy
+                    running: root.busy
+                    Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
+                    Layout.preferredHeight: Kirigami.Units.iconSizes.smallMedium
                 }
                 PlasmaComponents.ToolButton {
                     icon.name: "configure"
@@ -210,7 +313,7 @@ PlasmoidItem {
             iconName: "audio-headphones"
             text: !root.running ? "Service OpenHeadset Control arrêté"
                 : root.snapshot && root.snapshot.device_name ? "Connexion au casque…" : "Recherche du casque…"
-            explanation: root.error
+            explanation: root.error || (root.snapshot && root.snapshot.problem) || ""
             helpfulAction: !root.running ? startAction : null
             Kirigami.Action {
                 id: startAction
@@ -221,6 +324,7 @@ PlasmoidItem {
         }
 
         ColumnLayout {
+            id: content
             anchors.fill: parent
             anchors.margins: Kirigami.Units.smallSpacing
             visible: root.headset !== null
@@ -295,6 +399,8 @@ PlasmoidItem {
                     onPressedChanged: {
                         if (!pressed && root.headset && Math.round(value) !== root.headset.noise.level)
                             root.send({ "SetLevel": Math.round(value) });
+                        if (!pressed)
+                            value = Qt.binding(() => root.headset ? root.headset.noise.level : 0);
                     }
                 }
                 PlasmaComponents.Label {
@@ -323,6 +429,61 @@ PlasmoidItem {
                     checked = Qt.binding(() => root.headset ? !!root.headset.spatial_audio : false);
                     root.send({ "SetSpatial": wanted });
                 }
+            }
+
+            // Le suivi de tête exige l'audio spatial (règle du casque).
+            PlasmaComponents.Switch {
+                text: "Suivi de tête"
+                visible: root.headset && root.headset.head_tracking !== null
+                enabled: root.writable && root.headset && !!root.headset.spatial_audio
+                checked: root.headset ? !!root.headset.head_tracking : false
+                onToggled: {
+                    const wanted = checked;
+                    checked = Qt.binding(() => root.headset ? !!root.headset.head_tracking : false);
+                    root.send({ "SetHeadTracking": wanted });
+                }
+            }
+
+            PlasmaComponents.Switch {
+                text: "Profil personnalisé"
+                visible: root.profileAvailable
+                enabled: root.writable
+                checked: root.profileOn
+                onToggled: {
+                    const wanted = checked;
+                    checked = Qt.binding(() => root.profileOn);
+                    if (wanted !== root.profileOn)
+                        root.send({ "SetSoundProfile": wanted });
+                }
+            }
+
+            PlasmaExtras.Heading {
+                level: 5
+                text: "Scènes"
+                visible: root.scenes.length > 0
+            }
+            Flow {
+                Layout.fillWidth: true
+                visible: root.scenes.length > 0
+                spacing: Kirigami.Units.smallSpacing
+                Repeater {
+                    model: root.scenes
+                    PlasmaComponents.Button {
+                        text: modelData
+                        icon.name: "media-playback-start"
+                        enabled: root.writable && !root.busy
+                        onClicked: root.send({ "ApplyScene": modelData })
+                    }
+                }
+            }
+
+            // Résultat de la dernière demande, relu sur le casque.
+            PlasmaComponents.Label {
+                Layout.fillWidth: true
+                visible: root.busy || root.result !== ""
+                text: root.busy ? "Envoi au casque…" : root.result
+                color: root.busy || root.resultOk ? Kirigami.Theme.disabledTextColor : Kirigami.Theme.negativeTextColor
+                wrapMode: Text.WordWrap
             }
 
             Item {

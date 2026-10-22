@@ -37,8 +37,9 @@ au casque, et deux outils en ligne de commande.
 | M | Service sous Windows (canal nommé) et client WinUI 3 (`windows-reactor`) | ✅ essayé sur M5 (v0.8.0) |
 | N | Fonctions de l'icône Slint reprises par WinUI et KDE, puis retrait de Slint | ✅ essayé sur M5 (v0.8.0) |
 | O | Consolidation (revue du 21/10) : demandes suivies, identité du casque, installateurs et publication sûrs, Flatpak, widget Plasma | ✅ essayé sur M5 (v0.9.0) |
+| P | KDE : panneau rapide, widget Plasma enrichi (demandes suivies, scènes), icône sur zbus 6 | ✅ essayé sur M5 (v0.9.1) |
 
-Dernière publication : **v0.9.0** (page Releases du dépôt). Le détail des
+Dernière publication : **v0.9.1** (page Releases du dépôt). Le détail des
 étapes est dans [`docs/ROADMAP.md`](docs/ROADMAP.md), les nouveautés de chaque
 version dans [`CHANGELOG.md`](CHANGELOG.md).
 
@@ -193,10 +194,12 @@ fictives).
 
 Sous KDE Plasma, un widget à poser sur le panneau ou le bureau (« Ajouter
 des composants graphiques » > OpenHeadset Control) : batterie, mode de
-réduction de bruit, curseur ANC ↔ transparence, anti-vent, audio spatial et
-bouton d'ouverture de la fenêtre. C'est un client de l'API D-Bus du service
+réduction de bruit, curseur ANC ↔ transparence, anti-vent, audio spatial,
+suivi de tête, profil personnalisé, scènes du panneau rapide et bouton
+d'ouverture de la fenêtre. C'est un client de l'API D-Bus du service
 (`org.openheadset.Control1`), en QML seul : il n'envoie que les commandes de
-l'API, que le service vérifie, et n'affiche que l'état relu. Il ne démarre
+l'API, que le service vérifie, n'affiche que l'état relu, et montre le
+résultat de chaque réglage (« appliqué et relu », refus…). Il ne démarre
 pas le service de lui-même (bouton « Démarrer le service »). Installé par
 `installer-linux.sh` ; avec le Flatpak, l'installer depuis l'archive :
 
@@ -208,7 +211,8 @@ kpackagetool6 --type Plasma/Applet --install plasma/org.openheadset.control.plas
 
 - **Clic gauche** : sous Windows, panneau rapide près de l'horloge
   (batterie, modes de bruit, curseur, profil, scènes ; contenu choisi dans
-  les Paramètres) ; sous KDE, la fenêtre.
+  les Paramètres) ; sous KDE, le même panneau (contenu choisi dans la page
+  Scènes), placé par KWin.
 - **Clic droit** : mode de bruit, curseur ANC ↔ transparence en 5 crans,
   anti-vent, audio spatial, Speech Clarity, profil personnalisé,
   Égaliseur…, réglages du casque, scènes, lancement à l'ouverture de

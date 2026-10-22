@@ -5,7 +5,20 @@ M5 » signifie : écriture capturée dans Smart Control Plus, puis rejouée
 depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
 6.21.5, Windows 11. La CI (fmt, clippy, tests) ne se connecte à aucun casque.
 
-## Non publié
+## v0.9.1 — 22/10/2026
+
+### KDE
+- Panneau rapide au clic gauche sur l'icône de la zone de notification,
+  comme sous Windows : batterie, contrôle du bruit, curseur ANC ↔
+  transparence, anti-vent, profil personnalisé, quatre scènes au plus. Le
+  contenu se choisit dans la page Scènes (même fichier `panneau.txt` que
+  WinUI). La fenêtre s'ouvre depuis le panneau ou le menu de l'icône.
+  Sous Wayland, KWin place le panneau (le client ne choisit pas sa
+  position).
+- Widget Plasma enrichi : suivi de tête, profil personnalisé, scènes du
+  panneau rapide ; chaque réglage passe par une demande suivie (`Submit`)
+  et le widget affiche son résultat relu (« appliqué et relu », refus…).
+- API D-Bus : méthode `Scenes()` (scènes et celles du panneau rapide).
 
 ### Dépendances
 - zbus 6 (au lieu de 5) pour le client D-Bus, le service Linux et le

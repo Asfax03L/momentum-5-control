@@ -48,8 +48,7 @@ busctl --user introspect org.openheadset.Control /org/openheadset/Control
 processus). Sous Wayland, KDE trouve l'icône d'une fenêtre dans le fichier
 `.desktop` du même nom : d'où les entrées installées par le script.
 
-Pas encore sous Linux : panneau rapide, lecture des sorties audio
-(PipeWire).
+Pas encore sous Linux : lecture des sorties audio (PipeWire).
 
 ## Installer avec Flatpak (recommandé sur Bazzite)
 
@@ -59,7 +58,7 @@ applications. Télécharger `openheadset-control-vX.Y.Z-x86_64.flatpak` sur
 la page Releases (la CI le construit à chaque publication), puis :
 
 ```bash
-flatpak install --user openheadset-control-v0.9.0-x86_64.flatpak
+flatpak install --user openheadset-control-v0.9.1-x86_64.flatpak
 ```
 
 Il contient le client KDE, le service (lancé à la demande par activation

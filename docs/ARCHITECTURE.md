@@ -82,7 +82,8 @@ frontends/kirigami        interface KDE (Qt 6 / Kirigami)
 | `Submit(s, t) → t` | une `momentum_client::Command` en JSON et le numéro de connexion vu par l'interface (`Snapshot.session`, 0 : la connexion courante) ; rend le **numéro de la demande**. Refusée tout de suite (erreur D-Bus, rien n'est envoyé) si le casque est absent, en lecture seule, ou si la connexion a changé |
 | `Command(s)` | même chose sans numéro (ancienne méthode, gardée pour les scripts) |
 | `Snapshot() → s` | `momentum_client::Snapshot` en JSON (nom, état, égaliseur, informations, appareils, dernier incident) |
-| signal `Event(s)` | chaque `momentum_client::Event` en JSON ; une demande se termine par **un seul** `Done { id, outcome, details }` |
+| `Scenes() → s` | `{"names": [...], "panel": [...]}` : scènes de `scenes.txt` et celles choisies pour le panneau rapide (`panneau.txt`) ; utilisée par le widget Plasma |
+| signal `Event(s)` | chaque `momentum_client::Event` en JSON ; une demande se termine par **un seul** `Done { id, outcome, details }` ; `NotFound(raison)` après chaque recherche du casque sans résultat |
 | propriétés | `Connected` (b), `Battery` (i, -1 inconnue), `Name` (s), avec `PropertiesChanged` |
 
 **Résultat d'une demande** (`momentum_core::request::Outcome`, revue F01,

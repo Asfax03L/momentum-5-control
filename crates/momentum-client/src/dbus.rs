@@ -5,6 +5,7 @@
 //! - `Submit(s json, t session) -> t id` : commande suivie, résultat dans
 //!   l'événement `Done { id }` ;
 //! - `Snapshot() -> s json` : état courant ([`Snapshot`]) ;
+//! - `Scenes() -> s json` : scènes et celles du panneau rapide (widget) ;
 //! - signal `Event(s json)` : chaque [`Event`] du worker ;
 //! - propriétés `Connected`, `Battery`, `Name` (pour un widget ou un script).
 //!

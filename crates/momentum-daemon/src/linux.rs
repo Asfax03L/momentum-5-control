@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
 use momentum_client::{BUS_NAME, Command, OBJECT_PATH};
+use momentum_core::paths;
 use momentum_service::worker::Job;
 use zbus::object_server::SignalEmitter;
 
@@ -45,6 +46,16 @@ impl Control {
             .lock()
             .map_err(|_| zbus::fdo::Error::Failed("état du service inaccessible".to_string()))?;
         serde_json::to_string(&shared.snapshot).map_err(|e| zbus::fdo::Error::Failed(e.to_string()))
+    }
+
+    /// Scènes de `scenes.txt` et celles du panneau rapide (`panneau.txt`),
+    /// en JSON : `{"names": [...], "panel": [...]}` (widget Plasma).
+    fn scenes(&self) -> zbus::fdo::Result<String> {
+        let (list, _) = paths::load_scenes();
+        let names: Vec<String> = list.into_iter().map(|s| s.name).collect();
+        let panel = paths::load_panel_prefs().shown_scenes(&names);
+        serde_json::to_string(&serde_json::json!({ "names": names, "panel": panel }))
+            .map_err(|e| zbus::fdo::Error::Failed(e.to_string()))
     }
 
     /// Chaque événement du worker, en JSON (`momentum_client::Event`).

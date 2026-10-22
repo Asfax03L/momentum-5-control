@@ -268,9 +268,9 @@ impl Item {
         OwnedObjectPath::try_from(MENU_PATH).expect("chemin D-Bus valide")
     }
 
-    /// Clic gauche : ouvre la fenêtre.
+    /// Clic gauche : ouvre ou ferme le panneau rapide (comme sous Windows).
     fn activate(&self, _x: i32, _y: i32) {
-        let _ = self.qt_thread.queue(|headset| headset.show_requested());
+        let _ = self.qt_thread.queue(|headset| headset.panel_requested());
     }
 
     fn secondary_activate(&self, _x: i32, _y: i32) {}
