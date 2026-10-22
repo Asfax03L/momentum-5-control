@@ -7,13 +7,13 @@
             }
         ],
         "Category": "System Information",
-        "Description": "Casque Sennheiser MOMENTUM 5 : batterie, réduction de bruit, anti-vent (non officiel ; demande le service OpenHeadset Control)",
+        "Description": "Casque Sennheiser MOMENTUM 5 : batterie, réduction de bruit, anti-vent, audio spatial, profil, scènes (non officiel ; demande le service OpenHeadset Control)",
         "EnabledByDefault": true,
         "Icon": "org.openheadset.control",
         "Id": "org.openheadset.control.plasmoid",
         "License": "MIT OR Apache-2.0",
         "Name": "OpenHeadset Control",
-        "Version": "0.9.0",
+        "Version": "0.9.1",
         "Website": "https://github.com/Asfax03L/openheadset-control"
     },
     "X-Plasma-API-Minimum-Version": "6.0"

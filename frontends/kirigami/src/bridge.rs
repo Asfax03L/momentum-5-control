@@ -151,11 +151,24 @@ pub mod qobject {
         // Lancé dans le bac à sable Flatpak (Configuration du système hors
         // d'atteinte).
         #[qproperty(bool, sandboxed)]
+        // Panneau rapide (clic sur l'icône) : contenu choisi dans
+        // `panneau.txt`, le même fichier que sous Windows.
+        #[qproperty(bool, panel_noise)]
+        #[qproperty(bool, panel_level)]
+        #[qproperty(bool, panel_profile)]
+        #[qproperty(QStringList, panel_scenes)]
+        #[qproperty(QString, panel_notice)]
+        // Profil personnalisé : actif, et basculable (lu, modifiable).
+        #[qproperty(bool, profile_on)]
+        #[qproperty(bool, profile_toggle_enabled)]
         type Headset = super::HeadsetRust;
 
-        /// Clic sur l'icône de la zone de notification : montrer la fenêtre.
+        /// Montrer la fenêtre (menu de l'icône, deuxième lancement).
         #[qsignal]
         fn show_requested(self: Pin<&mut Headset>);
+        /// Clic sur l'icône de la zone de notification : panneau rapide.
+        #[qsignal]
+        fn panel_requested(self: Pin<&mut Headset>);
         /// « Quitter » dans le menu de l'icône.
         #[qsignal]
         fn quit_requested(self: Pin<&mut Headset>);
@@ -296,6 +309,17 @@ pub mod qobject {
         /// Diagnostic expurgé à copier dans un rapport.
         #[qinvokable]
         fn diagnostic(self: &Headset) -> QString;
+        /// Panneau rapide : montre ou cache « bruit », « niveau » ou
+        /// « profil ».
+        #[qinvokable]
+        fn set_panel_option(self: Pin<&mut Headset>, key: QString, shown: bool);
+        /// Panneau rapide : montre ou retire une scène (quatre au plus).
+        #[qinvokable]
+        fn set_panel_scene(self: Pin<&mut Headset>, name: QString, shown: bool);
+        /// Profil personnalisé (panneau rapide), mêmes règles que le
+        /// raccourci.
+        #[qinvokable]
+        fn send_profile(self: Pin<&mut Headset>, on: bool);
     }
 
     impl cxx_qt::Threading for Headset {}
@@ -321,6 +345,7 @@ use momentum_core::diagnostic::{self, DiagnosticInput};
 use momentum_core::hotkeys::{self, HotkeyAction};
 use momentum_core::paths;
 use momentum_core::presets::{self, AbCompare, Preset};
+use momentum_core::quick_panel::PanelPrefs;
 use momentum_core::scene_editor::{self, SceneEditor};
 use momentum_core::scenes::Scene;
 use momentum_core::tray_menu::{self, MenuAction, MenuContext};
@@ -496,7 +521,18 @@ pub struct HeadsetRust {
     rate_since: Option<String>,
     autostart: bool,
     sandboxed: bool,
+    panel_noise: bool,
+    panel_level: bool,
+    panel_profile: bool,
+    panel_scenes: QStringList,
+    panel_notice: QString,
+    profile_on: bool,
+    profile_toggle_enabled: bool,
 
+    /// Contenu du panneau rapide et texte de `panneau.txt` lu (écriture
+    /// refusée si le fichier a changé entre-temps).
+    panel_prefs: PanelPrefs,
+    panel_loaded: Option<String>,
     commands: Option<Sender<(Command, u64)>>,
     tray: Option<Tray>,
     /// État du casque vu par le service, suivi événement par événement.
@@ -637,6 +673,15 @@ impl Default for HeadsetRust {
             rate_since: None,
             autostart: autostart::is_enabled(),
             sandboxed: autostart::in_flatpak(),
+            panel_noise: true,
+            panel_level: true,
+            panel_profile: true,
+            panel_scenes: QStringList::default(),
+            panel_notice: QString::default(),
+            profile_on: false,
+            profile_toggle_enabled: false,
+            panel_prefs: paths::load_panel_prefs(),
+            panel_loaded: paths::read_panel_text(),
             commands: None,
             tray: None,
             snapshot: Snapshot::default(),
@@ -1128,6 +1173,10 @@ impl qobject::Headset {
             tray.update(tray_view);
         }
         let audio_revision = r.audio_revision.wrapping_add(1);
+        let toggle = s.state.and_then(|st| hotkeys::profile_toggle(&st));
+        // `profile_toggle` donne la valeur à envoyer : `false` quand actif.
+        let profile_on = toggle == Some(false);
+        let profile_toggle_enabled = v.writable && toggle.is_some();
         if rows != r.connection_rows {
             let count = i32::try_from(rows.len()).unwrap_or(0);
             let revision = r.connection_revision.wrapping_add(1);
@@ -1160,6 +1209,9 @@ impl qobject::Headset {
         h.as_mut().set_noise_mode(c.noise_mode);
         h.as_mut().set_level(c.level);
         h.as_mut().set_anti_wind(c.anti_wind);
+        h.as_mut().set_profile_on(profile_on);
+        h.as_mut()
+            .set_profile_toggle_enabled(profile_toggle_enabled);
         h.as_mut().set_spatial(c.spatial_on);
         h.as_mut().set_spatial_enabled(c.spatial_enabled);
         h.as_mut().set_head_tracking(c.head_tracking_on);
@@ -1504,6 +1556,88 @@ impl qobject::Headset {
             .set_scene_previews(string_list(previews.iter().map(String::as_str)));
         self.as_mut()
             .set_scene_problems(QString::from(errors.join("\n").as_str()));
+        // Un renommage ou une suppression de scène a pu changer le panneau.
+        self.as_mut().rust_mut().panel_prefs = paths::load_panel_prefs();
+        self.as_mut().rust_mut().panel_loaded = paths::read_panel_text();
+        self.as_mut().push_panel();
+    }
+
+    /// Recopie le contenu du panneau rapide dans les propriétés QML.
+    fn push_panel(mut self: Pin<&mut Self>) {
+        let all: Vec<String> = self.rust().scenes.iter().map(|s| s.name.clone()).collect();
+        let prefs = self.rust().panel_prefs.clone();
+        self.as_mut().set_panel_noise(prefs.noise);
+        self.as_mut().set_panel_level(prefs.level);
+        self.as_mut().set_panel_profile(prefs.profile);
+        let shown = prefs.shown_scenes(&all);
+        self.as_mut()
+            .set_panel_scenes(string_list(shown.iter().map(String::as_str)));
+    }
+
+    /// Écrit `panneau.txt` ; relu si le fichier a changé entre-temps.
+    fn store_panel(mut self: Pin<&mut Self>) {
+        let text = self.rust().panel_prefs.to_text();
+        let written = paths::panel_file()
+            .ok_or_else(|| "dossier des données introuvable".to_string())
+            .and_then(|path| {
+                paths::write_if_unchanged(&path, self.rust().panel_loaded.as_deref(), &text)
+            });
+        let notice = match written {
+            Ok(()) => {
+                self.as_mut().rust_mut().panel_loaded = Some(text);
+                "Panneau enregistré.".to_string()
+            }
+            Err(e) => {
+                self.as_mut().rust_mut().panel_prefs = paths::load_panel_prefs();
+                self.as_mut().rust_mut().panel_loaded = paths::read_panel_text();
+                format!("Panneau non enregistré : {e}.")
+            }
+        };
+        self.as_mut()
+            .set_panel_notice(QString::from(notice.as_str()));
+        self.push_panel();
+    }
+
+    fn set_panel_option(mut self: Pin<&mut Self>, key: QString, shown: bool) {
+        let prefs = &mut self.as_mut().rust_mut().panel_prefs;
+        match key.to_string().as_str() {
+            "bruit" => prefs.noise = shown,
+            "niveau" => prefs.level = shown,
+            "profil" => prefs.profile = shown,
+            _ => return,
+        }
+        self.store_panel();
+    }
+
+    fn set_panel_scene(mut self: Pin<&mut Self>, name: QString, shown: bool) {
+        let all: Vec<String> = self.rust().scenes.iter().map(|s| s.name.clone()).collect();
+        let name = name.to_string();
+        let result = self
+            .as_mut()
+            .rust_mut()
+            .panel_prefs
+            .set_scene(&all, &name, shown);
+        match result {
+            Ok(()) => self.store_panel(),
+            Err(reason) => {
+                self.as_mut()
+                    .set_panel_notice(QString::from(reason.as_str()));
+                // La case revient à l'état enregistré.
+                self.push_panel();
+            }
+        }
+    }
+
+    fn send_profile(self: Pin<&mut Self>, on: bool) {
+        let snapshot = &self.rust().snapshot;
+        // `profile_toggle` donne la valeur à envoyer : l'inverse de l'état.
+        let current = snapshot
+            .state
+            .filter(|_| snapshot.read_only.is_none())
+            .and_then(|s| hotkeys::profile_toggle(&s));
+        if current == Some(on) {
+            self.send(Command::SetSoundProfile(on));
+        }
     }
 
     fn apply_scene(mut self: Pin<&mut Self>, index: i32) {

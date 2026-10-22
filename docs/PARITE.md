@@ -13,16 +13,16 @@ commande ; le widget Plasma se limite aux réglages rapides.
 | Fonction | WinUI (Windows) | Client KDE | `ctl` | Widget Plasma |
 |---|---|---|---|---|
 | Mode de bruit, curseur ANC ↔ transparence, anti-vent | ✅ | ✅ | ✅ | ✅ |
-| Audio spatial, suivi de tête | ✅ | ✅ | ✅ | 🟡 audio spatial seul |
+| Audio spatial, suivi de tête | ✅ | ✅ | ✅ | ✅ |
 | Égaliseur 8 bandes, basses, remise à plat | ✅ | ✅ | ✅ | — |
 | Préréglages, courbes (export, import), A/B | ✅ | ✅ | — | — |
-| Mode audio : Speech Clarity, profil personnalisé | ✅ | ✅ | ✅ | — |
+| Mode audio : Speech Clarity, profil personnalisé | ✅ | ✅ | ✅ | 🟡 profil personnalisé seul |
 | Smart Pause, réponse automatique, appels confortables | ✅ | ✅ | ✅ | — |
 | Extinction automatique, protection de la batterie | ✅ | ✅ | ✅ | — |
 | Invites, volume des invites, nom du casque | ✅ | ✅ | ✅ | — |
 | Commandes tactiles | ✅ | ✅ | ✅ | — |
 | Multipoint, appareils appairés (connecter, déconnecter) | ✅ | ✅ | ✅ | — |
-| Scènes : application | ✅ | ✅ | ✅ | — |
+| Scènes : application | ✅ | ✅ | ✅ | 🟡 celles du panneau rapide |
 | Export du profil auditif (fichier privé) | ✅ | ✅ | ✅ | — |
 
 ## Intégration au bureau
@@ -30,7 +30,7 @@ commande ; le widget Plasma se limite aux réglages rapides.
 | Fonction | WinUI (Windows) | Client KDE | Remarque |
 |---|---|---|---|
 | Icône de la zone de notification et menu | ✅ | ✅ | même menu (`momentum_core::tray_menu`) |
-| Panneau rapide au clic sur l'icône | ✅ | — | prévu (jalon 0.9.1) ; sous KDE, le clic ouvre la fenêtre ou le widget |
+| Panneau rapide au clic sur l'icône | ✅ | ✅ | même contenu (`panneau.txt`) ; sous Wayland, KWin place le panneau |
 | Éditeur de scènes | ✅ | ✅ | |
 | Raccourcis clavier globaux | ✅ éditeur | ✅ KGlobalAccel | sous KDE, modifiables dans Configuration du système |
 | Batterie : courbe 24 h / 7 j / 30 j, export, effacement | ✅ | ✅ | historique tenu par le service |
@@ -42,7 +42,7 @@ commande ; le widget Plasma se limite aux réglages rapides.
 | Notifications (batterie, connexion) | ✅ | ✅ | envoyées par le service |
 | Diagnostic expurgé à copier | ✅ | ✅ | |
 | Mode démonstration (`--demo`) | ✅ | ✅ | casque simulé, aucun service |
-| Refus et résultats des demandes affichés | ✅ | ✅ | suivi par numéro de demande |
+| Refus et résultats des demandes affichés | ✅ | ✅ | suivi par numéro de demande (aussi dans le widget Plasma) |
 
 ## Distribution
 

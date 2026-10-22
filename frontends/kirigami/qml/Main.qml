@@ -42,6 +42,15 @@ Kirigami.ApplicationWindow {
             root.raise()
             root.requestActivate()
         }
+        onPanelRequested: {
+            if (quickPanel.visible) {
+                quickPanel.hide()
+            } else {
+                quickPanel.show()
+                quickPanel.raise()
+                quickPanel.requestActivate()
+            }
+        }
         onQuitRequested: Qt.quit()
         onEqualizerRequested: {
             root.pageStack.replace(soundPage)
@@ -57,6 +66,165 @@ Kirigami.ApplicationWindow {
         if (headset.trayAvailable) {
             close.accepted = false
             root.hide()
+        }
+    }
+
+    // Panneau rapide : clic gauche sur l'icône de la zone de notification,
+    // comme sous Windows. Contenu choisi dans la page Scènes (`panneau.txt`).
+    // Il se ferme quand il perd le focus, ou par un second clic sur l'icône.
+    Window {
+        id: quickPanel
+        title: "OpenHeadset Control"
+        flags: Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
+        width: Kirigami.Units.gridUnit * 22
+        height: panelContent.implicitHeight + Kirigami.Units.largeSpacing * 2
+        visible: false
+        color: Kirigami.Theme.backgroundColor
+        Kirigami.Theme.colorSet: Kirigami.Theme.Window
+        Kirigami.Theme.inherit: false
+        onActiveChanged: {
+            if (!active) {
+                hide()
+            }
+        }
+
+        Rectangle {
+            anchors.fill: parent
+            color: "transparent"
+            border.color: Kirigami.ColorUtils.linearInterpolation(
+                Kirigami.Theme.backgroundColor, Kirigami.Theme.textColor, 0.2)
+        }
+
+        ColumnLayout {
+            id: panelContent
+            anchors.fill: parent
+            anchors.margins: Kirigami.Units.largeSpacing
+            spacing: Kirigami.Units.smallSpacing
+
+            Kirigami.Heading {
+                Layout.fillWidth: true
+                text: headset.title
+                level: 3
+                elide: Text.ElideRight
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                text: headset.busy ? "Envoi au casque…" : headset.connected ? headset.batteryText : headset.connection
+                wrapMode: Text.Wrap
+                opacity: 0.8
+            }
+            Rectangle {
+                visible: headset.battery >= 0
+                Layout.fillWidth: true
+                implicitHeight: Kirigami.Units.smallSpacing * 2
+                radius: height / 2
+                color: Kirigami.Theme.alternateBackgroundColor
+                Rectangle {
+                    width: parent.width * Math.max(0, headset.battery) / 100
+                    height: parent.height
+                    radius: parent.radius
+                    color: headset.battery > 20 ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.negativeTextColor
+                }
+            }
+            RowLayout {
+                visible: headset.panelNoise && headset.connected
+                Layout.fillWidth: true
+                Repeater {
+                    model: headset.noiseModes
+                    QQC2.Button {
+                        required property int index
+                        required property string modelData
+                        Layout.fillWidth: true
+                        text: modelData
+                        checkable: true
+                        checked: headset.noiseMode === index
+                        enabled: headset.writable
+                        onClicked: {
+                            headset.setNoiseModeIndex(index)
+                            checked = Qt.binding(() => headset.noiseMode === index)
+                        }
+                    }
+                }
+            }
+            RowLayout {
+                visible: headset.panelLevel && headset.connected
+                Layout.fillWidth: true
+                QQC2.Label { text: "ANC ↔ transparence" }
+                QQC2.Slider {
+                    id: panelLevel
+                    Layout.fillWidth: true
+                    from: 0
+                    to: 100
+                    stepSize: 5
+                    value: headset.level
+                    enabled: headset.writable
+                    onPressedChanged: {
+                        if (!pressed) {
+                            headset.sendLevel(Math.round(value))
+                            value = Qt.binding(() => headset.level)
+                        }
+                    }
+                }
+                QQC2.Label {
+                    text: Math.round(panelLevel.value) + " %"
+                    Layout.minimumWidth: Kirigami.Units.gridUnit * 2.5
+                }
+            }
+            RowLayout {
+                visible: headset.connected
+                Layout.fillWidth: true
+                QQC2.Label { text: "Anti-vent"; Layout.fillWidth: true }
+                QQC2.Switch {
+                    id: panelAntiWind
+                    checked: headset.antiWind
+                    enabled: headset.writable
+                    onToggled: {
+                        headset.sendAntiWind(checked)
+                        root.confirmed(panelAntiWind, () => headset.antiWind)
+                    }
+                }
+            }
+            RowLayout {
+                visible: headset.panelProfile && headset.connected
+                Layout.fillWidth: true
+                QQC2.Label { text: "Profil personnalisé"; Layout.fillWidth: true }
+                QQC2.Switch {
+                    id: panelProfile
+                    checked: headset.profileOn
+                    enabled: headset.profileToggleEnabled
+                    onToggled: {
+                        headset.sendProfile(checked)
+                        root.confirmed(panelProfile, () => headset.profileOn)
+                    }
+                }
+            }
+            Flow {
+                visible: headset.panelScenes.length > 0 && headset.connected
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.smallSpacing
+                Repeater {
+                    model: headset.panelScenes
+                    QQC2.Button {
+                        required property string modelData
+                        text: modelData
+                        icon.name: "media-playback-start"
+                        enabled: headset.writable && !headset.busy
+                        onClicked: headset.applyScene(headset.sceneNames.indexOf(modelData))
+                    }
+                }
+            }
+            QQC2.Button {
+                Layout.alignment: Qt.AlignRight
+                text: "Ouvrir OpenHeadset Control"
+                icon.name: "window"
+                flat: true
+                onClicked: {
+                    quickPanel.hide()
+                    root.show()
+                    root.raise()
+                    root.requestActivate()
+                }
+            }
         }
     }
 
@@ -970,6 +1138,80 @@ Kirigami.ApplicationWindow {
                                 enabled: headset.writable && !headset.busy
                                 onClicked: headset.applyScene(index)
                             }
+                        }
+                    }
+                }
+
+                // Contenu du panneau rapide (clic sur l'icône), `panneau.txt`.
+                Kirigami.AbstractCard {
+                    Layout.fillWidth: true
+                    header: Kirigami.Heading {
+                        text: "Panneau rapide"
+                        level: 3
+                    }
+                    contentItem: ColumnLayout {
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            opacity: 0.7
+                            text: "Ouvert par un clic sur l'icône de la zone de notification : batterie et anti-vent, plus ce qui est coché ici (quatre scènes au plus)."
+                        }
+                        Flow {
+                            Layout.fillWidth: true
+                            spacing: Kirigami.Units.largeSpacing
+                            QQC2.CheckBox {
+                                id: panelNoiseBox
+                                text: "Contrôle du bruit"
+                                checked: headset.panelNoise
+                                onToggled: {
+                                    headset.setPanelOption("bruit", checked)
+                                    root.confirmed(panelNoiseBox, () => headset.panelNoise)
+                                }
+                            }
+                            QQC2.CheckBox {
+                                id: panelLevelBox
+                                text: "Curseur ANC ↔ transparence"
+                                checked: headset.panelLevel
+                                onToggled: {
+                                    headset.setPanelOption("niveau", checked)
+                                    root.confirmed(panelLevelBox, () => headset.panelLevel)
+                                }
+                            }
+                            QQC2.CheckBox {
+                                id: panelProfileBox
+                                text: "Profil personnalisé"
+                                checked: headset.panelProfile
+                                onToggled: {
+                                    headset.setPanelOption("profil", checked)
+                                    root.confirmed(panelProfileBox, () => headset.panelProfile)
+                                }
+                            }
+                        }
+                        Flow {
+                            Layout.fillWidth: true
+                            visible: headset.sceneNames.length > 0
+                            spacing: Kirigami.Units.largeSpacing
+                            QQC2.Label { text: "Scènes :" }
+                            Repeater {
+                                model: headset.sceneNames
+                                QQC2.CheckBox {
+                                    id: panelSceneBox
+                                    required property string modelData
+                                    text: modelData
+                                    checked: headset.panelScenes.indexOf(modelData) >= 0
+                                    onToggled: {
+                                        headset.setPanelScene(modelData, checked)
+                                        root.confirmed(panelSceneBox, () => headset.panelScenes.indexOf(modelData) >= 0)
+                                    }
+                                }
+                            }
+                        }
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            visible: headset.panelNotice !== ""
+                            text: headset.panelNotice
+                            wrapMode: Text.Wrap
+                            opacity: 0.7
                         }
                     }
                 }
