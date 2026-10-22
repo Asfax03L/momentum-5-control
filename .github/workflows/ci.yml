@@ -10,14 +10,14 @@ jobs:
   confidentialite:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: sh scripts/verifier-confidentialite.sh
 
   # Dépendances : failles connues (RustSec), licences, provenance (deny.toml).
   dependances:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check advisories licenses sources
@@ -25,7 +25,7 @@ jobs:
   check:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Version de travail (rust-toolchain.toml).
       - uses: dtolnay/rust-toolchain@master
         with:
@@ -44,7 +44,7 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: 0
       CARGO_PROFILE_TEST_DEBUG: 0
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Outils préinstallés inutiles ici (Android, .NET) : environ 10 Go.
       - run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet && df -h /
       - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config qt6-base-dev qt6-declarative-dev qmake6
@@ -62,7 +62,7 @@ jobs:
       - run: cargo build --release -p momentum-cli -p momentum-daemon -p momentum-kirigami
         env:
           QMAKE: /usr/bin/qmake6
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: openheadset-linux-x86_64
           path: |
@@ -82,7 +82,7 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: 0
     steps:
       - run: dnf install -y --setopt=install_weak_deps=False git gcc gcc-c++ pkgconf-pkg-config dbus-devel qt6-qtbase-devel qt6-qtdeclarative-devel rust cargo clippy kf6-kirigami kf6-qqc2-desktop-style dbus-daemon
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: qmake6 -query QT_VERSION && cargo --version
       - run: cargo clippy -p momentum-kirigami --all-targets -- -D warnings
       # Démarrage réel (F13) : mode démonstration, sans écran, sur un bus de
@@ -117,7 +117,7 @@ jobs:
     env:
       RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - uses: dtolnay/rust-toolchain@master
