@@ -1399,26 +1399,25 @@ impl Component for Root {
             Msg::SavePreset => {
                 if let Some(gains) = self.snapshot.equalizer.as_ref().map(|e| e.gains.clone()) {
                     let name = self.new_preset_name.trim().to_string();
-                    self.eq_notice = Some(
-                        match presets::upsert(&mut self.user_presets, &name, &gains) {
-                            Ok(()) => match paths::store_user_presets(&self.user_presets) {
-                                Ok(()) => {
-                                    self.new_preset_name.clear();
-                                    format!("Préréglage « {name} » enregistré sur ce PC.")
-                                }
-                                Err(e) => format!("Préréglage non enregistré : {e}."),
-                            },
-                            Err(reason) => format!("Préréglage non enregistré : {reason}."),
-                        },
-                    );
+                    // Relu puis modifié : rien d'enregistré par une autre
+                    // interface n'est perdu.
+                    self.eq_notice = Some(match paths::upsert_user_preset(&name, &gains) {
+                        Ok(list) => {
+                            self.user_presets = list;
+                            self.new_preset_name.clear();
+                            format!("Préréglage « {name} » enregistré sur ce PC.")
+                        }
+                        Err(reason) => format!("Préréglage non enregistré : {reason}."),
+                    });
                 }
             }
             Msg::DeletePreset => {
-                if let Some(preset) = self.current_user_preset()
-                    && presets::remove(&mut self.user_presets, &preset.name)
-                {
-                    self.eq_notice = Some(match paths::store_user_presets(&self.user_presets) {
-                        Ok(()) => format!("Préréglage « {} » supprimé.", preset.name),
+                if let Some(preset) = self.current_user_preset() {
+                    self.eq_notice = Some(match paths::remove_user_preset(&preset.name) {
+                        Ok(list) => {
+                            self.user_presets = list;
+                            format!("Préréglage « {} » supprimé.", preset.name)
+                        }
                         Err(e) => format!("Suppression non enregistrée : {e}."),
                     });
                 }

@@ -58,6 +58,14 @@ depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
   versions minimales déclarées et vérifiées par la CI (1.89, WinUI 1.95) ;
   audit des dépendances (`cargo-deny` : failles RustSec, licences,
   provenance) ; Dependabot mensuel, mises à jour regroupées.
+- F11 : une ancienne fréquence d'échantillonnage n'est plus présentée
+  après un changement de codec ; les fréquences de l'égaliseur sont
+  documentées comme constante du profil M5.
+- F14 : écritures de fichiers partagés sans nom temporaire commun ;
+  préréglages relus juste avant chaque modification (un préréglage ajouté
+  par l'autre interface n'est plus perdu).
+- F13 (en partie) : la CI lance réellement le client KDE (mode
+  démonstration, sans écran) et vérifie que le QML se charge sans erreur.
 
 ### Widget Plasma
 - `plasma/org.openheadset.control.plasmoid` : widget Plasma 6 en QML,

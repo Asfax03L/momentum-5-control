@@ -1706,12 +1706,9 @@ impl qobject::Headset {
             return false;
         };
         let name = name.to_string().trim().to_string();
-        let mut list = self.rust().user_presets.clone();
-        let result = presets::upsert(&mut list, &name, &gains)
-            .map_err(str::to_string)
-            .and_then(|()| paths::store_user_presets(&list).map_err(|e| e.to_string()));
-        match result {
-            Ok(()) => {
+        // Relu puis modifié : rien d'enregistré par une autre interface n'est perdu.
+        match paths::upsert_user_preset(&name, &gains) {
+            Ok(list) => {
                 self.as_mut().rust_mut().user_presets = list;
                 self.as_mut()
                     .notice(format!("Préréglage « {name} » enregistré sur ce PC."));
@@ -1727,12 +1724,11 @@ impl qobject::Headset {
 
     fn delete_user_preset(mut self: Pin<&mut Self>) {
         let name = self.user_preset().to_string();
-        let mut list = self.rust().user_presets.clone();
-        if name.is_empty() || !presets::remove(&mut list, &name) {
+        if name.is_empty() {
             return;
         }
-        let text = match paths::store_user_presets(&list) {
-            Ok(()) => {
+        let text = match paths::remove_user_preset(&name) {
+            Ok(list) => {
                 self.as_mut().rust_mut().user_presets = list;
                 format!("Préréglage « {name} » supprimé.")
             }

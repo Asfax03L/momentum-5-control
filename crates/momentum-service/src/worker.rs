@@ -855,9 +855,13 @@ fn export_profile<T: Transport>(
 }
 
 /// La fréquence d'échantillonnage n'est connue que par notification : une
-/// relecture complète la conserve.
+/// relecture complète la conserve, mais seulement si le codec n'a pas
+/// changé entre-temps (F11 : une ancienne fréquence n'est pas présentée
+/// comme celle du flux actuel).
 fn keep_stream_info(old: &HeadsetState, mut new: HeadsetState) -> HeadsetState {
-    new.sample_rate_hz = new.sample_rate_hz.or(old.sample_rate_hz);
+    if new.sample_rate_hz.is_none() && new.codec == old.codec {
+        new.sample_rate_hz = old.sample_rate_hz;
+    }
     new
 }
 
@@ -1606,5 +1610,24 @@ mod tests {
             &Job::untracked(WorkerCommand::SetEqFlat),
             4
         ));
+    }
+
+    #[test]
+    fn an_old_sample_rate_does_not_survive_a_codec_change() {
+        let old = HeadsetState {
+            codec: Some(1),
+            sample_rate_hz: Some(48_000),
+            ..HeadsetState::default()
+        };
+        let same = HeadsetState {
+            codec: Some(1),
+            ..HeadsetState::default()
+        };
+        assert_eq!(keep_stream_info(&old, same).sample_rate_hz, Some(48_000));
+        let other = HeadsetState {
+            codec: Some(2),
+            ..HeadsetState::default()
+        };
+        assert_eq!(keep_stream_info(&old, other).sample_rate_hz, None);
     }
 }
