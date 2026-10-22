@@ -74,45 +74,46 @@ async fn bounded<T>(
 #[derive(Clone, Debug)]
 pub struct GaiaDevice {
     pub device_name: String,
+    /// Adresse Bluetooth : jamais affichée ni journalisée ; sert à ouvrir le
+    /// canal et à reconnaître le casque.
     pub address: Address,
 }
 
-/// Cherche, parmi les appareils appairés **et connectés** de l'adaptateur
-/// par défaut dont le nom contient l'un des `name_filters` (insensible à la
-/// casse), le premier qui annonce [`GAIA_SERVICE_UUID`].
-pub fn find_gaia_device(name_filters: &[&str]) -> Result<Option<GaiaDevice>, TransportError> {
+/// Appareils appairés **et connectés** de l'adaptateur par défaut qui
+/// annoncent [`GAIA_SERVICE_UUID`], quel que soit leur nom (F04 de la revue :
+/// le nom du casque peut être changé).
+pub fn list_gaia_devices() -> Result<Vec<GaiaDevice>, TransportError> {
     let rt = runtime()?;
-    let filters: Vec<String> = name_filters.iter().map(|f| f.to_lowercase()).collect();
     rt.block_on(bounded("recherche du casque", DISCOVERY_TIMEOUT, async {
         let session = Session::new().await.map_err(bt("connexion à BlueZ"))?;
         let adapter = session
             .default_adapter()
             .await
             .map_err(bt("adaptateur Bluetooth"))?;
+        let mut found = Vec::new();
         for address in adapter
             .device_addresses()
             .await
             .map_err(bt("liste des appareils"))?
         {
             let device = adapter.device(address).map_err(bt("appareil"))?;
-            let name = device.alias().await.map_err(bt("nom de l'appareil"))?;
-            let lower = name.to_lowercase();
-            if !filters.iter().any(|f| lower.contains(f.as_str())) {
-                continue;
-            }
             let paired = device.is_paired().await.map_err(bt("appairage"))?;
             let connected = device.is_connected().await.map_err(bt("connexion"))?;
-            let uuids = device.uuids().await.map_err(bt("services"))?;
-            let has_gaia = uuids.is_some_and(|u| u.contains(&GAIA_SERVICE_UUID));
-            debug!(%name, paired, connected, has_gaia, "appareil candidat");
-            if paired && connected && has_gaia {
-                return Ok(Some(GaiaDevice {
-                    device_name: name,
-                    address,
-                }));
+            if !(paired && connected) {
+                continue;
             }
+            let uuids = device.uuids().await.map_err(bt("services"))?;
+            if !uuids.is_some_and(|u| u.contains(&GAIA_SERVICE_UUID)) {
+                continue;
+            }
+            let name = device.alias().await.map_err(bt("nom de l'appareil"))?;
+            found.push(GaiaDevice {
+                device_name: name,
+                address,
+            });
         }
-        Ok(None)
+        debug!(nombre = found.len(), "appareils GAIA connectés");
+        Ok(found)
     }))
 }
 

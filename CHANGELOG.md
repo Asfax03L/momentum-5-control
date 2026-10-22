@@ -25,6 +25,14 @@ depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
   une panne du service). L'ancienne méthode `Command` reste disponible.
   Essayé sur le M5 le 22/10/2026 sous Bazzite et Windows.
 - F10 (en partie) : le nom du casque ne va plus dans les messages `info`.
+- F04 : le casque est retrouvé **sans dépendre de son nom** (qui peut être
+  changé) : parmi les appareils connectés qui annoncent GAIA, le casque
+  mémorisé (`casque.txt`, empreinte sans l'adresse), sinon le seul
+  candidat, sinon le seul au nom « MOMENTUM » ou « Sennheiser » ; plusieurs
+  candidats indistincts : aucun n'est pris au hasard. Sous Windows, seuls
+  les appareils connectés sont interrogés (la recherche ne réveille plus
+  les autres). Même règle pour `ctl` sans service ; `--device` reste un
+  choix explicite.
 
 ### Widget Plasma
 - `plasma/org.openheadset.control.plasmoid` : widget Plasma 6 en QML,

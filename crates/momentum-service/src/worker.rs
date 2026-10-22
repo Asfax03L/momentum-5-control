@@ -12,6 +12,7 @@ use momentum_core::device::{
     Connection, DeviceError, DeviceInfo, EqState, Headset, HeadsetState, NoiseModeRequest,
     ProfileSelection, PromptMode,
 };
+use momentum_core::paths;
 use momentum_core::presets::Preset;
 use momentum_core::protocol::messages::M5NoiseMode;
 use momentum_core::request::Outcome;
@@ -19,11 +20,12 @@ use momentum_core::scenes::{Scene, SceneReport, apply_scene};
 use momentum_core::transport::Transport;
 #[cfg(target_os = "linux")]
 use momentum_core::transport::bluez_rfcomm::{
-    BluezTransport as PlatformTransport, find_gaia_device,
+    BluezTransport as PlatformTransport, list_gaia_devices,
 };
+use momentum_core::transport::choice::{Candidate, Choice, choose, fingerprint};
 #[cfg(windows)]
 use momentum_core::transport::windows_rfcomm::{
-    RfcommTransport as PlatformTransport, find_gaia_service,
+    RfcommTransport as PlatformTransport, list_gaia_services,
 };
 use tracing::{debug, info, warn};
 #[cfg(windows)]
@@ -40,8 +42,6 @@ const FULL_REFRESH: Duration = Duration::from_secs(60);
 /// Délai avant de relire les connexions après un changement (Multipoint,
 /// connexion ou déconnexion d'un appareil).
 const LINKS_RECHECK_DELAY: Duration = Duration::from_secs(3);
-
-const NAME_FILTERS: [&str; 2] = ["momentum", "sennheiser"];
 
 #[derive(Debug)]
 pub enum WorkerCommand {
@@ -215,11 +215,17 @@ pub fn run(commands: Receiver<Job>, notify: impl Fn(WorkerEvent)) {
     loop {
         notify(WorkerEvent::Searching);
         match connect() {
-            Ok((name, mut headset)) => {
+            Ok((name, print, mut headset)) => {
                 // Écritures réservées au modèle et au micrologiciel
                 // validés ; la lecture reste possible sur tout casque GAIA.
                 headset.identify();
                 let read_only = headset.write_block_reason().map(str::to_string);
+                // Casque validé : mémorisé pour le retrouver même renommé.
+                if read_only.is_none()
+                    && let Err(e) = paths::store_headset_fingerprint(&print)
+                {
+                    warn!(%e, "mémorisation du casque");
+                }
                 generation += 1;
                 // Le nom du casque peut être personnel : il ne va pas au journal.
                 info!(?read_only, session = generation, "casque connecté");
@@ -260,24 +266,76 @@ pub fn run(commands: Receiver<Job>, notify: impl Fn(WorkerEvent)) {
     }
 }
 
+/// Repères du nom du casque : ils départagent plusieurs appareils GAIA
+/// connectés, sans jamais en exclure un (le nom peut être changé).
+const NAME_HINTS: [&str; 2] = ["momentum", "sennheiser"];
+
+/// Casque choisi parmi les appareils GAIA connectés (F04 de la revue) : le
+/// casque mémorisé, sinon le seul candidat, sinon le seul au nom distinctif.
+/// Plusieurs candidats sans moyen de choisir : aucun n'est pris au hasard.
+fn pick(candidates: &[Candidate]) -> Result<usize, String> {
+    match choose(
+        candidates,
+        paths::load_headset_fingerprint().as_deref(),
+        &NAME_HINTS,
+    ) {
+        Choice::One(i) => Ok(i),
+        Choice::None => Err("aucun casque connecté avec service GAIA".to_string()),
+        // Les noms peuvent être personnels : seulement leur nombre.
+        Choice::Ambiguous(names) => Err(format!(
+            "{} appareils GAIA connectés et aucun casque mémorisé : en garder un seul connecté",
+            names.len()
+        )),
+    }
+}
+
+/// Casque connecté : nom, empreinte de son identifiant (à mémoriser une
+/// fois validé) et canal GAIA ouvert.
+type Found = (String, String, Headset<PlatformTransport>);
+
 #[cfg(windows)]
-fn connect() -> Result<(String, Headset<PlatformTransport>), String> {
-    let found = find_gaia_service(&NAME_FILTERS)
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "aucun casque avec service GAIA".to_string())?;
-    let transport = PlatformTransport::connect(&found.service).map_err(|e| e.to_string())?;
-    Ok((found.device_name, Headset::new(transport, REPLY_TIMEOUT)))
+fn connect() -> Result<Found, String> {
+    let mut found = list_gaia_services().map_err(|e| e.to_string())?;
+    let candidates: Vec<Candidate> = found
+        .iter()
+        .map(|s| Candidate {
+            key: &s.device_id,
+            name: &s.device_name,
+        })
+        .collect();
+    let chosen = found.swap_remove(pick(&candidates)?);
+    let print = fingerprint(&chosen.device_id);
+    let transport = PlatformTransport::connect(&chosen.service).map_err(|e| e.to_string())?;
+    Ok((
+        chosen.device_name,
+        print,
+        Headset::new(transport, REPLY_TIMEOUT),
+    ))
 }
 
 /// Casque appairé et connecté dans BlueZ ; le profil client BlueZ choisit
 /// le canal GAIA (comme `ctl` sans `--canal`, validé sur le M5).
 #[cfg(target_os = "linux")]
-fn connect() -> Result<(String, Headset<PlatformTransport>), String> {
-    let found = find_gaia_device(&NAME_FILTERS)
-        .map_err(|e| e.to_string())?
-        .ok_or_else(|| "aucun casque connecté avec service GAIA".to_string())?;
-    let transport = PlatformTransport::connect(&found, None).map_err(|e| e.to_string())?;
-    Ok((found.device_name, Headset::new(transport, REPLY_TIMEOUT)))
+fn connect() -> Result<Found, String> {
+    let mut found = list_gaia_devices().map_err(|e| e.to_string())?;
+    let keys: Vec<String> = found.iter().map(|d| d.address.to_string()).collect();
+    let candidates: Vec<Candidate> = found
+        .iter()
+        .zip(&keys)
+        .map(|(d, key)| Candidate {
+            key,
+            name: &d.device_name,
+        })
+        .collect();
+    let index = pick(&candidates)?;
+    let print = fingerprint(&keys[index]);
+    let chosen = found.swap_remove(index);
+    let transport = PlatformTransport::connect(&chosen, None).map_err(|e| e.to_string())?;
+    Ok((
+        chosen.device_name,
+        print,
+        Headset::new(transport, REPLY_TIMEOUT),
+    ))
 }
 
 fn session<T: Transport>(

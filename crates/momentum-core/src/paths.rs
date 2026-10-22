@@ -56,6 +56,40 @@ pub fn battery_file() -> Option<PathBuf> {
     Some(data_dir()?.join("batterie.csv"))
 }
 
+/// `casque.txt` : empreinte du casque utilisé (sans son adresse), pour le
+/// retrouver même renommé ou à côté d'un autre casque.
+pub fn headset_file() -> Option<PathBuf> {
+    Some(data_dir()?.join("casque.txt"))
+}
+
+/// Empreinte du casque mémorisé, s'il y en a un.
+pub fn load_headset_fingerprint() -> Option<String> {
+    let text = fs::read_to_string(headset_file()?).ok()?;
+    text.lines().find_map(|line| {
+        let (key, value) = line.split_once('=')?;
+        (key.trim() == "empreinte")
+            .then(|| value.trim().to_string())
+            .filter(|v| v.len() == 16 && v.bytes().all(|b| b.is_ascii_hexdigit()))
+    })
+}
+
+/// Mémorise le casque utilisé (empreinte seulement) ; rien n'est écrit si
+/// c'est déjà lui.
+pub fn store_headset_fingerprint(fingerprint: &str) -> std::io::Result<()> {
+    if load_headset_fingerprint().as_deref() == Some(fingerprint) {
+        return Ok(());
+    }
+    let path =
+        headset_file().ok_or_else(|| std::io::Error::other("dossier des données introuvable"))?;
+    write_user_file(
+        &path,
+        &format!(
+            "# Casque utilisé par OpenHeadset Control (empreinte, sans adresse).\n\
+             # Supprimer ce fichier pour en choisir un autre.\nempreinte = {fingerprint}\n"
+        ),
+    )
+}
+
 /// `scenes.txt` : scènes de l'utilisateur.
 pub fn scenes_file() -> Option<PathBuf> {
     Some(data_dir()?.join("scenes.txt"))
