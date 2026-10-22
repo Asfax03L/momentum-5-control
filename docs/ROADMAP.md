@@ -81,93 +81,142 @@ et date de l'essai sur le casque.
 |---|---|---|
 | **0.9.0** (consolidation) ✅ | Constats F01 à F14 de la revue ([`CONSOLIDATION.md`](CONSOLIDATION.md)) ; CI élargie (versions verrouillées, dépendances auditées) ; documentation alignée | Aucune fausse réussite d'une commande ; publication complète ou rien ; installateurs récupérables |
 | **0.9.1** (KDE) ✅ | Panneau rapide KDE, widget enrichi | Commandes usuelles en deux clics, état relu affiché |
-| **0.10** (audio Linux) | Lecture PipeWire/WirePlumber de la sortie, du profil et du codec, en lecture seule ; diagnostic guidé | Observations cohérentes avec les réglages son du bureau ; aucun changement de routage silencieux |
-| **0.11** (GNOME) | Interface GTK 4 / libadwaita cliente du même service | Parité définie avec le client KDE, sans connexion directe au casque |
-| **0.12-bêta** (distribution) | Flatpak à sources figées (hors ligne), permissions revues, migration des réglages ; soumission à **Flathub** | Installation, mise à jour et désinstallation propres sur Bazzite et Windows ; paquet accepté sur Flathub |
-| **0.13** (paquets natifs) | Windows : installateur par utilisateur, sans droits administrateur (`.exe` Inno Setup ou `.msi` WiX), puis publication **winget** avec la dépendance au Windows App Runtime 2. Linux : `.deb` (Debian 13, Ubuntu 26.04 et suivantes) et `.rpm` (Fedora 43 et suivantes), compilés dans un conteneur par famille de distribution (`cargo-deb`, `cargo-generate-rpm`) et joints aux publications ; `PKGBUILD` pour l'**AUR** (Arch, CachyOS) ; widget Plasma sur le **KDE Store** | Pour chaque format : installation, mise à jour par-dessus la version précédente et désinstallation propres, puis essai sur le casque |
-| **Après la signature** | **MSIX** (signature obligatoire), dépôt **COPR** pour Fedora (mises à jour automatiques) | Décision sur la signature prise ; mêmes critères que 0.13 |
-| **1.0** | Version stable | Critères de publication remplis, aucun constat ouvert sans décision |
+| **0.10** (confort et audio Linux) | Audio Linux en lecture seule, petites fonctions à fort gain, `ctl` plus scriptable | Observations PipeWire cohérentes avec les réglages son du bureau ; aucun changement de routage silencieux ; chaque fonction essayée sur le casque |
+| **0.11** (sécurité et qualité) | Service durci, chaîne de confiance, tests automatisés | Service limité au Bluetooth et à ses fichiers ; suite d'essais rejouée avant la publication ; provenance vérifiable de chaque paquet |
+| **0.12** (GNOME) | Interface GTK 4 / libadwaita cliente du même service | Parité définie avec le client KDE, sans connexion directe au casque |
+| **0.13-bêta** (distribution) | Flatpak à sources figées et Flathub | Installation, mise à jour et désinstallation propres sur Bazzite et Windows ; paquet accepté sur Flathub |
+| **0.14** (paquets natifs) | Installateur Windows, winget, `.deb`, `.rpm`, AUR, KDE Store | Pour chaque format : installation, mise à jour par-dessus la version précédente et désinstallation propres, puis essai sur le casque |
+| **0.15** (intégration au bureau) | KRunner, widgets Windows, mode jeu | Chaque intégration passe par l'API du service, avec les mêmes refus que les interfaces |
+| **0.16** (langues, accessibilité, accueil) | Anglais, accessibilité, premier lancement, documentation | Interfaces complètes en anglais ; parcours au clavier et au lecteur d'écran sans blocage |
+| **1.0** | Version stable | Critères de publication remplis, politique de versions publiée, aucun constat ouvert sans décision |
+| **1.1** (fonctions avancées) | Mesures, égaliseur, journal, automatisations | Fonctions désactivables ; aucune donnée envoyée ; seules les commandes validées |
+| **1.2** (recherche sur le matériel) | Nouvelles écritures, autres casques | Capture dans l'application officielle, puis essai sur le casque avec relecture et retour à la valeur d'origine ; accord avant chaque essai |
+| **Après la signature** | MSIX, COPR | Décision sur la signature prise ; mêmes critères que 0.14 |
 
 Formats écartés : `.rpm` sur Bazzite (il faudrait modifier le système
 avec `rpm-ostree` ; le Flatpak est la voie prévue), et Kubuntu 24.04 LTS
 (encore sous Plasma 5, alors que le client KDE demande Plasma 6).
 
-### Pistes à évaluer (pas encore planifiées)
+### Contenu des jalons
 
-Chacune passera par une proposition avant d'entrer dans un jalon.
-
-- **Interface en anglais** (traduction des interfaces et de la
-  documentation principale ; le français reste la langue de référence) :
-  c'est la plus grosse limite à l'adoption hors des pays francophones.
-- **Accessibilité** : relecture au lecteur d'écran (Narrateur, Orca),
-  navigation complète au clavier, contrastes des deux thèmes.
-- **Chaîne de confiance sans certificat** : attestations de provenance
-  GitHub (`actions/attest-build-provenance`) et SBOM joints aux
-  publications, compilation reproductible ; utile avant même la
-  signature des exécutables.
-- **Robustesse du protocole** : fuzzing du décodeur de trames et du
-  parseur SDP (`cargo-fuzz`), sur les captures existantes.
-- **Essais sur le casque automatisés** : rassembler les scripts d'essai
-  (lecture, écriture validée, relecture, retour à la valeur d'origine) en
-  une suite rejouable avant chaque publication, avec un compte rendu daté.
-- **Avis de nouvelle version**, désactivé par défaut : simple lecture des
-  publications GitHub, sans télémétrie ni envoi de données.
-- **Mode jeu de Bazzite et Steam Deck** : extension Decky Loader cliente
-  de l'API D-Bus (batterie, réduction de bruit, scènes), comme le widget
-  Plasma.
-- **Automatisations des scènes** à la demande de l'utilisateur
-  (application au branchement du casque ou à une heure donnée), toujours
-  avec les seules commandes validées.
-- **Guide utilisateur** : installation pas à pas, dépannage Bluetooth
-  (casque appairé mais non connecté, multipoint), FAQ.
-- **Autres casques** (ACCENTUM, MOMENTUM 4…) : uniquement à partir de
-  rapports « Compatibilité » et d'essais sur le matériel ; lecture seule
-  jusque-là.
-
-Fonctions au quotidien :
-
+**0.10 — confort et audio Linux**
+- Lecture PipeWire/WirePlumber de la sortie, du profil et du codec, en
+  lecture seule ; diagnostic guidé.
+- **Bouton « Reconnecter le casque »** : passe par le Bluetooth du système
+  (BlueZ, Windows), pas par une commande du casque.
+- **Enregistrer l'état actuel comme scène** : tous les réglages validés
+  relus sur le casque, en un clic.
 - **Exporter et importer mes réglages** : un fichier unique (scènes,
   préréglages, raccourcis, panneau rapide, thème) pour retrouver la même
   configuration sur un autre PC ou un autre système.
-- **Autonomie réelle mesurée** d'après `batterie.csv` : durée moyenne par
-  charge, consommation selon le mode de réduction de bruit. Des mesures
-  seulement, jamais une « santé » de batterie inventée.
-- **Égaliseur d'après des mesures publiques** : meilleur réglage des 8
-  bandes (±6 dB, fréquences fixes) vers une courbe cible, après
-  vérification de la licence des données de mesure.
-- **Notifications supplémentaires**, chacune désactivable : casque resté
-  allumé sans son, charge terminée si le casque la signale, retour de la
-  connexion.
-
-Intégration au bureau :
-
-- **KRunner (KDE)** : « anc off », « scène Transport » depuis la recherche
-  de Plasma, par l'API D-Bus comme le widget.
-- **Liste de raccourcis Windows** (clic droit sur l'icône de la barre des
-  tâches) pour appliquer une scène.
-- **`ctl` pour Stream Deck et macros** : sortie JSON pour toutes les
-  sous-commandes, exemples documentés.
+- **`ctl` scriptable** : sortie JSON pour toutes les sous-commandes,
+  exemples pour Stream Deck et macros.
 - **Complétion du shell et page `man` pour `ctl`** (`clap_complete`,
   `clap_mangen`).
 
-Qualité et projet :
-
+**0.11 — sécurité et qualité**
+- **Service Linux durci par systemd** : `NoNewPrivileges`,
+  `ProtectSystem=strict`, `ProtectHome` en lecture seule sauf le dossier
+  des données, `RestrictAddressFamilies=AF_UNIX AF_BLUETOOTH`.
+- **Service Windows aux droits réduits** : étude d'un AppContainer ou d'un
+  niveau d'intégrité bas pour `momentum-daemon`.
+- **Chaîne de confiance sans certificat** : attestations de provenance
+  GitHub (`actions/attest-build-provenance`) et SBOM joints aux
+  publications, compilation reproductible.
+- **Robustesse du protocole** : fuzzing du décodeur de trames et du
+  parseur SDP (`cargo-fuzz`), sur les captures existantes.
+- **Essais sur le casque automatisés** : les scripts d'essai (lecture,
+  écriture validée, relecture, retour à la valeur d'origine) réunis en une
+  suite rejouable avant chaque publication, avec un compte rendu daté.
 - **Tests d'interface automatisés** en mode démonstration (UI Automation
   sous Windows, tests QML sous KDE), lancés par la CI.
 - **Couverture de tests** affichée par la CI, avec un seuil minimal pour le
   cœur du protocole.
 - **Budget de ressources** : mémoire et processeur du service mesurés à
   chaque version.
+
+**0.12 — GNOME**
+- Interface GTK 4 / libadwaita cliente du même service.
+
+**0.13-bêta — distribution**
+- Flatpak à sources figées (hors ligne), permissions revues, migration des
+  réglages ; soumission à **Flathub**.
+
+**0.14 — paquets natifs**
+- Windows : installateur par utilisateur, sans droits administrateur
+  (`.exe` Inno Setup ou `.msi` WiX), puis publication **winget** avec la
+  dépendance au Windows App Runtime 2.
+- Linux : `.deb` (Debian 13, Ubuntu 26.04 et suivantes) et `.rpm` (Fedora
+  43 et suivantes), compilés dans un conteneur par famille de distribution
+  (`cargo-deb`, `cargo-generate-rpm`) et joints aux publications ;
+  `PKGBUILD` pour l'**AUR** (Arch, CachyOS) ; widget Plasma sur le
+  **KDE Store**.
+
+**0.15 — intégration au bureau**
+- **KRunner (KDE)** : « anc off », « scène Transport » depuis la recherche
+  de Plasma, par l'API D-Bus comme le widget.
+- **Liste de raccourcis Windows** (clic droit sur l'icône de la barre des
+  tâches) pour appliquer une scène.
+- **Pastille de batterie** sur l'icône de la barre des tâches Windows.
+- **Widget Windows 11** (tableau des widgets) et **widget Xbox Game Bar** :
+  batterie et réduction de bruit, sur le modèle du widget Plasma.
+- **Mode jeu de Bazzite et Steam Deck** : extension Decky Loader cliente
+  de l'API D-Bus (batterie, réduction de bruit, scènes).
+
+**0.16 — langues, accessibilité, accueil**
+- **Interface en anglais** (interfaces et documentation principale ; le
+  français reste la langue de référence).
+- **Accessibilité** : relecture au lecteur d'écran (Narrateur, Orca),
+  navigation complète au clavier, contrastes des deux thèmes.
+- **Assistant de premier lancement** : vérifie le Bluetooth, l'appairage
+  et le Windows App Runtime, explique le multipoint.
+- **Guide utilisateur** : installation pas à pas, dépannage Bluetooth
+  (casque appairé mais non connecté, multipoint), FAQ.
 - **Site de documentation** (GitHub Pages) : captures, guide, FAQ.
+- **Rapport de bogue en un clic** : issue GitHub pré-remplie avec le
+  diagnostic expurgé, relue par l'utilisateur avant l'envoi.
+- **Discussions GitHub** pour les questions ; les issues restent pour les
+  bogues et la compatibilité.
+
+**1.0 — version stable**
 - **Politique de versions écrite** : sens de la 1.0, compatibilité des
   fichiers de réglages, délai de correction des failles.
+- **Avis de nouvelle version**, désactivé par défaut : simple lecture des
+  publications GitHub, sans télémétrie ni envoi de données.
 
-Recherche sur le casque (nouvelles captures de l'application et accord
-pour chaque essai) :
+**1.1 — fonctions avancées**
+- **Autonomie réelle mesurée** d'après `batterie.csv` : durée moyenne par
+  charge, consommation selon le mode de réduction de bruit. Des mesures
+  seulement, jamais une « santé » de batterie inventée.
+- **Égaliseur d'après des mesures publiques** : meilleur réglage des 8
+  bandes (±6 dB, fréquences fixes) vers une courbe cible, après
+  vérification de la licence des données de mesure.
+- **Export de la courbe vers EasyEffects (Linux) et Equalizer APO
+  (Windows)**, pour une correction plus fine côté PC, sans toucher au
+  casque.
+- **Notifications supplémentaires**, chacune désactivable : casque resté
+  allumé sans son, charge terminée si le casque la signale, retour de la
+  connexion.
+- **Journal local des événements** (déconnexions, changements de mode,
+  refus) : consultable, effaçable, jamais envoyé.
+- **Automatisations des scènes** à la demande de l'utilisateur
+  (application au branchement du casque ou à une heure donnée), toujours
+  avec les seules commandes validées.
 
+**1.2 — recherche sur le matériel** (nouvelles captures de l'application
+et accord pour chaque essai)
 - **Réglages aujourd'hui en lecture seule** (priorité du mode audio,
   détection de port…) : écriture seulement après capture dans
   l'application officielle et vérification sur le casque.
+- **Autres casques** (ACCENTUM, MOMENTUM 4…) : à partir de rapports
+  « Compatibilité » et d'essais sur le matériel ; lecture seule jusque-là.
+
+**Après la signature**
+- **MSIX** (signature obligatoire), dépôt **COPR** pour Fedora (mises à
+  jour automatiques).
+
+Les versions sont indicatives : un jalon peut être scindé, mais une
+fonction n'en change qu'avec une raison écrite ici.
 
 Restent hors du périmètre de la 1.0 : mise à jour du micrologiciel,
 réinitialisation d'usine, nouveau test auditif ou restauration d'un profil
@@ -187,7 +236,7 @@ lecture seule.
 5. Distribution : archives Windows et Linux (v0.8.0) ; Flatpak, widget
    Plasma, guide de contribution et tableau de compatibilité (v0.9.0).
    Reste : signature des exécutables Windows (décision en attente),
-   paquets natifs (jalon 0.13).
+   paquets natifs (jalon 0.14).
 6. Plusieurs interfaces et Linux (v0.7.0).
 7. Service unique et interfaces natives, retrait de Slint (v0.8.0).
 8. Migration vers zbus 6 : plus tard, quand elle apportera un gain concret
