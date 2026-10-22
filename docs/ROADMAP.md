@@ -83,8 +83,46 @@ et date de l'essai sur le casque.
 | **0.9.1** (KDE) ✅ | Panneau rapide KDE, widget enrichi | Commandes usuelles en deux clics, état relu affiché |
 | **0.10** (audio Linux) | Lecture PipeWire/WirePlumber de la sortie, du profil et du codec, en lecture seule ; diagnostic guidé | Observations cohérentes avec les réglages son du bureau ; aucun changement de routage silencieux |
 | **0.11** (GNOME) | Interface GTK 4 / libadwaita cliente du même service | Parité définie avec le client KDE, sans connexion directe au casque |
-| **0.12-bêta** (distribution) | Flatpak à sources figées (hors ligne), permissions revues, migration des réglages | Installation, mise à jour et désinstallation propres sur Bazzite et Windows |
+| **0.12-bêta** (distribution) | Flatpak à sources figées (hors ligne), permissions revues, migration des réglages ; soumission à **Flathub** | Installation, mise à jour et désinstallation propres sur Bazzite et Windows ; paquet accepté sur Flathub |
+| **0.13** (paquets natifs) | Windows : installateur par utilisateur, sans droits administrateur (`.exe` Inno Setup ou `.msi` WiX), puis publication **winget** avec la dépendance au Windows App Runtime 2. Linux : `.deb` (Debian 13, Ubuntu 26.04 et suivantes) et `.rpm` (Fedora 43 et suivantes), compilés dans un conteneur par famille de distribution (`cargo-deb`, `cargo-generate-rpm`) et joints aux publications ; `PKGBUILD` pour l'**AUR** (Arch, CachyOS) ; widget Plasma sur le **KDE Store** | Pour chaque format : installation, mise à jour par-dessus la version précédente et désinstallation propres, puis essai sur le casque |
+| **Après la signature** | **MSIX** (signature obligatoire), dépôt **COPR** pour Fedora (mises à jour automatiques) | Décision sur la signature prise ; mêmes critères que 0.13 |
 | **1.0** | Version stable | Critères de publication remplis, aucun constat ouvert sans décision |
+
+Formats écartés : `.rpm` sur Bazzite (il faudrait modifier le système
+avec `rpm-ostree` ; le Flatpak est la voie prévue), et Kubuntu 24.04 LTS
+(encore sous Plasma 5, alors que le client KDE demande Plasma 6).
+
+### Pistes à évaluer (pas encore planifiées)
+
+Chacune passera par une proposition avant d'entrer dans un jalon.
+
+- **Interface en anglais** (traduction des interfaces et de la
+  documentation principale ; le français reste la langue de référence) :
+  c'est la plus grosse limite à l'adoption hors des pays francophones.
+- **Accessibilité** : relecture au lecteur d'écran (Narrateur, Orca),
+  navigation complète au clavier, contrastes des deux thèmes.
+- **Chaîne de confiance sans certificat** : attestations de provenance
+  GitHub (`actions/attest-build-provenance`) et SBOM joints aux
+  publications, compilation reproductible ; utile avant même la
+  signature des exécutables.
+- **Robustesse du protocole** : fuzzing du décodeur de trames et du
+  parseur SDP (`cargo-fuzz`), sur les captures existantes.
+- **Essais sur le casque automatisés** : rassembler les scripts d'essai
+  (lecture, écriture validée, relecture, retour à la valeur d'origine) en
+  une suite rejouable avant chaque publication, avec un compte rendu daté.
+- **Avis de nouvelle version**, désactivé par défaut : simple lecture des
+  publications GitHub, sans télémétrie ni envoi de données.
+- **Mode jeu de Bazzite et Steam Deck** : extension Decky Loader cliente
+  de l'API D-Bus (batterie, réduction de bruit, scènes), comme le widget
+  Plasma.
+- **Automatisations des scènes** à la demande de l'utilisateur
+  (application au branchement du casque ou à une heure donnée), toujours
+  avec les seules commandes validées.
+- **Guide utilisateur** : installation pas à pas, dépannage Bluetooth
+  (casque appairé mais non connecté, multipoint), FAQ.
+- **Autres casques** (ACCENTUM, MOMENTUM 4…) : uniquement à partir de
+  rapports « Compatibilité » et d'essais sur le matériel ; lecture seule
+  jusque-là.
 
 Restent hors du périmètre de la 1.0 : mise à jour du micrologiciel,
 réinitialisation d'usine, nouveau test auditif ou restauration d'un profil
@@ -101,9 +139,10 @@ lecture seule.
    raccourcis éditables, panneau rapide (v0.4.0).
 4. Recherche séparée : sidetone, suivi de tête, audio USB, paramètres du
    profil (v0.5.0 ; résultats dans [`MOMENTUM5.md`](MOMENTUM5.md)).
-5. Distribution : archives Windows et Linux (v0.8.0), Flatpak, guide de
-   contribution et tableau de compatibilité (non publiés). Reste : signature
-   des exécutables Windows (décision en attente).
+5. Distribution : archives Windows et Linux (v0.8.0) ; Flatpak, widget
+   Plasma, guide de contribution et tableau de compatibilité (v0.9.0).
+   Reste : signature des exécutables Windows (décision en attente),
+   paquets natifs (jalon 0.13).
 6. Plusieurs interfaces et Linux (v0.7.0).
 7. Service unique et interfaces natives, retrait de Slint (v0.8.0).
 8. Migration vers zbus 6 : plus tard, quand elle apportera un gain concret
