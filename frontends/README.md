@@ -56,9 +56,9 @@ Notes pour les pistes « à explorer » (à vérifier au moment de s'y mettre) :
   (propriétés et actions) par `cxx-qt` 0.10 ; il est client du service
   (`momentum-client`, D-Bus) et reprend les modèles de vue de
   `momentum-core`. `src/tray.rs` : icône de la zone de notification
-  (`ksni`) ; `src/shortcuts.rs` : raccourcis globaux (KGlobalAccel). Hors des membres par
-  défaut de l'espace de travail (Qt 6 requis) : `cargo build -p
-  momentum-kirigami`.
+  (StatusNotifierItem et DBusMenu sur zbus) ; `src/shortcuts.rs` :
+  raccourcis globaux (KGlobalAccel). Hors des membres par défaut de
+  l'espace de travail (Qt 6 requis) : `cargo build -p momentum-kirigami`.
 - **GTK** : `gtk4-rs` et `libadwaita-rs`.
 
 ## Ajouter une interface

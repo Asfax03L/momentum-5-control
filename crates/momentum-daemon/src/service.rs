@@ -153,6 +153,7 @@ fn to_worker(command: Command, shared: &Shared) -> Result<WorkerCommand, String>
 fn to_api(event: WorkerEvent, shared: &mut Shared) -> Event {
     match event {
         WorkerEvent::Searching => Event::Searching,
+        WorkerEvent::NotFound(reason) => Event::NotFound(reason),
         WorkerEvent::Connected {
             name,
             read_only,

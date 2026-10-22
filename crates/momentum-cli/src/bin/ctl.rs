@@ -238,31 +238,42 @@ mod app {
             Err(e) => bail!("service momentum-daemon : {e}"),
         };
         let mut snapshot = client.snapshot()?;
+        // Recherche ratée signalée par le service : inutile d'attendre.
+        let mut not_found = None;
         // Service tout juste lancé (activation D-Bus, démarrage) : l'état arrive dans
-        // quelques secondes, le temps de joindre le casque.
+        // quelques secondes, le temps de joindre le casque ; sans casque, la
+        // recherche en cours se termine par `NotFound`.
         if snapshot.state.is_none() && !matches!(command, Command::Scenes) {
             let events = client.events()?;
             let (tx, rx) = std::sync::mpsc::channel();
             std::thread::spawn(move || {
                 for event in events {
-                    if matches!(event, Event::State(_)) && tx.send(()).is_ok() {
-                        break;
-                    }
+                    let end = match event {
+                        Event::State(_) => None,
+                        Event::NotFound(reason) => Some(reason),
+                        _ => continue,
+                    };
+                    let _ = tx.send(end);
+                    break;
                 }
             });
             if snapshot.device_name.is_none() {
                 eprintln!("(recherche du casque par le service…)");
             }
-            let _ = rx.recv_timeout(DAEMON_FIRST_STATE);
+            not_found = rx.recv_timeout(DAEMON_FIRST_STATE).ok().flatten();
             snapshot = client.snapshot()?;
         }
         let state = || {
             snapshot.state.ok_or_else(|| {
-                anyhow::anyhow!(if snapshot.device_name.is_some() {
-                    "casque en cours de connexion, réessayer dans un instant"
+                if let Some(reason) = &not_found {
+                    anyhow::anyhow!("casque introuvable : {reason} (le service réessaie)")
+                } else if snapshot.device_name.is_some() {
+                    anyhow::anyhow!("casque en cours de connexion, réessayer dans un instant")
                 } else {
-                    "casque introuvable : le service le cherche (allumé et connecté ?)"
-                })
+                    anyhow::anyhow!(
+                        "casque introuvable : le service le cherche (allumé et connecté ?)"
+                    )
+                }
             })
         };
         let api = match command {
@@ -367,6 +378,10 @@ mod app {
                 Api::ExportProfile(absolute)
             }
         };
+        // Aucun casque trouvé : rien n'est envoyé (code 1, comme un refus).
+        if let (None, Some(reason)) = (&snapshot.state, &not_found) {
+            bail!("casque introuvable : {reason} (rien n'a été envoyé)");
+        }
         eprintln!("(par le service momentum-daemon)");
         let is_scene = matches!(api, Api::ApplyScene(_));
         // Abonnement avant l'envoi : la réponse ne peut pas être manquée.

@@ -308,7 +308,6 @@ use std::time::Duration;
 
 use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QStringList};
-use ksni::blocking::TrayMethods;
 use momentum_client::dbus::Client;
 use momentum_client::demo::{self, Demo};
 use momentum_client::tracker::Tracker;
@@ -329,7 +328,7 @@ use momentum_core::ui::{IconKind, band_label, tooltip};
 use momentum_core::viewmodel;
 
 use crate::autostart;
-use crate::tray::{HeadsetTray, TrayView};
+use crate::tray::{Tray, TrayView};
 
 /// Pause avant de recontacter un service injoignable.
 const RETRY: Duration = Duration::from_secs(3);
@@ -499,7 +498,7 @@ pub struct HeadsetRust {
     sandboxed: bool,
 
     commands: Option<Sender<(Command, u64)>>,
-    tray: Option<ksni::blocking::Handle<HeadsetTray>>,
+    tray: Option<Tray>,
     /// État du casque vu par le service, suivi événement par événement.
     snapshot: Snapshot,
     /// Service injoignable (affiché à la place de la recherche du casque).
@@ -664,7 +663,7 @@ impl cxx_qt::Initialize for qobject::Headset {
 
         // Icône KDE : absente si aucune zone de notification n'écoute
         // (autre bureau) ; la fenêtre reste alors la seule interface.
-        match HeadsetTray::new(self.qt_thread()).spawn() {
+        match Tray::spawn(self.qt_thread()) {
             Ok(handle) => {
                 self.as_mut().rust_mut().tray = Some(handle);
                 self.as_mut().set_tray_available(true);
@@ -1126,7 +1125,7 @@ impl qobject::Headset {
             ),
         };
         if let Some(tray) = &r.tray {
-            tray.update(|t| t.set_view(tray_view));
+            tray.update(tray_view);
         }
         let audio_revision = r.audio_revision.wrapping_add(1);
         if rows != r.connection_rows {

@@ -10,8 +10,18 @@ depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
 ### Dépendances
 - zbus 6 (au lieu de 5) pour le client D-Bus, le service Linux et le
   client KDE : zbus 6 n'a plus d'API bloquante, chaque appel passe par
-  `zbus::block_on`. L'icône de la zone de notification (ksni 0.3) garde
-  zbus 5 tant que ksni n'est pas passé à zbus 6.
+  `zbus::block_on`.
+- Icône de la zone de notification KDE écrite directement sur zbus 6
+  (StatusNotifierItem et menu DBusMenu, d'après les spécifications
+  freedesktop) au lieu de `ksni` : une seule version de zbus dans le client
+  KDE. Elle se réinscrit si Plasma redémarre.
+
+### Service et ligne de commande
+- Événement `NotFound(raison)` à chaque recherche ratée du casque (aucun
+  casque GAIA connecté, plusieurs sans casque mémorisé, profil Bluetooth
+  déjà pris…) ; la raison s'affiche comme incident jusqu'à la connexion.
+- `ctl` sans casque s'arrête dès la fin de la recherche en cours (quelques
+  secondes au lieu de 15) avec cette raison, sans rien envoyer (code 1).
 
 ## v0.9.0 — 22/10/2026
 

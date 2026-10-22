@@ -133,6 +133,8 @@ impl AsRef<WorkerCommand> for WorkerCommand {
 #[derive(Debug, Clone)]
 pub enum WorkerEvent {
     Searching,
+    /// Recherche terminée sans casque (raison), avant un nouvel essai.
+    NotFound(String),
     /// `read_only` : raison de la lecture seule (modèle ou micrologiciel non
     /// validé pour les écritures). `session` : numéro de cette connexion
     /// (croissant, à partir de 1).
@@ -246,7 +248,10 @@ pub fn run(commands: Receiver<Job>, notify: impl Fn(WorkerEvent)) {
                     }
                 }
             }
-            Err(reason) => debug!(%reason, "casque introuvable"),
+            Err(reason) => {
+                debug!(%reason, "casque introuvable");
+                notify(WorkerEvent::NotFound(reason));
+            }
         }
         // Attente avant nouvel essai, en restant réactif à « Quitter ».
         match commands.recv_timeout(RETRY_DELAY) {
