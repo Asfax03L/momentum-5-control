@@ -1399,10 +1399,18 @@ impl qobject::Headset {
         let Ok(index) = usize::try_from(index) else {
             return;
         };
+        let device = self
+            .rust()
+            .snapshot
+            .connections
+            .get(index)
+            .map(|c| c.id.clone())
+            .filter(|id| !id.is_empty());
         self.send(Command::ToggleConnection {
             index,
             name: row.name,
             connect: row.action == "Connecter",
+            device,
         });
     }
 

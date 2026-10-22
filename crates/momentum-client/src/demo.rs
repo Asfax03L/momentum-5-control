@@ -45,6 +45,7 @@ impl Default for Demo {
 impl Demo {
     pub fn new() -> Self {
         let link = |name: &str, connected: bool, this_device: bool| ConnectionInfo {
+            id: format!("demo-{name}"),
             name: name.to_string(),
             connected,
             this_device,
@@ -234,6 +235,7 @@ mod tests {
             index: 0,
             name: "Ce PC".into(),
             connect: false,
+            device: None,
         });
         assert!(demo.snapshot().connections[0].connected);
         assert!(matches!(

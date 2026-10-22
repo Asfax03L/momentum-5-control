@@ -338,6 +338,20 @@ impl Connection {
         self.address == other.address
     }
 
+    /// Identifiant opaque et stable de l'appareil pour les interfaces
+    /// (empreinte de son adresse, qui ne sort jamais du service) : une
+    /// action vise cet appareil-là, même si la liste change d'ordre ou si
+    /// deux appareils portent le même nom (F05 de la revue).
+    pub fn opaque_id(&self) -> String {
+        let address = self
+            .address
+            .iter()
+            .map(|b| format!("{b:02X}"))
+            .collect::<Vec<_>>()
+            .join(":");
+        crate::transport::choice::fingerprint(&address)
+    }
+
     /// Appareil fictif pour les tests d'autres modules : adresse
     /// `00:00:00:00:00:<id>`, jamais envoyée à un casque réel.
     #[doc(hidden)]

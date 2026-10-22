@@ -65,12 +65,16 @@ pub enum Command {
     /// Volume des invites, valeur du casque (−20 à +6).
     SetPromptVolume(i8),
     SetName(String),
-    /// Appareil de la liste [`Snapshot::connections`], par sa position ;
-    /// le service vérifie le nom et retrouve l'adresse lui-même.
+    /// Appareil de la liste [`Snapshot::connections`]. `device` :
+    /// identifiant opaque ([`ConnectionInfo::id`]), qui désigne cet
+    /// appareil-là même si la liste a changé ; sans lui (interface
+    /// ancienne), la position et le nom, refusés si ce nom n'est pas unique.
     ToggleConnection {
         index: usize,
         name: String,
         connect: bool,
+        #[serde(default)]
+        device: Option<String>,
     },
     /// Scène du fichier `scenes.txt`, par son nom.
     ApplyScene(String),
@@ -85,6 +89,10 @@ pub enum Command {
 /// le service).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ConnectionInfo {
+    /// Identifiant opaque et stable (empreinte de l'adresse, qui reste dans
+    /// le service) ; vide avec un service ancien.
+    #[serde(default)]
+    pub id: String,
     pub name: String,
     pub connected: bool,
     pub this_device: bool,
@@ -229,6 +237,7 @@ mod tests {
                 index: 1,
                 name: "Téléphone".into(),
                 connect: false,
+                device: Some("0123456789abcdef".into()),
             },
             Command::ApplyScene("Travail".into()),
         ] {

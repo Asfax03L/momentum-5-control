@@ -111,15 +111,26 @@ fn to_worker(command: Command, shared: &Shared) -> Result<WorkerCommand, String>
             index,
             name,
             connect,
+            device,
         } => {
-            // L'appareil affiché à cette position, s'il porte toujours ce
-            // nom ; le worker le retrouve ensuite par son adresse.
-            let device = shared
-                .devices
-                .get(index)
-                .filter(|d| d.name == name)
-                .cloned()
-                .ok_or_else(|| format!("appareil « {name} » introuvable dans la liste"))?;
+            // L'appareil désigné par son identifiant opaque (F05 de la
+            // revue) ; une interface ancienne donne la position et le nom,
+            // acceptés seulement si ce nom est unique dans la liste. Le worker
+            // le retrouve ensuite par son adresse.
+            let found = match &device {
+                Some(id) => shared.devices.iter().find(|d| &d.opaque_id() == id),
+                None => {
+                    if shared.devices.iter().filter(|d| d.name == name).count() > 1 {
+                        return Err(format!(
+                            "plusieurs appareils s'appellent « {name} » : interface à mettre à jour"
+                        ));
+                    }
+                    shared.devices.get(index).filter(|d| d.name == name)
+                }
+            };
+            let device = found.cloned().ok_or_else(|| {
+                format!("appareil « {name} » introuvable dans la liste (liste changée ?)")
+            })?;
             WorkerCommand::ToggleConnection { device, connect }
         }
         Command::ApplyScene(name) => {
@@ -157,6 +168,7 @@ fn to_api(event: WorkerEvent, shared: &mut Shared) -> Event {
             let list = devices
                 .iter()
                 .map(|d| ConnectionInfo {
+                    id: d.opaque_id(),
                     name: d.name.clone(),
                     connected: d.connected,
                     this_device: d.this_device,
@@ -334,7 +346,8 @@ mod tests {
                 Command::ToggleConnection {
                     index: 0,
                     name: "Tablette".into(),
-                    connect: false
+                    connect: false,
+                    device: None,
                 },
                 &s
             )
@@ -345,7 +358,8 @@ mod tests {
                 Command::ToggleConnection {
                     index: 0,
                     name: "Téléphone".into(),
-                    connect: false
+                    connect: false,
+                    device: None,
                 },
                 &s
             )
@@ -391,5 +405,33 @@ mod tests {
             published.try_recv(),
             Ok(WorkerEvent::Done { id: done, outcome: Outcome::Applied, .. }) if done == id
         ));
+    }
+
+    #[test]
+    fn a_device_is_targeted_by_its_opaque_id() {
+        // F05 : deux « Téléphone », liste dans un autre ordre que celui vu
+        // par l'interface : l'identifiant désigne le bon appareil.
+        let mut shared = connected();
+        let first = Connection::synthetic(1, "Téléphone", true);
+        let second = Connection::synthetic(2, "Téléphone", false);
+        let wanted = second.opaque_id();
+        shared.devices = vec![second.clone(), first.clone()];
+        let toggle = |index, device| Command::ToggleConnection {
+            index,
+            name: "Téléphone".into(),
+            connect: true,
+            device,
+        };
+        match to_worker(toggle(1, Some(wanted)), &shared) {
+            Ok(WorkerCommand::ToggleConnection { device, .. }) => {
+                assert!(device.same_device(&second));
+            }
+            other => panic!("{other:?}"),
+        }
+        // Ancienne forme : position et nom ambigus, refusée.
+        assert!(to_worker(toggle(1, None), &shared).is_err());
+        // Appareil disparu de la liste : refusé.
+        let gone = Connection::synthetic(9, "Téléphone", false).opaque_id();
+        assert!(to_worker(toggle(0, Some(gone)), &shared).is_err());
     }
 }
