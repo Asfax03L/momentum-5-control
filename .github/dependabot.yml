@@ -11,6 +11,11 @@ updates:
         patterns: ["*"]
         update-types: [minor, patch]
     open-pull-requests-limit: 3
+    # Versions majeures (zbus 6 par exemple) : migrations prévues à part,
+    # pas en mise à jour automatique.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
