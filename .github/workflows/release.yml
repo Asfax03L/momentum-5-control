@@ -1,9 +1,12 @@
 name: Publication
 
-# Pousser une étiquette « v0.8.0 » (par exemple) compile la version
-# release, vérifie les tests et publie deux archives prêtes à installer sans
-# Rust : Windows (WinUI 3, service, ctl, probe et installer.ps1) et Linux
-# (client KDE, service, ctl et installer-linux.sh).
+# Pousser une étiquette « v0.9.0 » (par exemple) construit et teste chaque
+# paquet, puis publie tout d'un coup (F09 de la revue) : rien n'est visible
+# tant qu'un paquet manque. Paquets prêts à installer sans Rust :
+#   - Windows : WinUI 3, service, ctl, probe et installer.ps1 ;
+#   - Linux : client KDE, service, ctl, widget Plasma et installer-linux.sh ;
+#   - Flatpak : client KDE, service et ctl.
+# Chaque fichier est accompagné de son empreinte SHA-256.
 on:
   push:
     tags: ["v*"]
@@ -12,14 +15,26 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  # L'étiquette doit correspondre à la version de l'espace de travail.
+  version:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Étiquette et version
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
+          echo "Cargo.toml : $version ; étiquette : ${GITHUB_REF_NAME}"
+          test "v$version" = "${GITHUB_REF_NAME}"
+
+  windows:
+    needs: version
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo test
-      - run: cargo build --release --bins
+      - run: cargo test --locked
+      - run: cargo build --release --locked --bins
       - name: Archive
         shell: pwsh
         run: |
@@ -28,19 +43,14 @@ jobs:
           Copy-Item target/release/momentum-winui.exe, target/release/momentum-daemon.exe, target/release/ctl.exe, target/release/probe.exe $dir
           Copy-Item scripts/installer.ps1, README.md, LICENSE-MIT, LICENSE-APACHE $dir
           Compress-Archive -Path $dir -DestinationPath "$dir.zip"
-          (Get-FileHash "$dir.zip" -Algorithm SHA256).Hash | Out-File -Encoding ascii "$dir.zip.sha256"
-      - name: Publication GitHub
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $dir = "openheadset-control-${{ github.ref_name }}-windows-x86_64"
-          gh release create "${{ github.ref_name }}" "$dir.zip" "$dir.zip.sha256" `
-            --title "OpenHeadset Control ${{ github.ref_name }}" `
-            --notes "Windows : décompresser, puis lancer installer.ps1 (clic droit > Exécuter avec PowerShell) ; interface WinUI 3 (Windows App Runtime 2 requis). Linux : décompresser, puis ./installer-linux.sh (Qt 6 et Kirigami requis pour le client KDE). Projet non officiel. Exécutables non signés : Windows SmartScreen peut demander une confirmation."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: openheadset-control-*-windows-x86_64.zip
+          if-no-files-found: error
 
   linux:
-    needs: release
+    needs: version
     runs-on: ubuntu-24.04
     env:
       QMAKE: /usr/bin/qmake6
@@ -50,10 +60,9 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config qt6-base-dev qt6-declarative-dev qmake6
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build --release -p momentum-cli -p momentum-daemon -p momentum-kirigami
-      - name: Archive et publication
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - run: cargo test --locked
+      - run: cargo build --release --locked -p momentum-cli -p momentum-daemon -p momentum-kirigami
+      - name: Archive
         run: |
           dir="openheadset-control-${{ github.ref_name }}-linux-x86_64"
           mkdir -p "$dir/assets"
@@ -62,5 +71,62 @@ jobs:
           cp -r plasma "$dir/"
           cp scripts/installer-linux.sh README.md LICENSE-MIT LICENSE-APACHE "$dir/"
           tar -czf "$dir.tar.gz" "$dir"
-          sha256sum "$dir.tar.gz" | cut -d' ' -f1 > "$dir.tar.gz.sha256"
-          gh release upload "${{ github.ref_name }}" "$dir.tar.gz" "$dir.tar.gz.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: openheadset-control-*-linux-x86_64.tar.gz
+          if-no-files-found: error
+
+  flatpak:
+    needs: version
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6.8
+        with:
+          bundle: openheadset-control-${{ github.ref_name }}-x86_64.flatpak
+          manifest-path: packaging/flatpak/org.openheadset.Control.yml
+          cache-key: flatpak-builder-${{ github.sha }}
+          upload-artifact: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak
+          path: openheadset-control-*-x86_64.flatpak
+          if-no-files-found: error
+
+  # Publication unique, seulement si tous les paquets sont prêts : créée en
+  # brouillon avec tous les fichiers, vérifiée, puis rendue publique.
+  publication:
+    needs: [windows, linux, flatpak]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: paquets
+          merge-multiple: true
+      - name: Empreintes et vérification
+        working-directory: paquets
+        run: |
+          ls -la
+          for f in *.zip *.tar.gz *.flatpak; do
+            test -s "$f"
+            sha256sum "$f" | cut -d' ' -f1 > "$f.sha256"
+          done
+          test "$(ls *.zip *.tar.gz *.flatpak | wc -l)" -eq 3
+      - name: Publication
+        working-directory: paquets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" --draft \
+            --title "OpenHeadset Control ${GITHUB_REF_NAME}" \
+            --notes "Windows : décompresser, puis lancer installer.ps1 (clic droit > Exécuter avec PowerShell) ; interface WinUI 3 (Windows App Runtime 2 requis). Linux : décompresser, puis ./installer-linux.sh (Qt 6 et Kirigami requis pour le client KDE) ; sur Bazzite, préférer le Flatpak (flatpak install --user …flatpak). Projet non officiel. Exécutables non signés : Windows SmartScreen peut demander une confirmation." \
+            ./*
+          # Tous les fichiers sont bien attachés avant de rendre public.
+          count=$(gh release view "${GITHUB_REF_NAME}" --json assets --jq '.assets | length')
+          test "$count" -eq 6
+          gh release edit "${GITHUB_REF_NAME}" --draft=false

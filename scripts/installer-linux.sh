@@ -2,10 +2,17 @@
 # Installe OpenHeadset Control pour l'utilisateur courant, sans sudo :
 #   - binaires compilés (target/release) dans ~/.local/bin ;
 #   - logo dans le thème d'icônes (~/.local/share/icons/hicolor) ;
-#   - entrées de menu dans ~/.local/share/applications (KDE y trouve aussi
-#     l'icône des fenêtres sous Wayland).
-# Une version déjà installée est remplacée ; seule l'ancienne icône Slint
-# (momentum-tray, son entrée de menu et son démarrage automatique) est retirée.
+#   - entrée de menu dans ~/.local/share/applications (KDE y trouve aussi
+#     l'icône des fenêtres sous Wayland) ;
+#   - widget Plasma, service (unité systemd utilisateur, activation D-Bus).
+#
+# Tout est vérifié avant de toucher à la version installée (F08 de la
+# revue) : un fichier manquant arrête le script sans rien changer. Les
+# binaires remplacés sont gardés à côté (*.ancien) et remis si l'une des
+# copies échoue.
+#
+# Désinstallation : sh installer-linux.sh --desinstaller (réglages, scènes
+# et historique restent dans ~/.local/share/momentum-ctl-win).
 #
 # Depuis le dépôt : binaires de target/release. Depuis une archive publiée :
 # binaires et dossier assets posés à côté de ce script.
@@ -20,15 +27,95 @@ else
     assets=$repo/assets
 fi
 data=${XDG_DATA_HOME:-$HOME/.local/share}
+config=${XDG_CONFIG_HOME:-$HOME/.config}
 bin=$HOME/.local/bin
-mkdir -p "$bin" "$data/applications" "$data/icons/hicolor/scalable/apps"
+exes="momentum-daemon momentum-kirigami ctl"
+widget_id=org.openheadset.control.plasmoid
+# Dépôt ou archive : le dossier plasma est à côté de assets.
+widget="$assets/../plasma/$widget_id"
 
-for exe in momentum-daemon momentum-kirigami ctl; do
-    if [ -x "$bins/$exe" ]; then
-        install -m 755 "$bins/$exe" "$bin/$exe"
-        echo "installé : $bin/$exe"
+refresh_caches() {
+    command -v update-desktop-database >/dev/null && update-desktop-database "$data/applications" || true
+    command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -q "$data/icons/hicolor" 2>/dev/null || true
+    command -v kbuildsycoca6 >/dev/null && kbuildsycoca6 >/dev/null 2>&1 || true
+}
+
+if [ "${1:-}" = "--desinstaller" ]; then
+    systemctl --user stop momentum-daemon.service 2>/dev/null || true
+    for f in "$bin/momentum-daemon" "$bin/momentum-kirigami" "$bin/ctl" \
+        "$bin/momentum-daemon.ancien" "$bin/momentum-kirigami.ancien" "$bin/ctl.ancien" \
+        "$data/applications/momentum-kirigami.desktop" \
+        "$config/autostart/momentum-kirigami.desktop" \
+        "$config/systemd/user/momentum-daemon.service" \
+        "$data/dbus-1/services/org.openheadset.Control.service"; do
+        if [ -e "$f" ]; then
+            rm -f "$f"
+            echo "retiré : $f"
+        fi
+    done
+    for f in "$data"/icons/hicolor/*/apps/org.openheadset.control.*; do
+        [ -e "$f" ] && rm -f "$f"
+    done
+    if command -v kpackagetool6 >/dev/null &&
+        kpackagetool6 --type Plasma/Applet --show "$widget_id" >/dev/null 2>&1; then
+        kpackagetool6 --type Plasma/Applet --remove "$widget_id" >/dev/null
+        echo "widget Plasma retiré"
+    fi
+    systemctl --user daemon-reload 2>/dev/null || true
+    refresh_caches
+    echo "OpenHeadset Control désinstallé (réglages, scènes et historique gardés dans $data/momentum-ctl-win)."
+    exit 0
+fi
+
+# 1. Vérification : tout ce qui sera installé doit être là.
+missing=""
+for exe in $exes; do
+    [ -x "$bins/$exe" ] || missing="$missing $bins/$exe"
+done
+for f in "$assets/logo/openheadset.svg" "$assets/linux/momentum-kirigami.desktop" \
+    "$assets/linux/momentum-daemon.service" "$assets/linux/org.openheadset.Control.service"; do
+    [ -f "$f" ] || missing="$missing $f"
+done
+for size in 16 22 24 32 48 64 128 256; do
+    [ -f "$assets/logo/png/$size.png" ] || missing="$missing $assets/logo/png/$size.png"
+done
+if [ -n "$missing" ]; then
+    echo "Installation annulée, rien n'a été changé. Fichiers manquants :$missing" >&2
+    echo "(Depuis le dépôt : cargo build --release -p momentum-cli -p momentum-daemon -p momentum-kirigami.)" >&2
+    exit 1
+fi
+
+# 2. Binaires : copie à côté, puis remplacement ; en cas d'échec, les
+# anciens binaires sont remis.
+mkdir -p "$bin"
+# Seule la version précédente est gardée comme sauvegarde.
+for exe in $exes; do
+    rm -f "$bin/$exe.ancien"
+done
+restore() {
+    for exe in $exes; do
+        rm -f "$bin/.$exe.nouveau"
+        if [ -e "$bin/$exe.ancien" ]; then
+            mv -f "$bin/$exe.ancien" "$bin/$exe"
+        fi
+    done
+    echo "Échec : ancienne version remise." >&2
+}
+for exe in $exes; do
+    install -m 755 "$bins/$exe" "$bin/.$exe.nouveau" || { restore; exit 1; }
+done
+for exe in $exes; do
+    if [ -e "$bin/$exe" ]; then
+        cp -p "$bin/$exe" "$bin/$exe.ancien" || { restore; exit 1; }
     fi
 done
+for exe in $exes; do
+    mv -f "$bin/.$exe.nouveau" "$bin/$exe" || { restore; exit 1; }
+    echo "installé : $bin/$exe"
+done
+
+# 3. Logo, entrée de menu, widget.
+mkdir -p "$data/applications" "$data/icons/hicolor/scalable/apps"
 install -m 644 "$assets/logo/openheadset.svg" \
     "$data/icons/hicolor/scalable/apps/org.openheadset.control.svg"
 # Tailles fixes : certains éléments de Plasma (barre des tâches, zone de
@@ -42,7 +129,6 @@ install -m 644 "$assets/linux/momentum-kirigami.desktop" "$data/applications/mom
 echo "logo et entrée de menu installés"
 
 # Ancienne icône Slint (versions 0.7 et avant) : remplacée par le client KDE.
-config=${XDG_CONFIG_HOME:-$HOME/.config}
 for old in "$bin/momentum-tray" "$data/applications/momentum-tray.desktop" \
     "$config/autostart/momentum-ctl-win.desktop"; do
     if [ -e "$old" ]; then
@@ -53,35 +139,29 @@ done
 
 # Widget Plasma (client de l'API D-Bus du service), à ajouter au panneau
 # ou au bureau depuis « Ajouter des composants graphiques ».
-# Dépôt ou archive : le dossier plasma est à côté de assets.
-widget="$assets/../plasma/org.openheadset.control.plasmoid"
 if command -v kpackagetool6 >/dev/null && [ -d "$widget" ]; then
-    if kpackagetool6 --type Plasma/Applet --show org.openheadset.control.plasmoid >/dev/null 2>&1; then
+    if kpackagetool6 --type Plasma/Applet --show "$widget_id" >/dev/null 2>&1; then
         kpackagetool6 --type Plasma/Applet --upgrade "$widget" >/dev/null
     else
         kpackagetool6 --type Plasma/Applet --install "$widget" >/dev/null
     fi
-    echo "widget Plasma installé (org.openheadset.control.plasmoid)"
+    echo "widget Plasma installé ($widget_id)"
 fi
 
-# Service : unité systemd utilisateur et activation D-Bus (le service
+# 4. Service : unité systemd utilisateur et activation D-Bus (le service
 # démarre tout seul dès qu'une interface ou ctl l'appelle).
-if [ -x "$bin/momentum-daemon" ]; then
-    mkdir -p "$HOME/.config/systemd/user" "$data/dbus-1/services"
-    install -m 644 "$assets/linux/momentum-daemon.service" \
-        "$HOME/.config/systemd/user/momentum-daemon.service"
-    install -m 644 "$assets/linux/org.openheadset.Control.service" \
-        "$data/dbus-1/services/org.openheadset.Control.service"
-    systemctl --user daemon-reload 2>/dev/null || true
-    # Service déjà lancé : il reprend le nouveau binaire.
-    systemctl --user try-restart momentum-daemon.service 2>/dev/null || true
-    # Le bus relit ses fichiers d'activation.
-    busctl --user call org.freedesktop.DBus /org/freedesktop/DBus \
-        org.freedesktop.DBus ReloadConfig >/dev/null 2>&1 || true
-    echo "service installé (activation D-Bus : org.openheadset.Control)"
-fi
+mkdir -p "$config/systemd/user" "$data/dbus-1/services"
+install -m 644 "$assets/linux/momentum-daemon.service" \
+    "$config/systemd/user/momentum-daemon.service"
+install -m 644 "$assets/linux/org.openheadset.Control.service" \
+    "$data/dbus-1/services/org.openheadset.Control.service"
+systemctl --user daemon-reload 2>/dev/null || true
+# Service déjà lancé : il reprend le nouveau binaire.
+systemctl --user try-restart momentum-daemon.service 2>/dev/null || true
+# Le bus relit ses fichiers d'activation.
+busctl --user call org.freedesktop.DBus /org/freedesktop/DBus \
+    org.freedesktop.DBus ReloadConfig >/dev/null 2>&1 || true
+echo "service installé (activation D-Bus : org.openheadset.Control)"
 
-# Rafraîchit les caches (facultatif selon le bureau).
-command -v update-desktop-database >/dev/null && update-desktop-database "$data/applications" || true
-command -v gtk-update-icon-cache >/dev/null && gtk-update-icon-cache -q "$data/icons/hicolor" 2>/dev/null || true
-command -v kbuildsycoca6 >/dev/null && kbuildsycoca6 >/dev/null 2>&1 || true
+refresh_caches
+echo "Installation terminée (ancienne version gardée en $bin/*.ancien)."
