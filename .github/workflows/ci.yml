@@ -81,10 +81,23 @@ jobs:
       QMAKE: /usr/bin/qmake6
       CARGO_PROFILE_DEV_DEBUG: 0
     steps:
-      - run: dnf install -y --setopt=install_weak_deps=False git gcc gcc-c++ pkgconf-pkg-config dbus-devel qt6-qtbase-devel qt6-qtdeclarative-devel rust cargo clippy
+      - run: dnf install -y --setopt=install_weak_deps=False git gcc gcc-c++ pkgconf-pkg-config dbus-devel qt6-qtbase-devel qt6-qtdeclarative-devel rust cargo clippy kf6-kirigami kf6-qqc2-desktop-style dbus-daemon
       - uses: actions/checkout@v4
       - run: qmake6 -query QT_VERSION && cargo --version
       - run: cargo clippy -p momentum-kirigami --all-targets -- -D warnings
+      # Démarrage réel (F13) : mode démonstration, sans écran, sur un bus de
+      # session à part ; le QML et ses modules Kirigami doivent se charger
+      # sans erreur. Le client tourne jusqu'à la fin du délai (code 124).
+      - name: Démarrage du client KDE (QML)
+        run: |
+          cargo build -p momentum-kirigami
+          set +e
+          QT_QPA_PLATFORM=offscreen timeout 15 dbus-run-session --             target/debug/momentum-kirigami --demo --page son > demarrage.log 2>&1
+          code=$?
+          set -e
+          cat demarrage.log
+          test "$code" -eq 124
+          ! grep -E "qrc:.*(Error|error)|is not a type|is not installed|ReferenceError|TypeError|Cannot assign" demarrage.log
 
   # Version minimale de Rust annoncée (rust-version) : 1.89 pour l'ensemble,
   # 1.95 pour l'interface WinUI. RUSTUP_TOOLCHAIN passe outre

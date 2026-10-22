@@ -103,6 +103,8 @@ pub const LEVEL_PRESETS: [(u8, &str); 5] = [
 pub const ICON_SIZE: u32 = 32;
 
 /// Fréquences centrales des 8 bandes du M5 (notification `108B` capturée).
+/// Constante du profil M5 (F11) : le casque donne le nombre de bandes et la
+/// plage de gain, pas ces fréquences ; un autre casque pourrait différer.
 pub const M5_EQ_FREQUENCIES_HZ: [u16; 8] = [90, 325, 1500, 2500, 4500, 8000, 13000, 16000];
 
 /// Gain en dixièmes de dB au format français : « −3,5 dB », « +1 dB », « 0 dB ».

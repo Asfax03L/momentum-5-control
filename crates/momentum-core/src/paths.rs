@@ -201,9 +201,50 @@ pub fn write_user_file(path: &std::path::Path, text: &str) -> std::io::Result<()
     if path.exists() {
         fs::copy(path, with_ext(".bak"))?;
     }
-    let tmp = with_ext(".tmp");
-    fs::write(&tmp, text)?;
-    fs::rename(&tmp, path)
+    // Nom temporaire propre à cette écriture : deux interfaces qui
+    // enregistrent en même temps ne se marchent pas dessus (F14).
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let tmp = with_ext(&format!(".{}-{n}.tmp", std::process::id()));
+    if let Err(e) = fs::write(&tmp, text).and_then(|()| fs::rename(&tmp, path)) {
+        let _ = fs::remove_file(&tmp);
+        return Err(e);
+    }
+    Ok(())
+}
+
+/// Modifie les préréglages personnels du fichier `path` : relus juste avant
+/// la modification (une autre interface a pu en ajouter), puis réécrits.
+/// Rend la liste à jour.
+fn modify_presets(
+    path: &std::path::Path,
+    change: impl FnOnce(&mut Vec<Preset>) -> Result<(), String>,
+) -> Result<Vec<Preset>, String> {
+    let mut list = fs::read_to_string(path)
+        .map(|text| presets::parse_user_presets(&text))
+        .unwrap_or_default();
+    change(&mut list)?;
+    write_user_file(path, &presets::serialize_user_presets(&list)).map_err(|e| e.to_string())?;
+    Ok(list)
+}
+
+/// Ajoute (ou remplace) le préréglage personnel `name` ; rend la liste à
+/// jour, avec ceux enregistrés entre-temps par une autre interface.
+pub fn upsert_user_preset(name: &str, gains: &[i8]) -> Result<Vec<Preset>, String> {
+    let path = presets_file().ok_or("dossier des données introuvable")?;
+    modify_presets(&path, |list| {
+        presets::upsert(list, name, gains).map_err(str::to_string)
+    })
+}
+
+/// Supprime le préréglage personnel `name` (absent : rien à faire) ; rend
+/// la liste à jour.
+pub fn remove_user_preset(name: &str) -> Result<Vec<Preset>, String> {
+    let path = presets_file().ok_or("dossier des données introuvable")?;
+    modify_presets(&path, |list| {
+        presets::remove(list, name);
+        Ok(())
+    })
 }
 
 #[cfg(test)]
@@ -223,7 +264,34 @@ mod tests {
             fs::read_to_string(dir.join("scenes.txt.bak")).unwrap(),
             "un"
         );
-        assert!(!dir.join("scenes.txt.tmp").exists());
+        // Aucun fichier temporaire ne reste.
+        let leftovers = fs::read_dir(&dir)
+            .unwrap()
+            .filter(|e| e.as_ref().unwrap().path().extension() == Some("tmp".as_ref()))
+            .count();
+        assert_eq!(leftovers, 0);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_preset_saved_elsewhere_is_not_lost() {
+        // F14 : l'interface A a chargé la liste avant que B n'ajoute
+        // « Soirée » ; A ajoute « Train » : les deux restent.
+        let dir = std::env::temp_dir().join(format!(
+            "momentum-ctl-win-test-presets-{}",
+            std::process::id()
+        ));
+        let path = dir.join("prereglages.txt");
+        let add = |name: &str| {
+            modify_presets(&path, |list| {
+                presets::upsert(list, name, &[0; 8]).map_err(str::to_string)
+            })
+            .unwrap()
+        };
+        add("Soirée");
+        let list = add("Train");
+        let names: Vec<&str> = list.iter().map(|p| p.name.as_str()).collect();
+        assert_eq!(names, ["Soirée", "Train"]);
         let _ = fs::remove_dir_all(&dir);
     }
 }

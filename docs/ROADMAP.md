@@ -11,7 +11,8 @@ widget Plasma, écritures réservées au micrologiciel 6.21.5, et la
 consolidation qui suit la revue du 21/10/2026 (demandes numérotées et
 résultats exacts, identité du casque, cible multipoint opaque,
 installateurs récupérables, publication complète ou rien ; suivi dans
-[`CONSOLIDATION.md`](CONSOLIDATION.md)). Le détail du protocole est dans
+[`CONSOLIDATION.md`](CONSOLIDATION.md) ; fonctions de chaque interface dans
+[`PARITE.md`](PARITE.md)). Le détail du protocole est dans
 [`MOMENTUM5.md`](MOMENTUM5.md), le matériel validé dans le
 [tableau de compatibilité du README](../README.md#compatibilité-momentum-5),
 l'historique daté en fin de page.
