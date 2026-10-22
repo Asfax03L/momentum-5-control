@@ -16,3 +16,6 @@ windows.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
 dbus.workspace = true
+
+[dev-dependencies]
+momentum-core = { workspace = true, features = ["essais"] }

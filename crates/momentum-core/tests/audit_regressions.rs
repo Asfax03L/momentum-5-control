@@ -65,7 +65,7 @@ fn invalid_eq_notification_must_not_replace_valid_state() {
 #[test]
 fn whole_eq_curve_must_be_validated_before_first_write() {
     let mock = MockTransport::new().expect(&frame(0x1001, &[0, 5]), &frame(0x1101, &[]));
-    let mut h = Headset::new(mock, Duration::from_millis(50));
+    let mut h = Headset::validated_for_tests(mock, Duration::from_millis(50));
     let mut eq = EqState {
         min_gain: -60,
         max_gain: 60,
