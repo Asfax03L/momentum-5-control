@@ -66,6 +66,8 @@ depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
   par l'autre interface n'est plus perdu).
 - F13 (en partie) : la CI lance réellement le client KDE (mode
   démonstration, sans écran) et vérifie que le QML se charge sans erreur.
+- `docs/PARITE.md` : fonctions de chaque interface (WinUI, client KDE,
+  `ctl`, widget) après le retrait de Slint, avec ce qui reste à faire.
 
 ### Widget Plasma
 - `plasma/org.openheadset.control.plasmoid` : widget Plasma 6 en QML,
