@@ -3,6 +3,7 @@ name = "momentum-service"
 description = "Service applicatif : seul propriétaire de la connexion au casque, intégration système"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 publish.workspace = true

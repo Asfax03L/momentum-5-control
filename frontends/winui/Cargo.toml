@@ -3,6 +3,8 @@ name = "momentum-winui"
 description = "Client WinUI 3 (windows-reactor) du service OpenHeadset Control, pour Windows"
 version.workspace = true
 edition.workspace = true
+# windows-reactor demande Rust 1.95.
+rust-version = "1.95"
 license.workspace = true
 repository.workspace = true
 publish.workspace = true

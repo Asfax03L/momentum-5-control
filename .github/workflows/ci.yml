@@ -13,12 +13,23 @@ jobs:
       - uses: actions/checkout@v4
       - run: sh scripts/verifier-confidentialite.sh
 
+  # Dépendances : failles connues (RustSec), licences, provenance (deny.toml).
+  dependances:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: check advisories licenses sources
+
   check:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      # Version de travail (rust-toolchain.toml).
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: "1.99.0"
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --check
@@ -37,8 +48,9 @@ jobs:
       # Outils préinstallés inutiles ici (Android, .NET) : environ 10 Go.
       - run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet && df -h /
       - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config qt6-base-dev qt6-declarative-dev qmake6
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: "1.99.0"
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --all-targets -- -D warnings
@@ -73,3 +85,29 @@ jobs:
       - uses: actions/checkout@v4
       - run: qmake6 -query QT_VERSION && cargo --version
       - run: cargo clippy -p momentum-kirigami --all-targets -- -D warnings
+
+  # Version minimale de Rust annoncée (rust-version) : 1.89 pour l'ensemble,
+  # 1.95 pour l'interface WinUI. RUSTUP_TOOLCHAIN passe outre
+  # rust-toolchain.toml (version de travail).
+  msrv:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            rust: "1.89"
+            # WinUI (1.95) ne se compile pas sous Linux ; Kirigami : tâche à part.
+            args: --workspace --exclude momentum-winui --exclude momentum-kirigami
+          - os: windows-latest
+            rust: "1.95"
+            args: ""
+    runs-on: ${{ matrix.os }}
+    env:
+      RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
+    steps:
+      - uses: actions/checkout@v4
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+      - run: rustc --version && cargo check --locked ${{ matrix.args }}

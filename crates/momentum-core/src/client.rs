@@ -155,7 +155,7 @@ impl<T: Transport> GaiaClient<T> {
                 // Aucune requête en attente ne peut lui correspondre.
                 warn!(
                     command = %frame.command,
-                    payload = ?frame.payload,
+                    payload = %crate::hex::loggable(&frame.payload),
                     before = ?before.map(|r| r.command),
                     "réponse orpheline jetée (reçue sans requête en attente)"
                 );

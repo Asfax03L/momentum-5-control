@@ -1,0 +1,7 @@
+# Version de Rust avec laquelle le projet est construit et testé (CI et
+# publications) ; changée volontairement, après essai, jamais d'office.
+# Version minimale annoncée : `rust-version` dans Cargo.toml, vérifiée par
+# la tâche « msrv » de la CI.
+[toolchain]
+channel = "1.99.0"
+components = ["rustfmt", "clippy"]

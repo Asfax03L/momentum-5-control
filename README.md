@@ -57,7 +57,8 @@ connecté** au PC (Paramètres > Bluetooth et appareils).
 lancer l'installateur qu'elle contient. Les exécutables ne sont pas signés :
 SmartScreen peut demander une confirmation.
 
-**Windows** (depuis les sources : Rust stable 1.88 ou plus récent) :
+**Windows** (depuis les sources : Rust 1.95 ou plus récent, 1.89 pour la partie
+Linux ; version testée figée dans `rust-toolchain.toml`) :
 
 ```bash
 powershell -ExecutionPolicy Bypass -File scripts\installer.ps1
@@ -228,7 +229,11 @@ kpackagetool6 --type Plasma/Applet --install plasma/org.openheadset.control.plas
   l'instance déjà lancée ; fermer la fenêtre la cache seulement.
 - **Journal du service** : `momentum-daemon.log` dans le dossier des
   données (`%LOCALAPPDATA%\momentum-ctl-win` sous Windows ; archivé en
-  `.old.log` au-delà de 1 Mo).
+  `.old.log` au-delà de 1 Mo). Ni nom de casque ou d'appareil, ni adresse
+  aux niveaux ordinaires (`info`, `warn`, `debug` : contenus de plus de
+  3 octets masqués). Le niveau `trace` (`RUST_LOG=trace`, à activer
+  volontairement) écrit les trames brutes, noms et adresses compris : ce
+  journal-là ne se partage pas.
 
 ### Égaliseur
 
