@@ -50,7 +50,7 @@ fn sent_set(h: &mut Headset<MockTransport>) -> bool {
 }
 
 fn headset(mock: MockTransport) -> Headset<MockTransport> {
-    Headset::new(mock, T)
+    Headset::validated_for_tests(mock, T)
 }
 
 fn pending(h: &mut Headset<MockTransport>) -> Vec<Frame> {

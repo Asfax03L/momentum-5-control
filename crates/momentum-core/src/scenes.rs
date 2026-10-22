@@ -633,7 +633,7 @@ tactile = on
                 &h("FF 03 00 01 04 95 1A 02 00"),
                 &h("FF 03 00 01 04 95 1B 82 05"),
             );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         let report = apply_scene(&mut headset, &scenes[0], &[]);
         assert!(!report.is_complete());
         assert_eq!(report.applied, ["bruit : personnalisé"]);
@@ -654,7 +654,7 @@ tactile = on
             &h("FF 03 00 00 04 95 08 04"),
             &h("FF 03 00 02 04 95 09 04 00 03"),
         );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         let report = apply_scene(&mut headset, &scenes[0], &[]);
         assert!(report.failed.unwrap().1.contains("profil personnalisé"));
         assert!(headset.client().transport().is_exhausted());
@@ -667,7 +667,7 @@ tactile = on
             &h("FF 03 00 02 04 95 08 03 00 01"),
             &h("FF 03 00 00 04 95 09 03"),
         );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         let report = apply_scene(&mut headset, &scenes[0], &builtin_presets(8));
         assert_eq!(report.applied, ["mode audio : égaliseur"]);
         assert!(report.failed.unwrap().1.contains("introuvable"));
@@ -752,7 +752,7 @@ tactile = on
                 &from_hex("FF 03 00 00 04 95 08 04").unwrap(),
                 &from_hex("FF 03 00 02 04 95 09 04 00 03").unwrap(),
             );
-        let mut headset = Headset::new(mock, Duration::from_millis(20));
+        let mut headset = Headset::validated_for_tests(mock, Duration::from_millis(20));
         let scene = Scene {
             name: "Profil".into(),
             sound: Some(SceneSound::Profile),

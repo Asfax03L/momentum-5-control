@@ -7,6 +7,13 @@ depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
 
 ## Non publié
 
+### Consolidation (revue du 21/10/2026)
+- Suivi des constats F01 à F14 dans `docs/CONSOLIDATION.md`.
+- F02 : un casque connecté mais pas encore identifié refuse toute écriture
+  (avant, `Headset::new` les autorisait jusqu'à `identify`). Les tests
+  obtiennent un casque validé par un constructeur réservé
+  (fonctionnalité `essais`, absente des binaires livrés).
+
 ### Widget Plasma
 - `plasma/org.openheadset.control.plasmoid` : widget Plasma 6 en QML,
   client de l'API D-Bus du service : batterie, mode de réduction de bruit,

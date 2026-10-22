@@ -793,7 +793,7 @@ mod tests {
         batch: Vec<WorkerCommand>,
         cache: &mut EqState,
     ) -> Headset<MockTransport> {
-        let mut headset = Headset::new(mock, Duration::from_millis(20));
+        let mut headset = Headset::validated_for_tests(mock, Duration::from_millis(20));
         let result = run_batch(
             &mut headset,
             coalesce(batch),
@@ -878,7 +878,8 @@ mod tests {
     fn a_timeout_stops_the_batch_without_resending() {
         // Aucune réponse à la première bande : session perdue, la seconde
         // bande et la commande suivante ne partent pas.
-        let mut headset = Headset::new(MockTransport::new(), Duration::from_millis(20));
+        let mut headset =
+            Headset::validated_for_tests(MockTransport::new(), Duration::from_millis(20));
         let mut cache = eq([10, 10]);
         let result = run_batch(
             &mut headset,
@@ -902,7 +903,7 @@ mod tests {
         ];
         let mock =
             MockTransport::new().expect(&frame(0x140F, &[0, 0, 0, 0, 0, 2]), &frame(0x150F, &[]));
-        let mut headset = Headset::new(mock, Duration::from_millis(20));
+        let mut headset = Headset::validated_for_tests(mock, Duration::from_millis(20));
         let result = run_batch(
             &mut headset,
             vec![
@@ -928,7 +929,8 @@ mod tests {
     #[test]
     fn an_unknown_device_is_refused_without_traffic() {
         let refused = std::cell::Cell::new(false);
-        let mut headset = Headset::new(MockTransport::new(), Duration::from_millis(20));
+        let mut headset =
+            Headset::validated_for_tests(MockTransport::new(), Duration::from_millis(20));
         let result = run_batch(
             &mut headset,
             vec![WorkerCommand::ToggleConnection {
@@ -961,7 +963,7 @@ mod tests {
             .expect(&frame(0x0804, &[]), &frame(0x0904, &[0, 1]))
             .expect(&frame(0x0803, &[0, 3]), &frame(0x0903, &[]));
         let mock = preconditions(mock).expect(&frame(0x0804, &[]), &frame(0x0904, &[0, 3]));
-        let mut headset = Headset::new(mock, Duration::from_millis(20));
+        let mut headset = Headset::validated_for_tests(mock, Duration::from_millis(20));
         for _ in 0..2 {
             let result = run_batch(
                 &mut headset,

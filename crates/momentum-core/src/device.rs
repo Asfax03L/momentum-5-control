@@ -647,19 +647,35 @@ fn contradicts_profile_reading(frame: &Frame) -> bool {
         || (request == get::SPATIAL_AUDIO && frame.payload.first() != Some(&0))
 }
 
+/// Raison donnée tant que `identify` n'a pas qualifié le casque.
+pub const NOT_IDENTIFIED: &str = "casque non identifié";
+
 impl<T: Transport> Headset<T> {
+    /// Casque connecté, pas encore identifié : lectures permises, écritures
+    /// refusées jusqu'à ce que [`Headset::identify`] ait validé le modèle et
+    /// le micrologiciel.
     pub fn new(transport: T, timeout: Duration) -> Self {
         Self {
             client: GaiaClient::new(transport),
             timeout,
+            write_block: Some(NOT_IDENTIFIED.to_string()),
+        }
+    }
+
+    /// Casque tenu pour validé, sans échange d'identification : réservé aux
+    /// tests (fonctionnalité `essais`, jamais activée par les binaires).
+    #[cfg(any(test, feature = "essais"))]
+    pub fn validated_for_tests(transport: T, timeout: Duration) -> Self {
+        Self {
             write_block: None,
+            ..Self::new(transport, timeout)
         }
     }
 
     /// Lit le nom de modèle puis le micrologiciel, et n'autorise les
     /// écritures que sur le couple validé ([`write_block`]). À appeler juste
-    /// après la connexion : sans cet appel, aucune vérification n'est faite
-    /// (cas des tests). Un modèle illisible compte comme non validé.
+    /// après la connexion : sans cet appel, les écritures restent refusées.
+    /// Un modèle illisible compte comme non validé.
     /// Renvoie le nom lu (ou « inconnu »).
     pub fn identify(&mut self) -> String {
         let model = self
@@ -1352,7 +1368,7 @@ mod tests {
                 &h("FF 03 00 02 04 95 1A 00 03 01"),
                 &h("FF 03 00 00 04 95 1B 00"),
             );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         headset.set_mode(NoiseModeRequest::Adaptive).unwrap();
         assert!(headset.client().transport().is_exhausted());
     }
@@ -1368,7 +1384,7 @@ mod tests {
                 &h("FF 03 00 01 04 95 1A 04 01"),
                 &h("FF 03 00 00 04 95 1B 04"),
             );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         headset.set_mode(NoiseModeRequest::Custom).unwrap();
         assert!(headset.client().transport().is_exhausted());
     }
@@ -1379,7 +1395,7 @@ mod tests {
             &h("FF 03 00 01 04 95 1A 02 32"),
             &h("FF 03 00 00 04 95 1B 02"),
         );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         headset.set_level(50).unwrap();
         assert!(matches!(
             headset.set_level(101),
@@ -1398,7 +1414,7 @@ mod tests {
                 &h("FF 03 00 01 04 95 36 04 01"),
                 &h("FF 03 00 00 04 95 37 04"),
             );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         headset.set_anti_wind(false).unwrap();
         headset.set_spatial_audio(true).unwrap();
     }
@@ -1418,7 +1434,7 @@ mod tests {
                 &h("FF 03 00 00 04 95 1A 03"),
                 &h("FF 03 00 01 04 95 1B 03 32"),
             );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         let state = headset.read_noise().unwrap();
         assert_eq!(
             state,
@@ -1489,7 +1505,7 @@ mod tests {
                 &h("FF 03 00 01 04 95 16 06 00"),
                 &h("FF 03 00 00 04 95 17 06"),
             );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         headset.set_speech_clarity(true).unwrap();
         headset.set_speech_clarity(false).unwrap();
         headset.set_battery_protection(true).unwrap();
@@ -1525,7 +1541,7 @@ mod tests {
                 &h("FF 03 00 01 04 95 08 01 01"),
                 &h("FF 03 00 00 04 95 09 01"),
             );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         headset.set_smart_pause(false).unwrap();
         headset.set_auto_answer(true).unwrap();
         headset.set_comfort_call(false).unwrap();
@@ -1605,7 +1621,7 @@ mod tests {
         for (tx, rx) in script {
             mock = mock.expect(&h(tx), &h(rx));
         }
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         let state = headset.read_state().unwrap();
         assert!(headset.client().transport().is_exhausted());
         assert_eq!(state.battery, 80);
@@ -1674,7 +1690,7 @@ mod tests {
                 &h("FF 03 00 00 04 95 14 09"),
                 &h("FF 03 00 01 04 95 15 09 02"),
             );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         assert!(matches!(
             headset.set_head_tracking(false),
             Err(DeviceError::SpatialAudioOff)
@@ -1714,7 +1730,7 @@ mod tests {
                 &h("FF 03 00 06 04 95 14 10 22 22 22 22 22 22"),
                 &h("FF 03 00 00 04 95 15 10"),
             );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         let list = headset.read_connections().unwrap();
         assert_eq!(list.len(), 2);
         assert_eq!(
@@ -1751,7 +1767,7 @@ mod tests {
             &h("FF 03 00 08 04 95 28 01 4D 35 20 45 73 73 61 69"),
             &h("FF 03 00 00 04 95 29 01"),
         );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         headset.set_name("M5 Essai").unwrap();
         for bad in [
             "",
@@ -1787,7 +1803,7 @@ mod tests {
             &h("FF 03 00 01 04 95 08 1C FB"),
             &h("FF 03 00 00 04 95 09 1C"),
         );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         headset.set_prompt_volume(-5).unwrap();
         assert!(matches!(
             headset.set_prompt_volume(7),
@@ -1837,7 +1853,7 @@ mod tests {
                 &h("FF 03 00 00 04 95 14 09"),
                 &h("FF 03 00 01 04 95 15 09 02"),
             );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         let mut info = headset.read_device_info().unwrap();
         assert!(headset.client().transport().is_exhausted());
         assert_eq!(info.name.as_deref(), Some("M5 Essai"));
@@ -1874,7 +1890,7 @@ mod tests {
                 &h("FF 03 00 01 04 95 14 01 01"),
                 &h("FF 03 00 05 04 95 15 01 01 02 00 42 00"),
             );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         let devices = headset.read_paired_devices().unwrap();
         assert_eq!(
             devices,
@@ -1970,6 +1986,18 @@ mod tests {
     }
 
     #[test]
+    fn writes_are_refused_before_identification() {
+        // Sans identify : aucune trame de réglage, quelle que soit la commande.
+        let mut headset = Headset::new(MockTransport::new(), T);
+        assert!(!headset.writes_allowed());
+        assert!(matches!(
+            headset.set_spatial_audio(true),
+            Err(DeviceError::WritesBlocked(r)) if r == NOT_IDENTIFIED
+        ));
+        assert!(headset.client().transport().sent().is_empty());
+    }
+
+    #[test]
     fn write_block_names_the_reason() {
         assert_eq!(write_block("M5AEBT Black", Some(VALIDATED_FIRMWARE)), None);
         assert_eq!(
@@ -2018,7 +2046,7 @@ mod tests {
                 &h("FF 03 00 02 04 95 08 03 00 03"),
                 &h("FF 03 00 00 04 95 09 03"),
             );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         assert_eq!(
             headset.select_sound_profile().unwrap(),
             ProfileSelection::WriteAcknowledged
@@ -2043,7 +2071,7 @@ mod tests {
                 &h("FF 03 00 02 04 95 08 03 00 03"),
                 &h("FF 03 00 00 04 95 09 03"),
             );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         assert_eq!(
             headset.select_sound_profile().unwrap(),
             ProfileSelection::WriteAcknowledged
@@ -2057,7 +2085,7 @@ mod tests {
             &h("FF 03 00 00 04 95 20 01"),
             &h("FF 03 00 01 04 95 21 01 00"),
         );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         assert!(matches!(
             headset.select_sound_profile(),
             Err(DeviceError::NoSoundProfile(Some(0)))
@@ -2087,7 +2115,7 @@ mod tests {
                 &h("FF 03 00 01 04 95 1B 03 32"),
             )
             .expect_chunked(&h("FF 03 00 00 04 95 36 05"), &[]);
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         assert!(headset.read_state().is_err());
         assert!(headset.client().is_desynchronized());
     }
@@ -2101,7 +2129,7 @@ mod tests {
                 &h("FF 03 00 00 04 95 01 07"),
             );
         }
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         headset.register_notifications().unwrap();
         assert!(headset.client().transport().is_exhausted());
     }
@@ -2122,7 +2150,7 @@ mod tests {
             &h("FF 03 00 00 04 95 10 09"),
             &h("FF 03 00 01 04 95 11 09 00"),
         );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         let eq = headset.read_eq().unwrap();
         assert_eq!(
             eq,
@@ -2165,7 +2193,7 @@ mod tests {
                 &h("FF 03 00 01 04 95 10 08 01"),
                 &h("FF 03 00 00 04 95 11 08"),
             );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         let mut eq = audiophile();
         headset.set_eq_band(&mut eq, 0, 0).unwrap();
         headset.set_eq_band(&mut eq, 0, -35).unwrap();
@@ -2185,7 +2213,7 @@ mod tests {
                 &h("FF 03 00 02 04 95 10 01 07 00"),
                 &h("FF 03 00 00 04 95 11 01"),
             );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         let target = [0, -10, 10, 6, -10, -5, -5, 0];
         let mut eq = audiophile();
         headset.set_eq_gains(&mut eq, &target).unwrap();
@@ -2207,7 +2235,7 @@ mod tests {
                 &h("FF 03 00 02 04 95 10 01 07 00"),
                 &h("FF 03 00 01 04 95 11 81 01"),
             );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         let mut eq = audiophile();
         assert!(
             headset
@@ -2219,7 +2247,7 @@ mod tests {
 
     #[test]
     fn eq_bounds_are_enforced_before_sending() {
-        let mut headset = Headset::new(MockTransport::new(), T);
+        let mut headset = Headset::validated_for_tests(MockTransport::new(), T);
         let mut eq = audiophile();
         assert!(matches!(
             headset.set_eq_band(&mut eq, 8, 0),
@@ -2287,7 +2315,7 @@ mod tests {
                 &h("FF 03 00 00 04 95 20 07"),
                 &h("FF 03 00 02 04 95 21 07 05 05"),
             );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         let export = headset.read_sound_profile(0).unwrap();
         assert!(headset.client().transport().is_exhausted());
         assert_eq!(export.model.as_deref(), Some("M"));
@@ -2326,7 +2354,7 @@ mod tests {
                 &h("FF 03 00 00 04 95 20 03"),
                 &h("FF 03 00 01 04 95 21 83 01"),
             );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         assert!(matches!(
             headset.read_sound_profile(0),
             Err(DeviceError::Client(ClientError::Device { .. }))
@@ -2337,7 +2365,7 @@ mod tests {
     fn poll_returns_notifications() {
         let mut mock = MockTransport::new();
         mock.push_incoming(&h("FF 03 00 01 04 95 1A 85 00"));
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         let frames = headset.poll_notifications(T).unwrap();
         assert_eq!(frames.len(), 1);
         assert!(headset.poll_notifications(T).unwrap().is_empty());
@@ -2350,7 +2378,7 @@ mod tests {
             &h("FF 03 00 01 04 95 1A 02 32"),
             &h("FF 03 00 01 04 95 1B 82 01"),
         );
-        let mut headset = Headset::new(mock, T);
+        let mut headset = Headset::validated_for_tests(mock, T);
         assert!(matches!(
             headset.set_level(50),
             Err(DeviceError::Client(ClientError::Device { .. }))

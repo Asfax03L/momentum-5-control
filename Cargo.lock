@@ -1523,6 +1523,7 @@ version = "0.8.0"
 dependencies = [
  "bluer",
  "futures",
+ "momentum-core",
  "serde",
  "thiserror 2.0.21",
  "tokio",

@@ -40,7 +40,7 @@ fn eq_flat_then_restore_with_one_shared_cache_sends_the_restore() {
     let mock = MockTransport::new()
         .expect(&frame(0x1001, &[0, 0]), &frame(0x1101, &[]))
         .expect(&frame(0x1001, &[0, 10]), &frame(0x1101, &[]));
-    let mut headset = Headset::new(mock, Duration::from_millis(20));
+    let mut headset = Headset::validated_for_tests(mock, Duration::from_millis(20));
     let mut cached = initial();
     let original = cached.gains.clone();
     headset.set_eq_gains(&mut cached, &[0; 8]).unwrap();
@@ -57,7 +57,7 @@ fn fresh_eq_cache_positive_control_restores_the_curve() {
     let mock = MockTransport::new()
         .expect(&frame(0x1001, &[0, 0]), &frame(0x1101, &[]))
         .expect(&frame(0x1001, &[0, 10]), &frame(0x1101, &[]));
-    let mut headset = Headset::new(mock, Duration::from_millis(20));
+    let mut headset = Headset::validated_for_tests(mock, Duration::from_millis(20));
     let mut first = initial();
     headset.set_eq_gains(&mut first, &[0; 8]).unwrap();
     let mut current = EqState {
