@@ -33,6 +33,14 @@ pub enum Request {
         after: Option<u64>,
     },
     Command(Command),
+    /// Commande suivie : réponse `Submitted { id }`, puis un événement
+    /// `Done { id, .. }`. `session` : numéro de connexion vu par
+    /// l'interface (0 : la connexion courante).
+    Submit {
+        command: Command,
+        #[serde(default)]
+        session: u64,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -48,6 +56,10 @@ pub enum Reply {
         reset: bool,
     },
     Ok,
+    /// Commande acceptée par le service, sous ce numéro.
+    Submitted {
+        id: u64,
+    },
     Error(String),
 }
 

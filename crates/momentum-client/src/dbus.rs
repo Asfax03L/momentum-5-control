@@ -1,7 +1,9 @@
 //! Client D-Bus (bus de session) du service `momentum-daemon`.
 //!
 //! Interface `org.openheadset.Control1` sur `/org/openheadset/Control` :
-//! - `Command(s json)` : envoie une [`Command`] ;
+//! - `Command(s json)` : envoie une [`Command`] (sans suivi) ;
+//! - `Submit(s json, t session) -> t id` : commande suivie, résultat dans
+//!   l'événement `Done { id }` ;
 //! - `Snapshot() -> s json` : état courant ([`Snapshot`]) ;
 //! - signal `Event(s json)` : chaque [`Event`] du worker ;
 //! - propriétés `Connected`, `Battery`, `Name` (pour un widget ou un script).
@@ -19,6 +21,7 @@ use crate::{BUS_NAME, ClientError, Command, Event as ApiEvent, OBJECT_PATH, Snap
 )]
 trait Control {
     fn command(&self, json: &str) -> zbus::Result<()>;
+    fn submit(&self, json: &str, session: u64) -> zbus::Result<u64>;
     fn snapshot(&self) -> zbus::Result<String>;
     #[zbus(signal)]
     fn event(&self, json: String) -> zbus::Result<()>;
@@ -41,6 +44,14 @@ fn service_error(e: zbus::Error) -> ClientError {
         zbus::Error::FDO(fdo) if matches!(**fdo, zbus::fdo::Error::ServiceUnknown(_)) => {
             ClientError::NoService
         }
+        // Refus du service : sa raison seule, sans le nom de l'erreur D-Bus.
+        zbus::Error::MethodError(_, Some(reason), _) => ClientError::Service(reason.clone()),
+        zbus::Error::FDO(fdo) => match &**fdo {
+            zbus::fdo::Error::Failed(reason) | zbus::fdo::Error::InvalidArgs(reason) => {
+                ClientError::Service(reason.clone())
+            }
+            _ => ClientError::Service(e.to_string()),
+        },
         _ => ClientError::Service(e.to_string()),
     }
 }
@@ -76,6 +87,13 @@ impl Client {
     pub fn send(&self, command: &Command) -> Result<(), ClientError> {
         let json = serde_json::to_string(command)?;
         self.proxy.command(&json).map_err(service_error)
+    }
+
+    /// Envoie une commande suivie ; son résultat arrive en
+    /// `ApiEvent::Done` avec le numéro rendu. `Err` : refusée tout de suite.
+    pub fn submit(&self, command: &Command, session: u64) -> Result<u64, ClientError> {
+        let json = serde_json::to_string(command)?;
+        self.proxy.submit(&json, session).map_err(service_error)
     }
 
     /// Événements du service ([`ApiEvent`]), dans l'ordre (bloquant). Un message illisible

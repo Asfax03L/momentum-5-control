@@ -100,6 +100,7 @@ impl Demo {
         Snapshot {
             device_name: Some(NAME.to_string()),
             read_only: None,
+            session: 1,
             state: Some(self.state),
             equalizer: Some(self.eq.clone()),
             info: Some(self.info.clone()),

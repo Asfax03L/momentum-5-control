@@ -3,15 +3,16 @@
 //! (historique de la batterie, notifications).
 
 use std::sync::Mutex;
-use std::sync::mpsc::{self, Receiver};
+use std::sync::mpsc::{self, Receiver, Sender};
 
 use anyhow::Context;
 use momentum_client::{Command, ConnectionInfo, Event, Snapshot};
 use momentum_core::alerts::{Alert, AlertTracker};
 use momentum_core::battery_log::BatteryLog;
 use momentum_core::device::Connection;
+use momentum_core::request::Outcome;
 use momentum_core::{paths, scenes};
-use momentum_service::worker::{self, WorkerCommand, WorkerEvent};
+use momentum_service::worker::{self, Job, WorkerCommand, WorkerEvent};
 
 /// État partagé entre le transport et la boucle des événements.
 #[derive(Default)]
@@ -21,6 +22,48 @@ pub struct Shared {
     pub devices: Vec<Connection>,
     /// Historique de la batterie, écrit dans `batterie.csv` à chaque mesure.
     pub battery_log: BatteryLog,
+    /// Dernier numéro de demande attribué.
+    pub last_id: u64,
+    /// Entrée des événements du worker : le service y publie le résultat
+    /// des demandes qu'il traite lui-même.
+    pub events: Option<Sender<WorkerEvent>>,
+}
+
+/// Reçoit une demande d'une interface : numéro attribué, puis la demande
+/// part au worker (ou est faite ici). Son résultat arrive en `Event::Done`
+/// avec ce numéro. `Err` : refusée tout de suite, sans numéro ni envoi.
+/// `session` : connexion vue par l'interface (0 : la connexion courante).
+pub fn submit(
+    command: Command,
+    session: u64,
+    shared: &mut Shared,
+    commands: &Sender<Job>,
+) -> Result<u64, String> {
+    if session != 0 && session != shared.snapshot.session {
+        return Err("demande faite pour une connexion précédente : état à relire".to_string());
+    }
+    let worker_command = handle(command, shared)?;
+    shared.last_id += 1;
+    let id = shared.last_id;
+    match worker_command {
+        Some(command) => commands
+            .send(Job {
+                id,
+                session,
+                command,
+            })
+            .map_err(|_| "le worker s'est arrêté".to_string())?,
+        None => {
+            if let Some(events) = &shared.events {
+                let _ = events.send(WorkerEvent::Done {
+                    id,
+                    outcome: Outcome::Applied,
+                    details: None,
+                });
+            }
+        }
+    }
+    Ok(id)
 }
 
 /// Traite une commande de l'API : `Some` pour le worker (casque), `None`
@@ -99,7 +142,15 @@ fn to_worker(command: Command, shared: &Shared) -> Result<WorkerCommand, String>
 fn to_api(event: WorkerEvent, shared: &mut Shared) -> Event {
     match event {
         WorkerEvent::Searching => Event::Searching,
-        WorkerEvent::Connected { name, read_only } => Event::Connected { name, read_only },
+        WorkerEvent::Connected {
+            name,
+            read_only,
+            session,
+        } => Event::Connected {
+            name,
+            read_only,
+            session,
+        },
         WorkerEvent::State(s) => Event::State(s),
         WorkerEvent::Equalizer(eq) => Event::Equalizer(eq),
         WorkerEvent::Connections(devices) => {
@@ -120,6 +171,15 @@ fn to_api(event: WorkerEvent, shared: &mut Shared) -> Event {
         WorkerEvent::Lost(reason) => Event::Lost(reason),
         WorkerEvent::Refused(reason) => Event::Refused(reason),
         WorkerEvent::SceneApplied(report) => Event::SceneApplied(report),
+        WorkerEvent::Done {
+            id,
+            outcome,
+            details,
+        } => Event::Done {
+            id,
+            outcome,
+            details,
+        },
     }
 }
 
@@ -156,9 +216,16 @@ fn toast(alert: Option<Alert>) {
 }
 
 /// Lance le worker (seul propriétaire de la connexion) ; ses événements
-/// arrivent sur le récepteur rendu.
-pub fn spawn_worker(commands: Receiver<WorkerCommand>) -> anyhow::Result<Receiver<WorkerEvent>> {
+/// arrivent sur le récepteur rendu, avec les résultats publiés par le
+/// service lui-même (`Shared::events`).
+pub fn spawn_worker(
+    commands: Receiver<Job>,
+    shared: &Mutex<Shared>,
+) -> anyhow::Result<Receiver<WorkerEvent>> {
     let (events_tx, events_rx) = mpsc::channel::<WorkerEvent>();
+    if let Ok(mut s) = shared.lock() {
+        s.events = Some(events_tx.clone());
+    }
     std::thread::Builder::new()
         .name("casque".into())
         .spawn(move || {
@@ -185,7 +252,8 @@ pub fn pump(
     for event in events {
         match &event {
             WorkerEvent::Connected { name, .. } => {
-                tracing::info!(%name, "casque connecté");
+                // Le nom du casque peut être personnel : pas dans le journal.
+                tracing::info!("casque connecté");
                 toast(alerts.on_connected(name));
             }
             WorkerEvent::State(s) => {
@@ -290,6 +358,38 @@ mod tests {
         assert!(matches!(
             to_worker(Command::SetLevel(250), &connected()),
             Ok(WorkerCommand::SetLevel(100))
+        ));
+    }
+
+    #[test]
+    fn requests_get_a_number_and_stale_sessions_are_refused() {
+        let (commands, received) = mpsc::channel();
+        let mut shared = connected();
+        shared.snapshot.session = 2;
+        let first = submit(Command::SetAntiWind(true), 2, &mut shared, &commands).unwrap();
+        let second = submit(Command::SetAntiWind(false), 0, &mut shared, &commands).unwrap();
+        assert!(second > first);
+        let job = received.try_recv().unwrap();
+        assert_eq!((job.id, job.session), (first, 2));
+        // Demande faite pour la connexion 1 : refusée sans numéro ni envoi.
+        assert!(submit(Command::SetAntiWind(true), 1, &mut shared, &commands).is_err());
+        assert!(received.try_recv().is_ok());
+        assert!(received.try_recv().is_err());
+    }
+
+    #[test]
+    fn a_request_done_by_the_service_publishes_its_result() {
+        let (commands, received) = mpsc::channel();
+        let (events, published) = mpsc::channel();
+        let mut shared = Shared {
+            events: Some(events),
+            ..Shared::default()
+        };
+        let id = submit(Command::ClearBatteryHistory, 0, &mut shared, &commands).unwrap();
+        assert!(received.try_recv().is_err());
+        assert!(matches!(
+            published.try_recv(),
+            Ok(WorkerEvent::Done { id: done, outcome: Outcome::Applied, .. }) if done == id
         ));
     }
 }

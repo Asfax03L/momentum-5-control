@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use anyhow::Context;
 use momentum_client::wire::{self, EventLog, Reply, Request};
 use momentum_core::pipe::PipeServer;
-use momentum_service::worker::WorkerCommand;
+use momentum_service::worker::Job;
 
 use crate::service::{self, Shared};
 
@@ -18,7 +18,7 @@ fn handle(
     line: &str,
     shared: &Mutex<Shared>,
     log: &Mutex<EventLog>,
-    commands: &Sender<WorkerCommand>,
+    commands: &Sender<Job>,
 ) -> Reply {
     let request: Request = match serde_json::from_str(line) {
         Ok(r) => r,
@@ -44,20 +44,20 @@ fn handle(
             Ok(l) => l.since(after),
             Err(_) => unavailable(),
         },
-        Request::Command(command) => {
-            let worker_command = match shared.lock() {
-                Ok(mut s) => service::handle(command, &mut s),
-                Err(_) => return unavailable(),
-            };
-            match worker_command {
-                Ok(Some(c)) => match commands.send(c) {
-                    Ok(()) => Reply::Ok,
-                    Err(_) => Reply::Error("le worker s'est arrêté".to_string()),
-                },
-                Ok(None) => Reply::Ok,
+        Request::Command(command) => match shared.lock() {
+            Ok(mut s) => match service::submit(command, 0, &mut s, commands) {
+                Ok(_) => Reply::Ok,
                 Err(reason) => Reply::Error(reason),
-            }
-        }
+            },
+            Err(_) => unavailable(),
+        },
+        Request::Submit { command, session } => match shared.lock() {
+            Ok(mut s) => match service::submit(command, session, &mut s, commands) {
+                Ok(id) => Reply::Submitted { id },
+                Err(reason) => Reply::Error(reason),
+            },
+            Err(_) => unavailable(),
+        },
     }
 }
 
@@ -67,7 +67,7 @@ fn answer(
     line: Result<&str, &str>,
     shared: &Mutex<Shared>,
     log: &Mutex<EventLog>,
-    commands: &Sender<WorkerCommand>,
+    commands: &Sender<Job>,
 ) -> String {
     let reply = match line {
         Ok(line) => handle(line, shared, log, commands),
@@ -85,7 +85,7 @@ pub fn run() -> anyhow::Result<()> {
 
     let shared = Arc::new(Mutex::new(Shared::default()));
     let log = Arc::new(Mutex::new(EventLog::default()));
-    let (commands, commands_rx) = mpsc::channel::<WorkerCommand>();
+    let (commands, commands_rx) = mpsc::channel::<Job>();
     {
         let shared = Arc::clone(&shared);
         let log = Arc::clone(&log);
@@ -103,7 +103,7 @@ pub fn run() -> anyhow::Result<()> {
     }
     tracing::info!("service OpenHeadset Control prêt (canal nommé)");
 
-    let events = service::spawn_worker(commands_rx)?;
+    let events = service::spawn_worker(commands_rx, &shared)?;
     service::pump(events, &shared, |api_event| {
         if let Ok(mut l) = log.lock() {
             l.push(api_event.clone());

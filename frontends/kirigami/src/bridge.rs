@@ -311,7 +311,8 @@ use cxx_qt_lib::{QString, QStringList};
 use ksni::blocking::TrayMethods;
 use momentum_client::dbus::Client;
 use momentum_client::demo::{self, Demo};
-use momentum_client::{Command, Event, Snapshot};
+use momentum_client::tracker::Tracker;
+use momentum_client::{Command, Event, Outcome, Snapshot};
 use momentum_core::audio_check::LINUX_OUTPUTS_UNREAD;
 use momentum_core::battery_log::BatteryLog;
 use momentum_core::device::{
@@ -330,8 +331,6 @@ use momentum_core::viewmodel;
 use crate::autostart;
 use crate::tray::{HeadsetTray, TrayView};
 
-/// Au-delà, l'attente d'une confirmation s'efface même sans réponse.
-const BUSY_TIMEOUT: Duration = Duration::from_secs(8);
 /// Pause avant de recontacter un service injoignable.
 const RETRY: Duration = Duration::from_secs(3);
 /// Incidents gardés pour le diagnostic.
@@ -499,7 +498,7 @@ pub struct HeadsetRust {
     autostart: bool,
     sandboxed: bool,
 
-    commands: Option<Sender<Command>>,
+    commands: Option<Sender<(Command, u64)>>,
     tray: Option<ksni::blocking::Handle<HeadsetTray>>,
     /// État du casque vu par le service, suivi événement par événement.
     snapshot: Snapshot,
@@ -514,7 +513,8 @@ pub struct HeadsetRust {
     user_presets: Vec<Preset>,
     ab: AbCompare,
     /// Numéro de la dernière commande envoyée (efface l'attente périmée).
-    sent: u64,
+    /// Demandes envoyées, suivies jusqu'à leur résultat (`Event::Done`).
+    requests: Tracker,
 }
 
 fn string_list<'a>(items: impl IntoIterator<Item = &'a str>) -> QStringList {
@@ -648,7 +648,7 @@ impl Default for HeadsetRust {
             incidents: Vec::new(),
             user_presets: paths::load_user_presets(),
             ab: AbCompare::default(),
-            sent: 0,
+            requests: Tracker::default(),
         }
     }
 }
@@ -657,7 +657,7 @@ impl cxx_qt::Initialize for qobject::Headset {
     /// Ouvre deux threads vers le service : l'un suit ses événements,
     /// l'autre lui transmet les commandes. Tout revient sur le thread Qt.
     fn initialize(mut self: Pin<&mut Self>) {
-        let (tx, rx) = mpsc::channel::<Command>();
+        let (tx, rx) = mpsc::channel::<(Command, u64)>();
         self.as_mut().rust_mut().commands = Some(tx.clone());
         crate::instance::attach(self.qt_thread());
         self.as_mut().reload_scenes();
@@ -699,10 +699,17 @@ impl cxx_qt::Initialize for qobject::Headset {
             let spawned = std::thread::Builder::new()
                 .name("demo".into())
                 .spawn(move || {
-                    for command in rx {
+                    for (last_id, (command, _)) in (1u64..).zip(rx) {
+                        let _ = qt_thread.queue(move |headset| headset.on_submitted(last_id));
                         // Délai d'un vrai casque : l'interface montre son envoi.
                         std::thread::sleep(Duration::from_millis(450));
-                        for event in simulated.apply(command) {
+                        let mut events = simulated.apply(command);
+                        events.push(Event::Done {
+                            id: last_id,
+                            outcome: Outcome::Applied,
+                            details: None,
+                        });
+                        for event in events {
                             let _ = qt_thread.queue(move |headset| headset.on_event(event));
                         }
                     }
@@ -738,19 +745,27 @@ impl cxx_qt::Initialize for qobject::Headset {
             .name("service-commandes".into())
             .spawn(move || {
                 let mut client: Option<Client> = None;
-                for command in rx {
+                for (command, session) in rx {
                     if client.is_none() {
                         client = Client::connect().ok();
                     }
                     let result = match &client {
-                        Some(c) => c.send(&command),
+                        Some(c) => c.submit(&command, session),
                         None => Err(momentum_client::ClientError::NoService),
                     };
-                    if let Err(e) = result {
-                        client = None;
-                        let reason = e.to_string();
-                        let _ = qt_thread.queue(move |headset| headset.on_service_error(reason));
-                    }
+                    let _ = match result {
+                        Ok(id) => qt_thread.queue(move |headset| headset.on_submitted(id)),
+                        // Service joint, demande refusée : ce n'est pas une
+                        // panne du service (F03 de la revue).
+                        Err(momentum_client::ClientError::Service(reason)) => {
+                            qt_thread.queue(move |headset| headset.on_rejected(reason))
+                        }
+                        Err(e) => {
+                            client = None;
+                            let reason = e.to_string();
+                            qt_thread.queue(move |headset| headset.on_service_error(reason))
+                        }
+                    };
                 }
             });
         if let Err(e) = sender {
@@ -832,28 +847,42 @@ impl HeadsetRust {
 }
 
 impl qobject::Headset {
-    /// Envoie une commande et affiche l'attente de confirmation.
+    /// Envoie une demande et affiche l'attente de son résultat.
     fn send(mut self: Pin<&mut Self>, command: Command) {
         let Some(tx) = self.rust().commands.clone() else {
             return;
         };
-        if tx.send(command).is_err() {
+        let session = self.rust().snapshot.session;
+        if tx.send((command, session)).is_err() {
             return;
         }
-        let ticket = self.rust().sent + 1;
-        self.as_mut().rust_mut().sent = ticket;
+        self.as_mut().rust_mut().requests.sent();
         self.as_mut().rust_mut().snapshot.problem = None;
         self.as_mut().set_busy(true);
-        // Délai de sécurité : efface l'attente si rien ne revient.
-        let qt_thread = self.qt_thread();
-        std::thread::spawn(move || {
-            std::thread::sleep(BUSY_TIMEOUT);
-            let _ = qt_thread.queue(move |mut headset| {
-                if headset.rust().sent == ticket {
-                    headset.as_mut().set_busy(false);
-                }
-            });
-        });
+        self.refresh();
+    }
+
+    /// Numéro de la demande rendu par le service.
+    fn on_submitted(mut self: Pin<&mut Self>, id: u64) {
+        let failure = self.as_mut().rust_mut().requests.submitted(id);
+        self.as_mut().finish_request(failure);
+    }
+
+    /// Demande refusée tout de suite par le service.
+    fn on_rejected(mut self: Pin<&mut Self>, reason: String) {
+        let failure = self.as_mut().rust_mut().requests.rejected(&reason);
+        self.as_mut().finish_request(Some(failure));
+    }
+
+    /// Montre l'échec d'une demande et met à jour l'attente.
+    fn finish_request(mut self: Pin<&mut Self>, failure: Option<String>) {
+        if let Some(message) = failure {
+            tracing::warn!(%message, "demande sans succès");
+            self.as_mut().rust_mut().note_incident(message.clone());
+            self.as_mut().rust_mut().snapshot.problem = Some(message);
+        }
+        let busy = self.rust().requests.busy();
+        self.as_mut().set_busy(busy);
         self.refresh();
     }
 
@@ -861,13 +890,15 @@ impl qobject::Headset {
     fn on_snapshot(mut self: Pin<&mut Self>, snapshot: Snapshot) {
         self.as_mut().rust_mut().snapshot = snapshot;
         self.as_mut().rust_mut().service_error = None;
-        self.as_mut().set_busy(false);
+        let busy = self.rust().requests.busy();
+        self.as_mut().set_busy(busy);
         self.refresh();
     }
 
     fn on_event(mut self: Pin<&mut Self>, event: Event) {
-        if !matches!(event, Event::Searching | Event::Connected { .. }) {
-            self.as_mut().set_busy(false);
+        if let Event::Done { id, outcome, .. } = &event {
+            let failure = self.as_mut().rust_mut().requests.done(*id, outcome);
+            self.as_mut().finish_request(failure);
         }
         self.as_mut().rust_mut().note_reading_times(&event);
         match &event {
@@ -1014,6 +1045,7 @@ impl qobject::Headset {
             .note_incident(format!("service injoignable : {reason}"));
         self.as_mut().rust_mut().snapshot = Snapshot::default();
         self.as_mut().rust_mut().service_error = Some(reason);
+        self.as_mut().rust_mut().requests.reset();
         self.as_mut().set_busy(false);
         self.refresh();
     }
@@ -1567,9 +1599,13 @@ impl qobject::Headset {
         let Some(tx) = self.rust().commands.clone() else {
             return QString::from("Effacement impossible : service injoignable.");
         };
-        if tx.send(Command::ClearBatteryHistory).is_err() {
+        // Sans casque aussi : connexion 0 (indifférente). Un refus du service
+        // s'affiche comme pour toute demande.
+        if tx.send((Command::ClearBatteryHistory, 0)).is_err() {
             return QString::from("Effacement impossible : service injoignable.");
         }
+        self.as_mut().rust_mut().requests.sent();
+        self.as_mut().set_busy(true);
         // Le service réécrit le fichier : relecture un peu plus tard.
         let qt_thread = self.qt_thread();
         std::thread::spawn(move || {
@@ -1581,7 +1617,7 @@ impl qobject::Headset {
         });
         let span = *self.battery_span();
         self.as_mut().reload_battery(span);
-        QString::from("Historique de la batterie effacé.")
+        QString::from("Effacement de l'historique demandé au service.")
     }
 
     fn choose_theme(mut self: Pin<&mut Self>, choice: i32) {

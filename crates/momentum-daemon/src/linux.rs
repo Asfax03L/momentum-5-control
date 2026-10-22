@@ -6,35 +6,36 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
 use momentum_client::{BUS_NAME, Command, OBJECT_PATH};
-use momentum_service::worker::WorkerCommand;
+use momentum_service::worker::Job;
 use zbus::object_server::SignalEmitter;
 
 use crate::service::{self, Shared};
 
 struct Control {
-    commands: Sender<WorkerCommand>,
+    commands: Sender<Job>,
     shared: Arc<Mutex<Shared>>,
 }
 
 #[zbus::interface(name = "org.openheadset.Control1")]
 impl Control {
-    /// Commande JSON de l'API (`momentum_client::Command`).
+    /// Commande JSON de l'API (`momentum_client::Command`), sans suivi.
     fn command(&self, json: String) -> zbus::fdo::Result<()> {
+        self.submit(json, 0).map(|_| ())
+    }
+
+    /// Commande suivie : rend son numéro ; le résultat arrive dans
+    /// l'événement `Done`. `session` : connexion vue par l'interface (0 :
+    /// la connexion courante). Refusée tout de suite si le casque est absent,
+    /// en lecture seule ou si la connexion a changé.
+    fn submit(&self, json: String, session: u64) -> zbus::fdo::Result<u64> {
         let command: Command = serde_json::from_str(&json)
             .map_err(|e| zbus::fdo::Error::InvalidArgs(format!("commande illisible : {e}")))?;
-        let worker_command = {
-            let mut shared = self.shared.lock().map_err(|_| {
-                zbus::fdo::Error::Failed("état du service inaccessible".to_string())
-            })?;
-            service::handle(command, &mut shared).map_err(zbus::fdo::Error::Failed)?
-        };
-        match worker_command {
-            Some(c) => self
-                .commands
-                .send(c)
-                .map_err(|_| zbus::fdo::Error::Failed("le worker s'est arrêté".to_string())),
-            None => Ok(()),
-        }
+        let mut shared = self
+            .shared
+            .lock()
+            .map_err(|_| zbus::fdo::Error::Failed("état du service inaccessible".to_string()))?;
+        service::submit(command, session, &mut shared, &self.commands)
+            .map_err(zbus::fdo::Error::Failed)
     }
 
     /// État courant en JSON (`momentum_client::Snapshot`).
@@ -85,7 +86,7 @@ impl Control {
 
 pub fn run() -> anyhow::Result<()> {
     let shared = Arc::new(Mutex::new(Shared::default()));
-    let (commands, commands_rx) = mpsc::channel::<WorkerCommand>();
+    let (commands, commands_rx) = mpsc::channel::<Job>();
     let connection = zbus::blocking::connection::Builder::session()
         .context("bus de session D-Bus")?
         .name(BUS_NAME)
@@ -106,7 +107,7 @@ pub fn run() -> anyhow::Result<()> {
         .context("interface D-Bus")?;
     tracing::info!(nom = BUS_NAME, "service OpenHeadset Control prêt");
 
-    let events = service::spawn_worker(commands_rx)?;
+    let events = service::spawn_worker(commands_rx, &shared)?;
     service::pump(events, &shared, |api_event| {
         let emitter = iface.signal_emitter();
         match serde_json::to_string(api_event) {

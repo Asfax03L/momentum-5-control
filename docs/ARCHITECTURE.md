@@ -79,10 +79,24 @@ frontends/kirigami        interface KDE (Qt 6 / Kirigami)
 |---|---|
 | Nom, objet | `org.openheadset.Control`, `/org/openheadset/Control` |
 | Interface | `org.openheadset.Control1` |
-| `Command(s)` | une `momentum_client::Command` en JSON (liste fermée des réglages validés ; refusée si le casque est absent ou en lecture seule) |
+| `Submit(s, t) → t` | une `momentum_client::Command` en JSON et le numéro de connexion vu par l'interface (`Snapshot.session`, 0 : la connexion courante) ; rend le **numéro de la demande**. Refusée tout de suite (erreur D-Bus, rien n'est envoyé) si le casque est absent, en lecture seule, ou si la connexion a changé |
+| `Command(s)` | même chose sans numéro (ancienne méthode, gardée pour les scripts) |
 | `Snapshot() → s` | `momentum_client::Snapshot` en JSON (nom, état, égaliseur, informations, appareils, dernier incident) |
-| signal `Event(s)` | chaque `momentum_client::Event` en JSON |
+| signal `Event(s)` | chaque `momentum_client::Event` en JSON ; une demande se termine par **un seul** `Done { id, outcome, details }` |
 | propriétés | `Connected` (b), `Battery` (i, -1 inconnue), `Name` (s), avec `PropertiesChanged` |
+
+**Résultat d'une demande** (`momentum_core::request::Outcome`, revue F01,
+F03, F06, F07) : `Applied` (acquittée puis relue avec la valeur
+demandée), `AlreadySatisfied`, `Acknowledged` (acquittée, effet suivi par
+les notifications : connexion d'un appareil), `Refused`, `NotApplied`
+(relue autrement), `Cancelled` (jamais envoyée : remplacée par une demande
+plus récente, connexion changée ou perdue, casque absent) et `Unknown`
+(connexion perdue après l'envoi : jamais renvoyée automatiquement). Chaque
+connexion au casque a un numéro (`Connected { session }`) : une demande
+faite pour une connexion précédente n'est pas envoyée, et le `Snapshot`
+oublie l'égaliseur, les informations et les appareils de l'ancienne
+connexion. Les interfaces suivent leurs demandes avec
+`momentum_client::tracker::Tracker`.
 
 Les adresses Bluetooth des appareils appairés ne sortent jamais du
 service : une interface désigne un appareil par sa position et son nom.
@@ -100,7 +114,8 @@ Une requête JSON par connexion (`momentum_client::wire`) :
 |---|---|
 | `Snapshot` | état courant et numéro du dernier événement |
 | `Events { after }` | événements numérotés après `after` (`None` : numéro courant) ; `reset` si l'interface a trop de retard (512 gardés) |
-| `Command(…)` | `Ok`, ou `Error` avec la raison (mêmes refus que sous Linux) |
+| `Submit { command, session }` | `Submitted { id }`, ou `Error` avec la raison (mêmes refus que sous Linux) ; résultat dans l'événement `Done { id, … }` |
+| `Command(…)` | `Ok`, ou `Error` (sans numéro, gardée pour compatibilité) |
 
 Les interfaces relèvent les événements toutes les 150 ms ; le client
 (`momentum_client::Client`) offre la même interface que celui de Linux.

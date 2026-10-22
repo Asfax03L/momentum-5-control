@@ -375,44 +375,55 @@ mod app {
                 }
             }
         });
-        client.send(&api)?;
+        // Demande suivie : seul l'événement `Done` portant son numéro dit ce
+        // qu'il en est (F01 : un autre événement n'est pas une confirmation).
+        let is_eq = matches!(
+            api,
+            Api::SetEqBand(..) | Api::SetEqFlat | Api::SetEqGains(_) | Api::SetBassBoost(_)
+        );
+        let id = client.submit(&api, snapshot.session).map_err(|e| match e {
+            ClientError::Service(reason) => anyhow::anyhow!("refusé par le service : {reason}"),
+            other => anyhow::anyhow!(other),
+        })?;
         let deadline =
             std::time::Instant::now() + if is_scene { DAEMON_SCENE } else { DAEMON_REPLY };
-        loop {
+        let (outcome, details) = loop {
             let left = deadline.saturating_duration_since(std::time::Instant::now());
-            let event = rx
-                .recv_timeout(left)
-                .map_err(|_| anyhow::anyhow!("pas de réponse du casque dans le délai"))?;
-            match event {
-                Event::Refused(reason) => bail!("refusé : {reason}"),
-                Event::Lost(reason) => bail!("connexion perdue : {reason}"),
-                Event::SceneApplied(report) if is_scene => {
-                    println!("{}", report.details());
-                    if !report.is_complete() {
-                        bail!("scène appliquée en partie (voir ci-dessus)");
-                    }
-                    return Ok(true);
-                }
-                Event::Exported(Ok(path)) => {
-                    println!("Profil exporté dans {}", path.display());
-                    return Ok(true);
-                }
-                Event::Exported(Err(reason)) => bail!("export impossible : {reason}"),
-                Event::State(s) if !is_scene => {
-                    print_state(&s);
-                    return Ok(true);
-                }
-                Event::Equalizer(eq) if !is_scene => {
-                    print_eq(&eq);
-                    return Ok(true);
-                }
-                Event::Info(_) | Event::Connections(_) if !is_scene => {
-                    println!("Demande appliquée par le casque.");
-                    return Ok(true);
-                }
+            let event = rx.recv_timeout(left).map_err(|_| {
+                anyhow::anyhow!(
+                    "pas de résultat dans le délai : résultat inconnu (relire avec `ctl etat`)"
+                )
+            })?;
+            if let Event::Done {
+                id: done,
+                outcome,
+                details,
+            } = event
+                && done == id
+            {
+                break (outcome, details);
+            }
+        };
+        if let Some(details) = &details {
+            if is_scene {
+                println!("{details}");
+            } else {
+                println!("Fichier : {details}");
+            }
+        }
+        if !outcome.is_success() {
+            bail!("{}", outcome.describe());
+        }
+        if !is_scene && !matches!(api, Api::ExportProfile(_)) {
+            let now = client.snapshot()?;
+            match (is_eq, now.equalizer, now.state) {
+                (true, Some(eq), _) => print_eq(&eq),
+                (false, _, Some(state)) => print_state(&state),
                 _ => {}
             }
         }
+        println!("Demande {} ({}).", id, outcome.describe());
+        Ok(true)
     }
 
     /// Trouve le casque et ouvre le canal GAIA (WinRT).

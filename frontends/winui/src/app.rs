@@ -5,7 +5,8 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use momentum_client::demo::{self, Demo};
-use momentum_client::{Client, ClientError, Command, Event, Snapshot};
+use momentum_client::tracker::Tracker;
+use momentum_client::{Client, ClientError, Command, Event, Outcome, Snapshot};
 use momentum_core::audio_check::WindowsAudio;
 use momentum_core::battery_log::{self, BatteryLog};
 use momentum_core::device::{
@@ -166,6 +167,40 @@ pub(crate) enum Incoming {
     Snapshot(Snapshot),
     Event(Event),
     Error(String),
+    /// Demande acceptée par le service sous ce numéro (résultat à venir dans
+    /// `Event::Done`).
+    Submitted(u64),
+    /// Demande refusée tout de suite par le service (raison).
+    Rejected(String),
+}
+
+/// Demandes d'une fenêtre, suivies jusqu'au résultat qui porte leur numéro.
+#[derive(Default)]
+pub(crate) struct Requests(Tracker);
+
+impl Requests {
+    pub(crate) fn sent(&mut self) {
+        self.0.sent();
+    }
+
+    pub(crate) fn busy(&self) -> bool {
+        self.0.busy()
+    }
+
+    /// Suit un message du service ; rend le message d'échec à montrer quand
+    /// une demande de cette fenêtre se termine mal.
+    pub(crate) fn on_incoming(&mut self, incoming: &Incoming) -> Option<String> {
+        match incoming {
+            Incoming::Submitted(id) => self.0.submitted(*id),
+            Incoming::Rejected(reason) => Some(self.0.rejected(reason)),
+            Incoming::Event(Event::Done { id, outcome, .. }) => self.0.done(*id, outcome),
+            Incoming::Error(_) => {
+                self.0.reset();
+                None
+            }
+            Incoming::Snapshot(_) | Incoming::Event(_) => None,
+        }
+    }
 }
 
 /// Liste déroulante du formulaire de scène.
@@ -273,6 +308,8 @@ impl std::fmt::Debug for Incoming {
             Incoming::Snapshot(_) => "Snapshot",
             Incoming::Event(_) => "Event",
             Incoming::Error(_) => "Error",
+            Incoming::Submitted(_) => "Submitted",
+            Incoming::Rejected(_) => "Rejected",
         })
     }
 }
@@ -282,8 +319,9 @@ struct Root {
     snapshot: Snapshot,
     service_error: Option<String>,
     busy: bool,
+    requests: Requests,
     confirm: Option<Confirm>,
-    commands: Sender<Command>,
+    commands: Sender<(Command, u64)>,
     incoming: Arc<Mutex<Receiver<Incoming>>>,
     user_presets: Vec<Preset>,
     /// Saisies de la page Égaliseur et résultat de la dernière action.
@@ -360,14 +398,18 @@ fn demo_hub() -> &'static DemoHub {
     HUB.get_or_init(|| Mutex::new((Demo::new(), Vec::new())))
 }
 
-pub(crate) fn spawn_listener(launch_daemon: bool) -> Arc<Mutex<Receiver<Incoming>>> {
+/// Récepteur des messages du service, partagé avec le fil d'écoute.
+pub(crate) type IncomingRx = Arc<Mutex<Receiver<Incoming>>>;
+
+fn spawn_listener(launch_daemon: bool) -> (Sender<Incoming>, IncomingRx) {
     let (in_tx, in_rx) = mpsc::channel::<Incoming>();
+    let feedback = in_tx.clone();
     if demo::requested() {
         if let Ok(mut hub) = demo_hub().lock() {
             let _ = in_tx.send(Incoming::Snapshot(hub.0.snapshot()));
             hub.1.push(in_tx);
         }
-        return Arc::new(Mutex::new(in_rx));
+        return (feedback, Arc::new(Mutex::new(in_rx)));
     }
     std::thread::spawn(move || {
         let mut launched: Option<Instant> = None;
@@ -395,20 +437,37 @@ pub(crate) fn spawn_listener(launch_daemon: bool) -> Arc<Mutex<Receiver<Incoming
             std::thread::sleep(RETRY);
         }
     });
-    Arc::new(Mutex::new(in_rx))
+    (feedback, Arc::new(Mutex::new(in_rx)))
 }
 
-/// Fil d'envoi des commandes au service. Une erreur d'envoi se voit :
-/// l'état n'est pas confirmé et l'écoute signale le service injoignable.
-pub(crate) fn spawn_sender() -> Sender<Command> {
-    let (tx, rx) = mpsc::channel::<Command>();
+/// Écoute du service et fil d'envoi des demandes, reliés : le numéro de
+/// chaque demande (ou son refus immédiat) revient par le même récepteur que
+/// les événements. Une demande porte la connexion vue par l'interface.
+pub(crate) fn spawn_service(launch_daemon: bool) -> (IncomingRx, Sender<(Command, u64)>) {
+    let (feedback, incoming) = spawn_listener(launch_daemon);
+    (incoming, spawn_sender(feedback))
+}
+
+/// Fil d'envoi des demandes au service.
+fn spawn_sender(feedback: Sender<Incoming>) -> Sender<(Command, u64)> {
+    let (tx, rx) = mpsc::channel::<(Command, u64)>();
     if demo::requested() {
         std::thread::spawn(move || {
-            for command in rx {
+            let mut last_id = 0;
+            for (command, _) in rx {
+                last_id += 1;
+                if feedback.send(Incoming::Submitted(last_id)).is_err() {
+                    return;
+                }
                 // Délai d'un vrai casque : l'interface montre son envoi.
                 std::thread::sleep(Duration::from_millis(450));
                 if let Ok(mut hub) = demo_hub().lock() {
-                    let events = hub.0.apply(command);
+                    let mut events = hub.0.apply(command);
+                    events.push(Event::Done {
+                        id: last_id,
+                        outcome: Outcome::Applied,
+                        details: None,
+                    });
                     hub.1.retain(|sub| {
                         events
                             .iter()
@@ -420,8 +479,14 @@ pub(crate) fn spawn_sender() -> Sender<Command> {
         return tx;
     }
     std::thread::spawn(move || {
-        for command in rx {
-            let _ = Client.send(&command);
+        for (command, session) in rx {
+            let reply = match Client.submit(&command, session) {
+                Ok(id) => Incoming::Submitted(id),
+                Err(e) => Incoming::Rejected(e.to_string()),
+            };
+            if feedback.send(reply).is_err() {
+                return;
+            }
         }
     });
     tx
@@ -801,7 +866,8 @@ impl Root {
         if !self.writable() {
             return;
         }
-        if self.commands.send(command).is_ok() {
+        if self.commands.send((command, self.snapshot.session)).is_ok() {
+            self.requests.sent();
             self.busy = true;
             self.snapshot.problem = None;
         }
@@ -867,8 +933,7 @@ impl Component for Root {
     type Message = Msg;
 
     fn create(_input: &(), context: &ComponentContext<Self>) -> Self {
-        let in_rx = spawn_listener(true);
-        let tx = spawn_sender();
+        let (in_rx, tx) = spawn_service(true);
 
         // `--page son` : page ouverte au lancement (accueil par défaut).
         let page = std::env::args()
@@ -917,6 +982,7 @@ impl Component for Root {
             snapshot: Snapshot::default(),
             service_error: None,
             busy: false,
+            requests: Requests::default(),
             confirm: None,
             commands: tx,
             incoming: in_rx,
@@ -979,16 +1045,19 @@ impl Component for Root {
         match message {
             Msg::Service(cell) => {
                 let incoming = cell.lock().ok().and_then(|mut c| c.take());
+                if let Some(failure) = incoming.as_ref().and_then(|i| self.requests.on_incoming(i))
+                {
+                    self.note_incident(failure.clone());
+                    self.snapshot.problem = Some(failure);
+                }
+                self.busy = self.requests.busy();
                 match incoming {
                     Some(Incoming::Snapshot(s)) => {
                         self.snapshot = s;
                         self.service_error = None;
-                        self.busy = false;
                     }
+                    Some(Incoming::Submitted(_) | Incoming::Rejected(_)) => {}
                     Some(Incoming::Event(e)) => {
-                        if !matches!(e, Event::Searching | Event::Connected { .. }) {
-                            self.busy = false;
-                        }
                         self.note_reading_times(&e);
                         match &e {
                             Event::Lost(r) => self.note_incident(format!("connexion perdue : {r}")),
@@ -1022,7 +1091,6 @@ impl Component for Root {
                         }
                         self.snapshot = Snapshot::default();
                         self.service_error = Some(reason);
-                        self.busy = false;
                     }
                     None => {}
                 }
@@ -1492,13 +1560,21 @@ impl Component for Root {
                 Some(Confirm::ClearBattery) => {
                     // Le service tient l'historique : il l'efface et
                     // réécrit le fichier, relu ensuite par la page.
-                    self.battery_notice = Some(
-                        if self.commands.send(Command::ClearBatteryHistory).is_ok() {
-                            "Historique de la batterie effacé.".to_string()
-                        } else {
-                            "Effacement impossible : service injoignable.".to_string()
-                        },
-                    );
+                    // Sans casque aussi : connexion 0 (indifférente). Un refus
+                    // du service s'affiche comme pour toute demande.
+                    let sent = self
+                        .commands
+                        .send((Command::ClearBatteryHistory, 0))
+                        .is_ok();
+                    if sent {
+                        self.requests.sent();
+                        self.busy = true;
+                    }
+                    self.battery_notice = Some(if sent {
+                        "Effacement de l'historique demandé au service.".to_string()
+                    } else {
+                        "Effacement impossible : service injoignable.".to_string()
+                    });
                     context.spawn_background(|_| {
                         std::thread::sleep(Duration::from_millis(600));
                         Msg::ReloadBattery
