@@ -33,6 +33,12 @@ depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
   les appareils connectés sont interrogés (la recherche ne réveille plus
   les autres). Même règle pour `ctl` sans service ; `--device` reste un
   choix explicite.
+- F05 : une action multipoint (connecter, déconnecter) vise l'appareil par
+  un **identifiant opaque** (empreinte de son adresse, qui reste dans le
+  service), même si la liste change d'ordre ou si deux appareils portent
+  le même nom ; la confirmation de déconnexion reste liée à l'appareil
+  choisi. L'ancienne forme (position et nom) est refusée si le nom n'est
+  pas unique.
 
 ### Widget Plasma
 - `plasma/org.openheadset.control.plasmoid` : widget Plasma 6 en QML,

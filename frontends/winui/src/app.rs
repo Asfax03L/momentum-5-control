@@ -220,7 +220,11 @@ enum SceneField {
 enum Confirm {
     MultipointOff,
     ClearBattery,
-    Disconnect { index: usize, name: String },
+    Disconnect {
+        index: usize,
+        name: String,
+        device: String,
+    },
 }
 
 #[derive(Clone, Debug)]
@@ -1540,10 +1544,19 @@ impl Component for Root {
             Msg::ToggleConnection(index) => {
                 let writable = self.writable();
                 if let Some(row) = self.rows(writable).get(index).filter(|r| r.can_act) {
+                    // Identifiant opaque : la confirmation reste liée à cet
+                    // appareil, même si la liste change entre-temps.
+                    let device = self
+                        .snapshot
+                        .connections
+                        .get(index)
+                        .map(|c| c.id.clone())
+                        .filter(|id| !id.is_empty());
                     if row.action == "Déconnecter" {
                         self.confirm = Some(Confirm::Disconnect {
                             index,
                             name: row.name.clone(),
+                            device: device.unwrap_or_default(),
                         });
                     } else {
                         let name = row.name.clone();
@@ -1551,6 +1564,7 @@ impl Component for Root {
                             index,
                             name,
                             connect: true,
+                            device,
                         });
                     }
                 }
@@ -1580,10 +1594,15 @@ impl Component for Root {
                         Msg::ReloadBattery
                     });
                 }
-                Some(Confirm::Disconnect { index, name }) => self.send(Command::ToggleConnection {
+                Some(Confirm::Disconnect {
+                    index,
+                    name,
+                    device,
+                }) => self.send(Command::ToggleConnection {
                     index,
                     name,
                     connect: false,
+                    device: Some(device).filter(|id| !id.is_empty()),
                 }),
                 None => {}
             },

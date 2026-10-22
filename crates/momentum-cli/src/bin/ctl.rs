@@ -343,10 +343,12 @@ mod app {
                     .ok_or_else(|| {
                         anyhow::anyhow!("pas d'appareil n° {n} (voir `ctl connexions`)")
                     })?;
+                let row = &snapshot.connections[index];
                 Api::ToggleConnection {
                     index,
-                    name: snapshot.connections[index].name.clone(),
+                    name: row.name.clone(),
                     connect: matches!(command, Command::Connecter { .. }),
+                    device: Some(row.id.clone()).filter(|id| !id.is_empty()),
                 }
             }
             Command::Nom { nouveau: None } => {
