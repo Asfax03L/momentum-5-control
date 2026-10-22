@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use tracing::debug;
 use windows::Devices::Bluetooth::Rfcomm::RfcommDeviceService;
-use windows::Devices::Bluetooth::{BluetoothCacheMode, BluetoothDevice};
+use windows::Devices::Bluetooth::{BluetoothCacheMode, BluetoothConnectionStatus, BluetoothDevice};
 use windows::Devices::Enumeration::DeviceInformation;
 use windows::Networking::Sockets::StreamSocket;
 use windows::Storage::Streams::{DataReader, DataWriter, IBuffer, InputStreamOptions};
@@ -42,16 +42,20 @@ fn wait<T: Send + 'static>(
     }
 }
 
-/// Service GAIA trouvé sur un casque appairé.
+/// Service GAIA trouvé sur un casque appairé et connecté.
 pub struct GaiaService {
     pub device_name: String,
+    /// Identifiant Windows de l'appareil (contient son adresse : jamais
+    /// affiché ni journalisé ; sert à reconnaître le casque).
+    pub device_id: String,
     pub service: RfcommDeviceService,
 }
 
-/// Cherche, parmi les appareils Bluetooth Classic appairés dont le nom
-/// contient l'un des `name_filters` (insensible à la casse), le premier
-/// service RFCOMM dont le nom SDP contient « GAIA ».
-pub fn find_gaia_service(name_filters: &[&str]) -> Result<Option<GaiaService>, TransportError> {
+/// Appareils Bluetooth Classic appairés **et connectés** qui offrent un
+/// service RFCOMM dont le nom SDP contient « GAIA », quel que soit leur nom
+/// (F04 de la revue : le nom du casque peut être changé). Un appareil non
+/// connecté n'est pas interrogé : la recherche ne réveille rien.
+pub fn list_gaia_services() -> Result<Vec<GaiaService>, TransportError> {
     let os = |ctx| move |e: windows::core::Error| TransportError::os(ctx, &e);
     let selector = BluetoothDevice::GetDeviceSelectorFromPairingState(true)
         .map_err(os("sélecteur d'appareils appairés"))?;
@@ -65,40 +69,37 @@ pub fn find_gaia_service(name_filters: &[&str]) -> Result<Option<GaiaService>, T
         },
     )?;
 
+    let mut found = Vec::new();
     for i in 0..infos.Size().map_err(os("taille de la liste"))? {
         let Ok(info) = infos.GetAt(i) else { continue };
         let name = info.Name().map(|n| n.to_string()).unwrap_or_default();
-        let lower = name.to_lowercase();
-        if !name_filters
-            .iter()
-            .any(|f| lower.contains(&f.to_lowercase()))
-        {
+        let Ok(id) = info.Id() else { continue };
+        let device = match wait("ouverture de l'appareil", DISCOVERY_TIMEOUT, |tx| {
+            BluetoothDevice::FromIdAsync(&id)?.when(move |r| {
+                let _ = tx.send(r);
+            })
+        }) {
+            Ok(d) => d,
+            Err(e) => {
+                debug!(%e, "appareil illisible");
+                continue;
+            }
+        };
+        if device.ConnectionStatus().ok() != Some(BluetoothConnectionStatus::Connected) {
             continue;
         }
-        let services = info
-            .Id()
-            .map_err(os("identifiant de l'appareil"))
-            .and_then(|id| {
-                wait("ouverture de l'appareil", DISCOVERY_TIMEOUT, |tx| {
-                    BluetoothDevice::FromIdAsync(&id)?.when(move |r| {
-                        let _ = tx.send(r);
-                    })
+        let services = wait("services RFCOMM", DISCOVERY_TIMEOUT, |tx| {
+            device
+                .GetRfcommServicesWithCacheModeAsync(BluetoothCacheMode::Uncached)?
+                .when(move |r| {
+                    let _ = tx.send(r);
                 })
-            })
-            .and_then(|device| {
-                wait("services RFCOMM", DISCOVERY_TIMEOUT, |tx| {
-                    device
-                        .GetRfcommServicesWithCacheModeAsync(BluetoothCacheMode::Uncached)?
-                        .when(move |r| {
-                            let _ = tx.send(r);
-                        })
-                })
-            })
-            .and_then(|r| r.Services().map_err(os("liste des services RFCOMM")));
+        })
+        .and_then(|r| r.Services().map_err(os("liste des services RFCOMM")));
         let services = match services {
             Ok(s) => s,
             Err(e) => {
-                debug!(%name, %e, "services RFCOMM illisibles");
+                debug!(%e, "services RFCOMM illisibles");
                 continue;
             }
         };
@@ -107,14 +108,16 @@ pub fn find_gaia_service(name_filters: &[&str]) -> Result<Option<GaiaService>, T
                 continue;
             };
             if sdp_service_name(&service).is_some_and(|n| n.to_lowercase().contains("gaia")) {
-                return Ok(Some(GaiaService {
-                    device_name: name,
+                found.push(GaiaService {
+                    device_name: name.clone(),
+                    device_id: id.to_string(),
                     service,
-                }));
+                });
+                break;
             }
         }
     }
-    Ok(None)
+    Ok(found)
 }
 
 /// Nom SDP (attribut 0x0100) d'un service RFCOMM, s'il est lisible.

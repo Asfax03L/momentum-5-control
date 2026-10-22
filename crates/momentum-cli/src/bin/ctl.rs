@@ -201,11 +201,12 @@ mod app {
     use momentum_core::scenes;
     #[cfg(target_os = "linux")]
     use momentum_core::transport::bluez_rfcomm::{
-        BluezTransport as PlatformTransport, find_gaia_device,
+        BluezTransport as PlatformTransport, list_gaia_devices,
     };
+    use momentum_core::transport::choice::{Candidate, Choice, choose};
     #[cfg(windows)]
     use momentum_core::transport::windows_rfcomm::{
-        RfcommTransport as PlatformTransport, find_gaia_service,
+        RfcommTransport as PlatformTransport, list_gaia_services,
     };
     use momentum_core::ui::{band_label, describe_noise, describe_state, format_db};
     #[cfg(windows)]
@@ -426,30 +427,71 @@ mod app {
         Ok(true)
     }
 
+    /// Casque parmi les appareils GAIA connectés : celui de `--device`
+    /// (nom), sinon la même règle que le service (casque mémorisé, seul
+    /// candidat, seul nom distinctif ; jamais au hasard).
+    fn pick(args: &Args, candidates: &[Candidate]) -> anyhow::Result<usize> {
+        if let Some(filter) = &args.device {
+            let filter = filter.to_lowercase();
+            return candidates
+                .iter()
+                .position(|c| c.name.to_lowercase().contains(&filter))
+                .with_context(|| {
+                    format!("aucun casque connecté dont le nom contient « {filter} »")
+                });
+        }
+        match choose(
+            candidates,
+            paths::load_headset_fingerprint().as_deref(),
+            &["momentum", "sennheiser"],
+        ) {
+            Choice::One(i) => Ok(i),
+            Choice::None => bail!(
+                "aucun casque appairé, connecté et annonçant le service GAIA (allumé et connecté ?)"
+            ),
+            Choice::Ambiguous(names) => bail!(
+                "plusieurs appareils GAIA connectés ({}) : préciser avec --device",
+                names.join(", ")
+            ),
+        }
+    }
+
     /// Trouve le casque et ouvre le canal GAIA (WinRT).
     #[cfg(windows)]
-    fn connect(_args: &Args, filters: &[&str]) -> anyhow::Result<(PlatformTransport, String)> {
+    fn connect(args: &Args) -> anyhow::Result<(PlatformTransport, String)> {
         // SAFETY: appel unique au démarrage, avant tout objet WinRT.
         let _ = unsafe { RoInitialize(RO_INIT_MULTITHREADED) };
-        let found = find_gaia_service(filters)
-            .context("recherche du service GAIA")?
-            .context("aucun casque appairé avec un service GAIA (allumé et connecté ?)")?;
+        let mut found = list_gaia_services().context("recherche du service GAIA")?;
+        let candidates: Vec<Candidate> = found
+            .iter()
+            .map(|s| Candidate {
+                key: &s.device_id,
+                name: &s.device_name,
+            })
+            .collect();
+        let chosen = found.swap_remove(pick(args, &candidates)?);
         let transport =
-            PlatformTransport::connect(&found.service).context("connexion RFCOMM au casque")?;
-        Ok((transport, found.device_name))
+            PlatformTransport::connect(&chosen.service).context("connexion RFCOMM au casque")?;
+        Ok((transport, chosen.device_name))
     }
 
     /// Trouve le casque et ouvre le canal GAIA (BlueZ).
     #[cfg(target_os = "linux")]
-    fn connect(args: &Args, filters: &[&str]) -> anyhow::Result<(PlatformTransport, String)> {
-        let found = find_gaia_device(filters)
-            .context("recherche du casque dans BlueZ")?
-            .context(
-                "aucun casque appairé, connecté et annonçant le service GAIA                  (allumé, connecté dans les paramètres Bluetooth de KDE ?)",
-            )?;
-        let transport =
-            PlatformTransport::connect(&found, args.canal).context("connexion RFCOMM au casque")?;
-        Ok((transport, found.device_name))
+    fn connect(args: &Args) -> anyhow::Result<(PlatformTransport, String)> {
+        let mut found = list_gaia_devices().context("recherche du casque dans BlueZ")?;
+        let keys: Vec<String> = found.iter().map(|d| d.address.to_string()).collect();
+        let candidates: Vec<Candidate> = found
+            .iter()
+            .zip(&keys)
+            .map(|(d, key)| Candidate {
+                key,
+                name: &d.device_name,
+            })
+            .collect();
+        let chosen = found.swap_remove(pick(args, &candidates)?);
+        let transport = PlatformTransport::connect(&chosen, args.canal)
+            .context("connexion RFCOMM au casque")?;
+        Ok((transport, chosen.device_name))
     }
 
     pub fn run(args: &Args) -> anyhow::Result<()> {
@@ -470,11 +512,7 @@ mod app {
             return Ok(());
         }
 
-        let filters: Vec<&str> = match &args.device {
-            Some(f) => vec![f.as_str()],
-            None => vec!["momentum", "sennheiser"],
-        };
-        let (transport, device_name) = connect(args, &filters)?;
+        let (transport, device_name) = connect(args)?;
         let mut headset = Headset::new(transport, Duration::from_millis(args.timeout_ms));
         println!("Connecté à « {device_name} ».");
         headset.identify();

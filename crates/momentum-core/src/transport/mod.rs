@@ -6,6 +6,7 @@
 
 #[cfg(target_os = "linux")]
 pub mod bluez_rfcomm;
+pub mod choice;
 pub mod mock;
 #[cfg(windows)]
 pub mod windows_rfcomm;
