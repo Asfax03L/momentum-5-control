@@ -19,7 +19,7 @@ jobs:
   version:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Étiquette et version
         run: |
           version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
@@ -30,7 +30,7 @@ jobs:
     needs: version
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.99.0"
@@ -45,7 +45,7 @@ jobs:
           Copy-Item target/release/momentum-winui.exe, target/release/momentum-daemon.exe, target/release/ctl.exe, target/release/probe.exe $dir
           Copy-Item scripts/installer.ps1, README.md, LICENSE-MIT, LICENSE-APACHE $dir
           Compress-Archive -Path $dir -DestinationPath "$dir.zip"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows
           path: openheadset-control-*-windows-x86_64.zip
@@ -57,7 +57,7 @@ jobs:
     env:
       QMAKE: /usr/bin/qmake6
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet
       - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config qt6-base-dev qt6-declarative-dev qmake6
       - uses: dtolnay/rust-toolchain@master
@@ -75,7 +75,7 @@ jobs:
           cp -r plasma "$dir/"
           cp scripts/installer-linux.sh README.md LICENSE-MIT LICENSE-APACHE "$dir/"
           tar -czf "$dir.tar.gz" "$dir"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: linux
           path: openheadset-control-*-linux-x86_64.tar.gz
@@ -88,14 +88,14 @@ jobs:
       image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11
       options: --privileged
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6.8
         with:
           bundle: openheadset-control-${{ github.ref_name }}-x86_64.flatpak
           manifest-path: packaging/flatpak/org.openheadset.Control.yml
           cache-key: flatpak-builder-${{ github.sha }}
           upload-artifact: false
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: flatpak
           path: openheadset-control-*-x86_64.flatpak
@@ -107,7 +107,7 @@ jobs:
     needs: [windows, linux, flatpak]
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: paquets
           merge-multiple: true
