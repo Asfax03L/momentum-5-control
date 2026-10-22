@@ -5,12 +5,12 @@ pour tout ce qui passe par le casque, mais pensée pour un PC portable (souris,
 clavier, grand écran, barre système). L'icône reste le raccourci vers la
 fenêtre principale.
 
-**État au 22/10/2026** : dernière publication **v0.8.0** (service unique,
-WinUI 3, client KDE, Slint retiré). Fusionnés depuis, non publiés : Flatpak,
-widget Plasma, écritures réservées au micrologiciel 6.21.5, et la
-consolidation qui suit la revue du 21/10/2026 (demandes numérotées et
-résultats exacts, identité du casque, cible multipoint opaque,
-installateurs récupérables, publication complète ou rien ; suivi dans
+**État au 22/10/2026** : dernière publication **v0.9.0** : service unique,
+WinUI 3, client KDE, Flatpak, widget Plasma, écritures réservées au
+micrologiciel 6.21.5, et la consolidation qui suit la revue du 21/10/2026
+(demandes numérotées et résultats exacts, identité du casque, cible
+multipoint opaque, installateurs récupérables, publication complète ou
+rien, journaux sans données personnelles ; suivi dans
 [`CONSOLIDATION.md`](CONSOLIDATION.md) ; fonctions de chaque interface dans
 [`PARITE.md`](PARITE.md)). Le détail du protocole est dans
 [`MOMENTUM5.md`](MOMENTUM5.md), le matériel validé dans le
@@ -78,8 +78,8 @@ et date de l'essai sur le casque.
 
 | Jalon | Contenu | Critère de sortie |
 |---|---|---|
-| **0.9.0** (consolidation) | Constats F01 à F14 de la revue ([`CONSOLIDATION.md`](CONSOLIDATION.md)) ; CI élargie (versions verrouillées, dépendances auditées) ; documentation alignée | Aucune fausse réussite d'une commande ; publication complète ou rien ; installateurs récupérables |
-| **0.9.1** (KDE) | Panneau rapide KDE, widget enrichi, thème clair sous Plasma | Commandes usuelles en deux clics, état relu affiché |
+| **0.9.0** (consolidation) ✅ | Constats F01 à F14 de la revue ([`CONSOLIDATION.md`](CONSOLIDATION.md)) ; CI élargie (versions verrouillées, dépendances auditées) ; documentation alignée | Aucune fausse réussite d'une commande ; publication complète ou rien ; installateurs récupérables |
+| **0.9.1** (KDE) | Panneau rapide KDE, widget enrichi | Commandes usuelles en deux clics, état relu affiché |
 | **0.10** (audio Linux) | Lecture PipeWire/WirePlumber de la sortie, du profil et du codec, en lecture seule ; diagnostic guidé | Observations cohérentes avec les réglages son du bureau ; aucun changement de routage silencieux |
 | **0.11** (GNOME) | Interface GTK 4 / libadwaita cliente du même service | Parité définie avec le client KDE, sans connexion directe au casque |
 | **0.12-bêta** (distribution) | Flatpak à sources figées (hors ligne), permissions revues, migration des réglages | Installation, mise à jour et désinstallation propres sur Bazzite et Windows |

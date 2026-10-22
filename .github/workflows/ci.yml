@@ -36,6 +36,34 @@ jobs:
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
 
+  # Démarrage réel de WinUI (F13) : runtime installé, mode démonstration ;
+  # la fenêtre doit toujours tourner après 20 s (pas de plantage au
+  # chargement).
+  winui-demarrage:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.0"
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --locked -p momentum-winui
+      - name: Windows App Runtime 2
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://aka.ms/windowsappsdk/2.0/latest/windowsappruntimeinstall-x64.exe -OutFile runtime.exe
+          Start-Process ./runtime.exe -ArgumentList '--quiet' -Wait
+          Get-AppxPackage -Name 'Microsoft.WindowsAppRuntime.2*' | Select-Object Name, Version
+      - name: Démarrage de WinUI (démonstration)
+        shell: pwsh
+        run: |
+          $p = Start-Process target\debug\momentum-winui.exe -ArgumentList '--demo', '--page', 'son' -PassThru -RedirectStandardError winui.log
+          Start-Sleep 20
+          Get-Content winui.log -ErrorAction SilentlyContinue
+          if ($p.HasExited) { throw "WinUI s'est arrêté (code $($p.ExitCode))" }
+          Stop-Process -Id $p.Id -Force
+          "WinUI tourne toujours après 20 s."
+
   linux:
     runs-on: ubuntu-24.04
     env:

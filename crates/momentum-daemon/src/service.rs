@@ -434,4 +434,58 @@ mod tests {
         let gone = Connection::synthetic(9, "Téléphone", false).opaque_id();
         assert!(to_worker(toggle(0, Some(gone)), &shared).is_err());
     }
+
+    #[test]
+    fn two_clients_each_get_their_own_result() {
+        // F13 : faux worker et deux clients simultanés. Chaque demande reçoit
+        // son résultat, malgré les événements de l'autre et une notification
+        // intercalée. (Pas d'événement d'état ni de connexion : ils
+        // écriraient l'historique ou afficheraient une notification.)
+        use momentum_client::tracker::wait_for;
+        use momentum_core::device::DeviceInfo;
+        use std::sync::Arc;
+        use std::time::Duration;
+
+        let shared = Arc::new(Mutex::new(connected()));
+        let (commands, jobs) = mpsc::channel::<Job>();
+        let (worker_tx, worker_rx) = mpsc::channel::<WorkerEvent>();
+        std::thread::spawn(move || {
+            for job in jobs {
+                let _ = worker_tx.send(WorkerEvent::Info(DeviceInfo::default()));
+                let outcome = match job.command {
+                    WorkerCommand::SetAntiWind(true) => Outcome::Applied,
+                    _ => Outcome::Refused("refusé par le casque".into()),
+                };
+                let _ = worker_tx.send(WorkerEvent::Done {
+                    id: job.id,
+                    outcome,
+                    details: None,
+                });
+            }
+        });
+        let (a_tx, a_rx) = mpsc::channel();
+        let (b_tx, b_rx) = mpsc::channel();
+        let pumped = Arc::clone(&shared);
+        std::thread::spawn(move || {
+            pump(worker_rx, &pumped, |event| {
+                let _ = a_tx.send(event.clone());
+                let _ = b_tx.send(event.clone());
+            });
+        });
+        let submit_as = |command| {
+            let mut s = shared.lock().unwrap();
+            submit(command, 0, &mut s, &commands).unwrap()
+        };
+        let a = submit_as(Command::SetAntiWind(true));
+        let b = submit_as(Command::SetAntiWind(false));
+        let wait = Duration::from_secs(5);
+        assert_eq!(
+            wait_for(&a_rx, a, wait).map(|r| r.0),
+            Some(Outcome::Applied)
+        );
+        assert!(matches!(
+            wait_for(&b_rx, b, wait).map(|r| r.0),
+            Some(Outcome::Refused(_))
+        ));
+    }
 }

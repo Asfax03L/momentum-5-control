@@ -36,8 +36,9 @@ au casque, et deux outils en ligne de commande.
 | L | Logo sous Windows : exécutable, menu Démarrer, notifications, icône d'état | ✅ (v0.8.0) |
 | M | Service sous Windows (canal nommé) et client WinUI 3 (`windows-reactor`) | ✅ essayé sur M5 (v0.8.0) |
 | N | Fonctions de l'icône Slint reprises par WinUI et KDE, puis retrait de Slint | ✅ essayé sur M5 (v0.8.0) |
+| O | Consolidation (revue du 21/10) : demandes suivies, identité du casque, installateurs et publication sûrs, Flatpak, widget Plasma | ✅ essayé sur M5 (v0.9.0) |
 
-Dernière publication : **v0.8.0** (page Releases du dépôt). Le détail des
+Dernière publication : **v0.9.0** (page Releases du dépôt). Le détail des
 étapes est dans [`docs/ROADMAP.md`](docs/ROADMAP.md), les nouveautés de chaque
 version dans [`CHANGELOG.md`](CHANGELOG.md).
 
@@ -171,9 +172,7 @@ fictives).
   invites, nom du casque, commandes tactiles ; langue des invites et
   priorité du mode audio en lecture seule ; thème **clair ou sombre**
   (gardé dans `apparence.txt` ; sans choix, celui du système ; sous KDE
-  Plasma, le jeu de couleurs de Plasma reste prioritaire pour l'instant :
-  « Clair » n'est pas appliqué si Plasma est en sombre, correction
-  prévue) ; contenu du panneau rapide ;
+  Plasma, jeu de couleurs Breeze clair ou sombre pour l'application seule) ; contenu du panneau rapide ;
   éditeur des raccourcis clavier globaux.
 - **Batterie** : courbe sur 24 h, 7 ou 30 jours (fichier local
   `batterie.csv`, export CSV, effacement confirmé) ; les périodes sans

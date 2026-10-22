@@ -5,7 +5,7 @@ M5 » signifie : écriture capturée dans Smart Control Plus, puis rejouée
 depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
 6.21.5, Windows 11. La CI (fmt, clippy, tests) ne se connecte à aucun casque.
 
-## Non publié
+## v0.9.0 — 22/10/2026
 
 ### Consolidation (revue du 21/10/2026)
 - Suivi des constats F01 à F14 dans `docs/CONSOLIDATION.md`.
@@ -68,6 +68,15 @@ depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
   démonstration, sans écran) et vérifie que le QML se charge sans erreur.
 - `docs/PARITE.md` : fonctions de chaque interface (WinUI, client KDE,
   `ctl`, widget) après le retrait de Slint, avec ce qui reste à faire.
+- F13 : `ctl` a des codes de sortie distincts (0 confirmé, 1 refusé ou
+  annulé, 2 non appliqué, 3 résultat inconnu) ; son attente et le service
+  à deux clients simultanés sont testés sans casque ; la CI lance aussi
+  WinUI (runtime installé) en mode démonstration.
+- F14 : raccourcis et contenu du panneau rapide ne sont plus écrasés s'ils
+  ont été modifiés ailleurs depuis leur lecture (relus et signalés).
+- Client KDE : le thème **clair ou sombre** s'applique aussi sous Plasma,
+  même si Plasma est dans l'autre (jeu de couleurs Breeze pour
+  l'application seule).
 
 ### Widget Plasma
 - `plasma/org.openheadset.control.plasmoid` : widget Plasma 6 en QML,

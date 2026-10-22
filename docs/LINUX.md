@@ -27,8 +27,8 @@ Client Kirigami sous KDE Plasma :
 - **pages** : accueil avec les appareils appairés au casque (connecter,
   déconnecter après confirmation), égaliseur, scènes (application et
   éditeur), batterie (courbe enregistrée par le service, export,
-  effacement), connexion et audio, paramètres (dont thème clair ou sombre,
-  pas encore appliqué si le jeu de couleurs de Plasma est l'inverse), à
+  effacement), connexion et audio, paramètres (dont thème clair ou sombre :
+  jeu Breeze pour l'application seule, même si Plasma est dans l'autre), à
   propos avec « Copier le diagnostic » ;
 - **mode démonstration** : `momentum-kirigami --demo` (casque simulé, sans
   service) ;
@@ -59,7 +59,7 @@ applications. Télécharger `openheadset-control-vX.Y.Z-x86_64.flatpak` sur
 la page Releases (la CI le construit à chaque publication), puis :
 
 ```bash
-flatpak install --user openheadset-control-v0.8.0-x86_64.flatpak
+flatpak install --user openheadset-control-v0.9.0-x86_64.flatpak
 ```
 
 Il contient le client KDE, le service (lancé à la demande par activation
