@@ -39,6 +39,16 @@ depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
   le même nom ; la confirmation de déconnexion reste liée à l'appareil
   choisi. L'ancienne forme (position et nom) est refusée si le nom n'est
   pas unique.
+- F09 : une publication n'est rendue publique qu'une fois **tous** ses
+  paquets construits et testés (Windows, Linux, Flatpak) : brouillon,
+  vérification des 6 fichiers, puis publication ; l'étiquette doit
+  correspondre à la version de `Cargo.toml`.
+- F08 : installateurs préparés et récupérables. Windows : tout est vérifié
+  et copié à part avant d'arrêter l'application ; sans Windows App
+  Runtime 2 ou avec une archive incomplète, rien n'est changé ; la version
+  remplacée est gardée et remise si l'interface ne démarre pas. Linux :
+  fichier manquant = arrêt avant tout changement ; binaires remplacés
+  gardés et remis en cas d'échec ; `--desinstaller`.
 
 ### Widget Plasma
 - `plasma/org.openheadset.control.plasmoid` : widget Plasma 6 en QML,

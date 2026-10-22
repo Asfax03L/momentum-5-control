@@ -73,7 +73,11 @@ Il prend les exécutables posés à côté de lui (archive) ou, à défaut,
 compile la version release. Il inscrit l'interface au démarrage de Windows
 (elle démarre cachée : l'icône seule), retire l'ancienne icône Slint si
 elle est installée, ajoute « OpenHeadset Control » au menu Démarrer et
-lance l'interface. Pour tout retirer :
+lance l'interface. Tout est vérifié et préparé avant d'arrêter la version
+en place (runtime, fichiers, copie) ; la version remplacée est gardée
+(`momentum-ctl-win.ancien`) et remise si l'interface installée ne démarre
+pas. Sans Windows App Runtime 2, rien n'est changé (`-SansRuntime` pour
+installer quand même). Pour tout retirer :
 `scripts\installer.ps1 -Desinstaller`.
 
 **Linux (KDE Plasma)** : sur Bazzite et les systèmes en lecture seule, le
@@ -97,6 +101,10 @@ dans le menu des applications (KDE y trouve aussi l'icône des fenêtres sous
 Wayland), service avec son unité systemd utilisateur et son activation
 D-Bus. Le client Kirigami demande Qt 6 et Kirigami (présents sous KDE).
 L'ancienne icône Slint (`momentum-tray`), si elle est installée, est retirée.
+Un fichier manquant arrête le script avant tout changement ; les binaires
+remplacés sont gardés (`*.ancien`) et remis si une copie échoue. Pour tout
+retirer : `sh scripts/installer-linux.sh --desinstaller` (réglages, scènes
+et historique gardés).
 
 Pour un simple essai sans installation (Windows) :
 
