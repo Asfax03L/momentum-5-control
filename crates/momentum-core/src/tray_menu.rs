@@ -1,5 +1,5 @@
 //! Menu de l'icône de la zone de notification (clic droit), en Rust pur :
-//! même contenu pour WinUI (`tray-icon`) et le client KDE (`ksni`), repris
+//! même contenu pour WinUI (`tray-icon`) et le client KDE (StatusNotifierItem sur zbus), repris
 //! de l'ancienne icône Slint.
 //!
 //! Chaque interface dessine les [`MenuEntry`] avec sa bibliothèque, puis

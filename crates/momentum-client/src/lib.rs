@@ -121,6 +121,8 @@ impl ConnectionInfo {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Event {
     Searching,
+    /// Recherche terminée sans casque (raison) ; le service réessaie.
+    NotFound(String),
     Connected {
         name: String,
         /// Raison de la lecture seule (modèle ou micrologiciel non validé).
@@ -195,6 +197,9 @@ impl Snapshot {
             Event::Equalizer(eq) => self.equalizer = Some(eq.clone()),
             Event::Connections(list) => self.connections = list.clone(),
             Event::Info(info) => self.info = Some(info.clone()),
+            Event::NotFound(reason) => {
+                self.problem = Some(format!("Casque introuvable : {reason}"));
+            }
             Event::Lost(reason) => {
                 self.forget_headset();
                 self.problem = Some(format!("Connexion perdue : {reason}"));
@@ -298,6 +303,28 @@ mod tests {
         assert!(s.state.is_none());
         assert_eq!(s.problem.as_deref(), Some("Connexion perdue : délai"));
         // Une reconnexion efface l'incident.
+        s.apply(&Event::Connected {
+            name: "MOMENTUM 5".into(),
+            read_only: None,
+            session: 1,
+        });
+        assert!(s.problem.is_none());
+    }
+
+    #[test]
+    fn a_failed_search_is_shown_until_a_connection() {
+        let mut s = Snapshot::default();
+        s.apply(&Event::Searching);
+        s.apply(&Event::NotFound(
+            "aucun casque connecté avec service GAIA".into(),
+        ));
+        assert_eq!(
+            s.problem.as_deref(),
+            Some("Casque introuvable : aucun casque connecté avec service GAIA")
+        );
+        // Nouvel essai : l'incident reste affiché jusqu'à la connexion.
+        s.apply(&Event::Searching);
+        assert!(s.problem.is_some());
         s.apply(&Event::Connected {
             name: "MOMENTUM 5".into(),
             read_only: None,

@@ -35,7 +35,7 @@ frontends/kirigami        interface KDE (Qt 6 / Kirigami)
         ┌───────────────┬───────────────┼────────────────┐
   momentum-kirigami  momentum-winui      ctl         (widget Plasma,
   KDE : Kirigami,    Windows :           ligne de     autres clients
-  icône SNI (ksni),  WinUI 3 par         commande     D-Bus)
+  icône SNI (zbus),  WinUI 3 par         commande     D-Bus)
   KGlobalAccel       windows-reactor,
                      Mica, toasts,
                      Shell_NotifyIcon
@@ -60,7 +60,7 @@ frontends/kirigami        interface KDE (Qt 6 / Kirigami)
 
 | Système | Interface | Natif | Langages |
 |---|---|---|---|
-| KDE Plasma (Bazzite) | `momentum-kirigami` | Kirigami/Breeze, thème Plasma, icône de zone de notification StatusNotifierItem (`ksni`), notifications D-Bus, raccourcis globaux KGlobalAccel (D-Bus), lancement XDG, Wayland natif | Rust ; écran décrit en QML (seul moyen d'utiliser Kirigami) ; cale C++ minimale pour l'icône (absente de cxx-qt) |
+| KDE Plasma (Bazzite) | `momentum-kirigami` | Kirigami/Breeze, thème Plasma, icône de zone de notification StatusNotifierItem et DBusMenu (zbus), notifications D-Bus, raccourcis globaux KGlobalAccel (D-Bus), lancement XDG, Wayland natif | Rust ; écran décrit en QML (seul moyen d'utiliser Kirigami) ; cale C++ minimale pour l'icône (absente de cxx-qt) |
 | Windows 11 | `momentum-winui` | WinUI 3 (`windows-reactor`, Microsoft), NavigationView, fond Mica, thème du système, toasts, icône de zone de notification `Shell_NotifyIcon`, raccourcis `RegisterHotKey`, lancement au démarrage | 100 % Rust (Windows App Runtime 2.x requis) |
 
 ## Étapes (une PR chacune, validée sur le casque)
@@ -121,8 +121,8 @@ Les interfaces relèvent les événements toutes les 150 ms ; le client
 (`momentum_client::Client`) offre la même interface que celui de Linux.
 2. **KDE** — 🟡 en partie (21/10/2026) : `momentum-kirigami` est client du
    service (D-Bus, reconnexion automatique) ; icône de la zone de
-   notification (`ksni`, StatusNotifierItem) au dessin du logo, teintée
-   selon le mode, avec infobulle et menu (ouvrir, contrôle du bruit,
+   notification (StatusNotifierItem et DBusMenu sur zbus) au dessin du
+   logo, teintée selon le mode, avec infobulle et menu (ouvrir, contrôle du bruit,
    quitter) ; fermer la fenêtre la cache ; raccourcis globaux KGlobalAccel
    (Ctrl+Alt+N, P, M, modifiables dans Configuration du système >
    Raccourcis). Puis : appareils appairés (connecter, déconnecter avec
