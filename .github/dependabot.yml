@@ -1,0 +1,20 @@
+# Mises à jour proposées une fois par mois, regroupées (une PR par
+# écosystème) ; chacune passe par la CI complète avant d'être acceptée.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      dependances-rust:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    open-pull-requests-limit: 3
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]

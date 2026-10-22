@@ -761,7 +761,7 @@ impl<T: Transport> Headset<T> {
         command: CommandId,
         payload: Vec<u8>,
     ) -> Result<(), DeviceError> {
-        debug!(vendor, %command, ?payload, "écriture");
+        debug!(vendor, %command, payload = %crate::hex::loggable(&payload), "écriture");
         let ack = self
             .client
             .request(&Frame::new(vendor, command, payload), self.timeout)?;

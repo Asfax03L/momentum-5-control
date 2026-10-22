@@ -5,10 +5,16 @@ pour tout ce qui passe par le casque, mais pensée pour un PC portable (souris,
 clavier, grand écran, barre système). L'icône reste le raccourci vers la
 fenêtre principale.
 
-**État actuel (v0.6.1, 12/10/2026)** : phases A à F et étapes 1 à 4 faites, corrections de l'audit indépendant de la v0.5.0 (étape 4 : suivi de tête et Multipoint ajoutés ; sidetone, langue et priorité en lecture seule ; USB relevé). La fenêtre couvre
-tout ce que l'app fait sur le casque et qui a été validé ; le reste est en
-lecture seule ou absent, avec la raison ci-dessous. Le détail du protocole
-est dans [`MOMENTUM5.md`](MOMENTUM5.md), l'historique daté en fin de page.
+**État au 22/10/2026** : dernière publication **v0.8.0** (service unique,
+WinUI 3, client KDE, Slint retiré). Fusionnés depuis, non publiés : Flatpak,
+widget Plasma, écritures réservées au micrologiciel 6.21.5, et la
+consolidation qui suit la revue du 21/10/2026 (demandes numérotées et
+résultats exacts, identité du casque, cible multipoint opaque,
+installateurs récupérables, publication complète ou rien ; suivi dans
+[`CONSOLIDATION.md`](CONSOLIDATION.md)). Le détail du protocole est dans
+[`MOMENTUM5.md`](MOMENTUM5.md), le matériel validé dans le
+[tableau de compatibilité du README](../README.md#compatibilité-momentum-5),
+l'historique daté en fin de page.
 
 ## Principes
 
@@ -63,54 +69,43 @@ Statuts : ✅ écrit et validé sur le M5 (firmware 6.21.5) ; 👁 lu seulement 
 | Mise à jour du micrologiciel, réinitialisation d'usine | — | ⛔ |
 | Zones sonores, Retrouver le casque, Nouvelles | — | ➖ |
 
-## Prochaines étapes (proposées, à confirmer une par une)
+## Prochaines étapes (proposées ; dates indicatives)
 
-1. **Fiabilité et documentation** : session abandonnée après un envoi ambigu
-   (fait, publié en v0.4.0), roadmap à jour, notes de version v0.3.0 détaillées
-   (`CHANGELOG.md`).
-2. **Scènes et `ctl` pendant que l'icône tourne** (fait, publié en v0.4.0 ; plan
-   dans [`PLAN-SCENES-IPC.md`](PLAN-SCENES-IPC.md)) : scènes nommées (Travail,
-   Transport, Jeu…) composées uniquement de commandes validées, appliquées
-   une par une avec relecture et affichage d'un résultat partiel ; canal
-   local (named pipe limité à l'utilisateur) entre `ctl` et le worker, avec
-   une liste fermée d'actions, pour garder un seul propriétaire de RFCOMM.
-   Exclus des scènes : priorité audio, langue, profil auditif, connexions
-   sans choix explicite.
-3. **Confort** (fait, publié en v0.4.0 : historique de la batterie, diagnostic,
-   saisie et fichiers de courbes, A/B, raccourcis éditables, panneau rapide) :
-   historique local de la batterie (sans « santé » ni nombre de
-   cycles inventés), panneau rapide au clic sur l'icône, saisie numérique et
-   import/export des courbes d'égaliseur, raccourcis éditables, bouton
-   « Copier un diagnostic » expurgé.
-4. **Recherche séparée** (faite, publiée en v0.5.0 ; résultats dans [`MOMENTUM5.md`](MOMENTUM5.md) ;
-   lecture d'abord, écriture seulement après capture
-   et accord) : intensité du sidetone, suivi de tête, audio USB, paramètres
-   du profil de personnalisation. Reste non qualifié : les notifications de
-   la détection de port (aucun essai dédié).
-5. **Distribution** : signature des exécutables (SmartScreen), CONTRIBUTING
-   et formulaires d'issues, matrice de validation modèle/firmware.
-6. **Plusieurs interfaces et Linux** (fait en v0.7.0, sauf mention) :
-   espace de travail (cœur, service, outils, interfaces), `ctl` et icône
-   Slint sous Linux (BlueZ, KDE Plasma, Wayland), interface OpenHeadset
-   Control (thèmes, disposition adaptative, démonstration), client Qt 6 /
-   Kirigami (non publié). Reste : panneau rapide, raccourcis globaux et
-   sorties audio sous Linux ; canal local (D-Bus) pour qu'une interface et
-   `ctl` partagent la connexion ; archive Linux dans les publications ;
-   limiter aussi les écritures au micrologiciel validé (6.21.5) ; essai
-   d'une interface WinUI 3.
-7. **Séparer le service des interfaces** (fait, publié en v0.8.0 ;
-   détail et étapes dans [ARCHITECTURE.md](ARCHITECTURE.md)) : `momentum-daemon` seul
-   propriétaire de la connexion, API D-Bus (Linux) ou canal nommé
-   (Windows), interfaces natives clientes (Kirigami + icône SNI sous KDE,
-   WinUI 3 sous Windows), tout en Rust ; puis retrait de l'icône Slint,
-   après reprise de toutes ses fonctions par les deux interfaces.
-8. **Migration vers zbus 6** (plus tard, quand elle apporte un gain
-   concret) : zbus 6.0 (16/10/2026) supprime l'API bloquante et les proxys
-   bloquants utilisés par `momentum-daemon` et `momentum-client`, et
-   remplace `async-io` par son propre moteur (`zruntime`). La migration
-   demande de passer le service et le client en asynchrone ; d'ici là, le
-   projet reste sur zbus 5.19. Guide amont :
-   « Upgrading to zbus 6.0 ».
+La qualité passe avant l'étendue : chaque jalon a un critère de sortie, et
+une fonction n'est dite « validée » qu'avec modèle, micrologiciel, système
+et date de l'essai sur le casque.
+
+| Jalon | Contenu | Critère de sortie |
+|---|---|---|
+| **0.9.0** (consolidation) | Constats F01 à F14 de la revue ([`CONSOLIDATION.md`](CONSOLIDATION.md)) ; CI élargie (versions verrouillées, dépendances auditées) ; documentation alignée | Aucune fausse réussite d'une commande ; publication complète ou rien ; installateurs récupérables |
+| **0.9.1** (KDE) | Panneau rapide KDE, widget enrichi, thème clair sous Plasma | Commandes usuelles en deux clics, état relu affiché |
+| **0.10** (audio Linux) | Lecture PipeWire/WirePlumber de la sortie, du profil et du codec, en lecture seule ; diagnostic guidé | Observations cohérentes avec les réglages son du bureau ; aucun changement de routage silencieux |
+| **0.11** (GNOME) | Interface GTK 4 / libadwaita cliente du même service | Parité définie avec le client KDE, sans connexion directe au casque |
+| **0.12-bêta** (distribution) | Flatpak à sources figées (hors ligne), permissions revues, migration des réglages | Installation, mise à jour et désinstallation propres sur Bazzite et Windows |
+| **1.0** | Version stable | Critères de publication remplis, aucun constat ouvert sans décision |
+
+Restent hors du périmètre de la 1.0 : mise à jour du micrologiciel,
+réinitialisation d'usine, nouveau test auditif ou restauration d'un profil
+auditif, suppression d'un appairage. D'autres casques ne seront pris en
+charge qu'après validation sur le matériel ; jusque-là, ils restent en
+lecture seule.
+
+### Étapes terminées (résumé)
+
+1. Fiabilité : session abandonnée après un envoi ambigu (v0.4.0).
+2. Scènes nommées, appliquées une par une avec relecture (v0.4.0 ; plan
+   historique dans [`PLAN-SCENES-IPC.md`](PLAN-SCENES-IPC.md)).
+3. Confort : historique de la batterie, diagnostic expurgé, courbes, A/B,
+   raccourcis éditables, panneau rapide (v0.4.0).
+4. Recherche séparée : sidetone, suivi de tête, audio USB, paramètres du
+   profil (v0.5.0 ; résultats dans [`MOMENTUM5.md`](MOMENTUM5.md)).
+5. Distribution : archives Windows et Linux (v0.8.0), Flatpak, guide de
+   contribution et tableau de compatibilité (non publiés). Reste : signature
+   des exécutables Windows (décision en attente).
+6. Plusieurs interfaces et Linux (v0.7.0).
+7. Service unique et interfaces natives, retrait de Slint (v0.8.0).
+8. Migration vers zbus 6 : plus tard, quand elle apportera un gain concret
+   (elle demande de passer le service et le client en asynchrone).
 
 ## Historique
 

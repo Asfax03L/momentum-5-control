@@ -49,6 +49,15 @@ depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
   remplacée est gardée et remise si l'interface ne démarre pas. Linux :
   fichier manquant = arrêt avant tout changement ; binaires remplacés
   gardés et remis en cas d'échec ; `--desinstaller`.
+- F10 : journaux ordinaires sans nom de casque ni adresse ; les contenus
+  de trame de plus de 3 octets sont masqués en `warn` et `debug` ; les
+  trames brutes ne vont qu'au niveau `trace`, à activer volontairement.
+- F12 : documentation alignée sur l'état réel (feuille de route datée avec
+  jalons et critères, essais Linux datés).
+- Outillage : version de Rust figée (`rust-toolchain.toml`, 1.99.0) ;
+  versions minimales déclarées et vérifiées par la CI (1.89, WinUI 1.95) ;
+  audit des dépendances (`cargo-deny` : failles RustSec, licences,
+  provenance) ; Dependabot mensuel, mises à jour regroupées.
 
 ### Widget Plasma
 - `plasma/org.openheadset.control.plasmoid` : widget Plasma 6 en QML,

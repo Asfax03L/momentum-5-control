@@ -98,18 +98,27 @@ cargo build --release -p momentum-cli -p momentum-kirigami -p momentum-daemon
 sh scripts/installer-linux.sh
 ```
 
-Le script (sans `sudo` ; seule l'ancienne icône Slint est retirée) copie
-les binaires dans
-`~/.local/bin`, le logo dans `~/.local/share/icons/hicolor`, les entrées de
-menu dans `~/.local/share/applications`, l'unité systemd utilisateur du
-service et son fichier d'activation D-Bus
-(`~/.local/share/dbus-1/services`). Lancer ensuite
-« OpenHeadset Control » depuis le menu, ou `momentum-kirigami`.
+Le script (sans `sudo`) vérifie d'abord que tous les fichiers sont là
+(sinon il s'arrête sans rien changer), puis copie les binaires dans
+`~/.local/bin` (les précédents sont gardés en `*.ancien` et remis si une
+copie échoue), le logo dans `~/.local/share/icons/hicolor`, l'entrée de
+menu dans `~/.local/share/applications`, le widget Plasma, l'unité systemd
+utilisateur du service et son fichier d'activation D-Bus
+(`~/.local/share/dbus-1/services`). Il retire l'ancienne icône Slint. Lancer
+ensuite « OpenHeadset Control » depuis le menu, ou `momentum-kirigami`.
+Désinstallation : `sh scripts/installer-linux.sh --desinstaller` (réglages,
+scènes et historique gardés).
 
-État : **lecture validée** le 20/10/2026 sur Bazzite 44 (KDE Plasma) :
-`ctl etat` lit tout l'état du MOMENTUM 5 par le profil client BlueZ, sans
-canal imposé, et la lecture audio continue pendant et après. Aucun
-réglage n'a encore été écrit sous Linux.
+Essais sur le MOMENTUM 5 (micrologiciel 6.21.5), Bazzite 44 (KDE Plasma,
+Wayland) :
+- 20/10/2026 : `ctl etat` lit tout l'état par le profil client BlueZ, sans
+  canal imposé ; la lecture audio continue pendant et après ;
+- 20/10/2026 : première écriture sous Linux (anti-vent coupé puis remis par
+  `ctl`, relu par le service) ;
+- 21/10/2026 : mêmes essais depuis le Flatpak (installé pour l'essai) et
+  par l'appel `Command` du widget Plasma ;
+- 22/10/2026 : demandes numérotées (« appliqué et relu ») et casque
+  retrouvé sans filtre de nom.
 
 ## Widget Plasma
 

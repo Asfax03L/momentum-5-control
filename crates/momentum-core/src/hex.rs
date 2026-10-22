@@ -28,9 +28,28 @@ pub fn from_hex(text: &str) -> Option<Vec<u8>> {
         .collect()
 }
 
+/// Contenu d'une trame pour les journaux ordinaires (F10 de la revue) : les
+/// réglages tiennent en 3 octets au plus ; au-delà (nom du casque, adresses
+/// et noms d'appareils, profil), seule la taille est écrite. Les trames
+/// brutes complètes ne vont qu'au niveau `trace`, activé volontairement.
+pub fn loggable(payload: &[u8]) -> String {
+    if payload.len() <= 3 {
+        to_hex(payload)
+    } else {
+        format!("<{} octets masqués>", payload.len())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn long_payloads_are_hidden_from_ordinary_logs() {
+        assert_eq!(loggable(&[0x01, 0x02]), "01 02");
+        // « MOMENTUM 5 x » : le nom n'apparaît pas.
+        assert_eq!(loggable(b"MOMENTUM 5 x"), "<12 octets masqués>");
+    }
 
     #[test]
     fn round_trip() {

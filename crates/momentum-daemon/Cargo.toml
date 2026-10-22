@@ -3,6 +3,7 @@ name = "momentum-daemon"
 description = "Service OpenHeadset Control : seul propriétaire de la connexion au casque"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 publish.workspace = true

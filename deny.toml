@@ -1,0 +1,47 @@
+# Contrôle des dépendances (cargo-deny), lancé par la CI : failles connues
+# (base RustSec), licences acceptées, provenance des crates.
+[graph]
+all-features = false
+
+[advisories]
+# Une faille connue fait échouer la CI ; une exception se documente ici,
+# avec sa raison.
+ignore = [
+    # Crates « plus maintenues » (aucune faille) : fondues dans zbus 6.0.
+    # Migration vers zbus 6 prévue (docs/ROADMAP.md, étape 8).
+    { id = "RUSTSEC-2026-0370", reason = "zvariant : fondu dans zbus 6, migration prévue" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names : fondu dans zbus 6, migration prévue" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive : fondu dans zbus 6, migration prévue" },
+    # Arrive par gtk 0.18, dépendance Linux de tray-icon que le projet ne
+    # compile pas (tray-icon ne sert qu'à WinUI, sous Windows).
+    { id = "RUSTSEC-2024-0370", reason = "proc-macro-error : via gtk (tray-icon Linux), jamais compilé" },
+]
+
+[licenses]
+# Licences compatibles avec la double licence du projet (MIT OR Apache-2.0)
+# et la distribution des binaires. MPL-2.0 : option-ext (via dirs),
+# copyleft par fichier, sans effet sur le code du projet.
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "0BSD",
+    "Zlib",
+    "Unicode-3.0",
+    "Unlicense",
+    "MPL-2.0",
+]
+confidence-threshold = 0.9
+
+[bans]
+# Plusieurs versions d'une même crate : signalé, pas bloquant.
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"

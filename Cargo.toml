@@ -23,6 +23,9 @@ default-members = [
 [workspace.package]
 version = "0.8.0"
 edition = "2024"
+# Version minimale de Rust (uuid, via BlueZ) ; l'interface WinUI demande
+# 1.95 (windows-reactor). Vérifiées par la tâche « msrv » de la CI.
+rust-version = "1.89"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Asfax03L/openheadset-control"
 publish = false
