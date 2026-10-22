@@ -124,6 +124,51 @@ Chacune passera par une proposition avant d'entrer dans un jalon.
   rapports « Compatibilité » et d'essais sur le matériel ; lecture seule
   jusque-là.
 
+Fonctions au quotidien :
+
+- **Exporter et importer mes réglages** : un fichier unique (scènes,
+  préréglages, raccourcis, panneau rapide, thème) pour retrouver la même
+  configuration sur un autre PC ou un autre système.
+- **Autonomie réelle mesurée** d'après `batterie.csv` : durée moyenne par
+  charge, consommation selon le mode de réduction de bruit. Des mesures
+  seulement, jamais une « santé » de batterie inventée.
+- **Égaliseur d'après des mesures publiques** : meilleur réglage des 8
+  bandes (±6 dB, fréquences fixes) vers une courbe cible, après
+  vérification de la licence des données de mesure.
+- **Notifications supplémentaires**, chacune désactivable : casque resté
+  allumé sans son, charge terminée si le casque la signale, retour de la
+  connexion.
+
+Intégration au bureau :
+
+- **KRunner (KDE)** : « anc off », « scène Transport » depuis la recherche
+  de Plasma, par l'API D-Bus comme le widget.
+- **Liste de raccourcis Windows** (clic droit sur l'icône de la barre des
+  tâches) pour appliquer une scène.
+- **`ctl` pour Stream Deck et macros** : sortie JSON pour toutes les
+  sous-commandes, exemples documentés.
+- **Complétion du shell et page `man` pour `ctl`** (`clap_complete`,
+  `clap_mangen`).
+
+Qualité et projet :
+
+- **Tests d'interface automatisés** en mode démonstration (UI Automation
+  sous Windows, tests QML sous KDE), lancés par la CI.
+- **Couverture de tests** affichée par la CI, avec un seuil minimal pour le
+  cœur du protocole.
+- **Budget de ressources** : mémoire et processeur du service mesurés à
+  chaque version.
+- **Site de documentation** (GitHub Pages) : captures, guide, FAQ.
+- **Politique de versions écrite** : sens de la 1.0, compatibilité des
+  fichiers de réglages, délai de correction des failles.
+
+Recherche sur le casque (nouvelles captures de l'application et accord
+pour chaque essai) :
+
+- **Réglages aujourd'hui en lecture seule** (priorité du mode audio,
+  détection de port…) : écriture seulement après capture dans
+  l'application officielle et vérification sur le casque.
+
 Restent hors du périmètre de la 1.0 : mise à jour du micrologiciel,
 réinitialisation d'usine, nouveau test auditif ou restauration d'un profil
 auditif, suppression d'un appairage. D'autres casques ne seront pris en
