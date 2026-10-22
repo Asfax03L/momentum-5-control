@@ -7,9 +7,15 @@
 //! - `Snapshot() -> s json` : état courant ([`Snapshot`]) ;
 //! - signal `Event(s json)` : chaque [`Event`] du worker ;
 //! - propriétés `Connected`, `Battery`, `Name` (pour un widget ou un script).
+//!
+//! zbus 6 n'a plus d'API bloquante : chaque appel attend sa réponse avec
+//! `zbus::block_on`, la connexion continue d'être servie entre deux appels.
 
-use zbus::blocking::Connection;
+use std::pin::Pin;
+
+use futures_core::Stream;
 use zbus::proxy;
+use zbus::{Connection, block_on};
 
 // `Event` est aussi le nom du type de signal généré par le proxy.
 use crate::{BUS_NAME, ClientError, Command, Event as ApiEvent, OBJECT_PATH, Snapshot};
@@ -58,20 +64,21 @@ fn service_error(e: zbus::Error) -> ClientError {
 
 /// Connexion au service sur le bus de session.
 pub struct Client {
-    proxy: ControlProxyBlocking<'static>,
+    proxy: ControlProxy<'static>,
 }
 
 impl Client {
     /// Ouvre le bus de session et vérifie que le service répond.
     pub fn connect() -> Result<Self, ClientError> {
-        let connection = Connection::session().map_err(service_error)?;
-        let proxy = ControlProxyBlocking::builder(&connection)
-            .destination(BUS_NAME)
-            .map_err(service_error)?
-            .path(OBJECT_PATH)
-            .map_err(service_error)?
-            .build()
-            .map_err(service_error)?;
+        let proxy = block_on(async {
+            let connection = Connection::session().await?;
+            ControlProxy::builder(&connection)
+                .destination(BUS_NAME)
+                .path(OBJECT_PATH)
+                .build()
+                .await
+        })
+        .map_err(service_error)?;
         let client = Self { proxy };
         client.snapshot()?;
         Ok(client)
@@ -79,28 +86,33 @@ impl Client {
 
     /// État courant du casque vu par le service.
     pub fn snapshot(&self) -> Result<Snapshot, ClientError> {
-        let json = self.proxy.snapshot().map_err(service_error)?;
+        let json = block_on(self.proxy.snapshot()).map_err(service_error)?;
         Ok(serde_json::from_str(&json)?)
     }
 
     /// Envoie une commande ; la réponse du casque arrive en [`ApiEvent`].
     pub fn send(&self, command: &Command) -> Result<(), ClientError> {
         let json = serde_json::to_string(command)?;
-        self.proxy.command(&json).map_err(service_error)
+        block_on(self.proxy.command(&json)).map_err(service_error)
     }
 
     /// Envoie une commande suivie ; son résultat arrive en
     /// `ApiEvent::Done` avec le numéro rendu. `Err` : refusée tout de suite.
     pub fn submit(&self, command: &Command, session: u64) -> Result<u64, ClientError> {
         let json = serde_json::to_string(command)?;
-        self.proxy.submit(&json, session).map_err(service_error)
+        block_on(self.proxy.submit(&json, session)).map_err(service_error)
     }
 
     /// Événements du service ([`ApiEvent`]), dans l'ordre (bloquant). Un message illisible
     /// est ignoré.
     pub fn events(&self) -> Result<impl Iterator<Item = ApiEvent> + use<>, ClientError> {
-        let stream = self.proxy.receive_event().map_err(service_error)?;
-        Ok(stream.filter_map(|signal| {
+        let mut stream = block_on(self.proxy.receive_event()).map_err(service_error)?;
+        let signals = std::iter::from_fn(move || {
+            block_on(std::future::poll_fn(|cx| {
+                Pin::new(&mut stream).poll_next(cx)
+            }))
+        });
+        Ok(signals.filter_map(|signal| {
             let args = signal.args().ok()?;
             serde_json::from_str::<ApiEvent>(&args.json).ok()
         }))

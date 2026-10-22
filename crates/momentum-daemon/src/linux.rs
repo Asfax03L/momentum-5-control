@@ -87,41 +87,46 @@ impl Control {
 pub fn run() -> anyhow::Result<()> {
     let shared = Arc::new(Mutex::new(Shared::default()));
     let (commands, commands_rx) = mpsc::channel::<Job>();
-    let connection = zbus::blocking::connection::Builder::session()
-        .context("bus de session D-Bus")?
-        .name(BUS_NAME)
-        .context("nom D-Bus")?
-        .serve_at(
-            OBJECT_PATH,
-            Control {
-                commands,
-                shared: Arc::clone(&shared),
-            },
-        )
-        .context("objet D-Bus")?
-        .build()
-        .context("service déjà lancé, ou bus de session indisponible")?;
-    let iface = connection
-        .object_server()
-        .interface::<_, Control>(OBJECT_PATH)
-        .context("interface D-Bus")?;
+    // zbus 6 n'a plus d'API bloquante : la connexion est construite dans
+    // `block_on`, puis servie par zbus entre deux appels.
+    let control = Control {
+        commands,
+        shared: Arc::clone(&shared),
+    };
+    let (connection, iface) = zbus::block_on(async {
+        let connection = zbus::connection::Builder::session()
+            .name(BUS_NAME)
+            .serve_at(OBJECT_PATH, control)
+            .build()
+            .await
+            .context("service déjà lancé, ou bus de session indisponible")?;
+        let iface = connection
+            .object_server()
+            .interface::<_, Control>(OBJECT_PATH)
+            .await
+            .context("interface D-Bus")?;
+        anyhow::Ok((connection, iface))
+    })?;
     tracing::info!(nom = BUS_NAME, "service OpenHeadset Control prêt");
 
     let events = service::spawn_worker(commands_rx, &shared)?;
     service::pump(events, &shared, |api_event| {
-        let emitter = iface.signal_emitter();
-        match serde_json::to_string(api_event) {
-            Ok(json) => {
-                if let Err(e) = zbus::block_on(Control::event(emitter, &json)) {
-                    tracing::warn!(%e, "signal D-Bus");
+        let json = serde_json::to_string(api_event);
+        zbus::block_on(async {
+            let emitter = iface.signal_emitter();
+            match json {
+                Ok(json) => {
+                    if let Err(e) = Control::event(emitter, &json).await {
+                        tracing::warn!(%e, "signal D-Bus");
+                    }
                 }
+                Err(e) => tracing::warn!(%e, "événement non sérialisable"),
             }
-            Err(e) => tracing::warn!(%e, "événement non sérialisable"),
-        }
-        let control = iface.get();
-        let _ = zbus::block_on(control.connected_changed(emitter));
-        let _ = zbus::block_on(control.battery_changed(emitter));
-        let _ = zbus::block_on(control.name_changed(emitter));
+            let control = iface.get().await;
+            let _ = control.connected_changed(emitter).await;
+            let _ = control.battery_changed(emitter).await;
+            let _ = control.name_changed(emitter).await;
+        });
     });
     drop(connection);
     Ok(())

@@ -11,9 +11,12 @@
 //! composant) : `doRegister(as)`, `setShortcutKeys(as, a(ai), u) -> a(ai)`,
 //! `getComponent(s) -> o`, signal `globalShortcutPressed(s, s, x)`.
 
+use std::pin::Pin;
+
+use futures_core::Stream;
 use momentum_core::hotkeys::HotkeyAction;
-use zbus::blocking::{Connection, Proxy};
-use zbus::zvariant::OwnedObjectPath;
+use zbus::wire::OwnedObjectPath;
+use zbus::{Connection, Proxy};
 
 const SERVICE: &str = "org.kde.kglobalaccel";
 /// Composant. Pas de nom en `.desktop` : KDE traiterait alors les
@@ -58,48 +61,62 @@ fn action_id(action: &HotkeyAction) -> Vec<String> {
 /// `on_pressed` à chaque appui, jusqu'à la fin de la session D-Bus. À
 /// lancer dans un thread dédié.
 pub fn run(scenes: &[String], mut on_pressed: impl FnMut(HotkeyAction)) -> zbus::Result<()> {
-    let connection = Connection::session()?;
-    let accel = Proxy::new(
-        &connection,
-        SERVICE,
-        "/kglobalaccel",
-        "org.kde.KGlobalAccel",
-    )?;
-    for (action, letter) in &ACTIONS {
-        let id = action_id(action);
-        let keys = vec![(vec![ctrl_alt(*letter)],)];
-        accel.call_method("doRegister", &(&id,))?;
-        let _: Vec<(Vec<i32>,)> = accel.call("setShortcutKeys", &(&id, &keys, IS_DEFAULT))?;
-        let active: Vec<(Vec<i32>,)> = accel.call("setShortcutKeys", &(&id, &keys, SET_PRESENT))?;
-        if active.is_empty() {
-            tracing::info!(action = %action.key(), "raccourci KDE sans touche (déjà pris ou retiré)");
+    // zbus 6 n'a plus d'API bloquante : tout le fil tourne dans `block_on`.
+    zbus::block_on(async {
+        let connection = Connection::session().await?;
+        let accel = Proxy::new(
+            &connection,
+            SERVICE,
+            "/kglobalaccel",
+            "org.kde.KGlobalAccel",
+        )
+        .await?;
+        for (action, letter) in &ACTIONS {
+            let id = action_id(action);
+            let keys = vec![(vec![ctrl_alt(*letter)],)];
+            accel.call_method("doRegister", &(&id,)).await?;
+            let _: Vec<(Vec<i32>,)> = accel
+                .call("setShortcutKeys", &(&id, &keys, IS_DEFAULT))
+                .await?;
+            let active: Vec<(Vec<i32>,)> = accel
+                .call("setShortcutKeys", &(&id, &keys, SET_PRESENT))
+                .await?;
+            if active.is_empty() {
+                tracing::info!(action = %action.key(), "raccourci KDE sans touche (déjà pris ou retiré)");
+            }
         }
-    }
-    // Scènes : sans raccourci par défaut, à choisir dans KDE.
-    for name in scenes {
-        accel.call_method(
-            "doRegister",
-            &(&action_id(&HotkeyAction::Scene(name.clone())),),
-        )?;
-    }
-    let path: OwnedObjectPath = accel.call("getComponent", &(COMPONENT,))?;
-    let component = Proxy::new(&connection, SERVICE, path, "org.kde.kglobalaccel.Component")?;
-    tracing::info!("raccourcis KDE déclarés");
-    for message in component.receive_signal("globalShortcutPressed")? {
-        let Ok((component, name, _timestamp)) =
-            message.body().deserialize::<(String, String, i64)>()
-        else {
-            continue;
-        };
-        if component != COMPONENT {
-            continue;
+        // Scènes : sans raccourci par défaut, à choisir dans KDE.
+        for name in scenes {
+            accel
+                .call_method(
+                    "doRegister",
+                    &(&action_id(&HotkeyAction::Scene(name.clone())),),
+                )
+                .await?;
         }
-        tracing::info!(action = %name, "raccourci KDE");
-        if let Some(action) = HotkeyAction::from_key(&name) {
-            on_pressed(action);
+        let path: OwnedObjectPath = accel.call("getComponent", &(COMPONENT,)).await?;
+        let component =
+            Proxy::new(&connection, SERVICE, path, "org.kde.kglobalaccel.Component").await?;
+        tracing::info!("raccourcis KDE déclarés");
+        let mut pressed = component.receive_signal("globalShortcutPressed").await?;
+        while let Some(message) =
+            std::future::poll_fn(|cx| Pin::new(&mut pressed).poll_next(cx)).await
+        {
+            let Ok((component, name, _timestamp)) =
+                message.body().deserialize::<(String, String, i64)>()
+            else {
+                continue;
+            };
+            if component != COMPONENT {
+                continue;
+            }
+            tracing::info!(action = %name, "raccourci KDE");
+            if let Some(action) = HotkeyAction::from_key(&name) {
+                on_pressed(action);
+            }
         }
-    }
-    Ok(())
+        Ok(())
+    })
 }
 
 #[cfg(test)]
