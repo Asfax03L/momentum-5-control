@@ -57,19 +57,6 @@ jobs:
       - run: cargo test
       # Client Kirigami : hors des membres par défaut (Qt 6 requis).
       - run: cargo clippy -p momentum-kirigami --all-targets -- -D warnings
-      # Démarrage réel (F13) : mode démonstration, sans écran, sur un bus de
-      # session à part ; le QML et ses modules Kirigami doivent se charger
-      # sans erreur. Le client tourne jusqu'à la fin du délai (code 124).
-      - name: Démarrage du client KDE (QML)
-        run: |
-          cargo build -p momentum-kirigami
-          set +e
-          QT_QPA_PLATFORM=offscreen timeout 15 dbus-run-session --             target/debug/momentum-kirigami --demo --page son > demarrage.log 2>&1
-          code=$?
-          set -e
-          cat demarrage.log
-          test "$code" -eq 124
-          ! grep -E "qrc:.*(Error|error)|is not a type|is not installed|ReferenceError|TypeError|Cannot assign" demarrage.log
         env:
           QMAKE: /usr/bin/qmake6
       - run: cargo build --release -p momentum-cli -p momentum-daemon -p momentum-kirigami
@@ -98,6 +85,19 @@ jobs:
       - uses: actions/checkout@v4
       - run: qmake6 -query QT_VERSION && cargo --version
       - run: cargo clippy -p momentum-kirigami --all-targets -- -D warnings
+      # Démarrage réel (F13) : mode démonstration, sans écran, sur un bus de
+      # session à part ; le QML et ses modules Kirigami doivent se charger
+      # sans erreur. Le client tourne jusqu'à la fin du délai (code 124).
+      - name: Démarrage du client KDE (QML)
+        run: |
+          cargo build -p momentum-kirigami
+          set +e
+          QT_QPA_PLATFORM=offscreen timeout 15 dbus-run-session --             target/debug/momentum-kirigami --demo --page son > demarrage.log 2>&1
+          code=$?
+          set -e
+          cat demarrage.log
+          test "$code" -eq 124
+          ! grep -E "qrc:.*(Error|error)|is not a type|is not installed|ReferenceError|TypeError|Cannot assign" demarrage.log
 
   # Version minimale de Rust annoncée (rust-version) : 1.89 pour l'ensemble,
   # 1.95 pour l'interface WinUI. RUSTUP_TOOLCHAIN passe outre
