@@ -354,10 +354,15 @@ struct Root {
     /// Éditeur des raccourcis : action et touches saisies, et résultat du
     /// dernier enregistrement.
     hotkey_rows: Vec<(HotkeyAction, String)>,
+    /// Texte de `raccourcis.txt` à la lecture (F14 : pas d'écrasement d'une
+    /// modification faite ailleurs).
+    hotkeys_loaded: Option<String>,
     hotkey_notice: Option<String>,
     /// Contenu du panneau rapide (`panneau.txt`) et résultat du dernier
     /// enregistrement.
     panel_prefs: PanelPrefs,
+    /// Texte de `panneau.txt` à la lecture.
+    panel_loaded: Option<String>,
     panel_notice: Option<String>,
     /// Thème choisi (`apparence.txt`) ; `None` : celui du système.
     dark: Option<bool>,
@@ -577,6 +582,7 @@ impl Root {
                     self.hotkeys = thread;
                 }
                 self.panel_prefs = paths::load_panel_prefs();
+                self.panel_loaded = paths::read_panel_text();
                 self.reload_scene_editor();
                 self.reload_scenes();
                 self.scene_notice = Some(message);
@@ -588,21 +594,29 @@ impl Root {
     /// Remplit l'éditeur des raccourcis depuis `raccourcis.txt`.
     fn reload_hotkey_rows(&mut self) {
         let names: Vec<String> = self.scenes.iter().map(|s| s.name.clone()).collect();
-        self.hotkey_rows = hotkeys::editor_rows(&paths::load_hotkey_config(), &names);
+        let text = paths::load_hotkey_config();
+        self.hotkey_rows = hotkeys::editor_rows(&text, &names);
+        self.hotkeys_loaded = Some(text);
     }
 
     /// Écrit `panneau.txt` (pris en compte à la prochaine ouverture du
     /// panneau).
     fn store_panel_prefs(&mut self) {
+        let text = self.panel_prefs.to_text();
         let written = paths::panel_file()
             .ok_or_else(|| "dossier des données introuvable".to_string())
-            .and_then(|path| {
-                paths::write_user_file(&path, &self.panel_prefs.to_text())
-                    .map_err(|e| e.to_string())
-            });
+            .and_then(|path| paths::write_if_unchanged(&path, self.panel_loaded.as_deref(), &text));
         self.panel_notice = Some(match written {
-            Ok(()) => "Panneau enregistré : pris en compte à sa prochaine ouverture.".to_string(),
-            Err(e) => format!("Panneau non enregistré : {e}."),
+            Ok(()) => {
+                self.panel_loaded = Some(text);
+                "Panneau enregistré : pris en compte à sa prochaine ouverture.".to_string()
+            }
+            Err(e) => {
+                // Relu : l'écran montre le fichier tel qu'il est.
+                self.panel_prefs = paths::load_panel_prefs();
+                self.panel_loaded = paths::read_panel_text();
+                format!("Panneau non enregistré : {e}.")
+            }
         });
     }
 
@@ -617,9 +631,12 @@ impl Root {
         };
         let written = paths::hotkeys_file()
             .ok_or_else(|| "dossier des données introuvable".to_string())
-            .and_then(|path| paths::write_user_file(&path, &text).map_err(|e| e.to_string()));
+            .and_then(|path| {
+                paths::write_if_unchanged(&path, self.hotkeys_loaded.as_deref(), &text)
+            });
         if let Err(e) = written {
             self.hotkey_notice = Some(format!("Raccourcis non enregistrés : {e}."));
+            self.reload_hotkey_rows();
             return;
         }
         if let Some(thread) = self.hotkeys.take() {
@@ -1008,8 +1025,10 @@ impl Component for Root {
             tray_actions: Vec::new(),
             hotkeys: hotkey_thread,
             hotkey_rows: Vec::new(),
+            hotkeys_loaded: None,
             hotkey_notice: None,
             panel_prefs: paths::load_panel_prefs(),
+            panel_loaded: paths::read_panel_text(),
             panel_notice: None,
             dark: momentum_core::appearance::load(),
             hotkey_problem: (!errors.is_empty())

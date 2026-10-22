@@ -36,7 +36,7 @@ commande ; le widget Plasma se limite aux réglages rapides.
 | Batterie : courbe 24 h / 7 j / 30 j, export, effacement | ✅ | ✅ | historique tenu par le service |
 | Connexion et audio : lectures et heures | ✅ | ✅ | |
 | Vérification de la sortie audio du système | ✅ | — | Linux : PipeWire prévu (jalon 0.10) |
-| Thème clair ou sombre | ✅ | 🟡 | sous Plasma, « Clair » n'est pas appliqué si Plasma est en sombre (prévu, jalon 0.9.1) |
+| Thème clair ou sombre | ✅ | ✅ | sous Plasma : jeu Breeze clair ou sombre pour l'application seule |
 | Lancement à l'ouverture de session | ✅ | ✅ | Flatpak : portail du bureau |
 | Une seule instance | ✅ | ✅ | |
 | Notifications (batterie, connexion) | ✅ | ✅ | envoyées par le service |

@@ -213,6 +213,30 @@ pub fn write_user_file(path: &std::path::Path, text: &str) -> std::io::Result<()
     Ok(())
 }
 
+/// Écrit `text` dans `path` seulement si le fichier est toujours tel qu'il
+/// a été lu (`loaded`, `None` : absent) : une modification faite ailleurs
+/// entre-temps (autre interface, éditeur de texte) n'est pas écrasée (F14).
+pub fn write_if_unchanged(
+    path: &std::path::Path,
+    loaded: Option<&str>,
+    text: &str,
+) -> Result<(), String> {
+    let current = fs::read_to_string(path).ok();
+    if current.as_deref() != loaded {
+        return Err(format!(
+            "{} a été modifié ailleurs depuis son ouverture : relu, à refaire",
+            path.file_name()
+                .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
+        ));
+    }
+    write_user_file(path, text).map_err(|e| e.to_string())
+}
+
+/// Texte de `panneau.txt`, s'il existe.
+pub fn read_panel_text() -> Option<String> {
+    fs::read_to_string(panel_file()?).ok()
+}
+
 /// Modifie les préréglages personnels du fichier `path` : relus juste avant
 /// la modification (une autre interface a pu en ajouter), puis réécrits.
 /// Rend la liste à jour.
@@ -270,6 +294,24 @@ mod tests {
             .filter(|e| e.as_ref().unwrap().path().extension() == Some("tmp".as_ref()))
             .count();
         assert_eq!(leftovers, 0);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_file_changed_elsewhere_is_not_overwritten() {
+        let dir = std::env::temp_dir().join(format!(
+            "momentum-ctl-win-test-conflit-{}",
+            std::process::id()
+        ));
+        let path = dir.join("raccourcis.txt");
+        write_user_file(&path, "lu").unwrap();
+        // Modifié ailleurs après la lecture : refusé, contenu intact.
+        write_user_file(&path, "ailleurs").unwrap();
+        assert!(write_if_unchanged(&path, Some("lu"), "mien").is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "ailleurs");
+        // Inchangé depuis la lecture : écrit.
+        write_if_unchanged(&path, Some("ailleurs"), "mien").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "mien");
         let _ = fs::remove_dir_all(&dir);
     }
 

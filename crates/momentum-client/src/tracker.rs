@@ -3,7 +3,10 @@
 //! les termine pas (F01 de la revue), et un refus immédiat du service se
 //! voit au lieu de laisser l'interface en attente (F03).
 
-use crate::Outcome;
+use std::sync::mpsc::Receiver;
+use std::time::{Duration, Instant};
+
+use crate::{Event, Outcome};
 
 /// Demandes en cours d'une interface.
 #[derive(Debug, Default)]
@@ -71,6 +74,41 @@ impl Tracker {
     }
 }
 
+/// Attend le résultat de la demande `id` parmi les événements du service
+/// (abonnement pris avant l'envoi) : tout autre événement est ignoré, même
+/// un `Done` d'une autre demande. `None` : rien dans le délai (résultat
+/// inconnu) ou service perdu.
+pub fn wait_for(
+    events: &Receiver<Event>,
+    id: u64,
+    timeout: Duration,
+) -> Option<(Outcome, Option<String>)> {
+    let deadline = Instant::now() + timeout;
+    loop {
+        let left = deadline.saturating_duration_since(Instant::now());
+        match events.recv_timeout(left).ok()? {
+            Event::Done {
+                id: done,
+                outcome,
+                details,
+            } if done == id => return Some((outcome, details)),
+            _ => {}
+        }
+    }
+}
+
+/// Code de sortie d'un outil en ligne de commande pour ce résultat :
+/// 0 réussite confirmée, 1 refus ou annulation (rien n'a changé), 2 non
+/// appliqué (relu autrement), 3 résultat inconnu (à relire).
+pub fn exit_code(outcome: Option<&Outcome>) -> i32 {
+    match outcome {
+        Some(Outcome::Applied | Outcome::AlreadySatisfied | Outcome::Acknowledged) => 0,
+        Some(Outcome::Refused(_) | Outcome::Cancelled(_)) => 1,
+        Some(Outcome::NotApplied(_)) => 2,
+        Some(Outcome::Unknown(_)) | None => 3,
+    }
+}
+
 fn failure(outcome: &Outcome) -> Option<String> {
     (!outcome.is_success()).then(|| outcome.describe())
 }
@@ -121,6 +159,35 @@ mod tests {
             Some("non appliqué : relu autrement")
         );
         assert!(!t.busy());
+    }
+
+    #[test]
+    fn a_command_line_waits_for_its_own_result() {
+        // F01/F13 : notification de batterie, résultat d'une autre demande,
+        // puis refus tardif de la sienne : c'est ce refus qui compte.
+        let (tx, rx) = std::sync::mpsc::channel();
+        tx.send(Event::State(momentum_core::device::HeadsetState::default()))
+            .unwrap();
+        tx.send(Event::Done {
+            id: 8,
+            outcome: Outcome::Applied,
+            details: None,
+        })
+        .unwrap();
+        tx.send(Event::Done {
+            id: 9,
+            outcome: Outcome::Refused("casque absent".into()),
+            details: None,
+        })
+        .unwrap();
+        let (outcome, _) = wait_for(&rx, 9, Duration::from_secs(1)).unwrap();
+        assert_eq!(outcome, Outcome::Refused("casque absent".into()));
+        assert_eq!(exit_code(Some(&outcome)), 1);
+        // Rien pour la demande 10 : résultat inconnu, code 3.
+        assert_eq!(wait_for(&rx, 10, Duration::from_millis(20)), None);
+        assert_eq!(exit_code(None), 3);
+        assert_eq!(exit_code(Some(&Outcome::Applied)), 0);
+        assert_eq!(exit_code(Some(&Outcome::NotApplied("x".into()))), 2);
     }
 
     #[test]

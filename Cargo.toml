@@ -21,7 +21,7 @@ default-members = [
 ]
 
 [workspace.package]
-version = "0.8.0"
+version = "0.9.0"
 edition = "2024"
 # Version minimale de Rust (uuid, via BlueZ) ; l'interface WinUI demande
 # 1.95 (windows-reactor). Vérifiées par la tâche « msrv » de la CI.

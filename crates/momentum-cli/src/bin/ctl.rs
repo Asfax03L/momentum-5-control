@@ -229,6 +229,7 @@ mod app {
     /// pas de service (connexion directe), ou commande sans casque (scènes).
     #[cfg(any(windows, target_os = "linux"))]
     fn through_daemon(command: &Command) -> anyhow::Result<bool> {
+        use momentum_client::tracker;
         use momentum_client::{Client, ClientError, Command as Api, Event};
 
         let client = match Client::connect() {
@@ -388,24 +389,14 @@ mod app {
             ClientError::Service(reason) => anyhow::anyhow!("refusé par le service : {reason}"),
             other => anyhow::anyhow!(other),
         })?;
-        let deadline =
-            std::time::Instant::now() + if is_scene { DAEMON_SCENE } else { DAEMON_REPLY };
-        let (outcome, details) = loop {
-            let left = deadline.saturating_duration_since(std::time::Instant::now());
-            let event = rx.recv_timeout(left).map_err(|_| {
-                anyhow::anyhow!(
-                    "pas de résultat dans le délai : résultat inconnu (relire avec `ctl etat`)"
-                )
-            })?;
-            if let Event::Done {
-                id: done,
-                outcome,
-                details,
-            } = event
-                && done == id
-            {
-                break (outcome, details);
-            }
+        let timeout = if is_scene { DAEMON_SCENE } else { DAEMON_REPLY };
+        // Codes de sortie : 0 confirmé, 1 refusé ou annulé, 2 non appliqué,
+        // 3 résultat inconnu (voir `tracker::exit_code`).
+        let Some((outcome, details)) = tracker::wait_for(&rx, id, timeout) else {
+            eprintln!(
+                "Erreur : pas de résultat dans le délai : résultat inconnu (relire avec `ctl etat`)"
+            );
+            std::process::exit(tracker::exit_code(None));
         };
         if let Some(details) = &details {
             if is_scene {
@@ -415,7 +406,8 @@ mod app {
             }
         }
         if !outcome.is_success() {
-            bail!("{}", outcome.describe());
+            eprintln!("Erreur : {}", outcome.describe());
+            std::process::exit(tracker::exit_code(Some(&outcome)));
         }
         if !is_scene && !matches!(api, Api::ExportProfile(_)) {
             let now = client.snapshot()?;
