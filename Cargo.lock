@@ -1276,9 +1276,11 @@ dependencies = [
  "clap_mangen",
  "momentum-client",
  "momentum-core",
+ "serde_json",
  "tracing",
  "tracing-subscriber",
  "windows",
+ "zbus",
 ]
 
 [[package]]
@@ -1301,6 +1303,7 @@ dependencies = [
  "futures",
  "momentum-core",
  "serde",
+ "serde_json",
  "thiserror 2.0.21",
  "tokio",
  "tracing",

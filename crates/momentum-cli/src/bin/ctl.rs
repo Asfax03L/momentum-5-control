@@ -4,6 +4,13 @@
 //! est relu : la commande échoue si le casque n'a pas appliqué le réglage.
 
 use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
+use momentum_core::json::{self, Readback};
+use std::io::Write;
+use std::process::ExitCode;
+
+#[cfg(test)]
+#[path = "../ctl_tests.rs"]
+mod tests;
 
 #[derive(Parser, Debug)]
 #[command(
@@ -14,6 +21,10 @@ use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 struct Args {
     #[command(subcommand)]
     command: Command,
+
+    /// Écrit un seul objet JSON versionné ; les messages humains vont sur stderr.
+    #[arg(long, global = true)]
+    json: bool,
 
     /// Filtre sur le nom de l'appareil appairé.
     #[arg(long, global = true)]
@@ -44,11 +55,7 @@ enum Command {
     /// Écrit la page de manuel ctl.1 sur la sortie standard, sans casque.
     Man,
     /// Affiche l'état du casque. Passe par le service s'il tourne.
-    Etat {
-        /// État en JSON (version 1, `null` pour une valeur non lue).
-        #[arg(long)]
-        json: bool,
-    },
+    Etat,
     /// Liste les scènes du fichier scenes.txt.
     Scenes,
     /// Applique une scène (réglages un par un, arrêt à la première erreur).
@@ -176,10 +183,125 @@ impl OnOff {
     }
 }
 
-fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
+/// Collecte uniquement les valeurs déjà lues, sans changer les échanges.
+struct Output {
+    json: bool,
+    readback: Readback,
+    value: Option<String>,
+    details: Option<String>,
+    outcome: Option<String>,
+    exit_code: u8,
+}
+
+impl Output {
+    fn new(json: bool) -> Self {
+        Self {
+            json,
+            readback: Readback::default(),
+            value: None,
+            details: None,
+            outcome: None,
+            exit_code: 0,
+        }
+    }
+
+    fn message(&self, text: std::fmt::Arguments<'_>) {
+        if self.json {
+            eprintln!("{text}");
+        } else {
+            println!("{text}");
+        }
+    }
+
+    fn render(&self, command: &Command, error: Option<&str>) -> String {
+        if error.is_none() {
+            if let Some(value) = &self.value {
+                return value.clone();
+            }
+            match command {
+                // Garder ce sérialiseur et l'ordre historique de ses champs.
+                Command::Etat => return json::state_json(self.readback.state.as_ref()),
+                Command::Eq => return json::equalizer_json(self.readback.equalizer.as_ref()),
+                Command::Connexions => {
+                    return json::connections_json(self.readback.connections.as_deref());
+                }
+                Command::Nom { nouveau: None } => {
+                    return json::name_json(self.readback.name.as_deref());
+                }
+                _ => {}
+            }
+        }
+        json::result_json(
+            &self.readback,
+            error,
+            self.outcome.as_deref(),
+            self.details.as_deref(),
+        )
+    }
+}
+
+fn print_json(text: &str) -> std::io::Result<()> {
+    writeln!(std::io::stdout().lock(), "{text}")
+}
+
+fn main() -> ExitCode {
+    let argv: Vec<_> = std::env::args_os().collect();
+    let json = argv
+        .iter()
+        .take_while(|a| *a != "--")
+        .any(|a| a == "--json");
+    let args = match Args::try_parse_from(argv) {
+        Ok(args) => args,
+        Err(error) if json => {
+            let text = if error.use_stderr() {
+                json::result_json(&Readback::default(), Some(&error.to_string()), None, None)
+            } else {
+                json::documentation_json("aide", &error.to_string())
+            };
+            let code = error.exit_code() as u8;
+            if let Err(e) = print_json(&text) {
+                eprintln!("Erreur de sortie : {e}");
+                return ExitCode::FAILURE;
+            }
+            return ExitCode::from(code);
+        }
+        Err(error) => error.exit(),
+    };
+    let mut output = Output::new(args.json);
+    let result = execute(&args, &mut output);
+    let error = result.err().map(|e| format!("{e:#}"));
+    if let Some(error) = &error {
+        eprintln!("Erreur : {error}");
+        if output.exit_code == 0 {
+            output.exit_code = 1;
+        }
+    }
+    if args.json
+        && let Err(e) = print_json(&output.render(&args.command, error.as_deref()))
+    {
+        eprintln!("Erreur de sortie : {e}");
+        return ExitCode::FAILURE;
+    }
+    ExitCode::from(output.exit_code)
+}
+
+fn execute(args: &Args, output: &mut Output) -> anyhow::Result<()> {
     // La documentation ne doit ni démarrer le service ni ouvrir Bluetooth.
-    if write_documentation(&args.command, &mut std::io::stdout().lock())? {
+    let mut documentation = Vec::new();
+    if write_documentation(&args.command, &mut documentation)? {
+        if args.json {
+            let kind = if matches!(args.command, Command::Man) {
+                "manuel"
+            } else {
+                "completion"
+            };
+            output.value = Some(json::documentation_json(
+                kind,
+                &String::from_utf8(documentation)?,
+            ));
+        } else {
+            std::io::stdout().lock().write_all(&documentation)?;
+        }
         return Ok(());
     }
     let level = if args.verbose { "trace" } else { "warn" };
@@ -193,7 +315,7 @@ fn main() -> anyhow::Result<()> {
         .init();
 
     #[cfg(any(windows, target_os = "linux"))]
-    return app::run(&args);
+    return app::run(args, output);
     #[cfg(not(any(windows, target_os = "linux")))]
     anyhow::bail!("ctl ne fonctionne que sous Windows et Linux");
 }
@@ -224,10 +346,11 @@ mod app {
     use momentum_core::device::{
         AudioMode, EqState, Headset, HeadsetState, NoiseModeRequest, NoiseState, PromptMode,
     };
-    use momentum_core::json::state_json;
+    use momentum_core::json::ConnectionSummary;
     use momentum_core::paths;
     use momentum_core::protocol::messages::M5NoiseMode;
     use momentum_core::scenes;
+    use momentum_core::transport::Transport;
     #[cfg(target_os = "linux")]
     use momentum_core::transport::bluez_rfcomm::{
         BluezTransport as PlatformTransport, list_gaia_devices,
@@ -241,7 +364,7 @@ mod app {
     #[cfg(windows)]
     use windows::Win32::System::WinRT::{RO_INIT_MULTITHREADED, RoInitialize};
 
-    use super::{Args, Command, Mode, Prompts};
+    use super::{Args, Command, Mode, Output, Prompts};
 
     /// Délai d'attente de la réponse du casque à une commande passée par le
     /// service.
@@ -257,7 +380,8 @@ mod app {
     /// Passe la commande au service `momentum-daemon` s'il tourne ; `false` :
     /// pas de service (connexion directe), ou commande sans casque (scènes).
     #[cfg(any(windows, target_os = "linux"))]
-    fn through_daemon(command: &Command) -> anyhow::Result<bool> {
+    fn through_daemon(args: &Args, output: &mut Output) -> anyhow::Result<bool> {
+        let command = &args.command;
         use momentum_client::tracker;
         use momentum_client::{Client, ClientError, Command as Api, Event};
 
@@ -307,28 +431,35 @@ mod app {
         };
         let api = match command {
             Command::Scenes | Command::Completions { .. } | Command::Man => return Ok(false),
-            Command::Etat { json } => {
+            Command::Etat => {
                 eprintln!("(par le service momentum-daemon)");
-                if *json {
-                    println!("{}", state_json(snapshot.state.as_ref()));
-                } else {
-                    print_state(&state()?);
+                output.readback.state = snapshot.state;
+                if !args.json {
+                    print_state(output, &state()?);
                 }
                 return Ok(true);
             }
             Command::Eq => {
                 eprintln!("(par le service momentum-daemon)");
+                if args.json {
+                    output.readback.equalizer = snapshot.equalizer;
+                    return Ok(true);
+                }
                 state()?;
                 let eq = snapshot
                     .equalizer
                     .ok_or_else(|| anyhow::anyhow!("égaliseur pas encore lu"))?;
-                print_eq(&eq);
+                print_eq(output, &eq);
                 return Ok(true);
             }
             Command::Connexions => {
                 eprintln!("(par le service momentum-daemon)");
+                if args.json {
+                    output.readback.connections = connection_summaries(&snapshot);
+                    return Ok(true);
+                }
                 for (i, d) in snapshot.connections.iter().enumerate() {
-                    println!(
+                    output.message(format_args!(
                         "{}. {}{} — {}",
                         i + 1,
                         d.name,
@@ -338,7 +469,7 @@ mod app {
                         } else {
                             "non connecté"
                         }
-                    );
+                    ));
                 }
                 return Ok(true);
             }
@@ -395,7 +526,8 @@ mod app {
             Command::Nom { nouveau: None } => {
                 eprintln!("(par le service momentum-daemon)");
                 let name = snapshot.info.as_ref().and_then(|i| i.name.clone());
-                println!("{}", name.as_deref().unwrap_or("nom non lu"));
+                output.readback.name = name.clone();
+                output.message(format_args!("{}", name.as_deref().unwrap_or("nom non lu")));
                 return Ok(true);
             }
             Command::Nom {
@@ -437,32 +569,149 @@ mod app {
         // Codes de sortie : 0 confirmé, 1 refusé ou annulé, 2 non appliqué,
         // 3 résultat inconnu (voir `tracker::exit_code`).
         let Some((outcome, details)) = tracker::wait_for(&rx, id, timeout) else {
-            eprintln!(
-                "Erreur : pas de résultat dans le délai : résultat inconnu (relire avec `ctl etat`)"
-            );
-            std::process::exit(tracker::exit_code(None));
+            output.exit_code = tracker::exit_code(None) as u8;
+            bail!("pas de résultat dans le délai : résultat inconnu (relire avec `ctl etat`)");
         };
+        if args.json {
+            output.details = details;
+            output.outcome = Some(outcome.describe());
+            output.exit_code = tracker::exit_code(Some(&outcome)) as u8;
+            // Le worker relit déjà ces valeurs. Une scène annonce Done
+            // avant sa relecture : attendre les événements qui la suivent.
+            if is_scene
+                && matches!(
+                    outcome,
+                    momentum_client::Outcome::Applied | momentum_client::Outcome::NotApplied(_)
+                )
+            {
+                scene_readback(&rx, output)?;
+            } else if matches!(
+                outcome,
+                momentum_client::Outcome::Applied
+                    | momentum_client::Outcome::AlreadySatisfied
+                    | momentum_client::Outcome::NotApplied(_)
+            ) && !matches!(api, Api::ExportProfile(_))
+            {
+                daemon_readback(command, &client.snapshot()?, output);
+            }
+            if !outcome.is_success() {
+                bail!("{}", outcome.describe());
+            }
+            return Ok(true);
+        }
         if let Some(details) = &details {
             if is_scene {
-                println!("{details}");
+                output.message(format_args!("{details}"));
             } else {
-                println!("Fichier : {details}");
+                output.message(format_args!("Fichier : {details}"));
             }
         }
         if !outcome.is_success() {
-            eprintln!("Erreur : {}", outcome.describe());
-            std::process::exit(tracker::exit_code(Some(&outcome)));
+            output.exit_code = tracker::exit_code(Some(&outcome)) as u8;
+            bail!("{}", outcome.describe());
         }
         if !is_scene && !matches!(api, Api::ExportProfile(_)) {
             let now = client.snapshot()?;
             match (is_eq, now.equalizer, now.state) {
-                (true, Some(eq), _) => print_eq(&eq),
-                (false, _, Some(state)) => print_state(&state),
+                (true, Some(eq), _) => print_eq(output, &eq),
+                (false, _, Some(state)) => print_state(output, &state),
                 _ => {}
             }
         }
-        println!("Demande {} ({}).", id, outcome.describe());
+        output.message(format_args!("Demande {} ({}).", id, outcome.describe()));
         Ok(true)
+    }
+
+    fn list_scenes(output: &mut Output) {
+        let (list, errors) = paths::load_scenes();
+        output.value = Some(momentum_core::json::scenes_json(
+            &list.iter().map(|s| s.name.as_str()).collect::<Vec<_>>(),
+            &errors,
+        ));
+        for scene in list {
+            output.message(format_args!("{}", scene.name));
+        }
+        for error in errors {
+            output.message(format_args!("# {error}"));
+        }
+    }
+
+    fn connection_summaries(
+        snapshot: &momentum_client::Snapshot,
+    ) -> Option<Vec<ConnectionSummary>> {
+        // L'API ne distingue pas une liste vide d'une liste non encore lue.
+        // Ne pas présenter l'absence d'information comme une lecture vide.
+        (!snapshot.connections.is_empty()).then(|| {
+            snapshot
+                .connections
+                .iter()
+                .map(|c| ConnectionSummary {
+                    name: c.name.clone(),
+                    connected: c.connected,
+                    this_device: c.this_device,
+                })
+                .collect()
+        })
+    }
+
+    fn daemon_readback(
+        command: &Command,
+        snapshot: &momentum_client::Snapshot,
+        output: &mut Output,
+    ) {
+        match command {
+            Command::Bande { .. } | Command::Plat | Command::Basses { .. } => {
+                output.readback.equalizer = snapshot.equalizer.clone();
+            }
+            Command::Connecter { .. } | Command::Deconnecter { .. } => {
+                output.readback.connections = connection_summaries(snapshot);
+            }
+            _ => {
+                output.readback.state = snapshot.state;
+                if let Some(info) = &snapshot.info {
+                    match command {
+                        Command::Nom { .. } => output.readback.name = info.name.clone(),
+                        Command::VolumeInvites { .. } => {
+                            output.readback.prompt_volume = info.prompt_volume
+                        }
+                        Command::Multipoint { .. } => output.readback.multipoint = info.multipoint,
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
+    fn scene_readback(
+        events: &std::sync::mpsc::Receiver<momentum_client::Event>,
+        output: &mut Output,
+    ) -> anyhow::Result<()> {
+        use momentum_client::Event;
+        let deadline = std::time::Instant::now() + DAEMON_REPLY;
+        loop {
+            let event =
+                events.recv_timeout(deadline.saturating_duration_since(std::time::Instant::now()));
+            match event {
+                Ok(Event::Equalizer(eq)) => output.readback.equalizer = Some(eq),
+                Ok(Event::State(state)) => {
+                    output.readback.state = Some(state);
+                    return Ok(());
+                }
+                Ok(
+                    Event::Lost(_)
+                    | Event::NotFound(_)
+                    | Event::Searching
+                    | Event::Connected { .. },
+                )
+                | Err(_) => {
+                    output.exit_code = 3;
+                    bail!(
+                        "résultat de la scène reçu, mais relecture indisponible (relire avec `ctl etat`)"
+                    );
+                }
+                _ => {}
+            }
+        }
     }
 
     /// Casque parmi les appareils GAIA connectés : celui de `--device`
@@ -532,46 +781,51 @@ mod app {
         Ok((transport, chosen.device_name))
     }
 
-    pub fn run(args: &Args) -> anyhow::Result<()> {
+    pub fn run(args: &Args, output: &mut Output) -> anyhow::Result<()> {
         // Si le service tourne, il tient la connexion ; on passe par lui
         // plutôt que d'en ouvrir une seconde.
-        if through_daemon(&args.command)? {
+        if args.json && matches!(args.command, Command::Scenes) {
+            list_scenes(output);
+            return Ok(());
+        }
+        if through_daemon(args, output)? {
             return Ok(());
         }
         // Liste des scènes : aucun besoin du casque.
         if let Command::Scenes = args.command {
-            let (list, errors) = paths::load_scenes();
-            for scene in list {
-                println!("{}", scene.name);
-            }
-            for e in errors {
-                println!("# {e}");
-            }
+            list_scenes(output);
             return Ok(());
         }
 
         let (transport, device_name) = connect(args)?;
         let mut headset = Headset::new(transport, Duration::from_millis(args.timeout_ms));
-        println!("Connecté à « {device_name} ».");
+        output.message(format_args!("Connecté à « {device_name} »."));
         headset.identify();
         if let Some(reason) = headset.write_block_reason() {
-            println!("Lecture seule : {reason}.");
+            output.message(format_args!("Lecture seule : {reason}."));
         }
 
+        run_direct(args, output, &mut headset)
+    }
+
+    /// Même séquence d'échanges en mode texte et JSON, testable sur transport simulé.
+    pub(super) fn run_direct<T: Transport>(
+        args: &Args,
+        output: &mut Output,
+        headset: &mut Headset<T>,
+    ) -> anyhow::Result<()> {
         match args.command {
-            Command::Etat { json: false } => print_state(&headset.read_state()?),
-            Command::Etat { json: true } => {
-                println!("{}", state_json(Some(&headset.read_state()?)));
-            }
+            Command::Etat => print_state(output, &headset.read_state()?),
             Command::Scenes | Command::Completions { .. } | Command::Man => {}
             Command::Scene { ref nom } => {
                 let (list, _) = paths::load_scenes();
                 let Some(scene) = scenes::find(&list, nom) else {
                     bail!("scène « {nom} » introuvable (voir ctl scenes)");
                 };
-                let report = scenes::apply_scene(&mut headset, scene, &paths::scene_presets());
-                println!("{}", report.details());
-                print_state(&headset.read_state()?);
+                let report = scenes::apply_scene(headset, scene, &paths::scene_presets());
+                output.details = Some(report.details());
+                output.message(format_args!("{}", report.details()));
+                print_state(output, &headset.read_state()?);
                 if !report.is_complete() {
                     bail!("scène appliquée en partie (voir ci-dessus)");
                 }
@@ -591,13 +845,16 @@ mod app {
                     .with_context(|| format!("création de {}", fichier.display()))?;
                 file.write_all(export.to_json().as_bytes())
                     .with_context(|| format!("écriture de {}", fichier.display()))?;
-                println!(
+                output.message(format_args!(
                     "Profil exporté dans {} ({} blocs, empreinte {:016x}).",
                     fichier.display(),
                     export.blocks.len(),
                     export.fingerprint()
-                );
-                println!("Données auditives personnelles : ne pas publier ce fichier.");
+                ));
+                output.message(format_args!(
+                    "Données auditives personnelles : ne pas publier ce fichier."
+                ));
+                output.details = Some(fichier.display().to_string());
             }
             Command::Mode { mode } => {
                 let request = match mode {
@@ -607,7 +864,7 @@ mod app {
                 };
                 headset.set_mode(request)?;
                 let state = headset.read_noise()?;
-                print_noise(&state);
+                print_noise(output, &state);
                 let applied = matches!(
                     (request, state.mode()),
                     (NoiseModeRequest::Off, M5NoiseMode::Off)
@@ -621,7 +878,7 @@ mod app {
             Command::Niveau { niveau } => {
                 headset.set_level(niveau)?;
                 let state = headset.read_noise()?;
-                print_noise(&state);
+                print_noise(output, &state);
                 if state.level != niveau {
                     bail!("niveau relu {} au lieu de {niveau}", state.level);
                 }
@@ -629,7 +886,7 @@ mod app {
             Command::AntiVent { etat } => {
                 headset.set_anti_wind(etat.is_on())?;
                 let state = headset.read_noise()?;
-                print_noise(&state);
+                print_noise(output, &state);
                 if state.anti_wind != etat.is_on() {
                     bail!("le casque n'a pas appliqué l'anti-vent");
                 }
@@ -645,10 +902,11 @@ mod app {
                 }
                 headset.set_spatial_audio(etat.is_on())?;
                 let spatial = headset.spatial_audio()?;
-                println!(
+                output.readback.spatial_audio = Some(spatial);
+                output.message(format_args!(
                     "Audio spatial : {}",
                     if spatial { "activé" } else { "désactivé" }
-                );
+                ));
                 if spatial != etat.is_on() {
                     bail!("le casque n'a pas appliqué l'audio spatial");
                 }
@@ -656,10 +914,11 @@ mod app {
             Command::SuiviTete { etat } => {
                 headset.set_head_tracking(etat.is_on())?;
                 let on = headset.head_tracking()?;
-                println!(
+                output.readback.head_tracking = Some(on);
+                output.message(format_args!(
                     "Suivi de tête : {}",
                     if on { "activé" } else { "désactivé" }
-                );
+                ));
                 if on != etat.is_on() {
                     bail!("le casque n'a pas appliqué le suivi de tête");
                 }
@@ -671,16 +930,17 @@ mod app {
                 let slots = headset
                     .connection_slots()
                     .context("relecture du nombre de connexions (le PC a-t-il été déconnecté ?)")?;
-                println!(
+                output.readback.multipoint = Some(slots >= 2);
+                output.message(format_args!(
                     "Multipoint : {} (connexions simultanées : {slots})",
                     if slots >= 2 { "activé" } else { "désactivé" }
-                );
+                ));
                 if (slots >= 2) != etat.is_on() {
                     bail!("le casque n'a pas appliqué le Multipoint");
                 }
-                print_connections(&headset.read_connections()?);
+                print_connections(output, &headset.read_connections()?);
             }
-            Command::Eq => print_eq(&headset.read_eq()?),
+            Command::Eq => print_eq(output, &headset.read_eq()?),
             Command::Bande { numero, gain } => {
                 let mut eq = headset.read_eq()?;
                 let band = numero - 1;
@@ -692,7 +952,7 @@ mod app {
                 let tenths = tenths as i8;
                 headset.set_eq_band(&mut eq, band, tenths)?;
                 let after = headset.read_eq()?;
-                print_eq(&after);
+                print_eq(output, &after);
                 if after.gains.get(usize::from(band)) != Some(&tenths) {
                     bail!("le casque n'a pas appliqué le gain demandé");
                 }
@@ -702,7 +962,7 @@ mod app {
                 let flat = vec![0; eq.gains.len()];
                 headset.set_eq_gains(&mut eq, &flat)?;
                 let after = headset.read_eq()?;
-                print_eq(&after);
+                print_eq(output, &after);
                 if after.gains.iter().any(|&g| g != 0) {
                     bail!("le casque n'a pas remis toutes les bandes à 0");
                 }
@@ -710,7 +970,7 @@ mod app {
             Command::Voix { etat } => {
                 headset.set_speech_clarity(etat.is_on())?;
                 let state = headset.read_state()?;
-                print_state(&state);
+                print_state(output, &state);
                 let wanted = if etat.is_on() {
                     AudioMode::SpeechClarity
                 } else {
@@ -725,13 +985,15 @@ mod app {
                     if headset.select_sound_profile()?
                         == momentum_core::device::ProfileSelection::AlreadySelectedAtRead
                     {
-                        println!("Profil déjà sélectionné à la lecture : rien n'a été écrit.");
+                        output.message(format_args!(
+                            "Profil déjà sélectionné à la lecture : rien n'a été écrit."
+                        ));
                     }
                 } else {
                     headset.set_speech_clarity(false)?;
                 }
                 let state = headset.read_state()?;
-                print_state(&state);
+                print_state(output, &state);
                 let wanted = if etat.is_on() {
                     AudioMode::Personalization
                 } else {
@@ -744,7 +1006,7 @@ mod app {
             Command::Tactile { etat } => {
                 headset.set_touch_controls(etat.is_on())?;
                 let state = headset.read_state()?;
-                print_state(&state);
+                print_state(output, &state);
                 if state.touch_controls != Some(etat.is_on()) {
                     bail!("le casque n'a pas appliqué les commandes tactiles");
                 }
@@ -752,32 +1014,32 @@ mod app {
             Command::ProtectionBatterie { etat } => {
                 headset.set_battery_protection(etat.is_on())?;
                 let state = headset.read_state()?;
-                print_state(&state);
+                print_state(output, &state);
                 if state.battery_protection != Some(etat.is_on()) {
                     bail!("le casque n'a pas appliqué la protection de la batterie");
                 }
             }
             Command::SmartPause { etat } => {
                 headset.set_smart_pause(etat.is_on())?;
-                check(&mut headset, "Smart Pause", |s| {
+                check(headset, output, "Smart Pause", |s| {
                     s.smart_pause == Some(etat.is_on())
                 })?;
             }
             Command::ReponseAuto { etat } => {
                 headset.set_auto_answer(etat.is_on())?;
-                check(&mut headset, "la réponse automatique", |s| {
+                check(headset, output, "la réponse automatique", |s| {
                     s.auto_answer == Some(etat.is_on())
                 })?;
             }
             Command::AppelsConfort { etat } => {
                 headset.set_comfort_call(etat.is_on())?;
-                check(&mut headset, "les appels confortables", |s| {
+                check(headset, output, "les appels confortables", |s| {
                     s.comfort_call == Some(etat.is_on())
                 })?;
             }
             Command::Extinction { duree } => {
                 headset.set_auto_off(duree.seconds())?;
-                check(&mut headset, "l'extinction automatique", |s| {
+                check(headset, output, "l'extinction automatique", |s| {
                     s.auto_off_seconds == Some(duree.seconds())
                 })?;
             }
@@ -786,12 +1048,16 @@ mod app {
                     headset.set_name(wanted)?;
                 }
                 let read = headset.read_device_info()?.name;
-                println!("Nom : {}", read.as_deref().unwrap_or("non lu"));
+                output.readback.name = read.clone();
+                output.message(format_args!(
+                    "Nom : {}",
+                    read.as_deref().unwrap_or("non lu")
+                ));
                 if nouveau.is_some() && read != *nouveau {
                     bail!("le casque n'a pas appliqué le nom");
                 }
             }
-            Command::Connexions => print_connections(&headset.read_connections()?),
+            Command::Connexions => print_connections(output, &headset.read_connections()?),
             Command::Connecter { n } | Command::Deconnecter { n } => {
                 let connect = matches!(args.command, Command::Connecter { .. });
                 let list = headset.read_connections()?;
@@ -799,7 +1065,7 @@ mod app {
                     bail!("pas d'appareil n° {n} (voir `ctl connexions`)");
                 };
                 headset.set_connection(device, connect)?;
-                println!(
+                output.message(format_args!(
                     "Demande envoyée : {} « {} ».",
                     if connect {
                         "connexion de"
@@ -807,23 +1073,24 @@ mod app {
                         "déconnexion de"
                     },
                     device.name
-                );
+                ));
                 // La connexion Bluetooth prend quelques secondes.
                 std::thread::sleep(Duration::from_secs(5));
-                print_connections(&headset.read_connections()?);
+                print_connections(output, &headset.read_connections()?);
             }
             Command::VolumeInvites { pourcent } => {
                 let wanted = momentum_core::device::prompt_volume_from_percent(pourcent);
                 headset.set_prompt_volume(wanted)?;
                 let read = headset.read_device_info()?.prompt_volume;
-                println!(
+                output.readback.prompt_volume = read;
+                output.message(format_args!(
                     "Volume des invites : {} (valeur {})",
                     read.map_or("non lu".to_string(), |v| format!(
                         "{} %",
                         momentum_core::device::prompt_volume_percent(v)
                     )),
                     read.map_or("?".to_string(), |v| v.to_string())
-                );
+                ));
                 if read != Some(wanted) {
                     bail!("le casque n'a pas appliqué le volume des invites");
                 }
@@ -834,14 +1101,14 @@ mod app {
                     Prompts::Voix => PromptMode::TonesAndVoice,
                 };
                 headset.set_prompt_mode(wanted)?;
-                check(&mut headset, "le mode des invites", |s| {
+                check(headset, output, "le mode des invites", |s| {
                     s.prompt_mode == Some(wanted)
                 })?;
             }
             Command::Basses { etat } => {
                 headset.set_bass_boost(etat.is_on())?;
                 let after = headset.read_eq()?;
-                print_eq(&after);
+                print_eq(output, &after);
                 if after.bass_boost != etat.is_on() {
                     bail!("le casque n'a pas appliqué l'Amplification des basses");
                 }
@@ -851,22 +1118,32 @@ mod app {
     }
 
     /// Relit l'état, l'affiche et échoue si `applied` est faux.
-    fn check(
-        headset: &mut Headset<PlatformTransport>,
+    fn check<T: Transport>(
+        headset: &mut Headset<T>,
+        output: &mut Output,
         what: &str,
         applied: impl Fn(&HeadsetState) -> bool,
     ) -> anyhow::Result<()> {
         let state = headset.read_state()?;
-        print_state(&state);
+        print_state(output, &state);
         if !applied(&state) {
             bail!("le casque n'a pas appliqué {what}");
         }
         Ok(())
     }
 
-    fn print_connections(list: &[momentum_core::device::Connection]) {
+    fn print_connections(output: &mut Output, list: &[momentum_core::device::Connection]) {
+        output.readback.connections = Some(
+            list.iter()
+                .map(|c| ConnectionSummary {
+                    name: c.name.clone(),
+                    connected: c.connected,
+                    this_device: c.this_device,
+                })
+                .collect(),
+        );
         for (i, d) in list.iter().enumerate() {
-            println!(
+            output.message(format_args!(
                 "{}. {}{} : {}",
                 i + 1,
                 d.name,
@@ -876,40 +1153,43 @@ mod app {
                 } else {
                     "non connecté"
                 }
-            );
+            ));
         }
     }
 
-    fn print_state(state: &HeadsetState) {
-        println!("{}", describe_state(state));
+    fn print_state(output: &mut Output, state: &HeadsetState) {
+        output.readback.state = Some(*state);
+        output.message(format_args!("{}", describe_state(state)));
     }
 
-    fn print_eq(eq: &EqState) {
+    fn print_eq(output: &mut Output, eq: &EqState) {
+        output.readback.equalizer = Some(eq.clone());
         let count = eq.gains.len();
-        println!(
+        output.message(format_args!(
             "Égaliseur : {count} bandes, de {} à {}",
             format_db(eq.min_gain),
             format_db(eq.max_gain)
-        );
+        ));
         for (i, &g) in eq.gains.iter().enumerate() {
-            println!(
+            output.message(format_args!(
                 "  {:>2}. {:>8} : {}",
                 i + 1,
                 band_label(i, count),
                 format_db(g)
-            );
+            ));
         }
-        println!(
+        output.message(format_args!(
             "Amplification des basses : {}",
             if eq.bass_boost {
                 "activée"
             } else {
                 "désactivée"
             }
-        );
+        ));
     }
 
-    fn print_noise(state: &NoiseState) {
-        println!("{}", describe_noise(state));
+    fn print_noise(output: &mut Output, state: &NoiseState) {
+        output.readback.noise = Some(*state);
+        output.message(format_args!("{}", describe_noise(state)));
     }
 }
