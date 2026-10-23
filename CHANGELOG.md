@@ -20,6 +20,15 @@ depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
   supplémentaire vers le casque. Exemples pour scripts et Stream Deck dans
   le README.
 
+### Paquets
+- Paquets `.deb` (Debian 13, Ubuntu 26.04) et `.rpm` (Fedora 43 et 44)
+  du client KDE, du service et de `ctl`, avec le widget Plasma,
+  l'activation D-Bus, l'unité systemd utilisateur et la fiche AppStream.
+  Joints aux publications avec leur empreinte SHA-256 ; construction,
+  installation et désinstallation vérifiées en CI dans un conteneur
+  propre. Aucun script n'active de service ni ne touche au dossier
+  personnel. Sur Bazzite, le Flatpak reste la voie prévue.
+
 ### Qualité
 - Fuzzing (`cargo-fuzz`) du décodeur de trames, du décodage en flux, du
   parseur SDP et des lectures typées, sur un corpus tiré des tests
