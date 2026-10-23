@@ -146,6 +146,8 @@ pub mod qobject {
         #[qproperty(i32, audio_revision)]
         // Thème choisi : -1 aucun (système), 0 clair, 1 sombre.
         #[qproperty(i32, theme_choice)]
+        #[qproperty(QString, settings_notice)]
+        #[qproperty(bool, settings_ready)]
         // Lancement à l'ouverture de session.
         #[qproperty(bool, autostart)]
         // Lancé dans le bac à sable Flatpak (Configuration du système hors
@@ -309,6 +311,15 @@ pub mod qobject {
         /// Enregistre et applique le thème (0 clair, 1 sombre).
         #[qinvokable]
         fn choose_theme(self: Pin<&mut Headset>, choice: i32);
+        /// Sauvegarde locale, indépendante de la connexion au casque.
+        #[qinvokable]
+        fn export_settings(self: Pin<&mut Headset>, url: QString, battery: bool);
+        #[qinvokable]
+        fn preview_settings(self: Pin<&mut Headset>, url: QString, battery: bool);
+        #[qinvokable]
+        fn confirm_settings(self: Pin<&mut Headset>);
+        #[qinvokable]
+        fn cancel_settings(self: Pin<&mut Headset>);
         /// Diagnostic expurgé à copier dans un rapport.
         #[qinvokable]
         fn diagnostic(self: &Headset) -> QString;
@@ -351,6 +362,14 @@ use momentum_core::presets::{self, AbCompare, Preset};
 use momentum_core::quick_panel::PanelPrefs;
 use momentum_core::scene_editor::{self, SceneEditor};
 use momentum_core::scenes::Scene;
+
+fn settings_path(url: &QString) -> Result<std::path::PathBuf, String> {
+    cxx_qt_lib::QUrl::from(url)
+        .to_local_file()
+        .filter(|path| !path.to_string().is_empty())
+        .map(|path| std::path::PathBuf::from(path.to_string()))
+        .ok_or_else(|| "Un fichier local est requis.".into())
+}
 use momentum_core::tray_menu::{self, MenuAction, MenuContext};
 use momentum_core::ui::{IconKind, band_label, tooltip};
 use momentum_core::viewmodel;
@@ -517,6 +536,9 @@ pub struct HeadsetRust {
     battery_revision: i32,
     audio_revision: i32,
     theme_choice: i32,
+    settings_notice: QString,
+    settings_ready: bool,
+    settings_plan: Option<momentum_core::settings_transfer::ImportPlan>,
     /// Heure de chaque lecture (page « Connexion et audio »).
     control_since: Option<String>,
     connections_at: Option<String>,
@@ -670,6 +692,9 @@ impl Default for HeadsetRust {
             battery_revision: 0,
             audio_revision: 0,
             theme_choice: momentum_core::appearance::load().map_or(-1, i32::from),
+            settings_notice: QString::default(),
+            settings_ready: false,
+            settings_plan: None,
             control_since: None,
             connections_at: None,
             codec_since: None,
@@ -1815,6 +1840,59 @@ impl qobject::Headset {
         {
             tracing::warn!(%e, "ouverture des raccourcis KDE");
         }
+    }
+
+    fn export_settings(mut self: Pin<&mut Self>, url: QString, battery: bool) {
+        self.as_mut().cancel_settings();
+        let result = settings_path(&url).and_then(|path| {
+            let dir = paths::data_dir().ok_or("Dossier des données introuvable.")?;
+            momentum_core::settings_transfer::export(&dir, &path, battery)
+                .map_err(|e| e.to_string())
+        });
+        self.as_mut().set_settings_notice(QString::from(
+            result
+                .unwrap_or_else(|e| format!("Export refusé : {e}"))
+                .as_str(),
+        ));
+    }
+
+    fn preview_settings(mut self: Pin<&mut Self>, url: QString, battery: bool) {
+        self.as_mut().cancel_settings();
+        let result = settings_path(&url).and_then(|path| {
+            let dir = paths::data_dir().ok_or("Dossier des données introuvable.")?;
+            momentum_core::settings_transfer::prepare_import(&dir, &path, battery)
+                .map_err(|e| e.to_string())
+        });
+        let message = match result {
+            Ok(plan) => {
+                let summary = plan.summary().to_string();
+                self.as_mut().rust_mut().settings_plan = Some(plan);
+                self.as_mut().set_settings_ready(true);
+                summary
+            }
+            Err(error) => format!("Import refusé : {error}"),
+        };
+        self.as_mut()
+            .set_settings_notice(QString::from(message.as_str()));
+    }
+
+    fn confirm_settings(mut self: Pin<&mut Self>) {
+        let Some(plan) = self.as_mut().rust_mut().settings_plan.take() else {
+            return;
+        };
+        self.as_mut().set_settings_ready(false);
+        let message = plan
+            .apply()
+            .unwrap_or_else(|e| format!("Import refusé : {e}"));
+        self.as_mut()
+            .set_settings_notice(QString::from(message.as_str()));
+    }
+
+    fn cancel_settings(mut self: Pin<&mut Self>) {
+        self.as_mut().rust_mut().settings_plan = None;
+        self.as_mut().set_settings_ready(false);
+        self.as_mut()
+            .set_settings_notice(QString::from("Import annulé."));
     }
 
     fn set_autostart_enabled(mut self: Pin<&mut Self>, on: bool) {

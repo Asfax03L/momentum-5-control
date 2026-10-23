@@ -57,7 +57,7 @@ jobs:
       - name: Démarrage de WinUI (démonstration)
         shell: pwsh
         run: |
-          foreach ($page in @('son', 'scenes')) {
+          foreach ($page in @('son', 'scenes', 'reglages')) {
             $p = Start-Process target\debug\momentum-winui.exe -ArgumentList '--demo', '--page', $page -PassThru -RedirectStandardError "winui-$page.log"
             try {
               Start-Sleep 20
@@ -125,7 +125,7 @@ jobs:
       - name: Démarrage du client KDE (QML)
         run: |
           cargo build -p momentum-kirigami
-          for page in son scenes; do
+          for page in son scenes reglages; do
             set +e
             QT_QPA_PLATFORM=offscreen timeout 15 dbus-run-session -- \
               target/debug/momentum-kirigami --demo --page "$page" > "demarrage-$page.log" 2>&1
