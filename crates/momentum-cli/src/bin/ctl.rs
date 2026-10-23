@@ -3,7 +3,7 @@
 //! Chaque écriture reproduit la séquence de Smart Control Plus, puis l'état
 //! est relu : la commande échoue si le casque n'a pas appliqué le réglage.
 
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -36,6 +36,13 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Command {
+    /// Écrit la complétion du shell sur la sortie standard, sans casque.
+    Completions {
+        #[arg(value_enum)]
+        shell: clap_complete::Shell,
+    },
+    /// Écrit la page de manuel ctl.1 sur la sortie standard, sans casque.
+    Man,
     /// Affiche l'état du casque. Passe par le service s'il tourne.
     Etat {
         /// État en JSON (version 1, `null` pour une valeur non lue).
@@ -171,6 +178,10 @@ impl OnOff {
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    // La documentation ne doit ni démarrer le service ni ouvrir Bluetooth.
+    if write_documentation(&args.command, &mut std::io::stdout().lock())? {
+        return Ok(());
+    }
     let level = if args.verbose { "trace" } else { "warn" };
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -185,6 +196,24 @@ fn main() -> anyhow::Result<()> {
     return app::run(&args);
     #[cfg(not(any(windows, target_os = "linux")))]
     anyhow::bail!("ctl ne fonctionne que sous Windows et Linux");
+}
+
+fn write_documentation(
+    command: &Command,
+    output: &mut dyn std::io::Write,
+) -> std::io::Result<bool> {
+    match command {
+        Command::Completions { shell } => {
+            // Le générateur ne renvoie pas les erreurs d'écriture : passer
+            // par un tampon pour propager celles de la sortie standard.
+            let mut buffer = Vec::new();
+            clap_complete::generate(*shell, &mut Args::command(), "ctl", &mut buffer);
+            output.write_all(&buffer)?;
+        }
+        Command::Man => clap_mangen::Man::new(Args::command()).render(output)?,
+        _ => return Ok(false),
+    }
+    Ok(true)
 }
 
 #[cfg(any(windows, target_os = "linux"))]
@@ -277,7 +306,7 @@ mod app {
             })
         };
         let api = match command {
-            Command::Scenes => return Ok(false),
+            Command::Scenes | Command::Completions { .. } | Command::Man => return Ok(false),
             Command::Etat { json } => {
                 eprintln!("(par le service momentum-daemon)");
                 if *json {
@@ -534,7 +563,7 @@ mod app {
             Command::Etat { json: true } => {
                 println!("{}", state_json(Some(&headset.read_state()?)));
             }
-            Command::Scenes => {}
+            Command::Scenes | Command::Completions { .. } | Command::Man => {}
             Command::Scene { ref nom } => {
                 let (list, _) = paths::load_scenes();
                 let Some(scene) = scenes::find(&list, nom) else {

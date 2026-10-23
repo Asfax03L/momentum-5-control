@@ -74,6 +74,11 @@ jobs:
           cp -r assets/linux assets/logo "$dir/assets/"
           cp -r plasma "$dir/"
           cp scripts/installer-linux.sh README.md LICENSE-MIT LICENSE-APACHE "$dir/"
+          mkdir -p "$dir/man" "$dir/completions"
+          target/release/ctl man > "$dir/man/ctl.1"
+          target/release/ctl completions bash > "$dir/completions/ctl.bash"
+          target/release/ctl completions zsh > "$dir/completions/_ctl"
+          target/release/ctl completions fish > "$dir/completions/ctl.fish"
           tar -czf "$dir.tar.gz" "$dir"
       - uses: actions/upload-artifact@v7
         with:

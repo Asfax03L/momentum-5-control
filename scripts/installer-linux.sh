@@ -5,6 +5,7 @@
 #   - entrée de menu dans ~/.local/share/applications (KDE y trouve aussi
 #     l'icône des fenêtres sous Wayland) ;
 #   - widget Plasma, service (unité systemd utilisateur, activation D-Bus).
+#   - manuel ctl(1) et complétions bash, zsh et fish.
 #
 # Tout est vérifié avant de toucher à la version installée (F08 de la
 # revue) : un fichier manquant arrête le script sans rien changer. Les
@@ -47,7 +48,9 @@ if [ "${1:-}" = "--desinstaller" ]; then
         "$data/applications/momentum-kirigami.desktop" \
         "$config/autostart/momentum-kirigami.desktop" \
         "$config/systemd/user/momentum-daemon.service" \
-        "$data/dbus-1/services/org.openheadset.Control.service"; do
+        "$data/dbus-1/services/org.openheadset.Control.service" \
+        "$data/man/man1/ctl.1" "$data/bash-completion/completions/ctl" \
+        "$data/zsh/site-functions/_ctl" "$data/fish/vendor_completions.d/ctl.fish"; do
         if [ -e "$f" ]; then
             rm -f "$f"
             echo "retiré : $f"
@@ -85,6 +88,26 @@ if [ -n "$missing" ]; then
     exit 1
 fi
 
+# Depuis le dépôt, générer avec le binaire qui sera installé. Depuis une
+# archive, utiliser les fichiers publiés. Tout est prêt avant les copies.
+documentation=$bins
+if [ "$bins" != "$here" ]; then
+    documentation=$(mktemp -d)
+    trap 'rm -rf "$documentation"' EXIT
+    trap 'exit 1' HUP INT TERM
+    mkdir -p "$documentation/man" "$documentation/completions"
+    "$bins/ctl" man > "$documentation/man/ctl.1"
+    "$bins/ctl" completions bash > "$documentation/completions/ctl.bash"
+    "$bins/ctl" completions zsh > "$documentation/completions/_ctl"
+    "$bins/ctl" completions fish > "$documentation/completions/ctl.fish"
+fi
+for f in man/ctl.1 completions/ctl.bash completions/_ctl completions/ctl.fish; do
+    if [ ! -s "$documentation/$f" ]; then
+        echo "Installation annulée, rien n'a été changé. Fichier manquant ou vide : $documentation/$f" >&2
+        exit 1
+    fi
+done
+
 # 2. Binaires : copie à côté, puis remplacement ; en cas d'échec, les
 # anciens binaires sont remis.
 mkdir -p "$bin"
@@ -113,6 +136,15 @@ for exe in $exes; do
     mv -f "$bin/.$exe.nouveau" "$bin/$exe" || { restore; exit 1; }
     echo "installé : $bin/$exe"
 done
+
+# Manuel et complétions : uniquement dans les dossiers de l'utilisateur.
+mkdir -p "$data/man/man1" "$data/bash-completion/completions" \
+    "$data/zsh/site-functions" "$data/fish/vendor_completions.d"
+install -m 644 "$documentation/man/ctl.1" "$data/man/man1/ctl.1"
+install -m 644 "$documentation/completions/ctl.bash" "$data/bash-completion/completions/ctl"
+install -m 644 "$documentation/completions/_ctl" "$data/zsh/site-functions/_ctl"
+install -m 644 "$documentation/completions/ctl.fish" "$data/fish/vendor_completions.d/ctl.fish"
+echo "manuel ctl(1) et complétions bash, zsh et fish installés"
 
 # 3. Logo, entrée de menu, widget.
 mkdir -p "$data/applications" "$data/icons/hicolor/scalable/apps"
