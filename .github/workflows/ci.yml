@@ -139,6 +139,39 @@ jobs:
             ! grep -E "qrc:.*(Error|error)|is not a type|is not installed|ReferenceError|TypeError|Cannot assign" "demarrage-$page.log"
           done
 
+  # Service durci (assets/linux/momentum-daemon.service, docs/SECURITE.md) :
+  # score d'exposition de systemd, puis démarrage réel du service compilé,
+  # sans casque, sur un bus de session privé.
+  service-durci:
+    needs: linux
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: openheadset-linux-x86_64
+          path: bin
+      - name: Score d'exposition (systemd-analyze)
+        run: |
+          systemd-analyze --version | head -1
+          systemd-analyze security --offline=yes --user assets/linux/momentum-daemon.service | tee securite.txt
+          score=$(grep -oE 'exposure level for [^:]+: [0-9.]+' securite.txt | grep -oE '[0-9.]+$')
+          echo "Service durci : exposition $score sur 10 (systemd-analyze security)" >> "$GITHUB_STEP_SUMMARY"
+          # Seuil large : 1,5 relevé sur Bazzite (systemd 259) le 23/10/2026 ;
+          # 9,4 avant le durcissement.
+          awk -v s="$score" 'BEGIN { exit !(s <= 2.5) }'
+      - name: Démarrage sans casque sur un bus privé
+        run: |
+          sudo apt-get update && sudo apt-get install -y dbus-daemon
+          chmod +x bin/momentum-daemon
+          dbus-run-session -- sh -c '
+            bin/momentum-daemon > daemon.log 2>&1 &
+            sleep 5
+            busctl --user call org.openheadset.Control /org/openheadset/Control org.openheadset.Control1 Snapshot
+          '
+          cat daemon.log
+          grep -q "service OpenHeadset Control prêt" daemon.log
+
   # Version minimale de Rust annoncée (rust-version) : 1.89 pour l'ensemble,
   # 1.95 pour l'interface WinUI. RUSTUP_TOOLCHAIN passe outre
   # rust-toolchain.toml (version de travail).
