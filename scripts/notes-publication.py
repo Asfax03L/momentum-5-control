@@ -3,9 +3,11 @@
 
 Usage : notes-publication.py <étiquette> <dossier des fichiers publiés>
 
-Les nouveautés viennent de la section « ## vX.Y.Z » de CHANGELOG.md ; sans
-section, le script échoue (pas de publication sans notes). Une sous-section
-« ### À faire après la mise à jour » est mise en tête. Les consignes
+Les nouveautés viennent de la section « ## vX.Y.Z » de CHANGELOG.md. Elle
+doit contenir « ### En bref » (ce qui change, pour qui, en langage simple)
+et « ### À faire après la mise à jour » (actions concrètes, ou « Rien de
+particulier » avec la raison), mises en tête ; sinon le script échoue et
+rien n'est publié. Les consignes
 d'installation et de mise à jour ne citent que les fichiers réellement
 présents dans le dossier, avec leur nom exact.
 """
@@ -17,6 +19,7 @@ import sys
 ROOT = Path(__file__).resolve().parent.parent
 REPO = "https://github.com/Asfax03L/openheadset-control"
 TODO = "À faire après la mise à jour"
+BRIEF = "En bref"
 FIRST_PUBLIC = (0, 8, 0)
 
 
@@ -36,16 +39,17 @@ def changelog_section(tag):
     sys.exit(f"CHANGELOG.md : aucune section « ## {tag} » ; l'écrire avant de publier.")
 
 
-def split_todo(body):
-    """Sépare la sous-section « À faire après la mise à jour » du reste."""
+def split_sections(body):
+    """Sépare « En bref » et « À faire après la mise à jour » du reste."""
     parts = re.split(r"^(### .*)$", body, flags=re.M)
-    intro, rest, todo = parts[0], [], ""
+    intro, rest, special = parts[0], [], {}
     for title, content in zip(parts[1::2], parts[2::2]):
-        if title[4:].strip() == TODO:
-            todo = content.strip()
+        name = title[4:].strip()
+        if name in (BRIEF, TODO):
+            special[name] = content.strip()
         else:
             rest.append(f"{title}\n{content.rstrip()}\n")
-    return intro.strip(), "\n".join(rest).strip(), todo
+    return intro.strip(), "\n".join(rest).strip(), special
 
 
 def find(files, pattern):
@@ -73,7 +77,14 @@ def main():
     zip_dir = zip_[: -len(".zip")] if zip_ else None
 
     body, previous = changelog_section(tag)
-    intro, news, todo = split_todo(body)
+    intro, news, special = split_sections(body)
+    missing = [s for s in (BRIEF, TODO) if not special.get(s)]
+    if missing:
+        sys.exit(f"CHANGELOG.md, section {tag} : sous-section(s) « ### "
+                 + " », « ### ".join(missing) + " » à écrire avant de publier "
+                 "(explication pour l'utilisateur ; « Rien de particulier » "
+                 "avec la raison si aucune action n'est nécessaire).")
+    brief, todo = special[BRIEF], special[TODO]
     out = []
     w = out.append
 
@@ -81,18 +92,16 @@ def main():
       "Exécutables non signés : Windows SmartScreen peut demander une "
       "confirmation (« Informations complémentaires » > « Exécuter quand même »).")
     w("")
-    headings = [h[4:] for h in re.findall(r"^### .*$", news, re.M)]
-    if headings:
-        w("## En bref")
-        w("")
-        w("Cette version touche : " + " ; ".join(headings) + ".")
-        w("Détail complet plus bas, dans « Nouveautés ».")
-        w("")
-    if todo:
-        w(f"## ⚠️ {TODO}")
-        w("")
-        w(todo)
-        w("")
+    w(f"## {BRIEF}")
+    w("")
+    w(brief)
+    w("")
+    w("Détail complet plus bas, dans « Nouveautés ».")
+    w("")
+    w(f"## ⚠️ {TODO}")
+    w("")
+    w(todo)
+    w("")
 
     w("## Quel fichier télécharger")
     w("")

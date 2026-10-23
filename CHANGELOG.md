@@ -5,9 +5,12 @@ M5 » signifie : écriture capturée dans Smart Control Plus, puis rejouée
 depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
 6.21.5, Windows 11. La CI (fmt, clippy, tests) ne se connecte à aucun casque.
 
-Chaque version a une sous-section « À faire après la mise à jour » quand
-une action est nécessaire : elle est reprise en tête des notes de la
-publication GitHub (`scripts/notes-publication.py`).
+Chaque version publiée commence par deux sous-sections, reprises en tête
+des notes de la publication GitHub (`scripts/notes-publication.py`, qui
+refuse de publier sans elles) :
+- « En bref » : ce qui change et pour qui, en langage simple ;
+- « À faire après la mise à jour » : les actions concrètes par système,
+  ou « Rien de particulier » avec la raison.
 
 ## v0.10.0 — 23/10/2026
 
@@ -16,6 +19,25 @@ reconnexion après une déconnexion côté PC, scène enregistrée depuis
 l'état puis appliquée, scène « Écoute », retour à l'état d'origine relu ;
 diagnostic PipeWire comparé aux réglages son du bureau (sortie par défaut,
 profil A2DP, codec aptX HD).
+
+### En bref
+Version de confort, surtout pour Linux :
+- **Vos scènes plus vite** : un bouton enregistre les réglages actuels du
+  casque comme nouvelle scène, sans tout recopier à la main.
+- **Vos réglages sur un autre PC** : scènes, préréglages, raccourcis,
+  panneau rapide et thème tiennent dans un seul fichier à exporter puis
+  importer (rien n'est écrasé sans sauvegarde).
+- **Casque décroché ?** Le bouton « Reconnecter le casque » relance la
+  connexion Bluetooth du PC (Linux) ou ouvre les paramètres Bluetooth
+  (Windows).
+- **Linux, son** : la page « Connexion et audio » dit si le casque est
+  bien la sortie son, en quel profil (musique ou appel) et avec quel codec.
+- **Nouveaux paquets** `.deb` (Debian, Ubuntu) et `.rpm` (Fedora).
+- **`ctl` scriptable** : sortie JSON pour toutes les commandes (Stream
+  Deck, macros), complétion du shell et page de manuel.
+
+Concerne tout le monde ; les nouveautés audio et paquets ne concernent que
+Linux.
 
 ### À faire après la mise à jour
 - **Tous** : quitter OpenHeadset Control (menu de l'icône > Quitter) et le
@@ -104,6 +126,19 @@ profil A2DP, codec aptX HD).
 
 ## v0.9.1 — 22/10/2026
 
+### En bref
+Version pour KDE Plasma :
+- **Panneau rapide** au clic gauche sur l'icône, comme sous Windows :
+  batterie, réduction de bruit, curseur ANC ↔ transparence, anti-vent,
+  profil, scènes.
+- **Widget Plasma plus complet** : suivi de tête, profil personnalisé,
+  scènes, et le résultat de chaque réglage affiché.
+- **Casque introuvable** : la raison s'affiche (aucun casque connecté,
+  profil Bluetooth déjà pris…), et `ctl` répond en quelques secondes au
+  lieu de 15.
+
+Windows : seul ce dernier point change.
+
 ### À faire après la mise à jour
 - **KDE** : quitter le client (menu de l'icône > Quitter) et le relancer :
   l'icône de la zone de notification est réécrite. Choisir le contenu du
@@ -142,6 +177,19 @@ profil A2DP, codec aptX HD).
   secondes au lieu de 15) avec cette raison, sans rien envoyer (code 1).
 
 ## v0.9.0 — 22/10/2026
+
+### En bref
+Version de fiabilité et de sécurité, après une relecture complète :
+- **Chaque réglage dit exactement ce qui s'est passé** : appliqué et
+  relu, déjà en place, refusé, ou inconnu après une coupure ; plus de
+  réglage présenté comme fait alors qu'il ne l'est pas.
+- **Le casque est retrouvé même renommé**, et jamais confondu avec un
+  autre appareil.
+- **Protection** : les réglages ne sont envoyés qu'à un MOMENTUM 5 en
+  micrologiciel 6.21.5 (le seul vérifié) ; sinon, lecture seule.
+- **Installateurs sûrs** : tout est vérifié avant de remplacer la version
+  en place, qui est remise en cas d'échec.
+- **Nouveau** : Flatpak (idéal sur Bazzite) et widget Plasma.
 
 ### À faire après la mise à jour
 - **Bazzite** : le Flatpak (nouveau) devient la méthode conseillée. Pour y
@@ -268,6 +316,16 @@ profil A2DP, codec aptX HD).
   `Background`, bouton « Modifier dans KDE… » masqué.
 
 ## v0.8.0 — 21/10/2026
+
+### En bref
+Première version publique, avec de nouvelles interfaces natives :
+- **Windows** : nouvelle interface WinUI 3 (style Windows 11), qui
+  remplace l'ancienne icône.
+- **Linux** : nouveau client KDE Plasma (Qt 6 / Kirigami).
+- **Un service** tient seul la connexion au casque ; interfaces et `ctl`
+  passent par lui, donc plus de conflit entre programmes.
+- Toutes les fonctions de l'ancienne icône sont reprises : égaliseur,
+  scènes, raccourcis, historique de la batterie, mode démonstration.
 
 ### À faire après la mise à jour
 - **Windows** : installer le Windows App Runtime 2 si `installer.ps1` le
