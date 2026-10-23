@@ -10,7 +10,9 @@
 //! un ordre fixe, et l'application s'arrête à la première erreur. Le rapport
 //! dit ce qui a été appliqué, ce qui a échoué et ce qui n'a pas été tenté.
 
-use crate::device::{AudioMode, DeviceError, Headset, NoiseModeRequest, ProfileSelection};
+use crate::device::{
+    AudioMode, DeviceError, EqState, Headset, HeadsetState, NoiseModeRequest, ProfileSelection,
+};
 use crate::presets::Preset;
 use crate::transport::Transport;
 
@@ -117,6 +119,88 @@ pub struct Scene {
     pub touch: Option<bool>,
     pub equalizer: Option<String>,
     pub bass_boost: Option<bool>,
+}
+
+/// Scène construite avec les seules lectures connues ; la courbe reste sur le PC.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CapturedScene {
+    pub scene: Scene,
+    pub preset: Option<Preset>,
+}
+
+/// Rien n'est enregistré si le nom ou les lectures ne permettent pas une scène valide.
+#[derive(Debug, thiserror::Error)]
+pub enum CaptureError {
+    #[error("nom refusé : {0}")]
+    Name(&'static str),
+    #[error("état non enregistrable : {0}")]
+    State(String),
+    #[error("{0} existe déjà ; choisir un autre nom ou autoriser le remplacement")]
+    Exists(String),
+    #[error("{0}")]
+    File(String),
+    #[error("enregistrement impossible : {0}")]
+    Io(#[from] std::io::Error),
+}
+
+/// Capture pure de l'état déjà relu par le service, sans accès au casque.
+/// Les réglages latents (curseur hors mode personnalisé, courbe hors mode
+/// égaliseur) sont omis pour ne pas changer de mode à la réapplication.
+pub fn from_state(
+    name: &str,
+    state: &HeadsetState,
+    eq: Option<&EqState>,
+) -> Result<CapturedScene, CaptureError> {
+    let name = validate_name(name).map_err(CaptureError::Name)?;
+    let sound = match state.audio_mode {
+        Some(AudioMode::Equalizer) => Some(SceneSound::Equalizer),
+        Some(AudioMode::SpeechClarity) => Some(SceneSound::SpeechClarity),
+        Some(AudioMode::Personalization) => Some(SceneSound::Profile),
+        Some(AudioMode::Unknown(_)) | None => None,
+    };
+    let noise = if !state.noise.anc_enabled {
+        NoiseModeRequest::Off
+    } else if state.noise.adaptive {
+        NoiseModeRequest::Adaptive
+    } else {
+        NoiseModeRequest::Custom
+    };
+    let mut scene = Scene {
+        name: name.clone(),
+        sound,
+        spatial: state.spatial_audio,
+        noise: Some(noise),
+        level: (noise == NoiseModeRequest::Custom).then_some(state.noise.level),
+        anti_wind: Some(state.noise.anti_wind),
+        touch: state.touch_controls,
+        ..Scene::default()
+    };
+    let preset = if sound == Some(SceneSound::Equalizer) {
+        eq.map(|eq| {
+            let name = crate::presets::validate_name(&name).map_err(CaptureError::Name)?;
+            if eq.gains.is_empty() || eq.gains.iter().any(|&g| eq.check_gain(g).is_err()) {
+                return Err(CaptureError::State(
+                    "courbe d'égaliseur absente ou hors limites".into(),
+                ));
+            }
+            scene.equalizer = Some(name.clone());
+            scene.bass_boost = Some(eq.bass_boost);
+            Ok(Preset {
+                name,
+                gains: eq.gains.clone(),
+                builtin: false,
+            })
+        })
+        .transpose()?
+    } else {
+        None
+    };
+    check_scene(&scene).map_err(CaptureError::State)?;
+    // check_scene ne reçoit normalement que des valeurs déjà bornées par le formulaire.
+    if scene.level.is_some_and(|level| level > 100) {
+        return Err(CaptureError::State("niveau hors limites (0 à 100)".into()));
+    }
+    Ok(CapturedScene { scene, preset })
 }
 
 impl Scene {

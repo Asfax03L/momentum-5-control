@@ -272,6 +272,29 @@ une transaction : à la première erreur, l'application s'arrête et le rapport
 dit ce qui a été appliqué. Accès : page Scènes, sous-menu « Scènes » de
 l'icône, raccourcis, `ctl scene <nom>`.
 
+Pour mémoriser les réglages déjà lus, saisir un nom puis cliquer sur
+« Enregistrer l'état actuel comme scène » dans la page Scènes (WinUI ou
+KDE), ou utiliser le service en ligne de commande :
+
+```sh
+ctl scene-enregistrer "Écoute démo"
+ctl --json scene-enregistrer "Écoute démo" --remplacer
+```
+
+Cette opération écrit seulement les fichiers locaux, sans commande vers le
+casque ni nouvelle lecture Bluetooth. Elle exige un état connu du service ;
+sans lui, elle échoue sans connexion directe. Les valeurs non lues restent
+absentes. Le curseur n'est conservé qu'en mode Personnalisé, et la courbe
+et les basses seulement en mode égaliseur ; la courbe devient un préréglage
+personnel portant le nom de la scène dans `prereglages.txt`.
+
+Un nom existant est refusé, sauf avec `--remplacer` (ou la case de
+remplacement dans la fenêtre). Les autres scènes, les autres préréglages
+et les commentaires sont conservés ; les fichiers remplacés ont leur
+sauvegarde `.bak`. Un état incohérent ou un fichier de scènes invalide est
+refusé avant l'enregistrement. L'éditeur de scènes garde son éventuel
+brouillon en cours.
+
 ### `ctl` et le service
 
 Quand le service `momentum-daemon` tourne (lancé par l'interface, ou par

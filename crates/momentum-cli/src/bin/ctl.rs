@@ -61,6 +61,13 @@ enum Command {
     /// Applique une scène (réglages un par un, arrêt à la première erreur).
     /// Passe par le service s'il tourne.
     Scene { nom: String },
+    /// Enregistre l'état déjà connu du service comme scène, sans écrire au casque.
+    SceneEnregistrer {
+        nom: String,
+        /// Remplace la scène et son préréglage si le nom existe déjà.
+        #[arg(long)]
+        remplacer: bool,
+    },
     /// Change le mode de contrôle du bruit.
     Mode { mode: Mode },
     /// Règle le curseur ANC ↔ transparence (0 = ANC max, 50 = neutre, 100 = transparence max).
@@ -430,6 +437,9 @@ mod app {
             })
         };
         let api = match command {
+            Command::SceneEnregistrer { .. } => {
+                bail!("enregistrer une scène exige l'état connu du service")
+            }
             Command::Scenes | Command::Completions { .. } | Command::Man => return Ok(false),
             Command::Etat => {
                 eprintln!("(par le service momentum-daemon)");
@@ -782,6 +792,32 @@ mod app {
     }
 
     pub fn run(args: &Args, output: &mut Output) -> anyhow::Result<()> {
+        // Cette opération ne doit jamais tomber dans le chemin RFCOMM direct,
+        // attendre une nouvelle lecture ou soumettre une commande au service.
+        if let Command::SceneEnregistrer { nom, remplacer } = &args.command {
+            let client = momentum_client::Client::connect()
+                .context("service requis pour enregistrer son dernier état connu")?;
+            let snapshot = client.snapshot()?;
+            let state = snapshot
+                .state
+                .as_ref()
+                .context("aucun état connu du service à enregistrer")?;
+            let scene = momentum_core::scene_capture::save_current(
+                nom,
+                state,
+                snapshot.equalizer.as_ref(),
+                *remplacer,
+            )?;
+            let message = format!(
+                "Scène « {} » enregistrée (rien n'a été envoyé au casque).",
+                scene.name
+            );
+            output.message(format_args!("{message}"));
+            output.details = Some(message);
+            output.readback.state = snapshot.state;
+            output.readback.equalizer = snapshot.equalizer;
+            return Ok(());
+        }
         // Si le service tourne, il tient la connexion ; on passe par lui
         // plutôt que d'en ouvrir une seconde.
         if args.json && matches!(args.command, Command::Scenes) {
@@ -815,6 +851,9 @@ mod app {
         headset: &mut Headset<T>,
     ) -> anyhow::Result<()> {
         match args.command {
+            Command::SceneEnregistrer { .. } => {
+                bail!("service requis pour enregistrer une scène ; aucune connexion directe")
+            }
             Command::Etat => print_state(output, &headset.read_state()?),
             Command::Scenes | Command::Completions { .. } | Command::Man => {}
             Command::Scene { ref nom } => {
