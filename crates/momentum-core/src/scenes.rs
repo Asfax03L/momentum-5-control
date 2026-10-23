@@ -544,8 +544,21 @@ fn apply_step<T: Transport>(
 ) -> Result<Option<&'static str>, String> {
     let err = |e: DeviceError| e.to_string();
     let written = match step {
-        Step::Sound(SceneSound::Equalizer) => headset.set_speech_clarity(false).map_err(err),
-        Step::Sound(SceneSound::SpeechClarity) => headset.set_speech_clarity(true).map_err(err),
+        Step::Sound(wanted @ (SceneSound::Equalizer | SceneSound::SpeechClarity)) => {
+            let speech = *wanted == SceneSound::SpeechClarity;
+            let target = if speech {
+                AudioMode::SpeechClarity
+            } else {
+                AudioMode::Equalizer
+            };
+            // Le casque refuse un mode déjà sélectionné (`0983`, code 80,
+            // relevé sur le M5) : mode relu d'abord (`0804`), rien n'est
+            // écrit s'il est déjà le bon.
+            if headset.audio_mode().map_err(err)? == target {
+                return Ok(Some(ALREADY_SELECTED_NOTE));
+            }
+            headset.set_speech_clarity(speech).map_err(err)
+        }
         Step::Sound(SceneSound::Profile) => match headset.select_sound_profile() {
             Ok(ProfileSelection::AlreadySelectedAtRead) => return Ok(Some(ALREADY_SELECTED_NOTE)),
             Ok(ProfileSelection::WriteAcknowledged) => Ok(()),
@@ -747,14 +760,39 @@ tactile = on
     #[test]
     fn unknown_preset_fails_before_any_band_is_written() {
         let (scenes, _) = parse_scenes("[Eq]\nson = egaliseur\negaliseur = Inexistant\n");
-        let mock = MockTransport::new().expect(
-            &h("FF 03 00 02 04 95 08 03 00 01"),
-            &h("FF 03 00 00 04 95 09 03"),
-        );
+        // Mode lu : Speech Clarity (02), donc l'égaliseur est sélectionné.
+        let mock = MockTransport::new()
+            .expect(
+                &h("FF 03 00 00 04 95 08 04"),
+                &h("FF 03 00 02 04 95 09 04 00 02"),
+            )
+            .expect(
+                &h("FF 03 00 02 04 95 08 03 00 01"),
+                &h("FF 03 00 00 04 95 09 03"),
+            );
         let mut headset = Headset::validated_for_tests(mock, T);
         let report = apply_scene(&mut headset, &scenes[0], &builtin_presets(8));
         assert_eq!(report.applied, ["mode audio : égaliseur"]);
         assert!(report.failed.unwrap().1.contains("introuvable"));
+        assert!(headset.client().transport().is_exhausted());
+    }
+
+    #[test]
+    fn an_audio_mode_already_selected_is_not_written_again() {
+        // Sur le M5, `0803` vers le mode courant est refusé (`0983 [80]`) :
+        // la scène relit le mode et n'écrit rien.
+        let (scenes, _) = parse_scenes("[Eq]\nson = egaliseur\n");
+        let mock = MockTransport::new().expect(
+            &h("FF 03 00 00 04 95 08 04"),
+            &h("FF 03 00 02 04 95 09 04 00 01"),
+        );
+        let mut headset = Headset::validated_for_tests(mock, T);
+        let report = apply_scene(&mut headset, &scenes[0], &[]);
+        assert!(report.failed.is_none(), "{report:?}");
+        assert_eq!(
+            report.applied[0],
+            format!("mode audio : égaliseur ({ALREADY_SELECTED_NOTE})")
+        );
         assert!(headset.client().transport().is_exhausted());
     }
 

@@ -120,8 +120,10 @@ pub fn list_gaia_devices() -> Result<Vec<GaiaDevice>, TransportError> {
 /// `org.bluez.Device1.Connect` sur le seul casque mémorisé. Les objets
 /// appairés sont lus en cache, y compris déconnectés, sur tous les adaptateurs.
 /// Aucune découverte, alimentation d'adaptateur, association ou trame GAIA.
-pub fn reconnect_remembered(remembered: &str) -> Result<(), super::reconnect::ReconnectError> {
-    use super::reconnect::{BluetoothSystem, ReconnectError, reconnect};
+pub fn reconnect_remembered(
+    remembered: &str,
+) -> Result<super::reconnect::Reconnected, super::reconnect::ReconnectError> {
+    use super::reconnect::{BluetoothSystem, ReconnectError, Reconnected, reconnect};
     struct BluezSystem {
         rt: Runtime,
         devices: Vec<(String, bluer::Device)>,
@@ -167,20 +169,28 @@ pub fn reconnect_remembered(remembered: &str) -> Result<(), super::reconnect::Re
             Ok(self.devices.iter().map(|(key, _)| key.clone()).collect())
         }
 
-        fn connect(&mut self, key: &str) -> Result<(), ReconnectError> {
+        fn connect(&mut self, key: &str) -> Result<Reconnected, ReconnectError> {
             let device = self
                 .devices
                 .iter()
                 .find(|(address, _)| address == key)
                 .map(|(_, device)| device)
                 .ok_or(ReconnectError::Missing)?;
-            // BlueZ peut avoir connecté un profil avant une erreur : résultat
-            // inconnu en cas d'échec, jamais une réussite ou un renvoi automatique.
+            // Déjà connecté : BlueZ répondrait « In Progress » à Connect (relevé
+            // sur Bazzite, BlueZ 5.8x) ; rien n'est demandé. BlueZ peut avoir
+            // connecté un profil avant une erreur : résultat inconnu en cas
+            // d'échec, jamais une réussite ou un renvoi automatique.
             self.rt.block_on(async {
-                tokio::time::timeout(Duration::from_secs(20), device.connect())
-                    .await
-                    .map_err(|_| ReconnectError::Failed)?
-                    .map_err(|_| ReconnectError::Failed)
+                if device.is_connected().await.unwrap_or(false) {
+                    return Ok(Reconnected::AlreadyConnected);
+                }
+                match tokio::time::timeout(Duration::from_secs(20), device.connect()).await {
+                    Ok(Ok(())) => Ok(Reconnected::Requested),
+                    Ok(Err(e)) if e.kind == bluer::ErrorKind::AlreadyConnected => {
+                        Ok(Reconnected::AlreadyConnected)
+                    }
+                    Ok(Err(_)) | Err(_) => Err(ReconnectError::Failed),
+                }
             })
         }
     }

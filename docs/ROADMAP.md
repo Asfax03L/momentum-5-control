@@ -5,8 +5,12 @@ pour tout ce qui passe par le casque, mais pensée pour un PC portable (souris,
 clavier, grand écran, barre système). L'icône reste le raccourci vers la
 fenêtre principale.
 
-**État au 22/10/2026** : dernière publication **v0.9.1** (panneau rapide
-KDE, widget Plasma enrichi) ; avant elle, v0.9.0 : service unique,
+**État au 23/10/2026** : dernière publication **v0.10.0** (jalon 0.10 :
+scène depuis l'état, export et import des réglages, reconnexion par le
+Bluetooth du système, diagnostic PipeWire, `ctl` scriptable ; en avance
+sur leur jalon : fuzzing des décodeurs, prévu en 0.11, et paquets `.deb`
+et `.rpm`, prévus en 0.14). Avant elle, v0.9.1 (panneau rapide KDE,
+widget Plasma enrichi) et v0.9.0 : service unique,
 WinUI 3, client KDE, Flatpak, widget Plasma, écritures réservées au
 micrologiciel 6.21.5, et la consolidation qui suit la revue du 21/10/2026
 (demandes numérotées et résultats exacts, identité du casque, cible
@@ -81,7 +85,7 @@ et date de l'essai sur le casque.
 |---|---|---|
 | **0.9.0** (consolidation) ✅ | Constats F01 à F14 de la revue ([`CONSOLIDATION.md`](CONSOLIDATION.md)) ; CI élargie (versions verrouillées, dépendances auditées) ; documentation alignée | Aucune fausse réussite d'une commande ; publication complète ou rien ; installateurs récupérables |
 | **0.9.1** (KDE) ✅ | Panneau rapide KDE, widget enrichi | Commandes usuelles en deux clics, état relu affiché |
-| **0.10** (confort et audio Linux) | Audio Linux en lecture seule, petites fonctions à fort gain, `ctl` plus scriptable | Observations PipeWire cohérentes avec les réglages son du bureau ; aucun changement de routage silencieux ; chaque fonction essayée sur le casque |
+| **0.10** (confort et audio Linux) ✅ | Audio Linux en lecture seule, petites fonctions à fort gain, `ctl` plus scriptable | Observations PipeWire cohérentes avec les réglages son du bureau ; aucun changement de routage silencieux ; chaque fonction essayée sur le casque |
 | **0.11** (sécurité et qualité) | Service durci, chaîne de confiance, tests automatisés | Service limité au Bluetooth et à ses fichiers ; suite d'essais rejouée avant la publication ; provenance vérifiable de chaque paquet |
 | **0.12** (GNOME) | Interface GTK 4 / libadwaita cliente du même service | Parité définie avec le client KDE, sans connexion directe au casque |
 | **0.13-bêta** (distribution) | Flatpak à sources figées et Flathub | Installation, mise à jour et désinstallation propres sur Bazzite et Windows ; paquet accepté sur Flathub |

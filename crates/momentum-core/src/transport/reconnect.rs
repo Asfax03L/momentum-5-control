@@ -22,18 +22,27 @@ pub enum ReconnectError {
     Failed,
 }
 
+/// Demande acceptée par le système.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Reconnected {
+    /// Connexion demandée ; son effet reste à constater.
+    Requested,
+    /// Le système le voit déjà connecté : rien n'a été demandé.
+    AlreadyConnected,
+}
+
 /// Adaptateur système : identifiants privés des appareils déjà appairés.
 /// Les erreurs restent expurgées, même si le système fournit une adresse.
 pub trait BluetoothSystem {
     fn paired_devices(&mut self) -> Result<Vec<String>, ReconnectError>;
-    fn connect(&mut self, key: &str) -> Result<(), ReconnectError>;
+    fn connect(&mut self, key: &str) -> Result<Reconnected, ReconnectError>;
 }
 
 /// Un seul appel Connect, exclusivement vers l'identité mémorisée.
 pub fn reconnect(
     remembered: Option<&str>,
     system: &mut impl BluetoothSystem,
-) -> Result<(), ReconnectError> {
+) -> Result<Reconnected, ReconnectError> {
     let remembered = remembered.ok_or(ReconnectError::NotRemembered)?;
     let devices = system.paired_devices()?;
     let mut matches = devices.iter().filter(|key| fingerprint(key) == remembered);
@@ -60,12 +69,12 @@ mod tests {
             self.enumerations += 1;
             Ok(self.devices.clone())
         }
-        fn connect(&mut self, key: &str) -> Result<(), ReconnectError> {
+        fn connect(&mut self, key: &str) -> Result<Reconnected, ReconnectError> {
             self.calls.push(key.into());
             if self.failure {
                 Err(ReconnectError::Failed)
             } else {
-                Ok(())
+                Ok(Reconnected::Requested)
             }
         }
     }
@@ -88,7 +97,10 @@ mod tests {
             devices: vec!["02:00:00:00:00:02".into(), key.into()],
             ..Fake::default()
         };
-        assert_eq!(reconnect(Some(&fingerprint(key)), &mut fake), Ok(()));
+        assert_eq!(
+            reconnect(Some(&fingerprint(key)), &mut fake),
+            Ok(Reconnected::Requested)
+        );
         assert_eq!(fake.calls, [key]);
         assert_eq!(fake.enumerations, 1);
     }

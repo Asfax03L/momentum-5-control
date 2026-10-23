@@ -128,7 +128,8 @@ jobs:
           test "$#" -eq 5
           for f do
             test -s "$f"
-            sha256sum "$f" | cut -d' ' -f1 > "$f.sha256"
+            # Format de `sha256sum -c` : empreinte, deux espaces, nom.
+            sha256sum "${f#./}" > "$f.sha256"
           done
       - name: Publication
         working-directory: paquets
