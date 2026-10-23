@@ -54,7 +54,9 @@ Prérequis : Windows 10/11 avec Bluetooth, et le casque **appairé et
 connecté** au PC (Paramètres > Bluetooth et appareils).
 
 **Sans Rust** : télécharger l'archive de la page Releases du dépôt
-(publiée par la CI à chaque étiquette `v*`, avec son empreinte SHA-256) :
+(publiée par la CI à chaque étiquette `v*`, avec son empreinte SHA-256,
+une attestation de provenance et l'inventaire des dépendances :
+[`docs/VERIFIER.md`](docs/VERIFIER.md)) :
 `openheadset-control-vX.Y.Z-windows-x86_64.zip` ou
 `openheadset-control-vX.Y.Z-linux-x86_64.tar.gz`, la décompresser, puis
 lancer l'installateur qu'elle contient. Les exécutables ne sont pas signés :
@@ -653,7 +655,8 @@ Choix principaux :
 
 Rapports de bogue, de compatibilité et PR sont les bienvenus : voir
 [CONTRIBUTING.md](CONTRIBUTING.md) (règles du projet, vérifications avant
-une PR).
+une PR). Une faille de sécurité se signale en privé (avis de sécurité
+GitHub) : voir [`docs/SECURITE.md`](docs/SECURITE.md).
 
 ## Licence
 
