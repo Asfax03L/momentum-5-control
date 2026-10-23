@@ -1,14 +1,15 @@
 //! Vrai adaptateur bluer contre un BlueZ fictif sur bus privé.
 #![cfg(target_os = "linux")]
 
-use std::io::{BufRead, BufReader};
-use std::process::{Child, Command, Stdio};
+mod common;
+
+use std::process::Command;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use momentum_core::transport::bluez_rfcomm::reconnect_remembered;
 use momentum_core::transport::choice::fingerprint;
-use momentum_core::transport::reconnect::ReconnectError;
+use momentum_core::transport::reconnect::{ReconnectError, Reconnected};
 
 struct Adapter;
 #[zbus::interface(name = "org.bluez.Adapter1")]
@@ -21,6 +22,7 @@ impl Adapter {
 
 struct Device {
     paired: bool,
+    connected: bool,
     fails: bool,
     calls: Arc<AtomicUsize>,
 }
@@ -30,10 +32,11 @@ impl Device {
     fn paired(&self) -> bool {
         self.paired
     }
-    // Un casque déconnecté doit tout de même être retrouvé.
+    // Un casque déconnecté doit tout de même être retrouvé ; un casque
+    // déjà connecté ne reçoit aucun Connect.
     #[zbus(property)]
     fn connected(&self) -> bool {
-        false
+        self.connected
     }
     fn connect(&self) -> zbus::fdo::Result<()> {
         self.calls.fetch_add(1, Ordering::SeqCst);
@@ -47,26 +50,18 @@ impl Device {
     }
 }
 
-struct Bus(Child);
-impl Drop for Bus {
-    fn drop(&mut self) {
-        let _ = self.0.kill();
-        let _ = self.0.wait();
-    }
-}
-
 #[test]
 fn private_bluez_calls_device_connect_only_for_the_remembered_paired_headset() {
-    for scenario in ["success", "unpaired", "missing", "failed", "ambiguous"] {
-        let mut bus = Bus(Command::new("dbus-daemon")
-            .args(["--session", "--nofork", "--print-address=1"])
-            .stdout(Stdio::piped())
-            .spawn()
-            .unwrap());
-        let mut address = String::new();
-        BufReader::new(bus.0.stdout.take().unwrap())
-            .read_line(&mut address)
-            .unwrap();
+    for scenario in [
+        "success",
+        "connected",
+        "unpaired",
+        "missing",
+        "failed",
+        "ambiguous",
+    ] {
+        let bus = common::PrivateBus::start();
+        let address = bus.address.clone();
         let calls = Arc::new(AtomicUsize::new(0));
         let other_calls = Arc::new(AtomicUsize::new(0));
         let connection = zbus::block_on(async {
@@ -79,6 +74,7 @@ fn private_bluez_calls_device_connect_only_for_the_remembered_paired_headset() {
                     "/org/bluez/hci0/dev_02_00_00_00_00_02",
                     Device {
                         paired: true,
+                        connected: false,
                         fails: false,
                         calls: other_calls.clone(),
                     },
@@ -88,6 +84,7 @@ fn private_bluez_calls_device_connect_only_for_the_remembered_paired_headset() {
                     "/org/bluez/hci1/dev_02_00_00_00_00_01",
                     Device {
                         paired: scenario != "unpaired",
+                        connected: scenario == "connected",
                         fails: scenario == "failed",
                         calls: calls.clone(),
                     },
@@ -100,6 +97,7 @@ fn private_bluez_calls_device_connect_only_for_the_remembered_paired_headset() {
                     "/org/bluez/hci0/dev_02_00_00_00_00_01",
                     Device {
                         paired: true,
+                        connected: false,
                         fails: false,
                         calls: calls.clone(),
                     },
@@ -141,7 +139,8 @@ fn bluez_client_on_private_bus() {
     );
     let result = reconnect_remembered(&fingerprint("02:00:00:00:00:01"));
     let expected = match scenario.as_str() {
-        "success" => Ok(()),
+        "success" => Ok(Reconnected::Requested),
+        "connected" => Ok(Reconnected::AlreadyConnected),
         "unpaired" | "missing" => Err(ReconnectError::Missing),
         "failed" => Err(ReconnectError::Failed),
         "ambiguous" => Err(ReconnectError::Ambiguous),

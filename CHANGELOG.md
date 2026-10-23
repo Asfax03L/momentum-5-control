@@ -5,7 +5,53 @@ M5 » signifie : écriture capturée dans Smart Control Plus, puis rejouée
 depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
 6.21.5, Windows 11. La CI (fmt, clippy, tests) ne se connecte à aucun casque.
 
-## Non publié
+## v0.10.0 — 23/10/2026
+
+Essais sur le casque (M5, micrologiciel 6.21.5, Bazzite, 23/10/2026) :
+reconnexion après une déconnexion côté PC, scène enregistrée depuis
+l'état puis appliquée, scène « Écoute », retour à l'état d'origine relu ;
+diagnostic PipeWire comparé aux réglages son du bureau (sortie par défaut,
+profil A2DP, codec aptX HD).
+
+### Confort et audio Linux (jalon 0.10)
+- **Enregistrer l'état actuel comme scène** (PR #39) : bouton de la page
+  Scènes (WinUI, KDE) et `ctl scene-enregistrer <nom> [--remplacer]`.
+  Seuls les réglages relus sont écrits ; l'égaliseur devient un
+  préréglage du même nom. Rien n'est envoyé au casque.
+- **Exporter et importer mes réglages** (PR #40) : un fichier JSON
+  versionné (scènes, préréglages, raccourcis, panneau rapide, thème ;
+  batterie seulement sur demande, jamais le profil auditif), dans les
+  Paramètres et par `ctl reglages exporter|importer [--simulation]`.
+  Tout est validé avant d'écrire ; les fichiers remplacés sont gardés en
+  `.ancien` ; un export n'écrase jamais un fichier.
+- **Diagnostic audio PipeWire** dans la page « Connexion et audio » du
+  client KDE (PR #41) : sortie par défaut, profil Bluetooth et codec du
+  casque piloté, lus par `pw-dump`, en lecture seule. Le Flatpak reçoit
+  l'accès au socket PipeWire (lecture dans le Flatpak pas encore essayée).
+- **Reconnecter le casque** (PR #42) par le Bluetooth du système :
+  BlueZ (`Device1.Connect`) sous Linux, paramètres Bluetooth ouverts sous
+  Windows ; dans l'Accueil hors connexion, le menu de l'icône, le widget
+  Plasma et `ctl reconnecter`. Demande suivie, aucune trame GAIA ; refus
+  sans casque mémorisé.
+
+### Corrections (relecture de la version)
+- Reconnexion d'un casque déjà connecté : « déjà dans cet état » au lieu
+  d'un faux échec (BlueZ répond « In Progress » à `Connect`).
+- Scènes : le mode audio (égaliseur, Speech Clarity) est relu avant
+  d'être choisi ; déjà en place, rien n'est écrit. Le casque refuse un
+  mode déjà sélectionné (`0983`, code 80), ce qui arrêtait toute scène
+  avec `son = egaliseur` quand l'égaliseur était déjà actif (« Écoute »
+  comprise).
+- Le résultat d'une scène (`Done`) part après la relecture de l'état,
+  comme celui des autres réglages : un client qui relit l'état à ce
+  moment voit déjà la scène.
+- Export vers un fichier existant : message clair en français, au lieu
+  d'une erreur système anglaise répétée.
+- Essais de `ctl` sur bus privé : configuration sans dossiers
+  d'activation, qui ne peut plus démarrer un service installé sur le poste.
+- Publications : fichiers `.sha256` au format de `sha256sum -c`
+  (empreinte et nom du fichier).
+
 
 ### `ctl`
 - Complétion du shell (`ctl completions bash|zsh|fish|powershell|elvish`)

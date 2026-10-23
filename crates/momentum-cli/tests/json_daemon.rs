@@ -1,8 +1,9 @@
 //! Vrai binaire et faux service sur un bus privé : aucun accès au casque.
 #![cfg(target_os = "linux")]
 
-use std::io::{BufRead, BufReader};
-use std::process::{Child, Command, Output, Stdio};
+mod common;
+
+use std::process::{Command, Output};
 use std::sync::{Arc, Mutex};
 
 use momentum_client::{ConnectionInfo, Event, Outcome, Snapshot};
@@ -80,23 +81,14 @@ impl Fake {
 }
 
 struct Bus {
-    daemon: Child,
-    address: String,
+    bus: common::PrivateBus,
     _connection: zbus::Connection,
     data: Arc<Mutex<Data>>,
 }
 
 impl Bus {
     fn new() -> Self {
-        let mut daemon = Command::new("dbus-daemon")
-            .args(["--session", "--nofork", "--print-address=1"])
-            .stdout(Stdio::piped())
-            .spawn()
-            .expect("bus de test privé");
-        let mut address = String::new();
-        BufReader::new(daemon.stdout.take().unwrap())
-            .read_line(&mut address)
-            .unwrap();
+        let bus = common::PrivateBus::start();
         let data = Arc::new(Mutex::new(Data {
             snapshot: Snapshot {
                 session: 1,
@@ -135,7 +127,7 @@ impl Bus {
             },
         }));
         let connection = zbus::block_on(async {
-            zbus::connection::Builder::address(address.trim())
+            zbus::connection::Builder::address(bus.address.as_str())
                 .name(momentum_client::BUS_NAME)
                 .serve_at(momentum_client::OBJECT_PATH, Fake(data.clone()))
                 .build()
@@ -143,8 +135,7 @@ impl Bus {
                 .unwrap()
         });
         Self {
-            daemon,
-            address,
+            bus,
             _connection: connection,
             data,
         }
@@ -153,7 +144,7 @@ impl Bus {
     fn ctl(&self, args: &[&str]) -> Output {
         Command::new(env!("CARGO_BIN_EXE_ctl"))
             .args(args)
-            .env("DBUS_SESSION_BUS_ADDRESS", self.address.trim())
+            .env("DBUS_SESSION_BUS_ADDRESS", self.bus.address.as_str())
             .output()
             .unwrap()
     }
@@ -161,17 +152,10 @@ impl Bus {
     fn ctl_in(&self, args: &[&str], root: &std::path::Path) -> Output {
         Command::new(env!("CARGO_BIN_EXE_ctl"))
             .args(args)
-            .env("DBUS_SESSION_BUS_ADDRESS", self.address.trim())
+            .env("DBUS_SESSION_BUS_ADDRESS", self.bus.address.as_str())
             .env("XDG_DATA_HOME", root)
             .output()
             .unwrap()
-    }
-}
-
-impl Drop for Bus {
-    fn drop(&mut self) {
-        let _ = self.daemon.kill();
-        let _ = self.daemon.wait();
     }
 }
 
@@ -431,6 +415,8 @@ fn reconnect_submits_while_disconnected_and_waits_for_its_own_done() {
             assert_eq!(one_object(&output)["ok"], true);
         }
     }
+    // Une seule demande par appel de `ctl reconnecter`.
+    assert_eq!(bus.data.lock().unwrap().commands.len(), 2);
     bus.data.lock().unwrap().outcome = Outcome::Refused("aucun casque mémorisé".into());
     let output = bus.ctl(&["--json", "reconnecter"]);
     assert_eq!(output.status.code(), Some(1));

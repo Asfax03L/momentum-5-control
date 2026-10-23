@@ -12,26 +12,32 @@ pub fn request(remembered: Option<&str>) -> Outcome {
 
 fn request_with(
     remembered: Option<&str>,
-    action: impl FnOnce(&str) -> Result<&'static str, ReconnectError>,
+    action: impl FnOnce(&str) -> Result<Outcome, ReconnectError>,
 ) -> Outcome {
     let Some(remembered) = remembered else {
         return Outcome::Refused(ReconnectError::NotRemembered.to_string());
     };
     match action(remembered) {
-        Ok(message) => Outcome::SystemRequested(message.into()),
+        Ok(outcome) => outcome,
         Err(error @ ReconnectError::Failed) => Outcome::Unknown(error.to_string()),
         Err(error) => Outcome::Refused(error.to_string()),
     }
 }
 
 #[cfg(target_os = "linux")]
-fn platform(remembered: &str) -> Result<&'static str, ReconnectError> {
-    momentum_core::transport::bluez_rfcomm::reconnect_remembered(remembered)?;
-    Ok(LINUX_MESSAGE)
+fn platform(remembered: &str) -> Result<Outcome, ReconnectError> {
+    use momentum_core::transport::reconnect::Reconnected;
+    Ok(
+        match momentum_core::transport::bluez_rfcomm::reconnect_remembered(remembered)? {
+            Reconnected::Requested => Outcome::SystemRequested(LINUX_MESSAGE.into()),
+            // Rien demandé : le casque est déjà connecté au PC.
+            Reconnected::AlreadyConnected => Outcome::AlreadySatisfied,
+        },
+    )
 }
 
 #[cfg(windows)]
-fn platform(_: &str) -> Result<&'static str, ReconnectError> {
+fn platform(_: &str) -> Result<Outcome, ReconnectError> {
     use windows::Win32::System::Com::{
         COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE, CoInitializeEx, CoUninitialize,
     };
@@ -60,7 +66,7 @@ fn platform(_: &str) -> Result<&'static str, ReconnectError> {
     if result.0 as isize <= 32 {
         return Err(ReconnectError::Unavailable);
     }
-    Ok(WINDOWS_MESSAGE)
+    Ok(Outcome::SystemRequested(WINDOWS_MESSAGE.into()))
 }
 
 #[cfg(test)]
@@ -78,7 +84,9 @@ mod tests {
     #[test]
     fn system_results_never_claim_gaia_or_audio_confirmation() {
         for message in [LINUX_MESSAGE, WINDOWS_MESSAGE] {
-            let outcome = request_with(Some("empreinte fictive"), |_| Ok(message));
+            let outcome = request_with(Some("empreinte fictive"), |_| {
+                Ok(Outcome::SystemRequested(message.into()))
+            });
             assert_eq!(outcome, Outcome::SystemRequested(message.into()));
             assert!(outcome.is_success());
             assert_eq!(outcome.describe(), message);

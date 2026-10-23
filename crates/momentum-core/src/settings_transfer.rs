@@ -31,8 +31,16 @@ pub enum TransferError {
     Version(u32),
     #[error("réglages refusés : {0}")]
     Invalid(String),
+    // Sans `#[from]` : l'erreur système n'est pas aussi déclarée comme
+    // source, sinon `ctl` (anyhow, `{:#}`) l'afficherait deux fois.
     #[error("opération impossible : {0}")]
-    Io(#[from] std::io::Error),
+    Io(std::io::Error),
+}
+
+impl From<std::io::Error> for TransferError {
+    fn from(error: std::io::Error) -> Self {
+        Self::Io(error)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -207,7 +215,13 @@ pub fn export(dir: &Path, destination: &Path, battery: bool) -> Result<String, T
     let mut file = OpenOptions::new()
         .write(true)
         .create_new(true)
-        .open(destination)?;
+        .open(destination)
+        .map_err(|e| match e.kind() {
+            std::io::ErrorKind::AlreadyExists => {
+                invalid("ce fichier existe déjà ; choisir un autre nom (rien n'est écrasé)")
+            }
+            _ => e.into(),
+        })?;
     file.write_all(text.as_bytes())?;
     file.sync_all()?;
     Ok("Réglages exportés ; le fichier existant n'est jamais écrasé.".into())

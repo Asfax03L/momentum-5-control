@@ -442,16 +442,32 @@ fn session<T: Transport>(
                         | WorkerCommand::SetMultipoint(_)
                 )
             });
-            let sent = match run_batch(&mut headset, batch, &state, &mut eq, &paired, notify) {
+            // Résultats des scènes, publiés après la relecture : un client
+            // qui relit l'état à la réception de `Done` voit celui de la scène.
+            let mut scenes_done = Vec::new();
+            let sent = match run_batch(
+                &mut headset,
+                batch,
+                &state,
+                &mut eq,
+                &paired,
+                notify,
+                &mut scenes_done,
+            ) {
                 Ok(sent) => sent,
-                Err(end) => return end,
+                Err(end) => {
+                    finish_all(notify, scenes_done);
+                    return end;
+                }
             };
             // Relecture : l'interface reflète toujours l'état réel du casque,
             // et chaque demande acquittée est confirmée sur cette relecture.
-            let unverified = |reason: &str| {
+            // Une scène garde son résultat (chaque étape a été relue).
+            let unverified = |reason: &str, scenes_done: Vec<Finished>| {
                 for job in &sent {
                     finish(notify, job.id, Outcome::Unknown(reason.to_string()), None);
                 }
+                finish_all(notify, scenes_done);
             };
             if touches_eq {
                 match headset.read_eq() {
@@ -461,7 +477,7 @@ fn session<T: Transport>(
                         notify(WorkerEvent::Equalizer(eq.clone()));
                     }
                     Err(e) => {
-                        unverified("connexion perdue avant la relecture");
+                        unverified("connexion perdue avant la relecture", scenes_done);
                         return lost(e);
                     }
                 }
@@ -473,7 +489,7 @@ fn session<T: Transport>(
                         notify(WorkerEvent::Info(info.clone()));
                     }
                     Err(e) => {
-                        unverified("connexion perdue avant la relecture");
+                        unverified("connexion perdue avant la relecture", scenes_done);
                         return lost(e);
                     }
                 }
@@ -487,7 +503,7 @@ fn session<T: Transport>(
                         last_refresh = Instant::now();
                     }
                     Err(e) => {
-                        unverified("connexion perdue avant la relecture");
+                        unverified("connexion perdue avant la relecture", scenes_done);
                         return lost(e);
                     }
                 }
@@ -505,6 +521,7 @@ fn session<T: Transport>(
                 };
                 finish(notify, job.id, outcome, None);
             }
+            finish_all(notify, scenes_done);
             continue;
         }
 
@@ -603,6 +620,15 @@ fn session<T: Transport>(
 /// désynchronise la session l'arrête sans rien renvoyer : la demande en
 /// cours et celles déjà acquittées ont un résultat inconnu, les suivantes
 /// sont annulées sans envoi.
+/// Résultat différé d'une demande : numéro, issue, compte rendu.
+type Finished = (u64, Outcome, Option<String>);
+
+fn finish_all(notify: &impl Fn(WorkerEvent), done: Vec<Finished>) {
+    for (id, outcome, details) in done {
+        finish(notify, id, outcome, details);
+    }
+}
+
 fn run_batch<T: Transport>(
     headset: &mut Headset<T>,
     batch: Vec<Job>,
@@ -610,6 +636,7 @@ fn run_batch<T: Transport>(
     eq: &mut EqState,
     paired: &[Connection],
     notify: &impl Fn(WorkerEvent),
+    scenes_done: &mut Vec<Finished>,
 ) -> Result<Vec<Job>, SessionEnd> {
     let mut sent: Vec<Job> = Vec::new();
     let mut eq_stale = false;
@@ -673,7 +700,7 @@ fn run_batch<T: Transport>(
                 } else {
                     Outcome::NotApplied("scène appliquée en partie".to_string())
                 };
-                finish(notify, id, outcome, details);
+                scenes_done.push((id, outcome, details));
                 eq_stale = true;
             }
             WorkerCommand::ToggleConnection { device, connect } => {
@@ -1242,6 +1269,7 @@ mod tests {
             cache,
             &[],
             &|_| {},
+            &mut Vec::new(),
         );
         assert!(result.is_ok(), "{result:?}");
         headset
@@ -1261,6 +1289,52 @@ mod tests {
         );
         assert!(headset.client().transport().is_exhausted());
         assert_eq!(cache.gains, [10, 0]);
+    }
+
+    #[test]
+    fn a_scene_result_waits_for_the_read_back() {
+        // Le `Done` d'une scène part après la relecture de fin de lot, comme
+        // celui des autres réglages : run_batch le met de côté.
+        let mut mock = read_eq(MockTransport::new(), [0, 0]);
+        mock = ack_band(ack_band(mock, 0, 5), 1, 5);
+        let scene = Scene {
+            name: "Essai".into(),
+            equalizer: Some("Basses".into()),
+            ..Scene::default()
+        };
+        let presets = vec![Preset {
+            name: "Basses".into(),
+            gains: vec![5, 5],
+            builtin: false,
+        }];
+        let mut headset = Headset::validated_for_tests(mock, Duration::from_millis(20));
+        let events = std::cell::RefCell::new(Vec::new());
+        let mut scenes_done = Vec::new();
+        let result = run_batch(
+            &mut headset,
+            coalesce(jobs(vec![WorkerCommand::ApplyScene {
+                scene,
+                presets,
+                reply: None,
+            }]))
+            .0,
+            &HeadsetState::default(),
+            &mut eq([0, 0]),
+            &[],
+            &|e| events.borrow_mut().push(e),
+            &mut scenes_done,
+        );
+        assert!(result.is_ok(), "{result:?}");
+        assert!(
+            !events
+                .borrow()
+                .iter()
+                .any(|e| matches!(e, WorkerEvent::Done { .. }))
+        );
+        assert!(matches!(
+            scenes_done.as_slice(),
+            [(_, Outcome::Applied, Some(_))]
+        ));
     }
 
     #[test]
@@ -1332,6 +1406,7 @@ mod tests {
             &mut cache,
             &[],
             &|_| {},
+            &mut Vec::new(),
         );
         assert!(matches!(result, Err(SessionEnd::Lost(_))));
         assert_eq!(headset.client().transport().sent().len(), 1);
@@ -1365,6 +1440,7 @@ mod tests {
             &mut eq([0, 0]),
             &paired,
             &|_| {},
+            &mut Vec::new(),
         );
         assert!(result.is_ok());
         assert!(headset.client().transport().is_exhausted());
@@ -1385,6 +1461,7 @@ mod tests {
             &mut eq([0, 0]),
             &[Connection::synthetic(1, "Ancien", false)],
             &|e| refused.set(matches!(e, WorkerEvent::Refused(_))),
+            &mut Vec::new(),
         );
         assert!(result.is_ok());
         assert!(refused.get());
@@ -1416,6 +1493,7 @@ mod tests {
                 &mut eq([0, 0]),
                 &[],
                 &|_| {},
+                &mut Vec::new(),
             );
             assert!(result.is_ok());
         }
@@ -1458,6 +1536,7 @@ mod tests {
             &mut eq([10, 10]),
             &[],
             &|e| events.borrow_mut().push(e),
+            &mut Vec::new(),
         );
         assert!(matches!(result, Err(SessionEnd::Lost(_))));
         let got = outcomes(&events.borrow());
@@ -1484,6 +1563,7 @@ mod tests {
             &mut eq([0, 0]),
             &[Connection::synthetic(1, "Ancien", false)],
             &|e| events.borrow_mut().push(e),
+            &mut Vec::new(),
         )
         .unwrap();
         assert!(sent.is_empty());
@@ -1506,6 +1586,7 @@ mod tests {
             &mut eq([0, 0]),
             &[],
             &|e| events.borrow_mut().push(e),
+            &mut Vec::new(),
         )
         .unwrap();
         assert_eq!(sent.len(), 1);

@@ -87,7 +87,7 @@ applications. Télécharger `openheadset-control-vX.Y.Z-x86_64.flatpak` sur
 la page Releases (la CI le construit à chaque publication), puis :
 
 ```bash
-flatpak install --user openheadset-control-v0.9.1-x86_64.flatpak
+flatpak install --user openheadset-control-v0.10.0-x86_64.flatpak
 ```
 
 Il contient le client KDE, le service (lancé à la demande par activation
@@ -152,20 +152,20 @@ Télécharger le paquet et son fichier `.sha256` depuis la même publication,
 puis vérifier l'empreinte (remplacer le nom par celui téléchargé) :
 
 ```sh
-paquet=openheadset-control_0.9.1-1_amd64.deb
-printf '%s  %s\n' "$(cat "$paquet.sha256")" "$paquet" | sha256sum -c -
+paquet=openheadset-control_0.10.0-1_amd64.deb
+sha256sum -c "$paquet.sha256"
 ```
 
 Debian 13 / Ubuntu 26.04 :
 
 ```sh
-sudo apt install ./openheadset-control_0.9.1-1_amd64.deb
+sudo apt install ./openheadset-control_0.10.0-1_amd64.deb
 ```
 
 Fedora 43 et suivantes (vérifiées en CI : 43 et 44) :
 
 ```sh
-sudo dnf install ./openheadset-control-0.9.1-1.x86_64.rpm
+sudo dnf install ./openheadset-control-0.10.0-1.x86_64.rpm
 ```
 
 Les fichiers vont dans `/usr`. Aucun script du paquet ne démarre le
