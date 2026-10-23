@@ -5,6 +5,27 @@ M5 » signifie : écriture capturée dans Smart Control Plus, puis rejouée
 depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
 6.21.5, Windows 11. La CI (fmt, clippy, tests) ne se connecte à aucun casque.
 
+## Non publié
+
+### `ctl`
+- Complétion du shell (`ctl completions bash|zsh|fish|powershell|elvish`)
+  et page de manuel (`ctl man`), sans casque ni service. L'archive Linux
+  les contient ; `installer-linux.sh` les installe dans les dossiers de
+  l'utilisateur, sans sudo.
+- Option globale `--json` : un seul objet JSON (version 1) sur la sortie
+  standard pour chaque sous-commande, y compris en échec ; messages
+  humains sur la sortie d'erreur. Réglages : `ok`, état relu, résultat du
+  service, `erreur` ; valeurs non relues à `null`. `ctl etat --json`
+  reste identique octet pour octet. Aucune commande ni écriture
+  supplémentaire vers le casque. Exemples pour scripts et Stream Deck dans
+  le README.
+
+### Qualité
+- Fuzzing (`cargo-fuzz`) du décodeur de trames, du décodage en flux, du
+  parseur SDP et des lectures typées, sur un corpus tiré des tests
+  publics : une minute par cible sur chaque PR, dix minutes chaque
+  semaine. Aucun plantage trouvé (32 millions de cas en local).
+
 ## v0.9.1 — 22/10/2026
 
 ### KDE

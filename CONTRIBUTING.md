@@ -83,6 +83,41 @@ sh scripts/verifier-confidentialite.sh
 - Documentation à jour : README, `CHANGELOG.md` (section « Non publié »),
   `docs/MOMENTUM5.md` pour le protocole.
 
+## Fuzzing des lectures
+
+Sous Linux, installer un compilateur C++, `pkg-config`, les fichiers de
+développement D-Bus et Python 3, puis, depuis la racine du dépôt :
+
+```sh
+rustup toolchain install nightly-2026-10-22 --profile minimal --component rust-src,rustfmt
+cargo install cargo-fuzz --version 0.13.2 --locked
+sh fuzz/lancer.sh 60
+```
+
+Le script lance **chacune** des quatre cibles pendant 60 secondes avec
+AddressSanitizer, des entrées limitées à 4096 octets, 10 secondes par cas et
+1 Gio de mémoire résidente. `fuzz/` est un workspace séparé : ni la
+toolchain stable ni `cargo test` ne lancent le fuzzing. Le corpus initial
+est conservé en hexadécimal relisible dans `fuzz/corpus-initial.json`, avec
+la provenance de chaque extrait des tests publics ; le script le transforme
+en fichiers binaires dans `fuzz/corpus/`, sans supprimer les découvertes.
+Aucune capture personnelle ni donnée de profil auditif n'est utilisée.
+
+Pour une seule cible : `python3 fuzz/preparer-corpus.py`, puis
+`cargo +nightly-2026-10-22 fuzz run frame_decode -- -max_total_time=60 -max_len=4096 -timeout=10 -rss_limit_mb=1024`.
+Les autres cibles sont `frame_stream`, `sdp_element` et `messages`.
+`frame_stream` lit un préfixe de découpage (compte modulo 17, puis tailles
+moins un), puis compare le flux découpé au même flux fourni en un bloc.
+Sans plan, il avance octet par octet. `messages` appelle toutes les fonctions
+publiques `parse_*` sur des payloads arbitraires.
+
+La CI lance chaque cible 60 secondes sur les PR, 600 secondes à la main ou
+chaque semaine. Les journaux et éventuels cas d'échec sont joints à son
+exécution ; ils restent localement dans `fuzz/logs/` et `fuzz/artifacts/`.
+Reproduire un cas avec `cargo +nightly-2026-10-22 fuzz run <cible> <fichier>`.
+Toute panique ou boucle découverte doit être corrigée dans le décodeur et
+conservée comme test unitaire ordinaire, sans changer les captures valides.
+
 ## Architecture en bref
 
 Le service `momentum-daemon` est le seul à parler au casque ; les

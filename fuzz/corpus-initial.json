@@ -1,0 +1,24 @@
+{
+  "note": "Extraits publics des tests : aucun nom personnel, adresse, numéro de série ou bloc de profil auditif. Les payloads de messages sont extraits des trames ; les flux ajoutent uniquement un plan de découpage.",
+  "frames": [
+    {"name": "batterie", "source": "crates/momentum-core/tests/captures.rs:battery_capture", "hex": "FF 03 00 01 04 95 07 03 2A"},
+    {"name": "codec", "source": "crates/momentum-core/tests/captures.rs:codec_capture", "hex": "FF 03 00 01 04 95 09 00 05"},
+    {"name": "bruit", "source": "crates/momentum-core/tests/captures.rs:noise_control_modes_capture", "hex": "FF 03 00 06 04 95 1B 01 01 02 02 00 03 01"},
+    {"name": "modele", "source": "crates/momentum-core/tests/m5_captures.rs:EXCHANGES", "hex": "FF 03 00 0D 04 95 13 06 4D 35 41 45 42 54 20 42 6C 61 63 6B 00"},
+    {"name": "firmware", "source": "crates/momentum-core/tests/m5_captures.rs:EXCHANGES", "hex": "FF 03 00 06 04 95 13 01 00 06 00 15 00 05"},
+    {"name": "egaliseur", "source": "crates/momentum-core/tests/m5_captures.rs:equalizer_has_eight_bands_of_plus_minus_6_db", "hex": "FF 03 00 05 04 95 11 00 08 C4 3C 00 00"},
+    {"name": "features", "source": "crates/momentum-core/tests/m5_captures.rs:qualcomm_core_feature_list", "hex": "FF 03 00 0D 00 1D 01 01 00 0D 01 0C 01 06 02 04 02 07 01 00 05"},
+    {"name": "version_4", "source": "crates/momentum-core/src/protocol/mod.rs:version_4_answers_decode_like_version_3", "hex": "FF 04 00 01 04 95 20 81 02"}
+  ],
+  "payloads": [
+    {"name": "frequences", "source": "crates/momentum-core/tests/m5_captures.rs:eq_center_frequencies_of_the_m5", "hex": "00 00 5A 01 01 45 02 05 DC 03 09 C4 04 11 94 05 1F 40 06 32 C8 07 3E 80"}
+  ],
+  "sdp": [
+    {"name": "service_gaia", "source": "crates/momentum-core/src/sdp.rs:parses_service_name", "hex": "25 05 47 41 49 41 00"},
+    {"name": "rfcomm_15", "source": "crates/momentum-core/src/sdp.rs:parses_rfcomm_channel_15", "hex": "35 0C 35 03 19 01 00 35 05 19 00 03 08 0F"},
+    {"name": "uuid128", "source": "crates/momentum-core/src/sdp.rs:parses_uuid128_and_negative_int", "hex": "1C 11 11 11 11 11 11 11 11 11 11 11 11 11 11 11 11"},
+    {"name": "entier_negatif", "source": "crates/momentum-core/src/sdp.rs:parses_uuid128_and_negative_int", "hex": "10 FF"},
+    {"name": "tronque", "source": "crates/momentum-core/src/sdp.rs:rejects_truncated_input", "hex": "35 05 19"},
+    {"name": "reserve", "source": "crates/momentum-core/src/sdp.rs:rejects_truncated_input", "hex": "48 00"}
+  ]
+}
