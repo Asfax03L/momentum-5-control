@@ -32,9 +32,17 @@ fn platform(remembered: &str) -> Result<&'static str, ReconnectError> {
 
 #[cfg(windows)]
 fn platform(_: &str) -> Result<&'static str, ReconnectError> {
+    use windows::Win32::System::Com::{
+        COINIT_APARTMENTTHREADED, COINIT_DISABLE_OLE1DDE, CoInitializeEx, CoUninitialize,
+    };
     use windows::Win32::UI::Shell::ShellExecuteW;
     use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
     use windows::core::w;
+    // SAFETY: fil dédié à cette action, sans objet COM préexistant. Le Shell
+    // peut charger un gestionnaire d'URI qui exige un appartement STA.
+    unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE) }
+        .ok()
+        .map_err(|_| ReconnectError::Unavailable)?;
     // SAFETY: chaînes UTF-16 statiques, aucun argument ou chemin utilisateur.
     let result = unsafe {
         ShellExecuteW(
@@ -46,6 +54,9 @@ fn platform(_: &str) -> Result<&'static str, ReconnectError> {
             SW_SHOWNORMAL,
         )
     };
+    // SAFETY: équilibre l'initialisation réussie sur ce même fil, y compris
+    // en cas d'échec de ShellExecuteW ; aucun objet COM local à conserver.
+    unsafe { CoUninitialize() };
     if result.0 as isize <= 32 {
         return Err(ReconnectError::Unavailable);
     }

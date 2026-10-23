@@ -175,7 +175,9 @@ profil ou de routage, ni UUID nouveau. Un échec après l'appel est
 `Unknown` : un profil peut déjà avoir été connecté, le délai côté client
 n'annule pas nécessairement l'opération dans BlueZ.
 
-Windows utilise `ShellExecuteW` pour ouvrir l'URI documentée
+Windows initialise COM en STA sur le fil dédié, comme le recommande
+[`ShellExecuteW`](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shellexecutew),
+puis l'utilise pour ouvrir l'URI documentée
 [`ms-settings:bluetooth`](https://learn.microsoft.com/en-us/windows/apps/develop/launch/launch-settings).
 Cette solution demande une connexion manuelle dans les paramètres, plutôt
 que d'assimiler une connexion RFCOMM à la connexion audio. L'ouverture est
