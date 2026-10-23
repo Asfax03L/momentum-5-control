@@ -5,6 +5,10 @@ M5 » signifie : écriture capturée dans Smart Control Plus, puis rejouée
 depuis le PC et relue sur un MOMENTUM 5 Wireless (M5AEBT), micrologiciel
 6.21.5, Windows 11. La CI (fmt, clippy, tests) ne se connecte à aucun casque.
 
+Chaque version a une sous-section « À faire après la mise à jour » quand
+une action est nécessaire : elle est reprise en tête des notes de la
+publication GitHub (`scripts/notes-publication.py`).
+
 ## v0.10.0 — 23/10/2026
 
 Essais sur le casque (M5, micrologiciel 6.21.5, Bazzite, 23/10/2026) :
@@ -12,6 +16,23 @@ reconnexion après une déconnexion côté PC, scène enregistrée depuis
 l'état puis appliquée, scène « Écoute », retour à l'état d'origine relu ;
 diagnostic PipeWire comparé aux réglages son du bureau (sortie par défaut,
 profil A2DP, codec aptX HD).
+
+### À faire après la mise à jour
+- **Tous** : quitter OpenHeadset Control (menu de l'icône > Quitter) et le
+  relancer, pour avoir les nouveaux boutons (« Enregistrer l'état actuel
+  comme scène », « Reconnecter le casque », export et import des réglages).
+- **Flatpak avec le widget Plasma** : le widget n'est pas dans le
+  Flatpak ; le mettre à jour depuis l'archive Linux
+  (`kpackagetool6 --type Plasma/Applet --upgrade …/plasma/org.openheadset.control.plasmoid`)
+  pour avoir le bouton « Reconnecter ».
+- **Passage au `.deb` ou au `.rpm`** (nouveaux) : désinstaller d'abord
+  l'installation par script (`./installer-linux.sh --desinstaller`) ou le
+  Flatpak ; une seule méthode par PC. Les réglages sont gardés.
+- **zsh** (installation par l'archive) : ajouter
+  `${XDG_DATA_HOME:-$HOME/.local/share}/zsh/site-functions` à `fpath` avant
+  `compinit` pour la complétion de `ctl` (bash et fish : rien à faire).
+- **Scripts qui appellent `ctl`** : `ctl etat --json` est inchangé ;
+  toutes les autres sous-commandes acceptent maintenant `--json`.
 
 ### Confort et audio Linux (jalon 0.10)
 - **Enregistrer l'état actuel comme scène** (PR #39) : bouton de la page
@@ -83,6 +104,14 @@ profil A2DP, codec aptX HD).
 
 ## v0.9.1 — 22/10/2026
 
+### À faire après la mise à jour
+- **KDE** : quitter le client (menu de l'icône > Quitter) et le relancer :
+  l'icône de la zone de notification est réécrite. Choisir le contenu du
+  nouveau panneau rapide (clic gauche sur l'icône) dans la page Scènes.
+- **Widget Plasma** : la nouvelle version (suivi de tête, profil, scènes)
+  s'affiche après une nouvelle ouverture de session, ou avec
+  `systemctl --user restart plasma-plasmashell`.
+
 ### KDE
 - Panneau rapide au clic gauche sur l'icône de la zone de notification,
   comme sous Windows : batterie, contrôle du bruit, curseur ANC ↔
@@ -113,6 +142,22 @@ profil A2DP, codec aptX HD).
   secondes au lieu de 15) avec cette raison, sans rien envoyer (code 1).
 
 ## v0.9.0 — 22/10/2026
+
+### À faire après la mise à jour
+- **Bazzite** : le Flatpak (nouveau) devient la méthode conseillée. Pour y
+  passer, désinstaller d'abord l'installation par script
+  (`./installer-linux.sh --desinstaller`, nouveau aussi) : un seul service
+  à la fois. Le Flatpak range ses réglages ailleurs
+  (`~/.var/app/org.openheadset.Control/`) : scènes et raccourcis ne sont
+  pas repris automatiquement.
+- **Widget Plasma** (nouveau) : l'ajouter au panneau ou au bureau par
+  « Ajouter des composants graphiques » > OpenHeadset Control.
+- **Scripts qui appellent `ctl`** : codes de sortie distincts (0 confirmé,
+  1 refusé ou annulé, 2 non appliqué, 3 résultat inconnu) ; vérifier les
+  scripts qui ne testaient que 0 ou 1.
+- **Autre micrologiciel que 6.21.5** : le casque passe en lecture seule
+  (raison affichée dans le bandeau). C'est voulu : signaler le
+  micrologiciel par une issue « Compatibilité ».
 
 ### Consolidation (revue du 21/10/2026)
 - Suivi des constats F01 à F14 dans `docs/CONSOLIDATION.md`.
@@ -223,6 +268,16 @@ profil A2DP, codec aptX HD).
   `Background`, bouton « Modifier dans KDE… » masqué.
 
 ## v0.8.0 — 21/10/2026
+
+### À faire après la mise à jour
+- **Windows** : installer le Windows App Runtime 2 si `installer.ps1` le
+  signale (la nouvelle interface WinUI 3 en a besoin). L'ancienne icône
+  Slint est retirée automatiquement, démarrage avec Windows compris ;
+  l'option `-Interface` de `installer.ps1` n'existe plus.
+- **Linux** : l'ancienne icône Slint (`momentum-tray`) et son démarrage
+  automatique sont retirés par `installer-linux.sh` ; lancer « OpenHeadset
+  Control » (client KDE) depuis le menu, puis activer « Lancer à
+  l'ouverture de session » dans son menu si souhaité.
 
 ### Retrait de l'icône Slint (étape 4 de docs/ARCHITECTURE.md)
 - `momentum-tray` (icône et fenêtre Slint) est retiré : WinUI 3 sous

@@ -116,6 +116,8 @@ jobs:
     needs: [windows, linux, flatpak, paquets]
     runs-on: ubuntu-24.04
     steps:
+      # CHANGELOG.md et le script des notes de publication.
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           path: paquets
@@ -137,9 +139,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
+          # Notes détaillées : nouveautés du CHANGELOG, actions après la mise
+          # à jour, installation pas à pas avec les noms exacts des fichiers.
+          # Sans section du CHANGELOG pour cette version, rien n'est publié.
+          python3 ../scripts/notes-publication.py "${GITHUB_REF_NAME}" . > ../notes.md
           gh release create "${GITHUB_REF_NAME}" --draft \
             --title "OpenHeadset Control ${GITHUB_REF_NAME}" \
-            --notes "Windows : décompresser, puis lancer installer.ps1 (clic droit > Exécuter avec PowerShell) ; interface WinUI 3 (Windows App Runtime 2 requis). Linux : paquets .deb (Debian 13 / Ubuntu 26.04) et .rpm (Fedora 43 et suivantes), ou décompresser puis ./installer-linux.sh (Qt 6 et Kirigami requis pour le client KDE) ; sur Bazzite, préférer le Flatpak (flatpak install --user …flatpak). Projet non officiel. Exécutables non signés : Windows SmartScreen peut demander une confirmation." \
+            --notes-file ../notes.md \
             ./*
           # Tous les fichiers sont bien attachés avant de rendre public.
           count=$(gh release view "${GITHUB_REF_NAME}" --json assets --jq '.assets | length')
