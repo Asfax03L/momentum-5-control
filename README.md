@@ -473,6 +473,29 @@ Avec `--json`, `man`, `completions`, l'aide et la version sont encapsulés
 dans un objet `version`, `type`, `contenu`. Pour installer directement un
 script de complétion ou un manuel, utiliser les commandes sans `--json`.
 
+### Suite d'essais sur le casque
+
+Avant chaque publication, `ctl essais` rejoue les essais faits à la main :
+pour chaque réglage validé (niveau, anti-vent, bande 1, basses, tactile,
+Smart Pause, réponse automatique, appels confortables, extinction,
+invites, volume des invites, Speech Clarity), une autre valeur est écrite
+et relue, puis la valeur d'origine est remise et relue. La première
+anomalie arrête la suite, après une tentative de remise. Jamais : nom,
+multipoint, connexions, profil personnalisé, langue, priorité du mode
+audio. Service requis.
+
+```bash
+ctl essais --simulation
+```
+```bash
+ctl essais --rapport essais-casque.md
+```
+
+`--liste niveau,anti-vent` choisit les essais ; `--json` rend un objet avec
+chaque résultat et le compte rendu. Le compte rendu Markdown (date,
+version, système, modèle, micrologiciel) ne contient ni nom, ni adresse,
+ni numéro de série. Code de sortie 1 en cas d'anomalie.
+
 ### Complétion et manuel
 
 `ctl completions <shell>` écrit un script sur la sortie standard pour

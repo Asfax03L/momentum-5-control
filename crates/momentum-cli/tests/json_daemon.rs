@@ -440,3 +440,36 @@ fn reconnect_submits_while_disconnected_and_waits_for_its_own_done() {
             .contains("service requis")
     );
 }
+
+#[test]
+fn essais_simulation_sends_nothing_and_a_wrong_readback_stops_after_a_restore_attempt() {
+    let bus = Bus::new();
+    // Simulation : plan seulement.
+    let output = bus.ctl(&["--json", "essais", "--simulation"]);
+    assert!(output.status.success(), "{output:?}");
+    let plan = one_object(&output);
+    assert_eq!(plan["simulation"], true);
+    assert_eq!(plan["ok"], true);
+    assert!(plan["rapport"].as_str().unwrap().contains("Simulation"));
+    assert!(!plan["rapport"].as_str().unwrap().contains("Casque démo"));
+    assert!(bus.data.lock().unwrap().commands.is_empty());
+    // Essai hors de la liste : refusé avant tout envoi.
+    let output = bus.ctl(&["--json", "essais", "--liste", "nom"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(bus.data.lock().unwrap().commands.is_empty());
+    // Le faux service acquitte sans rien changer : la relecture montre
+    // l'ancienne valeur, la suite s'arrête après une tentative de remise.
+    let output = bus.ctl(&["--json", "essais", "--liste", "anti-vent,tactile"]);
+    assert_eq!(output.status.code(), Some(1));
+    let result = one_object(&output);
+    assert_eq!(result["ok"], false);
+    assert_eq!(result["essais"][1]["statut"], "non_lance");
+    let commands = bus.data.lock().unwrap().commands.clone();
+    assert_eq!(
+        commands,
+        [
+            momentum_client::Command::SetAntiWind(true),
+            momentum_client::Command::SetAntiWind(false),
+        ]
+    );
+}
