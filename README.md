@@ -316,6 +316,67 @@ de série ni adresse Bluetooth, mais le profil est une donnée auditive
 personnelle : ne pas publier ce fichier. Un fichier existant n'est jamais
 écrasé, et aucune restauration n'est proposée.
 
+### Sortie JSON pour les scripts
+
+`--json` est global : `ctl --json etat` et `ctl etat --json` sont
+équivalents. La sortie standard contient **un seul objet JSON**, en version
+`1` ; les messages humains et les journaux restent sur stderr. Un échec
+donne `ok: false`, `erreur` et un code de sortie non nul, y compris en cas
+d'arguments invalides. Sans cette option, l'affichage reste textuel.
+
+- `etat` conserve exactement son format historique (ordre des champs
+  compris) : `connecte`, `batterie`, `bruit`, etc.
+- `eq` renvoie `egaliseur` (gains et bornes en **dixièmes de dB**, et
+  `basses`) ; `connexions` renvoie `connexions` (nom, `connecte`, `ce_pc`,
+  sans adresse ni identifiant opaque) ; `nom` sans argument renvoie `nom`.
+- `scenes` renvoie la liste des noms valides dans `scenes` et les erreurs
+  de lecture ou d'analyse du fichier dans `avertissements`, sans service
+  ni casque.
+- Les réglages et `exporter-profil` renvoient `ok`, `etat` (valeurs relues),
+  `resultat` (issue donnée par le service, si disponible) et `details`
+  (rapport d'une scène ou fichier exporté, si disponible).
+
+Dans le champ `etat` des réponses aux réglages, les valeurs non relues
+sont `null` : batterie, bruit, audio
+spatial, suivi de tête, mode audio, statut du profil, protection de la
+batterie, commandes tactiles, Smart Pause, réponse automatique, appels
+confortables, extinction en secondes, mode des invites, codec, fréquence,
+égaliseur, connexions, nom, Multipoint et volume des invites en pourcentage.
+Les clés exactes sont documentées dans
+[`momentum_core::json`](crates/momentum-core/src/json.rs).
+Une relecture partielle reste partielle : `niveau` en connexion directe
+relit le bruit, pas toute la batterie ni l'égaliseur. Le JSON n'ajoute
+aucune commande au casque et ne réessaie pas une écriture.
+
+Une lecture absente vaut `null`, une liste effectivement lue et vide vaut
+`[]`. Le service ne distingue pas encore une liste de connexions vide
+d'une liste non lue : elle est donc rendue par `null` dans ce cas. Un
+acquittement conserve `resultat: "accepté par le casque"` et les champs
+non relus à `null` ; il ne devient pas une confirmation d'application.
+Les codes du service sont conservés : `0` succès, `1` refus ou annulation,
+`2` non appliqué, `3` résultat inconnu. Les autres erreurs d'exécution
+sortent avec `1` ; les arguments invalides avec `2`.
+
+Exemple shell (avec `jq` pour lire le résultat) :
+
+```sh
+if resultat=$(ctl --json mode adaptatif); then
+    printf '%s\n' "$resultat" | jq -r '.etat.bruit.mode'
+else
+    printf '%s\n' "$resultat" | jq -r '.erreur' >&2
+fi
+```
+
+Exemple Stream Deck, dans une action de **lanceur de commande** : choisir
+`ctl` comme exécutable et `--json scene Travail` comme arguments. Le
+lanceur peut récupérer stdout pour lire `ok`, `etat` et `details`, et le
+code de sortie pour signaler l'échec. La scène reste définie dans
+`scenes.txt` et applique les mêmes réglages que `ctl scene Travail`.
+
+Avec `--json`, `man`, `completions`, l'aide et la version sont encapsulés
+dans un objet `version`, `type`, `contenu`. Pour installer directement un
+script de complétion ou un manuel, utiliser les commandes sans `--json`.
+
 ### Complétion et manuel
 
 `ctl completions <shell>` écrit un script sur la sortie standard pour

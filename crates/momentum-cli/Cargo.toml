@@ -31,3 +31,10 @@ path = "src/bin/ctl.rs"
 [[bin]]
 name = "probe"
 path = "src/bin/probe.rs"
+
+[dev-dependencies]
+momentum-core = { path = "../momentum-core", features = ["essais"] }
+serde_json.workspace = true
+
+[target.'cfg(target_os = "linux")'.dev-dependencies]
+zbus.workspace = true
