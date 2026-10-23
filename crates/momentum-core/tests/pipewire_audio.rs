@@ -118,3 +118,19 @@ fn malformed_oversized_or_ambiguous_graphs_cannot_invent_a_route() {
     value[1]["info"]["props"]["api.bluez5.address"] = json!("nom non utilisable comme adresse");
     assert!(parse(&value.to_string()).unwrap().outputs.is_empty());
 }
+
+#[test]
+fn generic_call_profile_does_not_claim_hfp_instead_of_hsp() {
+    let mut value: Value = serde_json::from_str(A2DP).unwrap();
+    value[1]["info"]["params"]["Profile"][0]["name"] = json!("headset-head-unit");
+    let audio = parse(&value.to_string()).unwrap();
+    assert_eq!(audio.outputs[0].profile, Some(Profile::HandsFree));
+    assert!(audio.outputs[0].profile.unwrap().call());
+    assert!(
+        audio.outputs[0]
+            .profile
+            .unwrap()
+            .label()
+            .contains("HFP/HSP")
+    );
+}

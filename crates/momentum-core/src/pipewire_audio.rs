@@ -35,6 +35,8 @@ pub enum Profile {
     A2dp,
     Hfp,
     Hsp,
+    /// Le profil générique n'indique pas lequel des deux est utilisé.
+    HandsFree,
     LeAudio,
 }
 impl Profile {
@@ -43,11 +45,12 @@ impl Profile {
             Self::A2dp => "A2DP (musique)",
             Self::Hfp => "HFP (appel)",
             Self::Hsp => "HSP (appel)",
+            Self::HandsFree => "HFP/HSP (appel, non précisé)",
             Self::LeAudio => "LE Audio",
         }
     }
     pub fn call(self) -> bool {
-        matches!(self, Self::Hfp | Self::Hsp)
+        matches!(self, Self::Hfp | Self::Hsp | Self::HandsFree)
     }
 }
 
@@ -70,12 +73,10 @@ fn profile(value: &str) -> Option<Profile> {
     let value = value.replace('_', "-");
     match value.as_str() {
         "a2dp-sink" | "a2dp-source" => Some(Profile::A2dp),
-        "headset-head-unit"
-        | "handsfree-head-unit"
-        | "headset-audio-gateway"
-        | "handsfree-audio-gateway"
-        | "hfp-hf"
-        | "hfp-ag" => Some(Profile::Hfp),
+        "headset-head-unit" | "headset-audio-gateway" => Some(Profile::HandsFree),
+        "handsfree-head-unit" | "handsfree-audio-gateway" | "hfp-hf" | "hfp-ag" => {
+            Some(Profile::Hfp)
+        }
         "hsp-hs" | "hsp-ag" => Some(Profile::Hsp),
         "bap-sink" | "bap-source" => Some(Profile::LeAudio),
         _ => None,
