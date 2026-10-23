@@ -69,6 +69,12 @@ jobs:
               $p.WaitForExit()
             }
           }
+      # Budget de ressources (docs/RESSOURCES.md) : version release, 30 s au
+      # repos, seuils larges.
+      - run: cargo build --release --locked -p momentum-winui
+      - name: Ressources de WinUI (démonstration)
+        shell: pwsh
+        run: ./scripts/mesurer-ressources.ps1 -Binaires target/release -Duree 30
 
   linux:
     runs-on: ubuntu-24.04
@@ -171,6 +177,24 @@ jobs:
           '
           cat daemon.log
           grep -q "service OpenHeadset Control prêt" daemon.log
+
+  # Budget de ressources (docs/RESSOURCES.md) : service sans casque et
+  # client KDE en démonstration, version release, 30 s au repos.
+  ressources:
+    runs-on: ubuntu-24.04
+    container: fedora:44
+    env:
+      QMAKE: /usr/bin/qmake6
+    steps:
+      - run: dnf install -y --setopt=install_weak_deps=False git gcc gcc-c++ pkgconf-pkg-config dbus-devel qt6-qtbase-devel qt6-qtdeclarative-devel rust cargo kf6-kirigami kf6-qqc2-desktop-style dbus-daemon
+      - uses: actions/checkout@v7
+      - run: cargo build --release --locked -p momentum-daemon -p momentum-kirigami
+      - name: Relevé
+        # bash : pipefail, un dépassement de seuil fait échouer l'étape.
+        shell: bash
+        run: |
+          sh scripts/mesurer-ressources.sh target/release 30 | tee releve.md
+          grep -E "^(\||Relevé)" releve.md >> "$GITHUB_STEP_SUMMARY"
 
   # Version minimale de Rust annoncée (rust-version) : 1.89 pour l'ensemble,
   # 1.95 pour l'interface WinUI. RUSTUP_TOOLCHAIN passe outre
