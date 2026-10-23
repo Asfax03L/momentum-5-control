@@ -316,6 +316,44 @@ de série ni adresse Bluetooth, mais le profil est une donnée auditive
 personnelle : ne pas publier ce fichier. Un fichier existant n'est jamais
 écrasé, et aucune restauration n'est proposée.
 
+### Complétion et manuel
+
+`ctl completions <shell>` écrit un script sur la sortie standard pour
+`bash`, `zsh`, `fish`, `powershell` ou `elvish`. `ctl man` écrit la page
+`ctl.1` au format roff. Ces deux commandes fonctionnent sans casque ni
+service et utilisent la même définition Clap que les commandes de réglage.
+
+```bash
+# Activer la complétion bash dans le shell courant.
+source <(ctl completions bash)
+# Consulter le manuel généré sans l'installer.
+ctl man > ctl.1
+man -l ./ctl.1
+```
+
+L'archive Linux contient `man/ctl.1` et les complétions bash, zsh et fish.
+`installer-linux.sh` les installe sans sudo dans les dossiers suivants
+(sous `$XDG_DATA_HOME`, ou `~/.local/share` par défaut) :
+
+- `man/man1/ctl.1` : consultable avec `man ctl` ;
+- `bash-completion/completions/ctl` : chargé par bash-completion ;
+- `zsh/site-functions/_ctl` : ajouter ce dossier à `fpath` avant `compinit` ;
+- `fish/vendor_completions.d/ctl.fish` : chargé par fish.
+
+Pour zsh, placer dans `~/.zshrc`, avant un éventuel appel existant à
+`compinit` :
+
+```zsh
+fpath=("${XDG_DATA_HOME:-$HOME/.local/share}/zsh/site-functions" $fpath)
+autoload -Uz compinit
+compinit
+```
+
+Si `man` ne trouve pas le dossier utilisateur, utiliser
+`man -M "${XDG_DATA_HOME:-$HOME/.local/share}/man" ctl`. Depuis les sources,
+l'installateur génère ces fichiers avec `target/release/ctl` avant toute
+copie ; depuis l'archive, il vérifie leur présence avant l'installation.
+
 ## Diagnostic : `probe`
 
 ```bash
