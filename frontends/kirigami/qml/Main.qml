@@ -109,7 +109,7 @@ Kirigami.ApplicationWindow {
             }
             QQC2.Label {
                 Layout.fillWidth: true
-                text: headset.busy ? "Envoi au casque…" : headset.connected ? headset.batteryText : headset.connection
+                text: headset.busy ? "Demande en cours…" : headset.connected ? headset.batteryText : headset.connection
                 wrapMode: Text.Wrap
                 opacity: 0.8
             }
@@ -289,6 +289,12 @@ Kirigami.ApplicationWindow {
 
     // En-tête commun : état de la connexion et envoi en cours.
     component StatusHeader: ColumnLayout {
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            visible: headset.reconnectNotice !== ""
+            text: headset.reconnectNotice
+            type: Kirigami.MessageType.Information
+        }
         Layout.fillWidth: true
         spacing: Kirigami.Units.smallSpacing
         Kirigami.InlineMessage {
@@ -307,7 +313,7 @@ Kirigami.ApplicationWindow {
             }
             QQC2.Label {
                 Layout.fillWidth: true
-                text: headset.busy ? "Envoi au casque…" : headset.connection
+                text: headset.busy ? "Demande en cours…" : headset.connection
                 elide: Text.ElideRight
             }
         }
@@ -387,6 +393,12 @@ Kirigami.ApplicationWindow {
                     icon.name: "network-bluetooth"
                     text: "En attente du casque"
                     explanation: headset.waiting
+                    helpfulAction: Kirigami.Action {
+                        text: "Reconnecter le casque"
+                        icon.name: "network-bluetooth"
+                        enabled: headset.canReconnect
+                        onTriggered: headset.reconnectHeadset()
+                    }
                 }
 
                 Kirigami.AbstractCard {

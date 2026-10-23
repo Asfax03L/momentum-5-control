@@ -14,6 +14,7 @@ use crate::Command;
 pub fn command_for(action: &MenuAction, state: &HeadsetState) -> Option<Command> {
     let mode = state.noise.mode();
     match action {
+        MenuAction::ReconnectHeadset => Some(Command::ReconnectHeadset),
         MenuAction::Mode(request) => {
             let current = match mode {
                 M5NoiseMode::Adaptive => NoiseModeRequest::Adaptive,

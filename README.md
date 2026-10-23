@@ -341,6 +341,30 @@ Enregistrer les brouillons avant l'export et relancer l'interface après
 l'import pour recharger tous les réglages. Limites : 2 Mio par texte et
 16 Mio pour le JSON complet.
 
+### Reconnecter le casque
+
+Quand le casque est déconnecté, le bouton « Reconnecter le casque » est
+proposé dans l'Accueil et le menu de l'icône WinUI/Kirigami, ainsi que dans
+le widget Plasma. La commande équivalente est `ctl reconnecter` (aussi
+`ctl --json reconnecter`). Le service est requis : aucun accès RFCOMM
+direct de secours.
+
+Le casque doit avoir été mémorisé par le service lors d'une précédente
+connexion validée (`casque.txt`, empreinte seulement). Sans cela, la demande
+est refusée avec une explication. Linux demande à BlueZ de connecter cet
+appareil déjà appairé. Sous Windows, les paramètres Bluetooth s'ouvrent :
+sélectionner le casque puis **Connecter**. L'application ne prétend pas
+forcer la connexion audio sous Windows.
+
+Le résultat suivi indique une **demande système**, jamais un réglage GAIA
+appliqué ni un audio confirmé. Attendre ensuite que le service affiche le
+casque connecté et vérifier la sortie audio dans « Connexion et audio ».
+En cas d'échec ou de délai dépassé, vérifier les paramètres Bluetooth avant
+de réessayer ; aucune répétition automatique de cette action. Aucun
+appairage ni réglage explicite de profil, routage ou casque n’est modifié. La connexion
+Bluetooth elle-même peut activer les profils auto-connectables du système.
+Essai de reconnexion sur matériel : à valider par le mainteneur.
+
 ### `ctl` et le service
 
 Quand le service `momentum-daemon` tourne (lancé par l'interface, ou par

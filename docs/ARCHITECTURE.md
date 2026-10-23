@@ -155,3 +155,45 @@ Les interfaces relèvent les événements toutes les 150 ms ; le client
    démarrage caché ; `installer-linux.sh` fonctionne aussi depuis
    l'archive ; les deux retirent l'ancienne icône Slint ; la publication
    joint une archive Windows et une archive Linux.
+
+## Reconnexion demandée au système
+
+`Command::ReconnectHeadset` est une action du système, sans trame GAIA.
+`Submit` lui attribue un numéro et publie exactement un `Done`. Elle est
+indépendante de la session GAIA : elle reste disponible casque absent ou
+en lecture seule, sans modifier les gardes des écritures existantes. Un
+fil séparé et un verrou de demande empêchent de bloquer le service ou de
+lancer plusieurs connexions simultanées. Aucune demande n'est rejouée.
+
+Le service lit l'empreinte de `casque.txt` au moment de la demande. Sans
+casque mémorisé, `Done` vaut `Refused` sans appeler le système. Linux lit
+les objets appairés en cache sur tous les adaptateurs BlueZ (5 s maximum),
+compare les empreintes et exige une correspondance unique. Il appelle
+ensuite [`org.bluez.Device1.Connect`](https://github.com/bluez/bluez/blob/master/doc/org.bluez.Device.rst)
+(20 s maximum). Ni découverte, association, déconnexion, changement de
+profil ou de routage, ni UUID nouveau. Un échec après l'appel est
+`Unknown` : un profil peut déjà avoir été connecté, le délai côté client
+n'annule pas nécessairement l'opération dans BlueZ.
+
+Windows utilise `ShellExecuteW` pour ouvrir l'URI documentée
+[`ms-settings:bluetooth`](https://learn.microsoft.com/en-us/windows/apps/develop/launch/launch-settings).
+Cette solution demande une connexion manuelle dans les paramètres, plutôt
+que d'assimiler une connexion RFCOMM à la connexion audio. L'ouverture est
+signalée explicitement, sans prétendre que le casque est connecté.
+
+Le nouveau résultat `Outcome::SystemRequested(message)` signifie que
+l'action système a été exécutée, **sans confirmation GAIA ou audio**.
+Les interfaces affichent son message seulement pour leur propre numéro de
+demande (même si `Done` arrive avant `Submitted`). `ctl` attend jusqu'à
+40 s pour cette action, sort avec 0 pour une demande système exécutée,
+1 pour un refus, 3 pour un résultat inconnu. Aucun état du casque n'est
+ajouté artificiellement au snapshot. Ce nouveau type de résultat demande
+des clients mis à jour avec le service ; un service ancien refusera la
+nouvelle commande et ce refus reste visible.
+
+Tests : sélection pure avec Bluetooth simulé ; vrai adaptateur `bluer`
+contre un faux BlueZ sur bus privé, dans un processus séparé ; faux service
+D-Bus avec casque absent, résultats étrangers et refus ; transport GAIA
+simulé laissé intact ; suivis concurrents et résultat arrivé en avance.
+Les erreurs système sont remplacées par des messages fixes pour ne pas
+publier d'adresse ou de nom dans les résultats.

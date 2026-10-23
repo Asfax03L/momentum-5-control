@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 pub enum Outcome {
     /// Envoyée, acquittée, puis relue avec la valeur demandée.
     Applied,
+    /// Demande système exécutée ; ne confirme ni audio ni connexion GAIA.
+    SystemRequested(String),
     /// Rien à envoyer : le casque était déjà dans l'état demandé.
     AlreadySatisfied,
     /// Acquittée par le casque ; l'effet n'est pas relu tout de suite (il
@@ -32,13 +34,17 @@ impl Outcome {
     pub fn is_success(&self) -> bool {
         matches!(
             self,
-            Outcome::Applied | Outcome::AlreadySatisfied | Outcome::Acknowledged
+            Outcome::Applied
+                | Outcome::AlreadySatisfied
+                | Outcome::Acknowledged
+                | Outcome::SystemRequested(_)
         )
     }
 
     /// Phrase pour l'utilisateur.
     pub fn describe(&self) -> String {
         match self {
+            Outcome::SystemRequested(message) => message.clone(),
             Outcome::Applied => "appliqué et relu".to_string(),
             Outcome::AlreadySatisfied => "déjà dans cet état".to_string(),
             Outcome::Acknowledged => "accepté par le casque".to_string(),

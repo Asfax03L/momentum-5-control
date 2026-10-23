@@ -24,6 +24,8 @@ pub mod desktop;
 pub mod system;
 
 #[cfg(any(windows, target_os = "linux"))]
+pub mod reconnect;
+#[cfg(any(windows, target_os = "linux"))]
 pub mod rotating_log;
 #[cfg(any(windows, target_os = "linux"))]
 pub mod worker;

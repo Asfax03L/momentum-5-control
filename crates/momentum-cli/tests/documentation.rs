@@ -19,7 +19,7 @@ fn completions_des_cinq_shells_sans_casque() {
     for shell in ["bash", "zsh", "fish", "powershell", "elvish"] {
         let output = ctl(&["completions", shell]);
         let text = String::from_utf8(output.stdout).unwrap();
-        for name in ["ctl", "etat", "scene", "mode"] {
+        for name in ["ctl", "etat", "scene", "mode", "reconnecter"] {
             assert!(text.contains(name), "{shell} : {name} absent");
         }
         #[cfg(target_os = "linux")]
@@ -32,7 +32,14 @@ fn manuel_sans_casque() {
     let output = ctl(&["man"]);
     let text = String::from_utf8(output.stdout).unwrap();
     assert!(text.contains(".TH ctl 1"));
-    for name in ["etat", "scene", "mode", "completions", "MOMENTUM 5"] {
+    for name in [
+        "etat",
+        "scene",
+        "mode",
+        "completions",
+        "MOMENTUM 5",
+        "reconnecter",
+    ] {
         assert!(text.contains(name), "{name} absent du manuel");
     }
 }

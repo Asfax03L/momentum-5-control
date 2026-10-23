@@ -47,6 +47,8 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Command {
+    /// Demande la reconnexion système du casque mémorisé (service requis).
+    Reconnecter,
     /// Exporte ou importe uniquement les réglages locaux, sans service ni casque.
     Reglages {
         #[command(subcommand)]
@@ -420,6 +422,9 @@ mod app {
 
         let client = match Client::connect() {
             Ok(c) => c,
+            Err(ClientError::NoService) if matches!(command, Command::Reconnecter) => {
+                bail!("service requis pour reconnecter le casque ; aucune connexion directe")
+            }
             Err(ClientError::NoService) => return Ok(false),
             Err(e) => bail!("service momentum-daemon : {e}"),
         };
@@ -429,7 +434,7 @@ mod app {
         // Service tout juste lancé (activation D-Bus, démarrage) : l'état arrive dans
         // quelques secondes, le temps de joindre le casque ; sans casque, la
         // recherche en cours se termine par `NotFound`.
-        if snapshot.state.is_none() && !matches!(command, Command::Scenes) {
+        if snapshot.state.is_none() && !matches!(command, Command::Scenes | Command::Reconnecter) {
             let events = client.events()?;
             let (tx, rx) = std::sync::mpsc::channel();
             std::thread::spawn(move || {
@@ -463,6 +468,7 @@ mod app {
             })
         };
         let api = match command {
+            Command::Reconnecter => Api::ReconnectHeadset,
             Command::SceneEnregistrer { .. } => {
                 bail!("enregistrer une scène exige l'état connu du service")
             }
@@ -598,11 +604,26 @@ mod app {
             api,
             Api::SetEqBand(..) | Api::SetEqFlat | Api::SetEqGains(_) | Api::SetBassBoost(_)
         );
-        let id = client.submit(&api, snapshot.session).map_err(|e| match e {
-            ClientError::Service(reason) => anyhow::anyhow!("refusé par le service : {reason}"),
-            other => anyhow::anyhow!(other),
-        })?;
-        let timeout = if is_scene { DAEMON_SCENE } else { DAEMON_REPLY };
+        let id = client
+            .submit(
+                &api,
+                if matches!(api, Api::ReconnectHeadset) {
+                    0
+                } else {
+                    snapshot.session
+                },
+            )
+            .map_err(|e| match e {
+                ClientError::Service(reason) => anyhow::anyhow!("refusé par le service : {reason}"),
+                other => anyhow::anyhow!(other),
+            })?;
+        let timeout = if is_scene {
+            DAEMON_SCENE
+        } else if matches!(api, Api::ReconnectHeadset) {
+            Duration::from_secs(40)
+        } else {
+            DAEMON_REPLY
+        };
         // Codes de sortie : 0 confirmé, 1 refusé ou annulé, 2 non appliqué,
         // 3 résultat inconnu (voir `tracker::exit_code`).
         let Some((outcome, details)) = tracker::wait_for(&rx, id, timeout) else {
@@ -647,7 +668,7 @@ mod app {
             output.exit_code = tracker::exit_code(Some(&outcome)) as u8;
             bail!("{}", outcome.describe());
         }
-        if !is_scene && !matches!(api, Api::ExportProfile(_)) {
+        if !is_scene && !matches!(api, Api::ExportProfile(_) | Api::ReconnectHeadset) {
             let now = client.snapshot()?;
             match (is_eq, now.equalizer, now.state) {
                 (true, Some(eq), _) => print_eq(output, &eq),
@@ -887,6 +908,9 @@ mod app {
             return Ok(());
         }
 
+        if matches!(args.command, Command::Reconnecter) {
+            bail!("service requis pour reconnecter le casque ; aucune connexion directe");
+        }
         let (transport, device_name) = connect(args)?;
         let mut headset = Headset::new(transport, Duration::from_millis(args.timeout_ms));
         output.message(format_args!("Connecté à « {device_name} »."));
@@ -907,6 +931,9 @@ mod app {
         match args.command {
             Command::SceneEnregistrer { .. } => {
                 bail!("service requis pour enregistrer une scène ; aucune connexion directe")
+            }
+            Command::Reconnecter => {
+                bail!("service requis pour reconnecter le casque ; aucune connexion directe")
             }
             Command::Reglages { .. } => bail!("aucun accès au casque pour les réglages locaux"),
             Command::Etat => print_state(output, &headset.read_state()?),

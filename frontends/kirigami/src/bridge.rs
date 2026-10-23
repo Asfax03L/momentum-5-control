@@ -33,6 +33,8 @@ pub mod qobject {
         #[qobject]
         #[qml_element]
         // État de la connexion.
+        #[qproperty(QString, reconnect_notice)]
+        #[qproperty(bool, can_reconnect)]
         #[qproperty(bool, connected)]
         #[qproperty(bool, writable)]
         #[qproperty(bool, busy)]
@@ -190,6 +192,8 @@ pub mod qobject {
         fn set_noise_mode_index(self: Pin<&mut Headset>, index: i32);
         #[qinvokable]
         fn send_level(self: Pin<&mut Headset>, level: i32);
+        #[qinvokable]
+        fn reconnect_headset(self: Pin<&mut Headset>);
         #[qinvokable]
         fn send_anti_wind(self: Pin<&mut Headset>, on: bool);
         #[qinvokable]
@@ -440,6 +444,8 @@ fn scale_path(path: &str, width: f64, height: f64) -> String {
 /// Données Rust de l'objet `Headset` : propriétés exposées à QML, puis
 /// état interne (non exposé).
 pub struct HeadsetRust {
+    reconnect_notice: QString,
+    can_reconnect: bool,
     connected: bool,
     writable: bool,
     busy: bool,
@@ -595,6 +601,8 @@ fn string_list<'a>(items: impl IntoIterator<Item = &'a str>) -> QStringList {
 impl Default for HeadsetRust {
     fn default() -> Self {
         Self {
+            reconnect_notice: QString::default(),
+            can_reconnect: false,
             connected: false,
             writable: false,
             busy: false,
@@ -785,10 +793,18 @@ impl cxx_qt::Initialize for qobject::Headset {
                         let _ = qt_thread.queue(move |headset| headset.on_submitted(last_id));
                         // Délai d'un vrai casque : l'interface montre son envoi.
                         std::thread::sleep(Duration::from_millis(450));
+                        let outcome = if command == Command::ReconnectHeadset {
+                            Outcome::SystemRequested(
+                                "Démonstration : reconnexion simulée, aucun accès Bluetooth."
+                                    .into(),
+                            )
+                        } else {
+                            Outcome::Applied
+                        };
                         let mut events = simulated.apply(command);
                         events.push(Event::Done {
                             id: last_id,
-                            outcome: Outcome::Applied,
+                            outcome,
                             details: None,
                         });
                         for event in events {
@@ -934,7 +950,11 @@ impl qobject::Headset {
         let Some(tx) = self.rust().commands.clone() else {
             return;
         };
-        let session = self.rust().snapshot.session;
+        let session = if command == Command::ReconnectHeadset {
+            0
+        } else {
+            self.rust().snapshot.session
+        };
         if tx.send((command, session)).is_err() {
             return;
         }
@@ -958,6 +978,10 @@ impl qobject::Headset {
 
     /// Montre l'échec d'une demande et met à jour l'attente.
     fn finish_request(mut self: Pin<&mut Self>, failure: Option<String>) {
+        if let Some(notice) = self.as_mut().rust_mut().requests.take_notice() {
+            self.as_mut()
+                .set_reconnect_notice(QString::from(notice.as_str()));
+        }
         if let Some(message) = failure {
             tracing::warn!(%message, "demande sans succès");
             self.as_mut().rust_mut().note_incident(message.clone());
@@ -1086,6 +1110,7 @@ impl qobject::Headset {
     /// Choix du menu de l'icône (mêmes actions que WinUI).
     pub fn on_menu_action(mut self: Pin<&mut Self>, action: MenuAction) {
         match action {
+            MenuAction::ReconnectHeadset => self.as_mut().reconnect_headset(),
             MenuAction::OpenWindow => self.as_mut().show_requested(),
             MenuAction::OpenEqualizer => self.as_mut().equalizer_requested(),
             MenuAction::Quit => self.as_mut().quit_requested(),
@@ -1175,6 +1200,7 @@ impl qobject::Headset {
             problem.as_deref(),
             read_only.as_deref(),
         );
+        let can_reconnect = r.service_error.is_none() && !r.requests.busy();
         let st = viewmodel::settings_view(s.state.as_ref(), s.info.as_ref(), v.writable);
         let presets = r.all_presets();
         let ab_ready = r.ab.ready();
@@ -1218,6 +1244,7 @@ impl qobject::Headset {
                     name: name.as_deref(),
                     problem: problem.as_deref(),
                     writable: v.writable,
+                    can_reconnect: r.service_error.is_none() && !r.requests.busy(),
                     scenes: &scene_names,
                     autostart: r.autostart,
                     autostart_label: "Lancer à l'ouverture de session",
@@ -1245,6 +1272,7 @@ impl qobject::Headset {
         h.as_mut().set_title(QString::from(v.title.as_str()));
         h.as_mut()
             .set_connection(QString::from(v.connection.as_str()));
+        h.as_mut().set_can_reconnect(can_reconnect);
         h.as_mut().set_connected(v.connected);
         h.as_mut().set_writable(v.writable);
         h.as_mut().set_waiting(QString::from(v.waiting.as_str()));
@@ -1354,6 +1382,13 @@ impl qobject::Headset {
             _ => NoiseModeRequest::Off,
         };
         self.send(Command::SetMode(mode));
+    }
+
+    fn reconnect_headset(mut self: Pin<&mut Self>) {
+        if self.rust().service_error.is_none() && !self.rust().requests.busy() {
+            self.as_mut().set_reconnect_notice(QString::default());
+            self.send(Command::ReconnectHeadset);
+        }
     }
 
     fn send_level(self: Pin<&mut Self>, level: i32) {

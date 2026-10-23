@@ -31,8 +31,15 @@ impl Fake {
         session: u64,
         #[zbus(signal_emitter)] emitter: SignalEmitter<'_>,
     ) -> zbus::fdo::Result<u64> {
-        assert_eq!(session, 1);
         let command: momentum_client::Command = serde_json::from_str(command).unwrap();
+        assert_eq!(
+            session,
+            if command == momentum_client::Command::ReconnectHeadset {
+                0
+            } else {
+                1
+            }
+        );
         let scene = matches!(command, momentum_client::Command::ApplyScene(_));
         let (outcome, scene_state) = {
             let mut data = self.0.lock().unwrap();
@@ -404,4 +411,46 @@ fn arguments_invalides_produisent_un_objet_et_aucune_demande() {
         assert_eq!(one_object(&output)["ok"], false);
     }
     assert!(bus.data.lock().unwrap().commands.is_empty());
+}
+
+#[test]
+fn reconnect_submits_while_disconnected_and_waits_for_its_own_done() {
+    let bus = Bus::new();
+    let message = "Demande système simulée ; audio non confirmé.";
+    {
+        let mut data = bus.data.lock().unwrap();
+        data.snapshot.state = None;
+        data.snapshot.device_name = None;
+        data.outcome = Outcome::SystemRequested(message.into());
+    }
+    for args in [vec!["reconnecter", "--json"], vec!["reconnecter"]] {
+        let output = bus.ctl(&args);
+        assert!(output.status.success(), "{output:?}");
+        assert!(String::from_utf8_lossy(&output.stdout).contains(message));
+        if args.contains(&"--json") {
+            assert_eq!(one_object(&output)["ok"], true);
+        }
+    }
+    bus.data.lock().unwrap().outcome = Outcome::Refused("aucun casque mémorisé".into());
+    let output = bus.ctl(&["--json", "reconnecter"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(one_object(&output)["ok"], false);
+    assert!(String::from_utf8_lossy(&output.stdout).contains("aucun casque mémorisé"));
+    assert!(
+        bus.data
+            .lock()
+            .unwrap()
+            .commands
+            .iter()
+            .all(|command| *command == momentum_client::Command::ReconnectHeadset)
+    );
+    zbus::block_on(bus._connection.release_name(momentum_client::BUS_NAME)).unwrap();
+    let output = bus.ctl(&["--json", "reconnecter"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        one_object(&output)["erreur"]
+            .as_str()
+            .unwrap()
+            .contains("service requis")
+    );
 }

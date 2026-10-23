@@ -2,8 +2,9 @@
 //! traduction des commandes de l'API, boucle des événements du worker
 //! (historique de la batterie, notifications).
 
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
+use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
 use momentum_client::{Command, ConnectionInfo, Event, Snapshot};
@@ -24,6 +25,8 @@ pub struct Shared {
     pub battery_log: BatteryLog,
     /// Dernier numéro de demande attribué.
     pub last_id: u64,
+    /// Une seule action système à la fois, indépendante de la session GAIA.
+    pub reconnecting: Arc<AtomicBool>,
     /// Entrée des événements du worker : le service y publie le résultat
     /// des demandes qu'il traite lui-même.
     pub events: Option<Sender<WorkerEvent>>,
@@ -39,8 +42,15 @@ pub fn submit(
     shared: &mut Shared,
     commands: &Sender<Job>,
 ) -> Result<u64, String> {
-    if session != 0 && session != shared.snapshot.session {
+    if command != Command::ReconnectHeadset && session != 0 && session != shared.snapshot.session {
         return Err("demande faite pour une connexion précédente : état à relire".to_string());
+    }
+    if command == Command::ReconnectHeadset {
+        return submit_reconnect(
+            shared,
+            paths::load_headset_fingerprint(),
+            momentum_service::reconnect::request,
+        );
     }
     let worker_command = handle(command, shared)?;
     shared.last_id += 1;
@@ -62,6 +72,37 @@ pub fn submit(
                 });
             }
         }
+    }
+    Ok(id)
+}
+
+/// Action injectée pour les essais ; aucun envoi au worker GAIA.
+fn submit_reconnect(
+    shared: &mut Shared,
+    remembered: Option<String>,
+    action: impl FnOnce(Option<&str>) -> Outcome + Send + 'static,
+) -> Result<u64, String> {
+    let events = shared.events.clone().ok_or("service pas encore prêt")?;
+    let busy = Arc::clone(&shared.reconnecting);
+    if busy.swap(true, Ordering::AcqRel) {
+        return Err("une reconnexion est déjà en cours".into());
+    }
+    shared.last_id += 1;
+    let id = shared.last_id;
+    let spawned = std::thread::Builder::new()
+        .name("reconnexion-systeme".into())
+        .spawn(move || {
+            let outcome = action(remembered.as_deref());
+            busy.store(false, Ordering::Release);
+            let _ = events.send(WorkerEvent::Done {
+                id,
+                outcome,
+                details: None,
+            });
+        });
+    if spawned.is_err() {
+        shared.reconnecting.store(false, Ordering::Release);
+        return Err("impossible de lancer la demande système".into());
     }
     Ok(id)
 }
@@ -145,6 +186,7 @@ fn to_worker(command: Command, shared: &Shared) -> Result<WorkerCommand, String>
             }
         }
         Command::ExportProfile(path) => WorkerCommand::ExportProfile(path),
+        Command::ReconnectHeadset => unreachable!("traitée par `submit`"),
         Command::ClearBatteryHistory => unreachable!("traitée par `handle`"),
     })
 }
@@ -311,6 +353,40 @@ mod tests {
         s.snapshot.device_name = Some("MOMENTUM 5".into());
         s.snapshot.state = Some(HeadsetState::default());
         s
+    }
+
+    #[test]
+    fn reconnect_is_tracked_without_gaia_and_refuses_concurrent_requests() {
+        let (events, received) = mpsc::channel();
+        let (started, ready) = mpsc::channel();
+        let (release, blocked) = mpsc::channel();
+        let mut shared = Shared {
+            events: Some(events),
+            ..Shared::default()
+        };
+        let id = submit_reconnect(&mut shared, Some("fictif".into()), move |remembered| {
+            assert_eq!(remembered, Some("fictif"));
+            started.send(()).unwrap();
+            blocked.recv().unwrap();
+            Outcome::SystemRequested("demande système simulée".into())
+        })
+        .unwrap();
+        ready
+            .recv_timeout(std::time::Duration::from_secs(2))
+            .unwrap();
+        assert!(submit_reconnect(&mut shared, None, |_| panic!("pas de second appel")).is_err());
+        release.send(()).unwrap();
+        assert!(
+            matches!(received.recv_timeout(std::time::Duration::from_secs(2)), Ok(WorkerEvent::Done { id: done, outcome: Outcome::SystemRequested(_), .. }) if done == id)
+        );
+        assert!(received.try_recv().is_err());
+        assert!(!shared.reconnecting.load(Ordering::Acquire));
+        // Sans mémorisation : vrai chemin de refus, sans aucune API système.
+        let id = submit_reconnect(&mut shared, None, momentum_service::reconnect::request).unwrap();
+        assert!(
+            matches!(received.recv_timeout(std::time::Duration::from_secs(2)), Ok(WorkerEvent::Done { id: done, outcome: Outcome::Refused(reason), .. }) if done == id && reason.contains("aucun casque mémorisé"))
+        );
+        assert!(handle(Command::SetAntiWind(true), &mut shared).is_err());
     }
 
     #[test]

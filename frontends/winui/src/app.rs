@@ -237,6 +237,7 @@ enum Msg {
     /// Message du service, puis attente du suivant.
     Service(Arc<Mutex<Option<Incoming>>>),
     Navigate(Option<String>),
+    ReconnectHeadset,
     NoiseMode(Option<usize>),
     Level(f64),
     PromptVolume(f64),
@@ -333,6 +334,7 @@ struct Root {
     page: Page,
     snapshot: Snapshot,
     service_error: Option<String>,
+    reconnect_notice: Option<String>,
     busy: bool,
     requests: Requests,
     confirm: Option<Confirm>,
@@ -484,10 +486,17 @@ fn spawn_sender(feedback: Sender<Incoming>) -> Sender<(Command, u64)> {
                 // Délai d'un vrai casque : l'interface montre son envoi.
                 std::thread::sleep(Duration::from_millis(450));
                 if let Ok(mut hub) = demo_hub().lock() {
+                    let outcome = if command == Command::ReconnectHeadset {
+                        Outcome::SystemRequested(
+                            "Démonstration : reconnexion simulée, aucun accès Bluetooth.".into(),
+                        )
+                    } else {
+                        Outcome::Applied
+                    };
                     let mut events = hub.0.apply(command);
                     events.push(Event::Done {
                         id: last_id,
-                        outcome: Outcome::Applied,
+                        outcome,
                         details: None,
                     });
                     hub.1.retain(|sub| {
@@ -778,6 +787,7 @@ impl Root {
                 name: name.as_deref(),
                 problem,
                 writable: v.writable,
+                can_reconnect: self.service_error.is_none() && !self.busy,
                 scenes: &scenes,
                 autostart: self.autostart,
                 autostart_label: "Lancer au démarrage de Windows",
@@ -800,6 +810,7 @@ impl Root {
     /// Choix du menu de l'icône.
     fn on_menu(&mut self, action: MenuAction) {
         match action {
+            MenuAction::ReconnectHeadset => self.send(Command::ReconnectHeadset),
             MenuAction::OpenWindow => desktop::show(),
             MenuAction::OpenEqualizer => {
                 self.open_page(Page::Sound);
@@ -897,10 +908,17 @@ impl Root {
     }
 
     fn send(&mut self, command: Command) {
-        if !self.writable() {
+        let reconnect = command == Command::ReconnectHeadset;
+        if reconnect {
+            if self.service_error.is_some() || self.busy {
+                return;
+            }
+            self.reconnect_notice = None;
+        } else if !self.writable() {
             return;
         }
-        if self.commands.send((command, self.snapshot.session)).is_ok() {
+        let session = if reconnect { 0 } else { self.snapshot.session };
+        if self.commands.send((command, session)).is_ok() {
             self.requests.sent();
             self.busy = true;
             self.snapshot.problem = None;
@@ -1015,6 +1033,7 @@ impl Component for Root {
             page,
             snapshot: Snapshot::default(),
             service_error: None,
+            reconnect_notice: None,
             busy: false,
             requests: Requests::default(),
             confirm: None,
@@ -1091,6 +1110,9 @@ impl Component for Root {
                     self.note_incident(failure.clone());
                     self.snapshot.problem = Some(failure);
                 }
+                if let Some(notice) = self.requests.0.take_notice() {
+                    self.reconnect_notice = Some(notice);
+                }
                 self.busy = self.requests.busy();
                 match incoming {
                     Some(Incoming::Snapshot(s)) => {
@@ -1137,6 +1159,7 @@ impl Component for Root {
                 }
                 self.listen(context);
             }
+            Msg::ReconnectHeadset => self.send(Command::ReconnectHeadset),
             Msg::Navigate(tag) => {
                 if let Some(page) = tag.as_deref().and_then(Page::from_tag) {
                     self.open_page(page);
@@ -1995,7 +2018,7 @@ impl Root {
     fn header(&self, context: &mut ViewContext<Self>) -> View {
         let v = self.main_view();
         let status = if self.busy {
-            "Envoi au casque…".to_string()
+            "Demande en cours…".to_string()
         } else {
             v.connection.clone()
         };
@@ -2076,6 +2099,11 @@ impl Root {
                     InfoBarSeverity::Informational
                 })
                 .message(v.banner.clone()),
+            InfoBar::new()
+                .is_open(self.reconnect_notice.is_some())
+                .is_closable(false)
+                .severity(InfoBarSeverity::Informational)
+                .message(self.reconnect_notice.clone().unwrap_or_default()),
             confirm.map_or_else(View::empty, View::from),
         ))
     }
@@ -2083,11 +2111,15 @@ impl Root {
     fn home(&self, context: &mut ViewContext<Self>) -> View {
         let v = self.main_view();
         if !v.connected {
-            return TextBlock::new()
-                .text(v.waiting.clone())
-                .text_wrapping(TextWrapping::Wrap)
-                .opacity(0.8)
-                .into();
+            return StackPanel::new().spacing(12.0).children((
+                TextBlock::new()
+                    .text(v.waiting.clone())
+                    .text_wrapping(TextWrapping::Wrap),
+                Button::new()
+                    .is_enabled(self.service_error.is_none() && !self.busy)
+                    .on_click(context.message(Msg::ReconnectHeadset))
+                    .content("Reconnecter le casque"),
+            ));
         }
         let c = &v.controls;
         let battery = self.snapshot.state.map_or(0.0, |s| f64::from(s.battery));
