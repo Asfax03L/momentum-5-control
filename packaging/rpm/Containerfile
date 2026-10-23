@@ -1,0 +1,12 @@
+FROM registry.fedoraproject.org/fedora:43
+# Fedora 43 fixe la version minimale des bibliothèques liées au binaire.
+RUN dnf install -y gcc gcc-c++ pkgconf-pkg-config dbus-devel \
+    qt6-qtbase-devel qt6-qtdeclarative-devel kf6-kirigami-devel \
+    kf6-qqc2-desktop-style curl ca-certificates python3 git rpm-build gzip \
+    && dnf clean all
+ENV CARGO_HOME=/opt/cargo RUSTUP_HOME=/opt/rustup PATH=/opt/cargo/bin:$PATH
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o /tmp/rustup.sh \
+    && sh /tmp/rustup.sh -y --profile minimal --default-toolchain 1.99.0 \
+    && cargo install cargo-generate-rpm --version 0.21.0 --locked
+ENV QMAKE=/usr/bin/qmake6
+WORKDIR /src
