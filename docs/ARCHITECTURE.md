@@ -130,8 +130,13 @@ Les interfaces relèvent les événements toutes les 150 ms ; le client
    confirmation), scènes, courbe de la batterie, diagnostic expurgé,
    lancement à l'ouverture de session (icône seule), instance unique
    (D-Bus `org.openheadset.ControlWindow`), éditeur de scènes, thème
-   clair ou sombre, mode démonstration. Reste : sorties audio du système
-   (PipeWire).
+   clair ou sombre, mode démonstration. Sorties du système : instantané
+   PipeWire lu par `pw-dump`, sur un fil séparé et avec délai/taille bornés.
+   Le service transmet l'empreinte de son identifiant de connexion dans
+   `Connected.headset_id` et `Snapshot.headset_id` (facultatif, compatible
+   avec les anciennes versions). Le client compare cette empreinte aux
+   adresses BlueZ du graphe ; aucune adresse n'est ajoutée à l'API.
+   L'empreinte est oubliée avec les autres données à la perte de connexion.
 3. **Windows** — 🟡 en partie (21/10/2026) : service sur canal nommé ;
    `momentum-winui` (`windows-reactor` 0.100, chaîne GNU suffisante),
    client du service : NavigationView, Mica, pages Accueil (bruit,

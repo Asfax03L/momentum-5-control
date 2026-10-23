@@ -12,11 +12,6 @@
 //!
 //! Aucune commande n'est envoyée au casque et rien n'est changé dans Windows.
 
-/// Sorties audio du système pas encore lues sous Linux (PipeWire, à
-/// faire) : affiché à la place des sorties.
-pub const LINUX_OUTPUTS_UNREAD: &str =
-    "lecture des sorties audio pas encore disponible sous Linux (PipeWire)";
-
 /// Liaison d'une sortie audio de Windows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OutputLink {

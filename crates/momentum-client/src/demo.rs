@@ -99,6 +99,9 @@ impl Demo {
     /// État complet, comme le service le donne à une interface qui arrive.
     pub fn snapshot(&self) -> Snapshot {
         Snapshot {
+            headset_id: Some(momentum_core::transport::choice::fingerprint(
+                "02:00:00:00:00:01",
+            )),
             device_name: Some(NAME.to_string()),
             read_only: None,
             session: 1,

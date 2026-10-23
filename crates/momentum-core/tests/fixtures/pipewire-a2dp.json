@@ -1,0 +1,21 @@
+[
+  {"id": 10, "type": "PipeWire:Interface:Node", "info": {"props": {
+    "media.class": "Audio/Sink", "device.api": "bluez5", "node.name": "sortie-autre-casque",
+    "node.description": "Casque démo", "api.bluez5.address": "02:00:00:00:00:02",
+    "api.bluez5.profile": "hfp-hf", "api.bluez5.codec": "cvsd"
+  }}},
+  {"id": 40, "type": "PipeWire:Interface:Device", "info": {"props": {
+    "device.api": "bluez5", "api.bluez5.address": "02:00:00:00:00:01"
+  }, "params": {"Profile": [{"index": 1, "name": "a2dp-sink"}]}}},
+  {"id": 42, "type": "PipeWire:Interface:Node", "info": {"props": {
+    "media.class": "Audio/Sink", "device.api": "bluez5", "device.id": "40",
+    "node.name": "sortie-casque-demo", "node.description": "Casque démo",
+    "api.bluez5.codec": "aptx"
+  }}},
+  {"id": 43, "type": "PipeWire:Interface:Node", "info": {"props": {
+    "media.class": "Audio/Source", "device.api": "bluez5",
+    "api.bluez5.address": "02:00:00:00:00:01", "api.bluez5.profile": "hfp-hf"
+  }}},
+  {"id": 20, "type": "PipeWire:Interface:Metadata", "props": {"metadata.name": "default"},
+   "metadata": [{"subject": 0, "key": "default.audio.sink", "type": "Spa:String:JSON", "value": {"name": "sortie-casque-demo"}}]}
+]

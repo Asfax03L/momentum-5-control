@@ -26,3 +26,8 @@ jobs:
           bundle: openheadset-control.flatpak
           manifest-path: packaging/flatpak/org.openheadset.Control.yml
           cache-key: flatpak-builder-${{ github.sha }}
+          build-dir: build-flatpak
+      - name: Outil PipeWire du runtime et permission du paquet
+        run: |
+          flatpak build --runtime build-flatpak pw-dump --help
+          grep -F 'xdg-run/pipewire-0:ro' build-flatpak/metadata

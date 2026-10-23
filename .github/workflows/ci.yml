@@ -93,6 +93,9 @@ jobs:
       - run: cargo clippy -p momentum-kirigami --all-targets -- -D warnings
         env:
           QMAKE: /usr/bin/qmake6
+      - run: cargo test --locked -p momentum-kirigami
+        env:
+          QMAKE: /usr/bin/qmake6
       - run: cargo build --release -p momentum-cli -p momentum-daemon -p momentum-kirigami
         env:
           QMAKE: /usr/bin/qmake6
@@ -125,7 +128,7 @@ jobs:
       - name: Démarrage du client KDE (QML)
         run: |
           cargo build -p momentum-kirigami
-          for page in son scenes reglages; do
+          for page in son scenes reglages audio; do
             set +e
             QT_QPA_PLATFORM=offscreen timeout 15 dbus-run-session -- \
               target/debug/momentum-kirigami --demo --page "$page" > "demarrage-$page.log" 2>&1

@@ -22,6 +22,9 @@ finish-args:
   - --socket=fallback-x11
   - --share=ipc
   - --device=dri
+  # Instantané PipeWire du système (aucune commande de modification).
+  # Le suffixe :ro ne transforme pas le protocole du socket en lecture seule.
+  - --filesystem=xdg-run/pipewire-0:ro
   # Casque : sockets Bluetooth (RFCOMM) et BlueZ sur le bus système.
   - --allow=bluetooth
   - --system-talk-name=org.bluez
