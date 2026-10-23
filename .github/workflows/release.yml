@@ -106,10 +106,14 @@ jobs:
           path: openheadset-control-*-x86_64.flatpak
           if-no-files-found: error
 
+  paquets:
+    needs: version
+    uses: ./.github/workflows/paquets-linux.yml
+
   # Publication unique, seulement si tous les paquets sont prêts : créée en
   # brouillon avec tous les fichiers, vérifiée, puis rendue publique.
   publication:
-    needs: [windows, linux, flatpak]
+    needs: [windows, linux, flatpak, paquets]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/download-artifact@v8
@@ -120,11 +124,12 @@ jobs:
         working-directory: paquets
         run: |
           ls -la
-          for f in *.zip *.tar.gz *.flatpak; do
+          set -- ./*.zip ./*.tar.gz ./*.flatpak ./*.deb ./*.rpm
+          test "$#" -eq 5
+          for f do
             test -s "$f"
             sha256sum "$f" | cut -d' ' -f1 > "$f.sha256"
           done
-          test "$(ls *.zip *.tar.gz *.flatpak | wc -l)" -eq 3
       - name: Publication
         working-directory: paquets
         env:
@@ -133,9 +138,9 @@ jobs:
         run: |
           gh release create "${GITHUB_REF_NAME}" --draft \
             --title "OpenHeadset Control ${GITHUB_REF_NAME}" \
-            --notes "Windows : décompresser, puis lancer installer.ps1 (clic droit > Exécuter avec PowerShell) ; interface WinUI 3 (Windows App Runtime 2 requis). Linux : décompresser, puis ./installer-linux.sh (Qt 6 et Kirigami requis pour le client KDE) ; sur Bazzite, préférer le Flatpak (flatpak install --user …flatpak). Projet non officiel. Exécutables non signés : Windows SmartScreen peut demander une confirmation." \
+            --notes "Windows : décompresser, puis lancer installer.ps1 (clic droit > Exécuter avec PowerShell) ; interface WinUI 3 (Windows App Runtime 2 requis). Linux : paquets .deb (Debian 13 / Ubuntu 26.04) et .rpm (Fedora 43 et suivantes), ou décompresser puis ./installer-linux.sh (Qt 6 et Kirigami requis pour le client KDE) ; sur Bazzite, préférer le Flatpak (flatpak install --user …flatpak). Projet non officiel. Exécutables non signés : Windows SmartScreen peut demander une confirmation." \
             ./*
           # Tous les fichiers sont bien attachés avant de rendre public.
           count=$(gh release view "${GITHUB_REF_NAME}" --json assets --jq '.assets | length')
-          test "$count" -eq 6
+          test "$count" -eq 10
           gh release edit "${GITHUB_REF_NAME}" --draft=false

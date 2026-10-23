@@ -28,3 +28,88 @@ cxx-qt-lib = { version = "0.10.0", features = ["qt_gui", "qt_qml"] }
 
 [target.'cfg(target_os = "linux")'.build-dependencies]
 cxx-qt-build = { version = "0.10.0", features = ["link_qt_object_files"] }
+
+# Paquets natifs complets : le client KDE, le service et ctl partagent une version.
+# Les fichiers d'intégration sous /usr sont préparés par packaging/linux/construire.sh.
+[package.metadata.deb]
+name = "openheadset-control"
+maintainer = "Asfax03L"
+copyright = "2026 Asfax03L"
+section = "sound"
+priority = "optional"
+depends = "$auto, qml6-module-org-kde-kirigami, qml6-module-org-kde-desktop, qml6-module-qtquick, qml6-module-qtquick-controls, qml6-module-qtquick-dialogs, qml6-module-qtquick-layouts, qml6-module-qtquick-shapes, qml6-module-qtquick-window, qml6-module-qtqml-workerscript, qt6-wayland, dbus, bluez"
+extended-description = "Réglages du casque Sennheiser MOMENTUM 5 : client KDE, service D-Bus, ctl et widget Plasma. Projet non officiel."
+assets = [
+    ["target/release/momentum-kirigami", "usr/bin/momentum-kirigami", "755"],
+    ["target/release/momentum-daemon", "usr/bin/momentum-daemon", "755"],
+    ["target/release/ctl", "usr/bin/ctl", "755"],
+    ["../../assets/linux/momentum-kirigami.desktop", "usr/share/applications/momentum-kirigami.desktop", "644"],
+    ["../../target/paquets/integration/momentum-daemon.service", "usr/lib/systemd/user/momentum-daemon.service", "644"],
+    ["../../target/paquets/integration/org.openheadset.Control.service", "usr/share/dbus-1/services/org.openheadset.Control.service", "644"],
+    ["../../target/paquets/integration/org.openheadset.Control.metainfo.xml", "usr/share/metainfo/org.openheadset.Control.metainfo.xml", "644"],
+    ["../../assets/logo/openheadset.svg", "usr/share/icons/hicolor/scalable/apps/org.openheadset.control.svg", "644"],
+    ["../../assets/logo/png/16.png", "usr/share/icons/hicolor/16x16/apps/org.openheadset.control.png", "644"],
+    ["../../assets/logo/png/22.png", "usr/share/icons/hicolor/22x22/apps/org.openheadset.control.png", "644"],
+    ["../../assets/logo/png/24.png", "usr/share/icons/hicolor/24x24/apps/org.openheadset.control.png", "644"],
+    ["../../assets/logo/png/32.png", "usr/share/icons/hicolor/32x32/apps/org.openheadset.control.png", "644"],
+    ["../../assets/logo/png/48.png", "usr/share/icons/hicolor/48x48/apps/org.openheadset.control.png", "644"],
+    ["../../assets/logo/png/64.png", "usr/share/icons/hicolor/64x64/apps/org.openheadset.control.png", "644"],
+    ["../../assets/logo/png/128.png", "usr/share/icons/hicolor/128x128/apps/org.openheadset.control.png", "644"],
+    ["../../assets/logo/png/256.png", "usr/share/icons/hicolor/256x256/apps/org.openheadset.control.png", "644"],
+    ["../../plasma/org.openheadset.control.plasmoid/metadata.json", "usr/share/plasma/plasmoids/org.openheadset.control.plasmoid/metadata.json", "644"],
+    ["../../plasma/org.openheadset.control.plasmoid/contents/ui/main.qml", "usr/share/plasma/plasmoids/org.openheadset.control.plasmoid/contents/ui/main.qml", "644"],
+    ["../../target/paquets/integration/man/ctl.1.gz", "usr/share/man/man1/ctl.1.gz", "644"],
+    ["../../target/paquets/integration/completions/ctl.bash", "usr/share/bash-completion/completions/ctl", "644"],
+    ["../../target/paquets/integration/completions/_ctl", "usr/share/zsh/site-functions/_ctl", "644"],
+    ["../../target/paquets/integration/completions/ctl.fish", "usr/share/fish/vendor_completions.d/ctl.fish", "644"],
+    ["../../LICENSE-MIT", "usr/share/doc/openheadset-control/LICENSE-MIT", "644"],
+    ["../../LICENSE-APACHE", "usr/share/doc/openheadset-control/LICENSE-APACHE", "644"],
+]
+
+[package.metadata.generate-rpm]
+name = "openheadset-control"
+summary = "Réglages du casque Sennheiser MOMENTUM 5 — client KDE, service et ctl"
+release = "1"
+# cargo-generate-rpm 0.21 ne possède pas les répertoires parents.
+# Le retrait se limite aux répertoires vides du paquet sous /usr.
+post_uninstall_script = "packaging/rpm/apres-retrait.sh"
+assets = [
+
+    { source = "target/release/momentum-kirigami", dest = "/usr/bin/momentum-kirigami", mode = "755" },
+    { source = "target/release/momentum-daemon", dest = "/usr/bin/momentum-daemon", mode = "755" },
+    { source = "target/release/ctl", dest = "/usr/bin/ctl", mode = "755" },
+    { source = "assets/linux/momentum-kirigami.desktop", dest = "/usr/share/applications/momentum-kirigami.desktop", mode = "644" },
+    { source = "target/paquets/integration/momentum-daemon.service", dest = "/usr/lib/systemd/user/momentum-daemon.service", mode = "644" },
+    { source = "target/paquets/integration/org.openheadset.Control.service", dest = "/usr/share/dbus-1/services/org.openheadset.Control.service", mode = "644" },
+    { source = "target/paquets/integration/org.openheadset.Control.metainfo.xml", dest = "/usr/share/metainfo/org.openheadset.Control.metainfo.xml", mode = "644" },
+    { source = "assets/logo/openheadset.svg", dest = "/usr/share/icons/hicolor/scalable/apps/org.openheadset.control.svg", mode = "644" },
+    { source = "assets/logo/png/16.png", dest = "/usr/share/icons/hicolor/16x16/apps/org.openheadset.control.png", mode = "644" },
+    { source = "assets/logo/png/22.png", dest = "/usr/share/icons/hicolor/22x22/apps/org.openheadset.control.png", mode = "644" },
+    { source = "assets/logo/png/24.png", dest = "/usr/share/icons/hicolor/24x24/apps/org.openheadset.control.png", mode = "644" },
+    { source = "assets/logo/png/32.png", dest = "/usr/share/icons/hicolor/32x32/apps/org.openheadset.control.png", mode = "644" },
+    { source = "assets/logo/png/48.png", dest = "/usr/share/icons/hicolor/48x48/apps/org.openheadset.control.png", mode = "644" },
+    { source = "assets/logo/png/64.png", dest = "/usr/share/icons/hicolor/64x64/apps/org.openheadset.control.png", mode = "644" },
+    { source = "assets/logo/png/128.png", dest = "/usr/share/icons/hicolor/128x128/apps/org.openheadset.control.png", mode = "644" },
+    { source = "assets/logo/png/256.png", dest = "/usr/share/icons/hicolor/256x256/apps/org.openheadset.control.png", mode = "644" },
+    { source = "plasma/org.openheadset.control.plasmoid/metadata.json", dest = "/usr/share/plasma/plasmoids/org.openheadset.control.plasmoid/metadata.json", mode = "644" },
+    { source = "plasma/org.openheadset.control.plasmoid/contents/ui/main.qml", dest = "/usr/share/plasma/plasmoids/org.openheadset.control.plasmoid/contents/ui/main.qml", mode = "644" },
+    { source = "target/paquets/integration/man/ctl.1.gz", dest = "/usr/share/man/man1/ctl.1.gz", mode = "644" },
+    { source = "target/paquets/integration/completions/ctl.bash", dest = "/usr/share/bash-completion/completions/ctl", mode = "644" },
+    { source = "target/paquets/integration/completions/_ctl", dest = "/usr/share/zsh/site-functions/_ctl", mode = "644" },
+    { source = "target/paquets/integration/completions/ctl.fish", dest = "/usr/share/fish/vendor_completions.d/ctl.fish", mode = "644" },
+    { source = "LICENSE-MIT", dest = "/usr/share/doc/openheadset-control/LICENSE-MIT", mode = "644" },
+    { source = "LICENSE-APACHE", dest = "/usr/share/doc/openheadset-control/LICENSE-APACHE", mode = "644" },
+]
+
+# Les bibliothèques ELF sont ajoutées automatiquement ; ces modules QML
+# et l'intégration Wayland ne sont pas visibles dans les dépendances ELF.
+[package.metadata.generate-rpm.requires]
+qt6-qtbase-gui = "*"
+qt6-qtdeclarative = "*"
+qt6-qtwayland = "*"
+kf6-kirigami = "*"
+kf6-qqc2-desktop-style = "*"
+dbus = "*"
+dbus-daemon = "*"
+bluez = "*"
+coreutils = "*"

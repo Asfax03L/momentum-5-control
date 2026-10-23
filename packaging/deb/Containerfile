@@ -1,0 +1,14 @@
+FROM docker.io/library/debian:13
+# Environnement de construction seulement ; les essais utilisent une image propre.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl build-essential pkg-config libdbus-1-dev \
+    qt6-base-dev qt6-declarative-dev qmake6 dpkg-dev liblzma-dev python3 git gzip \
+    qml6-module-org-kde-kirigami qml6-module-org-kde-desktop \
+    && rm -rf /var/lib/apt/lists/*
+ENV CARGO_HOME=/opt/cargo RUSTUP_HOME=/opt/rustup PATH=/opt/cargo/bin:$PATH
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o /tmp/rustup.sh \
+    && sh /tmp/rustup.sh -y --profile minimal --default-toolchain 1.99.0 \
+    && rustup component add rustfmt clippy \
+    && cargo install cargo-deb --version 3.8.0 --locked
+ENV QMAKE=/usr/bin/qmake6
+WORKDIR /src

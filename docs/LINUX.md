@@ -88,6 +88,87 @@ Flathub) :
 flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/org.openheadset.Control.yml
 ```
 
+
+## Installer les paquets Debian et Fedora
+
+Les publications proposent aussi un paquet **x86_64** `openheadset-control`
+contenant le client KDE, le service, `ctl`, son manuel et ses complétions,
+le widget Plasma, les icônes et la fiche AppStream. Le `.deb` est construit
+sur Debian 13 et testé sur Debian 13 et Ubuntu 26.04 ; le `.rpm` est construit
+sur Fedora 43 et testé sur Fedora 43 et 44. Les dépendances Qt 6, Kirigami,
+le style KDE, D-Bus et BlueZ sont installées par le gestionnaire de paquets.
+
+**Sur Bazzite, utiliser le Flatpak ci-dessus, pas le `.rpm`.** Ces paquets
+natifs sont destinés aux distributions classiques modifiables. Éviter de
+cumuler paquet natif, Flatpak et installation utilisateur par script :
+leurs services portent le même nom D-Bus. Si une ancienne installation
+existe, utiliser sa méthode de désinstallation avant de passer au paquet ;
+les données personnelles ne sont pas supprimées.
+
+Télécharger le paquet et son fichier `.sha256` depuis la même publication,
+puis vérifier l'empreinte (remplacer le nom par celui téléchargé) :
+
+```sh
+paquet=openheadset-control_0.9.1-1_amd64.deb
+printf '%s  %s\n' "$(cat "$paquet.sha256")" "$paquet" | sha256sum -c -
+```
+
+Debian 13 / Ubuntu 26.04 :
+
+```sh
+sudo apt install ./openheadset-control_0.9.1-1_amd64.deb
+```
+
+Fedora 43 et suivantes (vérifiées en CI : 43 et 44) :
+
+```sh
+sudo dnf install ./openheadset-control-0.9.1-1.x86_64.rpm
+```
+
+Les fichiers vont dans `/usr`. Aucun script du paquet ne démarre le
+service, ne l'active à l'ouverture de session ou ne touche au dossier
+personnel. Dans la session utilisateur, relire les unités puis lancer
+« OpenHeadset Control » depuis le menu :
+
+```sh
+systemctl --user daemon-reload
+momentum-kirigami
+```
+
+D-Bus lance le service à la première demande ; son exécutable est
+`/usr/bin/momentum-daemon`. Le widget s'ajoute depuis Plasma. Les données
+restent dans `~/.local/share/momentum-ctl-win`.
+
+Désinstallation : `sudo apt purge openheadset-control` ou
+`sudo dnf remove openheadset-control`. Les réglages, scènes et historiques
+de l'utilisateur sont conservés. Le RPM possède seulement un script de retrait
+qui enlève les répertoires vides du paquet sous `/usr` avec `rmdir` ; il
+ne supprime aucun fichier ajouté localement et ne touche pas aux services.
+
+### Construire les paquets sans les installer sur l'hôte
+
+Depuis le dépôt, avec Podman (ou Docker en retirant les suffixes `:z`) :
+
+```sh
+podman build -t ohc-deb -f packaging/deb/Containerfile packaging/deb
+podman run --rm -v "$PWD:/src:z" ohc-deb sh packaging/linux/construire.sh deb
+podman build -t ohc-rpm -f packaging/rpm/Containerfile packaging/rpm
+podman run --rm -v "$PWD:/src:z" ohc-rpm sh packaging/linux/construire.sh rpm
+```
+
+Utiliser une copie du dépôt par famille pour garder leurs dossiers
+`target/` distincts. Les paquets et empreintes se trouvent dans
+`target/paquets/deb/` et `target/paquets/rpm/`. Les versions de cargo-deb et
+cargo-generate-rpm sont fixées dans les Containerfiles ; aucune nouvelle
+dépendance Rust n'est ajoutée à l'application.
+
+Le workflow « Paquets Linux natifs » construit les deux formats et vérifie,
+dans des conteneurs propres, l'installation, les bibliothèques liées, le
+chargement de Qt/QML en démonstration et la désinstallation de tous les
+fichiers du paquet, en préservant un témoin de données fictives. À la
+publication d'une étiquette, ces mêmes contrôles doivent réussir avant que
+les deux paquets et leurs SHA-256 rejoignent les archives existantes.
+
 ## Installer par script
 
 ```bash

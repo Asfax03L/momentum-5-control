@@ -1,0 +1,72 @@
+name: Paquets Linux natifs
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/paquets-linux.yml"
+      - ".github/workflows/release.yml"
+      - "packaging/deb/**"
+      - "packaging/rpm/**"
+      - "packaging/linux/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - "crates/**"
+      - "frontends/kirigami/**"
+      - "assets/linux/**"
+      - "assets/logo/**"
+      - "plasma/**"
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  deb:
+    name: Debian 13 et Ubuntu 26.04
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - name: Environnement Debian 13
+        run: docker build -t ohc-deb -f packaging/deb/Containerfile packaging/deb
+      - name: Construction du paquet
+        run: docker run --rm -v "$PWD:/src" ohc-deb sh packaging/linux/construire.sh deb
+      - name: Installation et retrait dans deux systèmes propres
+        run: |
+          package=$(find target/paquets/deb -name '*.deb')
+          test "$(printf '%s\n' "$package" | wc -l)" -eq 1
+          for image in debian:13 ubuntu:26.04; do
+            docker run --rm -v "$PWD:/src:ro" -w /src "$image" \
+              sh packaging/linux/verifier-installation.sh deb "/src/$package"
+          done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: deb
+          path: target/paquets/deb/*.deb*
+          if-no-files-found: error
+
+  rpm:
+    name: Fedora 43 et 44
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - name: Environnement Fedora 43
+        run: docker build -t ohc-rpm -f packaging/rpm/Containerfile packaging/rpm
+      - name: Construction du paquet
+        run: docker run --rm -v "$PWD:/src" ohc-rpm sh packaging/linux/construire.sh rpm
+      - name: Installation et retrait dans deux systèmes propres
+        run: |
+          package=$(find target/paquets/rpm -name '*.rpm')
+          test "$(printf '%s\n' "$package" | wc -l)" -eq 1
+          for version in 43 44; do
+            docker run --rm -v "$PWD:/src:ro" -w /src "registry.fedoraproject.org/fedora:$version" \
+              sh packaging/linux/verifier-installation.sh rpm "/src/$package"
+          done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: rpm
+          path: target/paquets/rpm/*.rpm*
+          if-no-files-found: error
