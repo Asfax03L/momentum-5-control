@@ -1,0 +1,61 @@
+name: Fuzzing des décodeurs
+
+on:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  dependances:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: fuzz/Cargo.toml
+          arguments: --config deny.toml --locked
+          command: check
+
+  fuzz:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    # La nightly ne s'applique qu'à cette tâche, pas à la CI stable.
+    env:
+      RUSTUP_TOOLCHAIN: nightly-2026-10-22
+    steps:
+      - uses: actions/checkout@v7
+      - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config g++
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2026-10-22
+          components: rust-src, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: fuzz -> target
+      - run: cargo install cargo-fuzz --version 0.13.2 --locked
+      - run: cargo fmt --manifest-path fuzz/Cargo.toml --check
+      - name: Quatre cibles, sans casque
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          seconds=600
+          if [ "$EVENT_NAME" = pull_request ]; then seconds=60; fi
+          sh fuzz/lancer.sh "$seconds"
+      - name: Journaux et cas à reproduire
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fuzz-${{ github.run_id }}
+          path: |
+            fuzz/logs/
+            fuzz/artifacts/
+          if-no-files-found: ignore
+          retention-days: 14
