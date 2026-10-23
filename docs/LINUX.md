@@ -342,3 +342,15 @@ la lecture fonctionne et que l'essai suivant ait été convenu.
 - Profils BlueZ : si un autre programme a déjà enregistré un profil pour
   cet UUID, l'enregistrement échoue. Le message d'erreur de BlueZ est
   affiché tel quel.
+
+### Demander une reconnexion Bluetooth
+
+`ctl reconnecter`, l'Accueil déconnecté, le menu de l'icône et le widget
+Plasma passent par le service. Seul le casque mémorisé dans `casque.txt`
+est visé, parmi les objets déjà appairés de BlueZ. La demande
+`Device1.Connect` connecte les profils auto-connectables ; elle ne règle
+ni le profil ni la sortie PipeWire. Vérifier ensuite « Connexion et audio ».
+Aucun nouvel appairage ni balayage radio n'est lancé. Le refus « aucun
+casque mémorisé » invite à une première connexion manuelle dans les
+paramètres Bluetooth. Dans le Flatpak, l'autorisation BlueZ existante du
+service est réutilisée, sans nouvelle permission.

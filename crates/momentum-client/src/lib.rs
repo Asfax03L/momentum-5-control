@@ -41,6 +41,8 @@ pub const INTERFACE: &str = "org.openheadset.Control1";
 /// l'état du casque après chaque écriture.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Command {
+    /// Reconnexion par le Bluetooth du système ; aucune commande GAIA.
+    ReconnectHeadset,
     SetMode(NoiseModeRequest),
     /// 0 = ANC, 100 = transparence (passe en mode Personnalisé).
     SetLevel(u8),
@@ -245,6 +247,7 @@ mod tests {
     #[test]
     fn commands_and_events_round_trip_through_json() {
         for command in [
+            Command::ReconnectHeadset,
             Command::SetMode(NoiseModeRequest::Custom),
             Command::SetEqGains(vec![10, -20, 0]),
             Command::ToggleConnection {
@@ -271,6 +274,7 @@ mod tests {
     #[test]
     fn plasma_widget_commands_are_valid() {
         for (json, command) in [
+            (r#""ReconnectHeadset""#, Command::ReconnectHeadset),
             (
                 r#"{"SetMode":"Adaptive"}"#,
                 Command::SetMode(NoiseModeRequest::Adaptive),

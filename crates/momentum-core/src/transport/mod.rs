@@ -8,6 +8,7 @@
 pub mod bluez_rfcomm;
 pub mod choice;
 pub mod mock;
+pub mod reconnect;
 #[cfg(windows)]
 pub mod windows_rfcomm;
 

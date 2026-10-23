@@ -159,6 +159,7 @@ PlasmoidItem {
             return { "Applied": "appliqué et relu", "AlreadySatisfied": "déjà dans cet état",
                      "Acknowledged": "accepté par le casque" }[outcome] || outcome;
         }
+        if (outcome.SystemRequested) return outcome.SystemRequested;
         const kind = Object.keys(outcome)[0];
         const labels = { "Refused": "refusé", "NotApplied": "non appliqué",
                          "Cancelled": "annulé sans envoi", "Unknown": "résultat inconnu" };
@@ -182,7 +183,7 @@ PlasmoidItem {
     }
 
     function show(outcome) {
-        resultOk = typeof outcome === "string";
+        resultOk = typeof outcome === "string" || !!outcome.SystemRequested;
         result = describe(outcome);
         resultTimer.restart();
     }
@@ -313,8 +314,15 @@ PlasmoidItem {
             iconName: "audio-headphones"
             text: !root.running ? "Service OpenHeadset Control arrêté"
                 : root.snapshot && root.snapshot.device_name ? "Connexion au casque…" : "Recherche du casque…"
-            explanation: root.error || (root.snapshot && root.snapshot.problem) || ""
-            helpfulAction: !root.running ? startAction : null
+            explanation: root.result || root.error || (root.snapshot && root.snapshot.problem) || ""
+            helpfulAction: !root.running ? startAction : reconnectAction
+            Kirigami.Action {
+                id: reconnectAction
+                text: "Reconnecter le casque"
+                icon.name: "network-bluetooth"
+                enabled: root.running && !root.busy
+                onTriggered: root.send("ReconnectHeadset")
+            }
             Kirigami.Action {
                 id: startAction
                 icon.name: "media-playback-start"

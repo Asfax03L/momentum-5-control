@@ -15,6 +15,7 @@ use crate::ui::{LEVEL_PRESETS, audio_summary};
 /// Choix possibles dans le menu.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MenuAction {
+    ReconnectHeadset,
     OpenWindow,
     /// Fenêtre ouverte sur la page Égaliseur.
     OpenEqualizer,
@@ -71,6 +72,8 @@ pub struct MenuContext<'a> {
     pub problem: Option<&'a str>,
     /// Écritures permises (modèle validé, service joignable).
     pub writable: bool,
+    /// Service joignable et aucune demande en cours (indépendant du casque).
+    pub can_reconnect: bool,
     /// Noms des scènes de `scenes.txt`.
     pub scenes: &'a [String],
     /// Lancement à l'ouverture de session activé.
@@ -133,6 +136,13 @@ pub fn tray_menu(state: Option<&HeadsetState>, ctx: &MenuContext) -> Vec<MenuEnt
     ];
     if let Some(problem) = ctx.problem {
         menu.push(MenuEntry::Info(format!("⚠ {problem}")));
+    }
+    if state.is_none() {
+        menu.push(item(
+            "Reconnecter le casque",
+            MenuAction::ReconnectHeadset,
+            ctx.can_reconnect,
+        ));
     }
     menu.push(MenuEntry::Separator);
     menu.extend([
@@ -339,6 +349,27 @@ mod tests {
             scenes,
             autostart_label: "Lancer au démarrage de Windows",
             ..MenuContext::default()
+        }
+    }
+
+    #[test]
+    fn reconnect_uses_service_availability_instead_of_the_write_guard() {
+        for available in [false, true] {
+            let context = MenuContext {
+                can_reconnect: available,
+                ..MenuContext::default()
+            };
+            let menu = tray_menu(None, &context);
+            assert!(
+                matches!(find(&menu, "Reconnecter le casque"), Some(MenuEntry::Item { action: MenuAction::ReconnectHeadset, enabled, .. }) if *enabled == available)
+            );
+            assert!(
+                find(
+                    &tray_menu(Some(&HeadsetState::default()), &context),
+                    "Reconnecter le casque"
+                )
+                .is_none()
+            );
         }
     }
 

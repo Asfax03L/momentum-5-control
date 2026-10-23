@@ -15,6 +15,8 @@ pub struct Tracker {
     in_flight: usize,
     /// Acceptées, résultat attendu.
     pending: Vec<u64>,
+    /// Dernier résultat système appartenant à cette interface.
+    notice: Option<String>,
     /// Résultats arrivés avant leur numéro (le casque peut répondre avant
     /// que le fil d'envoi ne transmette le numéro).
     early: Vec<(u64, Outcome)>,
@@ -41,7 +43,7 @@ impl Tracker {
         self.in_flight = self.in_flight.saturating_sub(1);
         if let Some(i) = self.early.iter().position(|(e, _)| *e == id) {
             let (_, outcome) = self.early.remove(i);
-            return failure(&outcome);
+            return self.result(&outcome);
         }
         self.pending.push(id);
         None
@@ -58,7 +60,7 @@ impl Tracker {
     pub fn done(&mut self, id: u64, outcome: &Outcome) -> Option<String> {
         if let Some(i) = self.pending.iter().position(|p| *p == id) {
             self.pending.remove(i);
-            return failure(outcome);
+            return self.result(outcome);
         }
         if self.in_flight > 0 {
             self.early.push((id, outcome.clone()));
@@ -66,6 +68,18 @@ impl Tracker {
             self.early.drain(..excess);
         }
         None
+    }
+
+    fn result(&mut self, outcome: &Outcome) -> Option<String> {
+        if let Outcome::SystemRequested(message) = outcome {
+            self.notice = Some(message.clone());
+        }
+        failure(outcome)
+    }
+
+    /// Message système réussi, uniquement pour une demande de cette interface.
+    pub fn take_notice(&mut self) -> Option<String> {
+        self.notice.take()
     }
 
     /// Service perdu : les résultats attendus n'arriveront pas.
@@ -102,7 +116,12 @@ pub fn wait_for(
 /// appliqué (relu autrement), 3 résultat inconnu (à relire).
 pub fn exit_code(outcome: Option<&Outcome>) -> i32 {
     match outcome {
-        Some(Outcome::Applied | Outcome::AlreadySatisfied | Outcome::Acknowledged) => 0,
+        Some(
+            Outcome::Applied
+            | Outcome::AlreadySatisfied
+            | Outcome::Acknowledged
+            | Outcome::SystemRequested(_),
+        ) => 0,
         Some(Outcome::Refused(_) | Outcome::Cancelled(_)) => 1,
         Some(Outcome::NotApplied(_)) => 2,
         Some(Outcome::Unknown(_)) | None => 3,
@@ -116,6 +135,28 @@ fn failure(outcome: &Outcome) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn system_notice_is_matched_even_when_done_precedes_the_number() {
+        let outcome = Outcome::SystemRequested("paramètres Bluetooth ouverts (simulation)".into());
+        for early in [false, true] {
+            let mut tracker = Tracker::default();
+            tracker.sent();
+            tracker.done(99, &outcome);
+            assert_eq!(tracker.take_notice(), None);
+            if early {
+                tracker.done(7, &outcome);
+            }
+            assert_eq!(tracker.submitted(7), None);
+            if !early {
+                tracker.done(7, &outcome);
+            }
+            assert_eq!(tracker.take_notice(), Some(outcome.describe()));
+            assert_eq!(tracker.take_notice(), None);
+            assert!(!tracker.busy());
+            assert_eq!(exit_code(Some(&outcome)), 0);
+        }
+    }
 
     #[test]
     fn only_its_own_result_ends_a_request() {

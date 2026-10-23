@@ -73,3 +73,24 @@ fn modele_non_valide_reste_en_lecture_seule() {
     assert!(error.contains("lecture seule"));
     assert!(headset.client().transport().sent().is_empty());
 }
+
+#[test]
+fn reconnect_never_uses_the_direct_gaia_transport() {
+    for json in [false, true] {
+        let args = Args::try_parse_from(if json {
+            vec!["ctl", "reconnecter", "--json"]
+        } else {
+            vec!["ctl", "reconnecter"]
+        })
+        .unwrap();
+        let mut output = Output::new(json);
+        let mut headset = Headset::new(MockTransport::new(), Duration::from_millis(20));
+        assert!(
+            app::run_direct(&args, &mut output, &mut headset)
+                .unwrap_err()
+                .to_string()
+                .contains("service requis")
+        );
+        assert!(headset.client().transport().sent().is_empty());
+    }
+}

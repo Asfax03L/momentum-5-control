@@ -117,6 +117,83 @@ pub fn list_gaia_devices() -> Result<Vec<GaiaDevice>, TransportError> {
     }))
 }
 
+/// `org.bluez.Device1.Connect` sur le seul casque mémorisé. Les objets
+/// appairés sont lus en cache, y compris déconnectés, sur tous les adaptateurs.
+/// Aucune découverte, alimentation d'adaptateur, association ou trame GAIA.
+pub fn reconnect_remembered(remembered: &str) -> Result<(), super::reconnect::ReconnectError> {
+    use super::reconnect::{BluetoothSystem, ReconnectError, reconnect};
+    struct BluezSystem {
+        rt: Runtime,
+        devices: Vec<(String, bluer::Device)>,
+    }
+    impl BluetoothSystem for BluezSystem {
+        fn paired_devices(&mut self) -> Result<Vec<String>, ReconnectError> {
+            self.devices = self.rt.block_on(async {
+                tokio::time::timeout(Duration::from_secs(5), async {
+                    let session = Session::new()
+                        .await
+                        .map_err(|_| ReconnectError::Unavailable)?;
+                    let mut devices = Vec::new();
+                    for name in session
+                        .adapter_names()
+                        .await
+                        .map_err(|_| ReconnectError::Unavailable)?
+                    {
+                        let adapter = session
+                            .adapter(&name)
+                            .map_err(|_| ReconnectError::Unavailable)?;
+                        for address in adapter
+                            .device_addresses()
+                            .await
+                            .map_err(|_| ReconnectError::Unavailable)?
+                        {
+                            let device = adapter
+                                .device(address)
+                                .map_err(|_| ReconnectError::Unavailable)?;
+                            if device
+                                .is_paired()
+                                .await
+                                .map_err(|_| ReconnectError::Unavailable)?
+                            {
+                                devices.push((address.to_string(), device));
+                            }
+                        }
+                    }
+                    Ok(devices)
+                })
+                .await
+                .map_err(|_| ReconnectError::Unavailable)?
+            })?;
+            Ok(self.devices.iter().map(|(key, _)| key.clone()).collect())
+        }
+
+        fn connect(&mut self, key: &str) -> Result<(), ReconnectError> {
+            let device = self
+                .devices
+                .iter()
+                .find(|(address, _)| address == key)
+                .map(|(_, device)| device)
+                .ok_or(ReconnectError::Missing)?;
+            // BlueZ peut avoir connecté un profil avant une erreur : résultat
+            // inconnu en cas d'échec, jamais une réussite ou un renvoi automatique.
+            self.rt.block_on(async {
+                tokio::time::timeout(Duration::from_secs(20), device.connect())
+                    .await
+                    .map_err(|_| ReconnectError::Failed)?
+                    .map_err(|_| ReconnectError::Failed)
+            })
+        }
+    }
+    let rt = runtime().map_err(|_| ReconnectError::Unavailable)?;
+    reconnect(
+        Some(remembered),
+        &mut BluezSystem {
+            rt,
+            devices: Vec::new(),
+        },
+    )
+}
+
 pub struct BluezTransport {
     // Ordre de destruction : le flux d'abord, puis le profil (qui le
     // fermerait côté BlueZ), la session, et enfin le runtime.
