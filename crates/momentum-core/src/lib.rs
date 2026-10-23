@@ -24,6 +24,7 @@ pub mod profile;
 pub mod protocol;
 pub mod quick_panel;
 pub mod request;
+pub mod scene_capture;
 pub mod scene_editor;
 pub mod scenes;
 pub mod sdp;

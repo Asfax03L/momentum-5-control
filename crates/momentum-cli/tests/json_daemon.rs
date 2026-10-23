@@ -150,6 +150,15 @@ impl Bus {
             .output()
             .unwrap()
     }
+
+    fn ctl_in(&self, args: &[&str], root: &std::path::Path) -> Output {
+        Command::new(env!("CARGO_BIN_EXE_ctl"))
+            .args(args)
+            .env("DBUS_SESSION_BUS_ADDRESS", self.address.trim())
+            .env("XDG_DATA_HOME", root)
+            .output()
+            .unwrap()
+    }
 }
 
 impl Drop for Bus {
@@ -165,6 +174,105 @@ fn one_object(output: &Output) -> Value {
     assert!(value.is_object());
     assert_eq!(value["version"], 1);
     value
+}
+
+struct SceneFiles(std::path::PathBuf);
+impl SceneFiles {
+    fn new() -> Self {
+        static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "ctl-scene-capture-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        std::fs::create_dir_all(&root).unwrap();
+        Self(root)
+    }
+}
+impl Drop for SceneFiles {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+#[test]
+fn scene_enregistrer_uses_snapshot_and_never_submits_a_command() {
+    let bus = Bus::new();
+    let root = SceneFiles::new();
+    let data_dir = root.0.join("momentum-ctl-win");
+    std::fs::create_dir_all(&data_dir).unwrap();
+    let original = "# Commentaire à garder\n[Autre]\nbruit=adaptatif\n";
+    std::fs::write(data_dir.join("scenes.txt"), original).unwrap();
+    {
+        let mut data = bus.data.lock().unwrap();
+        data.snapshot.read_only = Some("modèle non validé : lecture seule".into());
+        data.snapshot.state.as_mut().unwrap().audio_mode =
+            Some(momentum_core::device::AudioMode::Equalizer);
+    }
+    let output = bus.ctl_in(&["--json", "scene-enregistrer", "Scène démo"], &root.0);
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(one_object(&output)["ok"], true);
+    assert!(!String::from_utf8_lossy(&output.stdout).contains("identifiant-interne"));
+    let saved = std::fs::read_to_string(data_dir.join("scenes.txt")).unwrap();
+    assert!(saved.starts_with(original));
+    let (scenes, errors) = momentum_core::scenes::parse_scenes(&saved);
+    assert!(errors.is_empty(), "{errors:?}");
+    assert_eq!(scenes[1].equalizer.as_deref(), Some("Scène démo"));
+    let presets = std::fs::read_to_string(data_dir.join("prereglages.txt")).unwrap();
+    bus.data
+        .lock()
+        .unwrap()
+        .snapshot
+        .equalizer
+        .as_mut()
+        .unwrap()
+        .gains[0] = 20;
+    let output = bus.ctl_in(&["scene-enregistrer", "scène démo", "--json"], &root.0);
+    assert!(!output.status.success());
+    assert_eq!(one_object(&output)["ok"], false);
+    assert_eq!(
+        std::fs::read_to_string(data_dir.join("scenes.txt")).unwrap(),
+        saved
+    );
+    assert_eq!(
+        std::fs::read_to_string(data_dir.join("prereglages.txt")).unwrap(),
+        presets
+    );
+    let output = bus.ctl_in(
+        &["scene-enregistrer", "Scène démo", "--remplacer", "--json"],
+        &root.0,
+    );
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(one_object(&output)["ok"], true);
+    let text = std::fs::read_to_string(data_dir.join("prereglages.txt")).unwrap();
+    assert_eq!(
+        momentum_core::presets::parse_user_presets(&text)[0].gains[0],
+        20
+    );
+    assert!(bus.data.lock().unwrap().commands.is_empty());
+}
+
+#[test]
+fn missing_snapshot_or_service_does_not_create_files_or_connect_directly() {
+    let bus = Bus::new();
+    let root = SceneFiles::new();
+    bus.data.lock().unwrap().snapshot.state = None;
+    let output = bus.ctl_in(&["--json", "scene-enregistrer", "Scène démo"], &root.0);
+    assert!(!output.status.success());
+    assert_eq!(one_object(&output)["ok"], false);
+    assert!(!root.0.join("momentum-ctl-win").exists());
+    assert!(bus.data.lock().unwrap().commands.is_empty());
+    zbus::block_on(bus._connection.release_name(momentum_client::BUS_NAME)).unwrap();
+    let output = bus.ctl_in(&["--json", "scene-enregistrer", "Scène démo"], &root.0);
+    assert!(!output.status.success());
+    assert_eq!(one_object(&output)["ok"], false);
+    assert!(
+        one_object(&output)["erreur"]
+            .as_str()
+            .unwrap()
+            .contains("service requis")
+    );
+    assert!(!root.0.join("momentum-ctl-win").exists());
 }
 
 #[test]

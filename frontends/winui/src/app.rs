@@ -282,6 +282,9 @@ enum Msg {
     Autostart(bool),
     ApplyScene(usize),
     ReloadScenes,
+    CaptureSceneName(String),
+    CaptureSceneReplace(bool),
+    CaptureScene,
     /// Éditeur de scènes.
     SceneSelect(Option<usize>),
     SceneNew,
@@ -372,6 +375,8 @@ struct Root {
     autostart: bool,
     scenes: Vec<Scene>,
     scene_problems: Vec<String>,
+    capture_scene_name: String,
+    capture_scene_replace: bool,
     /// Éditeur : brouillon de `scenes.txt`, formulaire affiché (gardé tel
     /// que saisi, même invalide) et résultat du dernier enregistrement.
     scene_editor: SceneEditor,
@@ -1037,6 +1042,8 @@ impl Component for Root {
             autostart: Autostart::named(AUTOSTART_VALUE).is_enabled(),
             scenes: Vec::new(),
             scene_problems: Vec::new(),
+            capture_scene_name: String::new(),
+            capture_scene_replace: false,
             scene_editor: SceneEditor::default(),
             scene_form: viewmodel::SceneForm::default(),
             scene_notice: None,
@@ -1131,6 +1138,38 @@ impl Component for Root {
                 }
             }
             Msg::ReloadScenes => self.reload_scenes(),
+            Msg::CaptureSceneName(name) => self.capture_scene_name = name,
+            Msg::CaptureSceneReplace(replace) => self.capture_scene_replace = replace,
+            Msg::CaptureScene => {
+                let result = self
+                    .snapshot
+                    .state
+                    .as_ref()
+                    .ok_or_else(|| "Aucun état connu à enregistrer.".to_string())
+                    .and_then(|state| {
+                        momentum_core::scene_capture::save_current(
+                            &self.capture_scene_name,
+                            state,
+                            self.snapshot.equalizer.as_ref(),
+                            self.capture_scene_replace,
+                        )
+                        .map_err(|e| e.to_string())
+                    });
+                self.scene_result = Some(match result {
+                    Ok(scene) => {
+                        self.user_presets = paths::load_user_presets();
+                        self.reload_scenes();
+                        (
+                            format!(
+                                "Scène « {} » enregistrée (rien n'a été envoyé au casque).",
+                                scene.name
+                            ),
+                            true,
+                        )
+                    }
+                    Err(error) => (format!("Non enregistré : {error}"), false),
+                });
+            }
             Msg::SceneSelect(Some(i)) => {
                 if i != self.scene_editor.selected() {
                     self.scene_editor.select(i);
@@ -2606,6 +2645,26 @@ impl Root {
                                 .on_click(context.message(Msg::ReloadScenes))
                                 .content("Relire"),
                         )),
+                )),
+            ),
+            card(
+                "Enregistrer l'état actuel comme scène",
+                StackPanel::new().spacing(8.0).children((
+                    TextBlock::new()
+                        .text("Les valeurs non lues restent absentes ; aucun réglage du casque ne change.")
+                        .text_wrapping(TextWrapping::Wrap),
+                    TextBox::new()
+                        .text(self.capture_scene_name.clone())
+                        .placeholder_text("Nom de la scène")
+                        .on_text_changed(context.callback(Msg::CaptureSceneName)),
+                    CheckBox::new()
+                        .is_checked(self.capture_scene_replace)
+                        .on_is_checked_changed(context.callback(Msg::CaptureSceneReplace))
+                        .content("Remplacer la scène et son préréglage existants"),
+                    Button::new()
+                        .is_enabled(self.snapshot.state.is_some() && !self.busy && !self.capture_scene_name.trim().is_empty())
+                        .on_click(context.message(Msg::CaptureScene))
+                        .content("Enregistrer l'état actuel comme scène"),
                 )),
             ),
             self.scene_editor_card(context),

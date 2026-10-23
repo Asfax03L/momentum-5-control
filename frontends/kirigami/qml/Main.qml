@@ -1112,6 +1112,33 @@ Kirigami.ApplicationWindow {
                     opacity: 0.7
                     text: "Chaque réglage d'une scène est appliqué puis relu sur le casque, un par un. Une étape refusée arrête la scène et l'affiche ici."
                 }
+                Kirigami.AbstractCard {
+                    Layout.fillWidth: true
+                    contentItem: ColumnLayout {
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            text: "Enregistrer les réglages déjà lus. Les valeurs non lues restent absentes ; aucun réglage du casque ne change."
+                        }
+                        QQC2.TextField {
+                            id: captureSceneName
+                            Layout.fillWidth: true
+                            placeholderText: "Nom de la scène"
+                            Accessible.name: "Nom de la scène à enregistrer"
+                            maximumLength: 32
+                        }
+                        QQC2.CheckBox {
+                            id: captureSceneReplace
+                            text: "Remplacer la scène et son préréglage existants"
+                        }
+                        QQC2.Button {
+                            text: "Enregistrer l'état actuel comme scène"
+                            icon.name: "document-save"
+                            enabled: headset.connected && !headset.busy && captureSceneName.text.trim() !== ""
+                            onClicked: headset.saveCurrentScene(captureSceneName.text, captureSceneReplace.checked)
+                        }
+                    }
+                }
                 Repeater {
                     model: headset.sceneNames
                     Kirigami.AbstractCard {

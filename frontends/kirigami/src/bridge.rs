@@ -266,6 +266,9 @@ pub mod qobject {
         /// Relit `scenes.txt` (créé avec des exemples s'il manque).
         #[qinvokable]
         fn reload_scenes(self: Pin<&mut Headset>);
+        /// Enregistre uniquement les lectures connues, sans commande au service.
+        #[qinvokable]
+        fn save_current_scene(self: Pin<&mut Headset>, name: QString, replace: bool);
         #[qinvokable]
         fn apply_scene(self: Pin<&mut Headset>, index: i32);
         #[qinvokable]
@@ -1539,6 +1542,41 @@ impl qobject::Headset {
         self.as_mut().rust_mut().scene_editor.set_form(&form);
         self.as_mut().rust_mut().scene_form = form;
         self.as_mut().push_scene_editor(None);
+    }
+
+    fn save_current_scene(mut self: Pin<&mut Self>, name: QString, replace: bool) {
+        let snapshot = self.rust().snapshot.clone();
+        let result = snapshot
+            .state
+            .as_ref()
+            .ok_or_else(|| "Aucun état connu à enregistrer.".to_string())
+            .and_then(|state| {
+                momentum_core::scene_capture::save_current(
+                    &name.to_string(),
+                    state,
+                    snapshot.equalizer.as_ref(),
+                    replace,
+                )
+                .map_err(|e| e.to_string())
+            });
+        let (message, ok) = match result {
+            Ok(scene) => {
+                self.as_mut().rust_mut().user_presets = paths::load_user_presets();
+                self.as_mut().reload_scenes();
+                self.as_mut().refresh();
+                (
+                    format!(
+                        "Scène « {} » enregistrée (rien n'a été envoyé au casque).",
+                        scene.name
+                    ),
+                    true,
+                )
+            }
+            Err(error) => (format!("Non enregistré : {error}"), false),
+        };
+        self.as_mut()
+            .set_scene_result(QString::from(message.as_str()));
+        self.as_mut().set_scene_result_ok(ok);
     }
 
     fn reload_scenes(mut self: Pin<&mut Self>) {
