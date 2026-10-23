@@ -1,0 +1,13 @@
+[
+  {"id": 45, "type": "PipeWire:Interface:Node", "info": {"props": {
+    "media.class": "Audio/Sink", "device.api": "bluez5", "node.name": "sortie-casque-demo",
+    "api.bluez5.address": "02:00:00:00:00:01", "api.bluez5.profile": "hfp-hf", "api.bluez5.codec": "msbc"
+  }}},
+  {"id": 46, "type": "PipeWire:Interface:Node", "info": {"props": {
+    "media.class": "Audio/Sink", "device.api": "alsa", "node.name": "sortie-carte-son-demo"
+  }}},
+  {"id": 20, "type": "PipeWire:Interface:Metadata", "props": {"metadata.name": "default"}, "metadata": [
+    {"subject": 0, "key": "default.configured.audio.sink", "value": {"name": "sortie-casque-demo"}},
+    {"subject": 0, "key": "default.audio.sink", "value": "{\"name\":\"sortie-carte-son-demo\"}"}
+  ]}
+]

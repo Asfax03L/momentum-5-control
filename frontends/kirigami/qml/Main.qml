@@ -1478,7 +1478,21 @@ Kirigami.ApplicationWindow {
     Component {
         id: audioPage
         Kirigami.ScrollablePage {
+            id: audioScroll
             title: "Connexion et audio"
+            Component.onCompleted: headset.reloadAudio()
+            actions: [Kirigami.Action {
+                text: headset.audioReading ? "Lecture PipeWire…" : "Relire PipeWire"
+                icon.name: "view-refresh"
+                enabled: !headset.audioReading
+                onTriggered: headset.reloadAudio()
+            }]
+            Timer {
+                interval: 15000
+                running: audioScroll.visible
+                repeat: true
+                onTriggered: headset.reloadAudio()
+            }
             ColumnLayout {
                 spacing: Kirigami.Units.largeSpacing
                 StatusHeader {}

@@ -125,6 +125,9 @@ pub enum Event {
     NotFound(String),
     Connected {
         name: String,
+        /// Empreinte de l'identifiant choisi par le service, jamais l'adresse.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        headset_id: Option<String>,
         /// Raison de la lecture seule (modèle ou micrologiciel non validé).
         read_only: Option<String>,
         /// Numéro de cette connexion (croissant ; 0 avec un service ancien).
@@ -155,6 +158,9 @@ pub enum Event {
 /// actuel.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Snapshot {
+    /// Correspondance audio locale ; absente avec un service ancien.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub headset_id: Option<String>,
     /// Nom annoncé à la connexion ; `None` : recherche du casque.
     pub device_name: Option<String>,
     /// Raison de la lecture seule (modèle ou micrologiciel non validé).
@@ -184,6 +190,7 @@ impl Snapshot {
             }
             Event::Connected {
                 name,
+                headset_id,
                 read_only,
                 session,
             } => {
@@ -191,6 +198,7 @@ impl Snapshot {
                 self.read_only = read_only.clone();
                 self.session = *session;
                 self.forget_headset();
+                self.headset_id = headset_id.clone();
                 self.problem = None;
             }
             Event::State(s) => self.state = Some(*s),
@@ -211,6 +219,7 @@ impl Snapshot {
 
     /// Oublie tout ce qui a été lu sur le casque (F07 de la revue).
     fn forget_headset(&mut self) {
+        self.headset_id = None;
         self.state = None;
         self.equalizer = None;
         self.info = None;
@@ -290,6 +299,7 @@ mod tests {
     fn snapshot_follows_events() {
         let mut s = Snapshot::default();
         s.apply(&Event::Connected {
+            headset_id: None,
             name: "MOMENTUM 5".into(),
             read_only: None,
             session: 1,
@@ -304,11 +314,39 @@ mod tests {
         assert_eq!(s.problem.as_deref(), Some("Connexion perdue : délai"));
         // Une reconnexion efface l'incident.
         s.apply(&Event::Connected {
+            headset_id: None,
             name: "MOMENTUM 5".into(),
             read_only: None,
             session: 1,
         });
         assert!(s.problem.is_none());
+    }
+
+    #[test]
+    fn current_identity_is_opaque_optional_and_forgotten_after_disconnect() {
+        let id = momentum_core::transport::choice::fingerprint("02:00:00:00:00:01");
+        let event = Event::Connected {
+            name: "Casque démo".into(),
+            headset_id: Some(id.clone()),
+            read_only: None,
+            session: 1,
+        };
+        let mut snapshot = Snapshot::default();
+        snapshot.apply(&event);
+        assert_eq!(snapshot.headset_id.as_ref(), Some(&id));
+        let text = serde_json::to_string(&snapshot).unwrap();
+        assert!(!text.contains("02:00:"));
+        snapshot.apply(&Event::Lost("perte fictive".into()));
+        assert_eq!(snapshot.headset_id, None);
+        snapshot.apply(&event);
+        snapshot.apply(&Event::Searching);
+        assert_eq!(snapshot.headset_id, None);
+        snapshot.apply(&event);
+        let old: Event =
+            serde_json::from_str(r#"{"Connected":{"name":"Casque démo","read_only":null}}"#)
+                .unwrap();
+        snapshot.apply(&old);
+        assert_eq!(snapshot.headset_id, None);
     }
 
     #[test]
@@ -326,6 +364,7 @@ mod tests {
         s.apply(&Event::Searching);
         assert!(s.problem.is_some());
         s.apply(&Event::Connected {
+            headset_id: None,
             name: "MOMENTUM 5".into(),
             read_only: None,
             session: 1,
@@ -338,6 +377,7 @@ mod tests {
         // F07 : rien de la connexion précédente n'est présenté comme actuel.
         let mut s = Snapshot::default();
         s.apply(&Event::Connected {
+            headset_id: None,
             name: "Casque A".into(),
             read_only: None,
             session: 1,
@@ -357,6 +397,7 @@ mod tests {
         assert!(s.equalizer.is_none() && s.info.is_none() && s.connections.is_empty());
         s.apply(&Event::Equalizer(EqState::default()));
         s.apply(&Event::Connected {
+            headset_id: None,
             name: "Casque B".into(),
             read_only: None,
             session: 2,

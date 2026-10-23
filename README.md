@@ -180,8 +180,9 @@ fictives).
   mesure restent vides, et ni état de charge, ni santé, ni cycles ne sont
   inventés.
 - **Connexion et audio** : état de la liaison, heure des dernières lectures
-  et, sous Windows, vérification de la sortie audio du système (lecture
-  seule).
+  et vérification de la sortie audio du système en lecture seule : Windows,
+  ou PipeWire sous KDE (profil Bluetooth, codec et sortie par défaut du
+  casque piloté). Le codec du casque en Multipoint reste une source distincte.
 - **À propos** : modèle, micrologiciel, révision matérielle, et
   **diagnostic expurgé** à copier dans un rapport de bogue (ni nom, ni
   adresse Bluetooth, ni numéro de série, ni chemin personnel, ni profil

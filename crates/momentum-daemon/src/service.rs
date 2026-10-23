@@ -156,10 +156,12 @@ fn to_api(event: WorkerEvent, shared: &mut Shared) -> Event {
         WorkerEvent::NotFound(reason) => Event::NotFound(reason),
         WorkerEvent::Connected {
             name,
+            headset_id,
             read_only,
             session,
         } => Event::Connected {
             name,
+            headset_id: Some(headset_id),
             read_only,
             session,
         },

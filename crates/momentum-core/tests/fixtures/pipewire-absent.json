@@ -1,0 +1,9 @@
+[
+  {"id": 50, "type": "PipeWire:Interface:Node", "info": {"props": {
+    "media.class": "Audio/Sink", "device.api": "bluez5", "node.description": "Casque démo",
+    "node.name": "sortie-autre-casque", "api.bluez5.address": "02:00:00:00:00:02",
+    "api.bluez5.profile": "a2dp-sink", "api.bluez5.codec": "sbc"
+  }}},
+  {"id": 20, "type": "PipeWire:Interface:Metadata", "props": {"metadata.name": "default"},
+   "metadata": [{"subject": 0, "key": "default.audio.sink", "value": {"name": "sortie-autre-casque"}}]}
+]

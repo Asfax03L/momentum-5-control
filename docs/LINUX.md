@@ -48,7 +48,36 @@ busctl --user introspect org.openheadset.Control /org/openheadset/Control
 processus). Sous Wayland, KDE trouve l'icône d'une fenêtre dans le fichier
 `.desktop` du même nom : d'où les entrées installées par le script.
 
-Pas encore sous Linux : lecture des sorties audio (PipeWire).
+### Connexion et audio (PipeWire, lecture seule)
+
+La page lit `pw-dump -N` sur un fil séparé (3 secondes, 16 Mio maximum),
+à son ouverture, avec « Relire PipeWire » puis toutes les 15 secondes tant
+qu'elle est visible. Elle rapproche les sorties BlueZ de l'empreinte du
+casque **courant** donnée par le service : aucun choix par nom, aucune
+adresse affichée ou enregistrée. Les profils A2DP, HFP/HSP et LE Audio,
+le codec de la sortie et la métadonnée effective `default.audio.sink`
+restent inconnus quand ils ne sont pas fournis. Les métadonnées de sortie
+configurée ne sont pas prises pour la sortie effective.
+
+Les constats signalent une sortie non choisie par défaut, un profil appel
+(qualité réduite) ou une sortie du casque absente du graphe visible. Ils
+ne changent ni profil, ni volume, ni routage. Le codec PipeWire décrit ce
+PC ; le codec et la fréquence rapportés par le casque restent séparés,
+car en Multipoint le flux peut venir de l'autre appareil. Un codec annoncé
+ne prouve ni une lecture en cours ni une transmission sans perte.
+
+Avec un service ancien qui ne fournit pas l'empreinte, le rapprochement
+est indisponible et signalé ; il faut mettre à jour le service lors d'une
+installation normale. Le client ne le redémarre pas. Si `pw-dump` manque
+(paquet `pipewire-bin` sur Debian/Ubuntu, `pipewire-utils` sur Fedora), ou
+si le socket/session est inaccessible, la page le dit et conserve les
+informations de pilotage et de flux déjà connues. Le dump et stderr de
+l'outil ne sont jamais journalisés. Le mode démonstration reste fictif et
+ne lit pas PipeWire.
+
+Références : [pw-dump](https://docs.pipewire.org/page_man_pw-dump_1.html),
+[clés BlueZ](https://docs.pipewire.org/group__spa__keys.html),
+[métadonnées](https://docs.pipewire.org/page_module_metadata.html).
 
 ## Installer avec Flatpak (recommandé sur Bazzite)
 
@@ -73,7 +102,21 @@ flatpak run --command=ctl org.openheadset.Control etat
 
 Le bac à sable n'ouvre que ce qui sert : Wayland, sockets Bluetooth et
 BlueZ (bus système), icône de la zone de notification, raccourcis KDE,
-notifications, et le dossier Documents (exports). Différences avec
+notifications, le socket natif PipeWire `xdg-run/pipewire-0:ro` (lecture du
+graphe) et le dossier Documents (exports). Le suffixe `:ro` limite le montage
+du chemin, **pas les opérations du protocole du socket** ; notre client
+n'utilise que `pw-dump`, sans capture audio ni commande de modification.
+Ce chemin donne accès au graphe global ; le code ne conserve que les
+propriétés nécessaires et n'expose aucun nom ou identifiant du graphe.
+Il n'existe pas de permission `--socket=pipewire` à ajouter : le manifeste
+utilise le chemin XDG précis, sans accès général au répertoire runtime.
+La CI vérifie que `pw-dump --help` fonctionne avec le runtime du paquet
+et que cette permission figure dans ses métadonnées. Cela ne prouve pas
+la visibilité du graphe sur chaque poste : en cas de filtrage ou d'outil
+absent, le diagnostic reste indisponible et l'interface l'indique.
+Voir les [permissions Flatpak](https://docs.flatpak.org/en/latest/sandbox-permissions.html)
+et les [permissions des objets PipeWire](https://docs.pipewire.org/page_access.html).
+Différences avec
 l'installation par script : réglages et historique dans
 `~/.var/app/org.openheadset.Control/` (pas repris de `~/.local/share`),
 lancement à l'ouverture de session par le portail du bureau, et raccourcis

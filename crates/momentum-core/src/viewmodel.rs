@@ -788,6 +788,83 @@ pub fn audio_view(i: &AudioInputs) -> AudioView {
     }
 }
 
+/// Même page sous Linux ; le flux GAIA et la lecture PipeWire restent séparés.
+pub fn pipewire_audio_view(
+    i: &AudioInputs,
+    result: Option<
+        &Result<crate::pipewire_audio::PipeWireAudio, crate::pipewire_audio::AudioReadError>,
+    >,
+    read_at: Option<&str>,
+) -> AudioView {
+    use crate::pipewire_audio::Profile;
+    let mut view = audio_view(i);
+    let source = at("PipeWire (pw-dump, lecture seule)", read_at);
+    view.findings.clear();
+    if i.state.is_none() {
+        view.findings.push((
+            false,
+            "Le casque n'est pas piloté par ce PC ; le son peut fonctionner sans pilotage.".into(),
+        ));
+    }
+    match result {
+        None => view.windows = vec![sourced("Sorties du système", "pas encore lues", source)],
+        Some(Err(error)) => {
+            view.windows = vec![sourced("Sorties du système", error.to_string(), source)];
+            view.findings.push((false, error.to_string()));
+        }
+        Some(Ok(audio)) => {
+            view.windows = vec![sourced(
+                "Le casque est la sortie par défaut",
+                match audio.default_headset {
+                    Some(true) => "oui",
+                    Some(false) => "non",
+                    None => "inconnu (métadonnée ou sortie non identifiée)",
+                },
+                source.clone(),
+            )];
+            if audio.outputs.is_empty() {
+                view.findings.push((true, "Aucune sortie Bluetooth du casque piloté n'est visible dans PipeWire. Vérifier la connexion audio dans les paramètres du système ; le pilotage seul ne prouve pas une sortie audio.".into()));
+            }
+            if audio.default_headset == Some(false) {
+                view.findings.push((true, "Le casque n'est pas la sortie audio par défaut. Le choisir dans les paramètres audio du système si c'est la sortie souhaitée.".into()));
+            }
+            for (index, output) in audio.outputs.iter().enumerate() {
+                view.windows.extend([
+                    sourced(
+                        &format!("Sortie Bluetooth {} : profil", index + 1),
+                        output.profile.map_or("inconnu", Profile::label),
+                        source.clone(),
+                    ),
+                    sourced(
+                        "Codec de cette sortie PipeWire",
+                        output.codec.unwrap_or("inconnu ou non reconnu"),
+                        source.clone(),
+                    ),
+                    sourced(
+                        "Cette sortie est celle par défaut",
+                        output
+                            .default
+                            .map_or("inconnu", |d| if d { "oui" } else { "non" }),
+                        source.clone(),
+                    ),
+                ]);
+                if output.profile.is_some_and(Profile::call) {
+                    view.findings.push((true, "Profil appel : qualité réduite (HFP/HSP). Hors appel, choisir le profil musique A2DP dans les paramètres audio si disponible.".into()));
+                }
+            }
+            view.findings.push((false, "Le codec PipeWire décrit la sortie de ce PC ; il ne prouve ni un son en cours ni une transmission sans perte. Le flux rapporté par le casque peut venir de l'autre appareil en Multipoint.".into()));
+        }
+    }
+    if i.connections.iter().any(|c| !c.this_device && c.connected) {
+        view.findings.push((
+            false,
+            "Un autre appareil est connecté (Multipoint) et peut prendre la main sur l'audio."
+                .into(),
+        ));
+    }
+    view
+}
+
 /// Choix « inchangé / activé / désactivé » des réglages on/off d'une scène.
 pub const SCENE_SWITCH_CHOICES: [&str; 3] = ["inchangé", "activé", "désactivé"];
 /// Choix du mode audio d'une scène.

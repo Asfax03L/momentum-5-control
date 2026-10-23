@@ -144,6 +144,7 @@ pub mod qobject {
         #[qproperty(i32, battery_revision)]
         // Page « Connexion et audio » : change à chaque mise à jour.
         #[qproperty(i32, audio_revision)]
+        #[qproperty(bool, audio_reading)]
         // Thème choisi : -1 aucun (système), 0 clair, 1 sombre.
         #[qproperty(i32, theme_choice)]
         #[qproperty(QString, settings_notice)]
@@ -293,6 +294,9 @@ pub mod qobject {
         /// (« libellé : valeur » puis la source après une tabulation).
         #[qinvokable]
         fn audio_rows(self: &Headset, section: QString) -> QStringList;
+        /// Relit uniquement le graphe PipeWire sur un fil séparé.
+        #[qinvokable]
+        fn reload_audio(self: Pin<&mut Headset>);
         /// Copie `batterie.csv` dans Documents ; message à afficher.
         #[qinvokable]
         fn export_battery(self: &Headset) -> QString;
@@ -350,7 +354,6 @@ use momentum_client::dbus::Client;
 use momentum_client::demo::{self, Demo};
 use momentum_client::tracker::Tracker;
 use momentum_client::{Command, Event, Outcome, Snapshot};
-use momentum_core::audio_check::LINUX_OUTPUTS_UNREAD;
 use momentum_core::battery_log::BatteryLog;
 use momentum_core::device::{
     AUTO_OFF_CHOICES, NoiseModeRequest, PromptMode, check_name, prompt_volume_from_percent,
@@ -358,6 +361,7 @@ use momentum_core::device::{
 use momentum_core::diagnostic::{self, DiagnosticInput};
 use momentum_core::hotkeys::{self, HotkeyAction};
 use momentum_core::paths;
+use momentum_core::pipewire_audio::{AudioReadError, PipeWireAudio};
 use momentum_core::presets::{self, AbCompare, Preset};
 use momentum_core::quick_panel::PanelPrefs;
 use momentum_core::scene_editor::{self, SceneEditor};
@@ -535,6 +539,9 @@ pub struct HeadsetRust {
     battery_details: QStringList,
     battery_revision: i32,
     audio_revision: i32,
+    audio_reading: bool,
+    pipewire_audio: Option<Result<PipeWireAudio, AudioReadError>>,
+    pipewire_at: Option<String>,
     theme_choice: i32,
     settings_notice: QString,
     settings_ready: bool,
@@ -691,6 +698,9 @@ impl Default for HeadsetRust {
             battery_details: QStringList::default(),
             battery_revision: 0,
             audio_revision: 0,
+            audio_reading: false,
+            pipewire_audio: None,
+            pipewire_at: None,
             theme_choice: momentum_core::appearance::load().map_or(-1, i32::from),
             settings_notice: QString::default(),
             settings_ready: false,
@@ -960,14 +970,26 @@ impl qobject::Headset {
 
     /// État complet lu à la connexion au service.
     fn on_snapshot(mut self: Pin<&mut Self>, snapshot: Snapshot) {
+        self.as_mut().rust_mut().pipewire_audio = None;
+        self.as_mut().rust_mut().pipewire_at = None;
         self.as_mut().rust_mut().snapshot = snapshot;
         self.as_mut().rust_mut().service_error = None;
         let busy = self.rust().requests.busy();
         self.as_mut().set_busy(busy);
-        self.refresh();
+        self.as_mut().refresh();
+        self.reload_audio();
     }
 
     fn on_event(mut self: Pin<&mut Self>, event: Event) {
+        let refresh_audio = matches!(
+            &event,
+            Event::Connected { .. } | Event::Lost(_) | Event::Searching
+        ) || (matches!(&event, Event::State(_))
+            && self.rust().snapshot.state.is_none());
+        if refresh_audio {
+            self.as_mut().rust_mut().pipewire_audio = None;
+            self.as_mut().rust_mut().pipewire_at = None;
+        }
         if let Event::Done { id, outcome, .. } = &event {
             let failure = self.as_mut().rust_mut().requests.done(*id, outcome);
             self.as_mut().finish_request(failure);
@@ -1005,7 +1027,10 @@ impl qobject::Headset {
         }
         self.as_mut().rust_mut().snapshot.apply(&event);
         self.as_mut().rust_mut().service_error = None;
-        self.refresh();
+        self.as_mut().refresh();
+        if refresh_audio {
+            self.reload_audio();
+        }
     }
 
     /// Rouvre l'éditeur sur `scenes.txt` (modifications abandonnées).
@@ -1116,6 +1141,8 @@ impl qobject::Headset {
             .rust_mut()
             .note_incident(format!("service injoignable : {reason}"));
         self.as_mut().rust_mut().snapshot = Snapshot::default();
+        self.as_mut().rust_mut().pipewire_audio = None;
+        self.as_mut().rust_mut().pipewire_at = None;
         self.as_mut().rust_mut().service_error = Some(reason);
         self.as_mut().rust_mut().requests.reset();
         self.as_mut().set_busy(false);
@@ -1764,18 +1791,21 @@ impl qobject::Headset {
             .as_ref()
             .and_then(|i| i.name.clone())
             .or_else(|| r.snapshot.device_name.clone());
-        let unread = Err(LINUX_OUTPUTS_UNREAD.to_string());
-        let v = viewmodel::audio_view(&viewmodel::AudioInputs {
-            device_name: name.as_deref(),
-            state: r.snapshot.state.as_ref(),
-            connections: &connections,
-            control_since: r.control_since.as_deref(),
-            connections_at: r.connections_at.as_deref(),
-            codec_since: r.codec_since.as_deref(),
-            rate_since: r.rate_since.as_deref(),
-            windows: Some(&unread),
-            windows_at: None,
-        });
+        let v = viewmodel::pipewire_audio_view(
+            &viewmodel::AudioInputs {
+                device_name: name.as_deref(),
+                state: r.snapshot.state.as_ref(),
+                connections: &connections,
+                control_since: r.control_since.as_deref(),
+                connections_at: r.connections_at.as_deref(),
+                codec_since: r.codec_since.as_deref(),
+                rate_since: r.rate_since.as_deref(),
+                windows: None,
+                windows_at: None,
+            },
+            r.pipewire_audio.as_ref(),
+            r.pipewire_at.as_deref(),
+        );
         let rows = |rows: Vec<viewmodel::InfoRow>| -> Vec<String> {
             rows.into_iter()
                 .map(|row| format!("{} : {}\t{}", row.label, row.value, row.source))
@@ -1793,6 +1823,64 @@ impl qobject::Headset {
             _ => Vec::new(),
         };
         string_list(lines.iter().map(String::as_str))
+    }
+
+    fn reload_audio(mut self: Pin<&mut Self>) {
+        if *self.audio_reading() {
+            return;
+        }
+        let r = self.rust();
+        let id = r
+            .snapshot
+            .headset_id
+            .clone()
+            .filter(|s| s.len() == 16 && s.bytes().all(|b| b.is_ascii_hexdigit()));
+        let session = r.snapshot.session;
+        if r.snapshot.state.is_none() || id.is_none() {
+            self.as_mut().rust_mut().pipewire_audio = Some(Err(AudioReadError::NoIdentity));
+            let revision = self.rust().audio_revision.wrapping_add(1);
+            self.as_mut().set_audio_revision(revision);
+            return;
+        }
+        let Some(id) = id else {
+            return;
+        };
+        self.as_mut().set_audio_reading(true);
+        let qt_thread = self.qt_thread();
+        let spawned = std::thread::Builder::new()
+            .name("lecture-pipewire".into())
+            .spawn(move || {
+                let result = if demo::requested() {
+                    Ok(PipeWireAudio {
+                        outputs: vec![momentum_core::pipewire_audio::Output {
+                            profile: Some(momentum_core::pipewire_audio::Profile::A2dp),
+                            codec: Some("SBC"),
+                            default: Some(true),
+                        }],
+                        default_headset: Some(true),
+                    })
+                } else {
+                    crate::pipewire::read(&id)
+                };
+                let _ = qt_thread.queue(move |mut headset| {
+                    headset.as_mut().set_audio_reading(false);
+                    if !crate::pipewire::is_current(&headset.rust().snapshot, session, &id) {
+                        // Un résultat de l'ancienne connexion ne devient jamais actuel.
+                        headset.as_mut().reload_audio();
+                        return;
+                    }
+                    headset.as_mut().rust_mut().pipewire_audio = Some(result);
+                    headset.as_mut().rust_mut().pipewire_at = Some(clock());
+                    let revision = headset.rust().audio_revision.wrapping_add(1);
+                    headset.as_mut().set_audio_revision(revision);
+                });
+            });
+        if spawned.is_err() {
+            self.as_mut().set_audio_reading(false);
+            self.as_mut().rust_mut().pipewire_audio = Some(Err(AudioReadError::Unavailable));
+            let revision = self.rust().audio_revision.wrapping_add(1);
+            self.as_mut().set_audio_revision(revision);
+        }
     }
 
     fn export_battery(&self) -> QString {

@@ -11,6 +11,8 @@ mod bridge;
 #[cfg(target_os = "linux")]
 mod instance;
 #[cfg(target_os = "linux")]
+mod pipewire;
+#[cfg(target_os = "linux")]
 mod shortcuts;
 #[cfg(target_os = "linux")]
 mod tray;

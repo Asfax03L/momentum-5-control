@@ -140,6 +140,8 @@ pub enum WorkerEvent {
     /// (croissant, à partir de 1).
     Connected {
         name: String,
+        /// Empreinte déjà calculée lors du choix, sans adresse en clair.
+        headset_id: String,
         read_only: Option<String>,
         session: u64,
     },
@@ -233,6 +235,7 @@ pub fn run(commands: Receiver<Job>, notify: impl Fn(WorkerEvent)) {
                 info!(?read_only, session = generation, "casque connecté");
                 notify(WorkerEvent::Connected {
                     name,
+                    headset_id: print,
                     read_only,
                     session: generation,
                 });
