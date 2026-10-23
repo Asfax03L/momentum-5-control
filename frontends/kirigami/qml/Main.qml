@@ -883,6 +883,64 @@ Kirigami.ApplicationWindow {
             title: "Paramètres"
             ColumnLayout {
                 StatusHeader {}
+                Kirigami.AbstractCard {
+                    Layout.fillWidth: true
+                    contentItem: ColumnLayout {
+                        QQC2.Label {
+                            text: "Sauvegarder et retrouver mes réglages"
+                            font.bold: true
+                        }
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: "Scènes, préréglages, raccourcis, panneau et apparence. Aucun profil auditif. Relancer l'interface après import ; un brouillon non enregistré n'est pas inclus."
+                        }
+                        QQC2.CheckBox {
+                            id: settingsBattery
+                            text: "Inclure aussi l'historique de batterie (export et import)"
+                            onToggled: headset.cancelSettings()
+                        }
+                        QQC2.Button {
+                            text: "Exporter les réglages…"
+                            onClicked: { headset.cancelSettings(); settingsSave.open() }
+                        }
+                        QQC2.Button {
+                            text: "Choisir un fichier à importer…"
+                            onClicked: { headset.cancelSettings(); settingsOpen.open() }
+                        }
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: headset.settingsNotice
+                            textFormat: Text.PlainText
+                        }
+                        QQC2.Button {
+                            text: "Confirmer cet import"
+                            enabled: headset.settingsReady
+                            onClicked: headset.confirmSettings()
+                        }
+                        QQC2.Button {
+                            text: "Annuler l'import"
+                            enabled: headset.settingsReady
+                            onClicked: headset.cancelSettings()
+                        }
+                    }
+                }
+                FileDialog {
+                    id: settingsSave
+                    title: "Exporter vers un nouveau fichier"
+                    fileMode: FileDialog.SaveFile
+                    nameFilters: ["Réglages JSON (*.json)"]
+                    defaultSuffix: "json"
+                    onAccepted: headset.exportSettings(selectedFile.toString(), settingsBattery.checked)
+                }
+                FileDialog {
+                    id: settingsOpen
+                    title: "Choisir les réglages à examiner"
+                    fileMode: FileDialog.OpenFile
+                    nameFilters: ["Réglages JSON (*.json)"]
+                    onAccepted: headset.previewSettings(selectedFile.toString(), settingsBattery.checked)
+                }
                 Kirigami.FormLayout {
                     Layout.fillWidth: true
                     Kirigami.Separator {

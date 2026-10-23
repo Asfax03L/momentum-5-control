@@ -17,6 +17,64 @@ use windows::core::BOOL;
 /// Classe des fenêtres de premier niveau de WinUI 3.
 const WINUI_CLASS: &str = "WinUIDesktopWin32WindowClass";
 
+/// Sélecteur natif de sauvegarde JSON, sur le fil de l'interface.
+pub fn settings_file(save: bool) -> windows::core::Result<Option<std::path::PathBuf>> {
+    use std::os::windows::ffi::OsStringExt;
+    use windows::Win32::System::Com::{
+        CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
+        CoTaskMemFree, CoUninitialize,
+    };
+    use windows::Win32::UI::Shell::Common::COMDLG_FILTERSPEC;
+    use windows::Win32::UI::Shell::{
+        FOS_FORCEFILESYSTEM, FileOpenDialog, FileSaveDialog, IFileDialog, IFileOpenDialog,
+        IFileSaveDialog, SIGDN_FILESYSPATH,
+    };
+    use windows::core::{Interface, w};
+    struct Apartment;
+    impl Drop for Apartment {
+        fn drop(&mut self) {
+            unsafe { CoUninitialize() };
+        }
+    }
+    // SAFETY: initialisation équilibrée sur ce fil, objets COM et chaînes
+    // conservés pendant l'appel modal ; mémoire du résultat libérée par COM.
+    unsafe {
+        CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok()?;
+        let _apartment = Apartment;
+        let dialog: IFileDialog = if save {
+            let d: IFileSaveDialog = CoCreateInstance(&FileSaveDialog, None, CLSCTX_INPROC_SERVER)?;
+            d.cast()?
+        } else {
+            let d: IFileOpenDialog = CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER)?;
+            d.cast()?
+        };
+        dialog.SetOptions(dialog.GetOptions()? | FOS_FORCEFILESYSTEM)?;
+        dialog.SetFileTypes(&[COMDLG_FILTERSPEC {
+            pszName: w!("Réglages JSON"),
+            pszSpec: w!("*.json"),
+        }])?;
+        dialog.SetDefaultExtension(w!("json"))?;
+        dialog.SetTitle(if save {
+            w!("Exporter les réglages vers un nouveau fichier")
+        } else {
+            w!("Choisir les réglages à examiner")
+        })?;
+        if save {
+            dialog.SetFileName(w!("openheadset-reglages.json"))?;
+        }
+        if let Err(error) = dialog.Show(window()) {
+            if error.code() == windows::core::HRESULT::from_win32(1223) {
+                return Ok(None);
+            }
+            return Err(error);
+        }
+        let path = dialog.GetResult()?.GetDisplayName(SIGDN_FILESYSPATH)?;
+        let chosen = std::path::PathBuf::from(std::ffi::OsString::from_wide(path.as_wide()));
+        CoTaskMemFree(Some(path.0.cast()));
+        Ok(Some(chosen))
+    }
+}
+
 /// Fenêtre principale (0 : pas encore trouvée), utilisable depuis tout fil.
 static WINDOW: AtomicIsize = AtomicIsize::new(0);
 /// « Quitter » choisi : la fermeture n'est plus interceptée.

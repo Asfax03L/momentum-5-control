@@ -47,6 +47,11 @@ struct Args {
 
 #[derive(Subcommand, Debug)]
 enum Command {
+    /// Exporte ou importe uniquement les réglages locaux, sans service ni casque.
+    Reglages {
+        #[command(subcommand)]
+        action: SettingsAction,
+    },
     /// Écrit la complétion du shell sur la sortie standard, sans casque.
     Completions {
         #[arg(value_enum)]
@@ -140,6 +145,27 @@ enum Command {
     ExporterProfil {
         /// Fichier à créer (jamais écrasé s'il existe déjà).
         fichier: std::path::PathBuf,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum SettingsAction {
+    /// Écrit une sauvegarde JSON neuve (aucun écrasement).
+    Exporter {
+        fichier: std::path::PathBuf,
+        /// Inclut explicitement l'historique local de batterie.
+        #[arg(long)]
+        avec_batterie: bool,
+    },
+    /// Valide tous les textes puis importe, avec sauvegardes .ancien.
+    Importer {
+        fichier: std::path::PathBuf,
+        /// Affiche seulement le résumé, sans écrire de fichier.
+        #[arg(long)]
+        simulation: bool,
+        /// Autorise aussi l'import de batterie.csv, s'il est présent.
+        #[arg(long)]
+        avec_batterie: bool,
     },
 }
 
@@ -440,6 +466,7 @@ mod app {
             Command::SceneEnregistrer { .. } => {
                 bail!("enregistrer une scène exige l'état connu du service")
             }
+            Command::Reglages { .. } => bail!("les réglages locaux ne passent pas par le service"),
             Command::Scenes | Command::Completions { .. } | Command::Man => return Ok(false),
             Command::Etat => {
                 eprintln!("(par le service momentum-daemon)");
@@ -792,6 +819,33 @@ mod app {
     }
 
     pub fn run(args: &Args, output: &mut Output) -> anyhow::Result<()> {
+        // Avant toute connexion au service ou recherche Bluetooth.
+        if let Command::Reglages { action } = &args.command {
+            use super::SettingsAction;
+            use momentum_core::settings_transfer;
+            let dir = paths::data_dir().context("dossier des données introuvable")?;
+            let details = match action {
+                SettingsAction::Exporter {
+                    fichier,
+                    avec_batterie,
+                } => settings_transfer::export(&dir, fichier, *avec_batterie)?,
+                SettingsAction::Importer {
+                    fichier,
+                    simulation,
+                    avec_batterie,
+                } => {
+                    let plan = settings_transfer::prepare_import(&dir, fichier, *avec_batterie)?;
+                    if *simulation {
+                        plan.summary().to_string()
+                    } else {
+                        format!("{}\n{}", plan.summary(), plan.apply()?)
+                    }
+                }
+            };
+            output.message(format_args!("{details}"));
+            output.details = Some(details);
+            return Ok(());
+        }
         // Cette opération ne doit jamais tomber dans le chemin RFCOMM direct,
         // attendre une nouvelle lecture ou soumettre une commande au service.
         if let Command::SceneEnregistrer { nom, remplacer } = &args.command {
@@ -854,6 +908,7 @@ mod app {
             Command::SceneEnregistrer { .. } => {
                 bail!("service requis pour enregistrer une scène ; aucune connexion directe")
             }
+            Command::Reglages { .. } => bail!("aucun accès au casque pour les réglages locaux"),
             Command::Etat => print_state(output, &headset.read_state()?),
             Command::Scenes | Command::Completions { .. } | Command::Man => {}
             Command::Scene { ref nom } => {

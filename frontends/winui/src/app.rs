@@ -229,6 +229,11 @@ enum Confirm {
 
 #[derive(Clone, Debug)]
 enum Msg {
+    SettingsBattery(bool),
+    ExportSettings,
+    PreviewSettings,
+    ImportSettings,
+    CancelSettings,
     /// Message du service, puis attente du suivant.
     Service(Arc<Mutex<Option<Incoming>>>),
     Navigate(Option<String>),
@@ -322,6 +327,9 @@ impl std::fmt::Debug for Incoming {
 }
 
 struct Root {
+    settings_battery: bool,
+    settings_notice: String,
+    settings_plan: Option<momentum_core::settings_transfer::ImportPlan>,
     page: Page,
     snapshot: Snapshot,
     service_error: Option<String>,
@@ -1029,6 +1037,9 @@ impl Component for Root {
             tray_entries: Vec::new(),
             tray_actions: Vec::new(),
             hotkeys: hotkey_thread,
+            settings_battery: false,
+            settings_notice: String::new(),
+            settings_plan: None,
             hotkey_rows: Vec::new(),
             hotkeys_loaded: None,
             hotkey_notice: None,
@@ -1169,6 +1180,54 @@ impl Component for Root {
                     }
                     Err(error) => (format!("Non enregistré : {error}"), false),
                 });
+            }
+            Msg::SettingsBattery(on) => {
+                self.settings_battery = on;
+                self.settings_plan = None;
+                self.settings_notice.clear();
+            }
+            Msg::CancelSettings => {
+                self.settings_plan = None;
+                self.settings_notice = "Import annulé.".into();
+            }
+            Msg::ExportSettings | Msg::PreviewSettings => {
+                let save = matches!(message, Msg::ExportSettings);
+                self.settings_plan = None;
+                let result = desktop::settings_file(save)
+                    .map_err(|e| e.to_string())
+                    .and_then(|path| {
+                        let Some(path) = path else {
+                            return Ok("Sélection annulée.".to_string());
+                        };
+                        let dir = paths::data_dir().ok_or("Dossier des données introuvable.")?;
+                        if save {
+                            momentum_core::settings_transfer::export(
+                                &dir,
+                                &path,
+                                self.settings_battery,
+                            )
+                            .map_err(|e| e.to_string())
+                        } else {
+                            let plan = momentum_core::settings_transfer::prepare_import(
+                                &dir,
+                                &path,
+                                self.settings_battery,
+                            )
+                            .map_err(|e| e.to_string())?;
+                            let summary = plan.summary().to_string();
+                            self.settings_plan = Some(plan);
+                            Ok(summary)
+                        }
+                    });
+                self.settings_notice =
+                    result.unwrap_or_else(|e| format!("Opération refusée : {e}"));
+            }
+            Msg::ImportSettings => {
+                if let Some(plan) = self.settings_plan.take() {
+                    self.settings_notice = plan
+                        .apply()
+                        .unwrap_or_else(|e| format!("Import refusé : {e}"));
+                }
             }
             Msg::SceneSelect(Some(i)) => {
                 if i != self.scene_editor.selected() {
@@ -2339,6 +2398,15 @@ impl Root {
     }
 
     fn settings(&self, context: &mut ViewContext<Self>) -> View {
+        let transfer = card("Sauvegarder et retrouver mes réglages", StackPanel::new().spacing(8.0).children((
+            TextBlock::new().text("Scènes, préréglages, raccourcis, panneau et apparence. Aucun profil auditif. Relancer l'interface après import pour recharger les réglages ; un brouillon non enregistré n'est pas inclus.").text_wrapping(TextWrapping::Wrap),
+            CheckBox::new().is_checked(self.settings_battery).on_is_checked_changed(context.callback(Msg::SettingsBattery)).content("Inclure aussi l'historique de batterie (export et import)"),
+            Button::new().on_click(context.message(Msg::ExportSettings)).content("Exporter les réglages…"),
+            Button::new().on_click(context.message(Msg::PreviewSettings)).content("Choisir un fichier à importer…"),
+            TextBlock::new().text(self.settings_notice.clone()).text_wrapping(TextWrapping::Wrap),
+            Button::new().is_enabled(self.settings_plan.is_some()).on_click(context.message(Msg::ImportSettings)).content("Confirmer cet import"),
+            Button::new().is_enabled(self.settings_plan.is_some()).on_click(context.message(Msg::CancelSettings)).content("Annuler l'import"),
+        )));
         let app = card(
             "Application",
             StackPanel::new().spacing(8.0).children((
@@ -2464,6 +2532,7 @@ impl Root {
                     .text(v.waiting.clone())
                     .text_wrapping(TextWrapping::Wrap)
                     .opacity(0.8),
+                transfer,
                 app,
                 panel,
                 shortcuts,
@@ -2571,6 +2640,7 @@ impl Root {
                         .text_wrapping(TextWrapping::Wrap),
                 )),
             ),
+            transfer,
             app,
             panel,
             shortcuts,

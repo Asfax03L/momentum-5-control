@@ -28,6 +28,7 @@ pub mod scene_capture;
 pub mod scene_editor;
 pub mod scenes;
 pub mod sdp;
+pub mod settings_transfer;
 pub mod transport;
 pub mod tray_menu;
 pub mod ui;

@@ -295,6 +295,51 @@ sauvegarde `.bak`. Un état incohérent ou un fichier de scènes invalide est
 refusé avant l'enregistrement. L'éditeur de scènes garde son éventuel
 brouillon en cours.
 
+### Sauvegarder et retrouver mes réglages
+
+Les pages Paramètres de WinUI et de Kirigami proposent un sélecteur pour
+exporter les réglages ou examiner une sauvegarde avant de confirmer son
+import. Ces opérations fonctionnent sans casque ni service. En ligne de
+commande :
+
+```powershell
+ctl reglages exporter mes-reglages.json
+ctl reglages importer mes-reglages.json --simulation
+ctl reglages importer mes-reglages.json
+```
+
+La sauvegarde JSON porte `version: 1` et une table `fichiers` contenant les
+textes exacts de `scenes.txt`, `prereglages.txt`, `raccourcis.txt`,
+`panneau.txt` et `apparence.txt`, commentaires compris. Un fichier absent
+est représenté par `null` ; à l'import, il laisse le fichier destinataire
+intact. Les noms de fichier inconnus et les versions inconnues sont refusés.
+Aucun profil auditif, export de profil, identifiant d'appareil ou fichier
+extérieur à cette liste n'est lu.
+
+L'export refuse toujours d'écraser sa destination. Pour inclure
+`batterie.csv`, ajouter explicitement `--avec-batterie` à l'export et à
+l'import, ou cocher l'option correspondante dans l'interface. Sans cette
+option d'import, l'historique présent dans une sauvegarde est signalé puis
+ignoré. `--json` fonctionne aussi avec les commandes de réglages.
+
+L'import valide **tous** les textes avant toute écriture, y compris les
+lignes que les analyseurs d'affichage ignoreraient. `--simulation` décrit
+les créations et remplacements sans créer de fichier ni de dossier. Les
+fichiers remplacés sont conservés sous `nom.txt.ancien` (ou
+`batterie.csv.ancien`) ; une sauvegarde `.ancien` existante doit être
+conservée ailleurs avant un nouvel import qui modifierait ce même fichier.
+Un fichier identique n'est pas réécrit. Un changement local depuis l'aperçu
+refuse la confirmation et demande une nouvelle simulation. Les remplacements
+utilisent des fichiers temporaires et une restauration est tentée en cas
+d'erreur ; ils ne constituent pas une transaction atomique entre fichiers.
+
+Les raccourcis restent au format de `raccourcis.txt` sous les deux systèmes.
+Sous KDE, un avertissement rappelle de les configurer dans Paramètres
+système > Raccourcis : l'import ne modifie pas la configuration KDE.
+Enregistrer les brouillons avant l'export et relancer l'interface après
+l'import pour recharger tous les réglages. Limites : 2 Mio par texte et
+16 Mio pour le JSON complet.
+
 ### `ctl` et le service
 
 Quand le service `momentum-daemon` tourne (lancé par l'interface, ou par
