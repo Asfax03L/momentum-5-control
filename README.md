@@ -407,7 +407,9 @@ appliqué.
 personnalisation du son : octets bruts des blocs `2003`/`2005`/`2007`,
 date, modèle, firmware, état `2001` et mode audio bruts, empreinte. Ni numéro
 de série ni adresse Bluetooth, mais le profil est une donnée auditive
-personnelle : ne pas publier ce fichier. Un fichier existant n'est jamais
+personnelle : ne pas publier ce fichier. Sous Linux, le service (unité
+durcie, [`docs/SECURITE.md`](docs/SECURITE.md)) n'écrit que dans
+`~/Documents`. Un fichier existant n'est jamais
 écrasé, et aucune restauration n'est proposée.
 
 ### Sortie JSON pour les scripts

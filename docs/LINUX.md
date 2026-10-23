@@ -278,6 +278,9 @@ Les versions de Fedora 44 sont celles de Bazzite 44 (Qt 6.11, Kirigami
 - Avec `--canal 12` (ou 11), `ctl` ouvre directement ce canal RFCOMM, sans
   passer par SDP.
 - Données (scènes, préréglages) : `~/.local/share/momentum-ctl-win`.
+- Le service tourne dans une unité systemd durcie : il n'écrit que dans
+  ce dossier et dans `~/Documents` (export du profil), sans accès réseau
+  ni privilège ; détails dans [`SECURITE.md`](SECURITE.md).
 
 ## Dual boot Windows + Bazzite : la clé d'appairage
 

@@ -6,9 +6,42 @@ After=bluetooth.target
 [Service]
 Type=dbus
 BusName=org.openheadset.Control
+# Dossier des données créé hors du bac à sable (« + ») : sous
+# ProtectHome=read-only, le service ne peut pas le créer lui-même.
+ExecStartPre=+/bin/mkdir -p %h/.local/share/momentum-ctl-win
 ExecStart=%h/.local/bin/momentum-daemon
 Restart=on-failure
 RestartSec=5
+
+# Durcissement (docs/SECURITE.md) : le service n'a besoin que des bus D-Bus
+# (session et système, pour BlueZ), du canal RFCOMM que BlueZ lui transmet,
+# de son dossier de données et du dossier Documents (export du profil).
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.local/share/momentum-ctl-win -%h/Documents
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+ProtectProc=invisible
+ProcSubset=pid
+RestrictAddressFamilies=AF_UNIX AF_BLUETOOTH
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @resources
+SystemCallErrorNumber=EPERM
+CapabilityBoundingSet=
+UMask=0077
 
 [Install]
 WantedBy=default.target
