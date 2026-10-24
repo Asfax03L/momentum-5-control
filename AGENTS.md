@@ -49,7 +49,15 @@ Architecture : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Protocole :
 - **Une tâche, une branche, une PR**, ciblée sur `main`. Ne pas toucher aux
   fichiers sans rapport avec la tâche.
 - **Ne pas modifier `CHANGELOG.md`** : le mainteneur l'écrit à la fusion.
-  Décrire les changements dans la PR.
+  Décrire les changements dans la PR, avec deux paragraphes destinés aux
+  notes de publication (voir l'en-tête de `CHANGELOG.md`) :
+  - **En bref** : ce qui change pour l'utilisateur et qui est concerné
+    (Windows, KDE, Flatpak, paquets, `ctl`…), en langage simple, sans
+    jargon interne ;
+  - **À faire après la mise à jour** : chaque action nécessaire, pas à
+    pas et par système (relancer l'interface, mettre à jour le widget,
+    adapter un script, désinstaller une ancienne méthode…), ou « Rien de
+    particulier » avec la raison.
 - **Suivre le style du code voisin** : densité de commentaires, noms en
   anglais pour le code et en français pour les textes, erreurs typées
   (`thiserror`), pas d'`unwrap` hors des tests.
