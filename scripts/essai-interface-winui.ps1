@@ -25,6 +25,21 @@ function Find-First($root, $property, $value, [int]$secondes = 10) {
     return $null
 }
 
+# Interrupteur par son nom accessible : l'étiquette voisine porte le même
+# nom, seul l'interrupteur sait basculer (TogglePattern).
+function Find-Toggle($root, $name, [int]$secondes = 10) {
+    $condition = New-Object System.Windows.Automation.AndCondition(
+        (New-Object System.Windows.Automation.PropertyCondition($AE::NameProperty, $name)),
+        (New-Object System.Windows.Automation.PropertyCondition($AE::IsTogglePatternAvailableProperty, $true)))
+    $limite = (Get-Date).AddSeconds($secondes)
+    do {
+        $trouve = $root.FindFirst($Scope::Descendants, $condition)
+        if ($trouve) { return $trouve }
+        Start-Sleep -Milliseconds 300
+    } while ((Get-Date) -lt $limite)
+    return $null
+}
+
 function Save-Capture($handle) {
     try {
         $r = [System.Windows.Automation.AutomationElement]::FromHandle($handle).Current.BoundingRectangle
@@ -61,7 +76,7 @@ try {
         # Réglage simulé : l'anti-vent change, l'affichage le relit.
         $item = Find-First $fenetre $AE::AutomationIdProperty 'nav-accueil'
         $item.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
-        $interrupteur = Find-First $fenetre $AE::NameProperty 'Anti-vent'
+        $interrupteur = Find-Toggle $fenetre 'Anti-vent'
         if (-not $interrupteur) { throw "interrupteur « Anti-vent » introuvable (nom accessible)" }
         $bascule = $interrupteur.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
         $avant = $bascule.Current.ToggleState
@@ -69,7 +84,7 @@ try {
         $limite = (Get-Date).AddSeconds(10)
         do {
             Start-Sleep -Milliseconds 300
-            $interrupteur = Find-First $fenetre $AE::NameProperty 'Anti-vent'
+            $interrupteur = Find-Toggle $fenetre 'Anti-vent'
             $apres = $interrupteur.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState
         } while ($apres -eq $avant -and (Get-Date) -lt $limite)
         if ($apres -eq $avant) { throw "anti-vent simulé non relu à l'affichage ($avant)" }

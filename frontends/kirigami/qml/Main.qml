@@ -235,6 +235,7 @@ Kirigami.ApplicationWindow {
     // (code 1). Jamais actif hors du mode démonstration.
     property int essaiEtape: 0
     property bool essaiAntiVent: false
+    property int essaiAttente: 0
     function essaiEchec(message) {
         console.error("ESSAI INTERFACE ÉCHEC : " + message)
         Qt.exit(1)
@@ -280,8 +281,13 @@ Kirigami.ApplicationWindow {
                 headset.sendAntiWind(!root.essaiAntiVent)
             } else if (root.essaiEtape === 2) {
                 const interrupteur = root.essaiChercher(root.pageStack.currentItem, "accueil-anti-vent")
-                if (headset.antiWind === root.essaiAntiVent || interrupteur.checked === root.essaiAntiVent)
+                if (headset.antiWind === root.essaiAntiVent || interrupteur.checked === root.essaiAntiVent) {
+                    // Machine lente : jusqu'à cinq tops pour la relecture.
+                    root.essaiAttente += 1
+                    if (root.essaiAttente < 5)
+                        return
                     return root.essaiEchec("anti-vent simulé non relu à l'affichage")
+                }
                 console.info("essai interface : anti-vent " + root.essaiAntiVent + " → " + headset.antiWind)
                 headset.panelRequested()
             } else if (root.essaiEtape === 3) {
