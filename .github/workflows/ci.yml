@@ -161,7 +161,8 @@ jobs:
       - name: Essai de l'interface KDE
         run: |
           set +e
-          QT_QPA_PLATFORM=offscreen timeout 90 dbus-run-session -- \
+          # Messages de QML sur la sortie d'erreur (sinon vers journald).
+          QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen timeout 90 dbus-run-session -- \
             target/debug/momentum-kirigami --demo --essai-interface > essai-interface.log 2>&1
           code=$?
           set -e

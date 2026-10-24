@@ -1844,14 +1844,18 @@ impl Component for Root {
                 SlotView::collection(NavigationViewSlot::MenuItems, items),
                 SlotView::new(
                     NavigationViewSlot::Content,
-                    ScrollViewer::new().content(
-                        StackPanel::new()
-                            .spacing(12.0)
-                            .margin(Thickness::new(32.0, 24.0, 32.0, 32.0))
-                            .max_width(860.0)
-                            .automation_id(format!("page-{}", self.page.tag()))
-                            .children((self.header(context), page)),
-                    ),
+                    // Repère de la page affichée (essais UIA) : un panneau
+                    // n'apparaît pas dans l'arbre UI Automation, le
+                    // ScrollViewer si.
+                    ScrollViewer::new()
+                        .automation_id(format!("page-{}", self.page.tag()))
+                        .content(
+                            StackPanel::new()
+                                .spacing(12.0)
+                                .margin(Thickness::new(32.0, 24.0, 32.0, 32.0))
+                                .max_width(860.0)
+                                .children((self.header(context), page)),
+                        ),
                 ),
             ])
     }
