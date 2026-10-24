@@ -166,6 +166,8 @@ pub mod qobject {
         // Profil personnalisé : actif, et basculable (lu, modifiable).
         #[qproperty(bool, profile_on)]
         #[qproperty(bool, profile_toggle_enabled)]
+        // Essai de l'interface (`--demo --essai-interface`, CI seulement).
+        #[qproperty(bool, self_test)]
         type Headset = super::HeadsetRust;
 
         /// Montrer la fenêtre (menu de l'icône, deuxième lancement).
@@ -566,6 +568,7 @@ pub struct HeadsetRust {
     panel_notice: QString,
     profile_on: bool,
     profile_toggle_enabled: bool,
+    self_test: bool,
 
     /// Contenu du panneau rapide et texte de `panneau.txt` lu (écriture
     /// refusée si le fichier a changé entre-temps).
@@ -726,6 +729,7 @@ impl Default for HeadsetRust {
             panel_notice: QString::default(),
             profile_on: false,
             profile_toggle_enabled: false,
+            self_test: demo::requested() && std::env::args().any(|a| a == "--essai-interface"),
             panel_prefs: paths::load_panel_prefs(),
             panel_loaded: paths::read_panel_text(),
             commands: None,

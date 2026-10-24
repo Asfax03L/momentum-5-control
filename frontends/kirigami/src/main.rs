@@ -70,7 +70,11 @@ mod app {
             ));
         }
         if let Some(app) = app.as_mut() {
-            app.exec();
+            // Code de `Qt.exit` (essai de l'interface) rendu au système.
+            let code = app.exec();
+            if code != 0 {
+                std::process::exit(code);
+            }
         }
     }
 }
