@@ -8,7 +8,9 @@
 # Échoue si un relevé dépasse son seuil (variables ci-dessous).
 #
 # Usage : sh scripts/mesurer-ressources.sh <dossier des binaires> [durée]
-# Aucun accès au casque : le service cherche un casque sans en trouver.
+# En CI, aucun casque : le service en cherche un sans le trouver. Sur un
+# poste où le casque est connecté, le service le trouve et le lit (lecture
+# seule) : arrêter d'abord le service de l'utilisateur, ou mesurer sans casque.
 set -eu
 bins=$1
 duree=${2:-30}
