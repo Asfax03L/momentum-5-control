@@ -8,10 +8,12 @@ members = [
     "crates/momentum-client",
     "crates/momentum-daemon",
     "frontends/kirigami",
+    "frontends/gtk",
     "frontends/winui",
 ]
-# Le client Kirigami demande Qt 6 : il n'est pas compilé par défaut
-# (`cargo build -p momentum-kirigami` sous Linux).
+# Les clients Kirigami (Qt 6) et GTK (GTK 4, libadwaita) ne sont pas
+# compilés par défaut (`cargo build -p momentum-kirigami` ou
+# `-p momentum-gtk` sous Linux).
 default-members = [
     "crates/momentum-core",
     "crates/momentum-service",

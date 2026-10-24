@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=OpenHeadset Control (GTK)
+GenericName=Réglages du casque
+Comment=Réglages du Sennheiser MOMENTUM 5 (non officiel) — interface GNOME
+Exec=momentum-gtk
+Icon=org.openheadset.control
+Terminal=false
+Categories=AudioVideo;Audio;Settings;GTK;GNOME;
+Keywords=casque;sennheiser;momentum;bluetooth;anc;égaliseur;
+StartupWMClass=org.openheadset.ControlGnome

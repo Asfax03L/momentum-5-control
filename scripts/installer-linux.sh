@@ -44,6 +44,7 @@ refresh_caches() {
 if [ "${1:-}" = "--desinstaller" ]; then
     systemctl --user stop momentum-daemon.service 2>/dev/null || true
     for f in "$bin/momentum-daemon" "$bin/momentum-kirigami" "$bin/ctl" \
+        "$bin/momentum-gtk" "$data/applications/momentum-gtk.desktop" \
         "$bin/momentum-daemon.ancien" "$bin/momentum-kirigami.ancien" "$bin/ctl.ancien" \
         "$data/applications/momentum-kirigami.desktop" \
         "$config/autostart/momentum-kirigami.desktop" \
@@ -159,6 +160,14 @@ for size in 16 22 24 32 48 64 128 256; do
 done
 install -m 644 "$assets/linux/momentum-kirigami.desktop" "$data/applications/momentum-kirigami.desktop"
 echo "logo et entrée de menu installés"
+
+# Client GNOME (GTK 4, libadwaita), facultatif : installé s'il est fourni
+# (archive publiée, ou cargo build --release -p momentum-gtk).
+if [ -x "$bins/momentum-gtk" ] && [ -f "$assets/linux/momentum-gtk.desktop" ]; then
+    install -m 755 "$bins/momentum-gtk" "$bin/momentum-gtk"
+    install -m 644 "$assets/linux/momentum-gtk.desktop" "$data/applications/momentum-gtk.desktop"
+    echo "client GNOME installé : $bin/momentum-gtk"
+fi
 
 # Ancienne icône Slint (versions 0.7 et avant) : remplacée par le client KDE.
 for old in "$bin/momentum-tray" "$data/applications/momentum-tray.desktop" \

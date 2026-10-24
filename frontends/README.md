@@ -59,7 +59,10 @@ Notes pour les pistes « à explorer » (à vérifier au moment de s'y mettre) :
   (StatusNotifierItem et DBusMenu sur zbus) ; `src/shortcuts.rs` :
   raccourcis globaux (KGlobalAccel). Hors des membres par défaut de
   l'espace de travail (Qt 6 requis) : `cargo build -p momentum-kirigami`.
-- **GTK** : `gtk4-rs` et `libadwaita-rs`.
+- **GTK** (`frontends/gtk`, GNOME) : `gtk4-rs` 0.11 et `libadwaita-rs` 0.9
+  (GTK 4.14 et libadwaita 1.5 au minimum), client du service ; page
+  Accueil, demandes suivies, `--demo`. Hors des membres par défaut :
+  `cargo build -p momentum-gtk`. Parité prévue : `docs/PARITE.md`.
 
 ## Ajouter une interface
 
