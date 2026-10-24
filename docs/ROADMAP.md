@@ -5,7 +5,11 @@ pour tout ce qui passe par le casque, mais pensée pour un PC portable (souris,
 clavier, grand écran, barre système). L'icône reste le raccourci vers la
 fenêtre principale.
 
-**État au 23/10/2026** : dernière publication **v0.10.0** (jalon 0.10 :
+**État au 24/10/2026** : dernière publication **v0.11.0** (jalon 0.11 :
+service Linux durci, provenance et SBOM de chaque fichier publié, suite
+d'essais `ctl essais` rejouée sur le casque, tests d'interface, couverture
+et budget de ressources en CI ; droits réduits du service Windows étudiés
+dans `SECURITE.md`, en attente de la signature). Avant elle, v0.10.0 (jalon 0.10 :
 scène depuis l'état, export et import des réglages, reconnexion par le
 Bluetooth du système, diagnostic PipeWire, `ctl` scriptable ; en avance
 sur leur jalon : fuzzing des décodeurs, prévu en 0.11, et paquets `.deb`
@@ -86,7 +90,7 @@ et date de l'essai sur le casque.
 | **0.9.0** (consolidation) ✅ | Constats F01 à F14 de la revue ([`CONSOLIDATION.md`](CONSOLIDATION.md)) ; CI élargie (versions verrouillées, dépendances auditées) ; documentation alignée | Aucune fausse réussite d'une commande ; publication complète ou rien ; installateurs récupérables |
 | **0.9.1** (KDE) ✅ | Panneau rapide KDE, widget enrichi | Commandes usuelles en deux clics, état relu affiché |
 | **0.10** (confort et audio Linux) ✅ | Audio Linux en lecture seule, petites fonctions à fort gain, `ctl` plus scriptable | Observations PipeWire cohérentes avec les réglages son du bureau ; aucun changement de routage silencieux ; chaque fonction essayée sur le casque |
-| **0.11** (sécurité et qualité) | Service durci, chaîne de confiance, tests automatisés | Service limité au Bluetooth et à ses fichiers ; suite d'essais rejouée avant la publication ; provenance vérifiable de chaque paquet |
+| **0.11** (sécurité et qualité) ✅ | Service durci, chaîne de confiance, tests automatisés | Service limité au Bluetooth et à ses fichiers ; suite d'essais rejouée avant la publication ; provenance vérifiable de chaque paquet |
 | **0.12** (GNOME) | Interface GTK 4 / libadwaita cliente du même service | Parité définie avec le client KDE, sans connexion directe au casque |
 | **0.13-bêta** (distribution) | Flatpak à sources figées et Flathub | Installation, mise à jour et désinstallation propres sur Bazzite et Windows ; paquet accepté sur Flathub |
 | **0.14** (paquets natifs) | Installateur Windows, winget, `.deb`, `.rpm`, AUR, KDE Store | Pour chaque format : installation, mise à jour par-dessus la version précédente et désinstallation propres, puis essai sur le casque |

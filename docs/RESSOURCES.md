@@ -39,6 +39,9 @@ trois fois les premiers relevés, arrondis.
 |---|---|---|---|---|---|
 | 23/10/2026 | 0.10.0+ | Bazzite (Fedora 44, Qt 6.11) | `momentum-daemon` sans casque | 5,7 Mio | 0,00 s |
 | 23/10/2026 | 0.10.0+ | Bazzite (Fedora 44, Qt 6.11) | `momentum-kirigami --demo` | 104 Mio | 0,36 s |
+| 23/10/2026 | 0.10.0+ | CI Fedora 44 | `momentum-daemon` sans casque | 5,6 Mio | 0,00 s |
+| 23/10/2026 | 0.10.0+ | CI Fedora 44 | `momentum-kirigami --demo` | 89 Mio | 0,42 s |
+| 23/10/2026 | 0.10.0+ | CI Windows (windows-latest) | `momentum-winui --demo` | 96 Mio | 0,48 s |
 
 Les chiffres de WinUI viennent de la CI (machine virtuelle Windows de
 GitHub) ; ils sont ajoutés à chaque version.
