@@ -8,6 +8,7 @@ on:
       - "packaging/deb/**"
       - "packaging/rpm/**"
       - "packaging/linux/**"
+      - "packaging/aur/**"
       - "Cargo.toml"
       - "Cargo.lock"
       - "rust-toolchain.toml"
@@ -21,6 +22,11 @@ on:
 
 permissions:
   contents: read
+
+env:
+  # Version publiée précédente : mise à jour par-dessus.
+  PRECEDENTE: v0.13.0
+  GH_TOKEN: ${{ github.token }}
 
 jobs:
   deb:
@@ -37,9 +43,12 @@ jobs:
         run: |
           package=$(find target/paquets/deb -name '*.deb')
           test "$(printf '%s\n' "$package" | wc -l)" -eq 1
+          # Mise à jour par-dessus la version publiée précédente.
+          gh release download "$PRECEDENTE" -p '*_amd64.deb' -D precedente
+          previous=$(find precedente -name '*.deb')
           for image in debian:13 ubuntu:26.04; do
             docker run --rm -v "$PWD:/src:ro" -w /src "$image" \
-              sh packaging/linux/verifier-installation.sh deb "/src/$package"
+              sh packaging/linux/verifier-installation.sh deb "/src/$package" "/src/$previous"
           done
       - uses: actions/upload-artifact@v7
         with:
@@ -61,12 +70,34 @@ jobs:
         run: |
           package=$(find target/paquets/rpm -name '*.rpm')
           test "$(printf '%s\n' "$package" | wc -l)" -eq 1
+          gh release download "$PRECEDENTE" -p '*.x86_64.rpm' -D precedente
+          previous=$(find precedente -name '*.rpm')
           for version in 43 44; do
             docker run --rm -v "$PWD:/src:ro" -w /src "registry.fedoraproject.org/fedora:$version" \
-              sh packaging/linux/verifier-installation.sh rpm "/src/$package"
+              sh packaging/linux/verifier-installation.sh rpm "/src/$package" "/src/$previous"
           done
       - uses: actions/upload-artifact@v7
         with:
           name: rpm
           path: target/paquets/rpm/*.rpm*
+          if-no-files-found: error
+
+  arch:
+    name: Arch Linux (AUR)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - name: makepkg, namcap, installation et retrait
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
+          mkdir -p target/aur-source
+          # Même forme que l'archive d'une étiquette GitHub.
+          git archive --prefix="openheadset-control-$version/" -o target/aur-source/source.tar.gz HEAD
+          docker run --rm -v "$PWD:/src" -w /src archlinux:latest \
+            sh packaging/aur/essai-arch.sh "$version" target/aur-source/source.tar.gz
+      - uses: actions/upload-artifact@v7
+        with:
+          name: aur
+          path: target/paquets/aur/
           if-no-files-found: error

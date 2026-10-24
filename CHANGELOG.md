@@ -12,6 +12,60 @@ refuse de publier sans elles) :
 - « À faire après la mise à jour » : les actions concrètes par système,
   ou « Rien de particulier » avec la raison.
 
+## v0.14.0 — 24/10/2026
+
+### En bref
+Version des paquets natifs :
+- **Windows : vrai installateur** (`…-windows-x86_64-installateur.exe`).
+  Il s'installe pour l'utilisateur, sans droits administrateur, et met à
+  jour une installation faite avec `installer.ps1`. On le désinstalle par
+  Paramètres > Applications. L'archive et le script restent proposés.
+- **Linux** : les paquets `.deb` et `.rpm` sont désormais essayés en mise à
+  jour par-dessus la version publiée précédente. Un `PKGBUILD` pour l'AUR
+  (Arch, CachyOS) est essayé dans Arch à chaque PR. Le widget Plasma est
+  aussi publié seul (`.plasmoid`), pratique avec le Flatpak.
+- **Catalogues** : winget, l'AUR et le KDE Store sont préparés
+  (`docs/SOUMISSIONS.md`) mais **rien n'est envoyé** sans l'accord du
+  mainteneur, comme pour Flathub.
+- Correction : dans l'archive Linux, `installer-linux.sh` est maintenant
+  exécutable, comme l'indiquent les notes (`./installer-linux.sh`).
+
+Rien ne change dans les interfaces, le service ni les commandes du casque.
+
+### À faire après la mise à jour
+- **Windows** : télécharger l'installateur et l'ouvrir ; il remplace la
+  version en place (installée par lui ou par `installer.ps1`), sans
+  toucher aux réglages. Rien d'autre à faire.
+- **Widget Plasma avec le Flatpak** : `kpackagetool6 --type Plasma/Applet
+  --upgrade openheadset-control-v0.14.0.plasmoid` (ou `--install` la
+  première fois).
+- **Archive Linux, Flatpak, `.deb`, `.rpm`** : rien de particulier, même
+  procédure que d'habitude.
+
+### Paquets natifs (jalon 0.14)
+- **Installateur Windows** (`packaging/windows/openheadset-control.iss`,
+  Inno Setup 6) : par utilisateur, même dossier, raccourci et entrée de
+  démarrage que `installer.ps1` ; vérifie le Windows App Runtime 2 avant
+  d'installer ; arrête seulement les processus de son dossier ; inscrit
+  dans les applications installées ; réglages gardés à la désinstallation.
+  Essai (`scripts/essai-installateur-windows.ps1`) en CI : mise à jour
+  par-dessus la v0.13.0 installée par `installer.ps1`, réinstallation,
+  désinstallation (programmes, raccourci, démarrage et inscription retirés,
+  réglages gardés).
+- **`.deb` et `.rpm`** : `verifier-installation.sh` installe d'abord le
+  paquet de la v0.13.0, puis le nouveau par-dessus, et vérifie la version.
+- **AUR** (`packaging/aur/`) : `PKGBUILD` compilé depuis l'archive de
+  l'étiquette, rempli par `preparer.sh` ; tâche CI `Arch Linux (AUR)` :
+  `makepkg`, `namcap`, installation, réinstallation, chargement de
+  l'interface, retrait.
+- **winget** (`packaging/winget/preparer.ps1`) : manifestes (type `inno`,
+  portée utilisateur, dépendance `Microsoft.WindowsAppRuntime.2`) validés
+  par `winget validate`.
+- **KDE Store** : `openheadset-control-vX.Y.Z.plasmoid` joint aux
+  publications (métadonnées vérifiées à la racine).
+- Publication : 16 fichiers (installateur Windows et `.plasmoid` en plus),
+  chacun avec son empreinte et sa provenance.
+
 ## v0.13.0 — 24/10/2026
 
 ### En bref
