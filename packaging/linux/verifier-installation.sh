@@ -80,7 +80,7 @@ grep -qx 'ExecStart=/usr/bin/momentum-daemon' /usr/lib/systemd/user/momentum-dae
 grep -qx 'Exec=/usr/bin/momentum-daemon' /usr/share/dbus-1/services/org.openheadset.Control.service
 test -s /usr/share/plasma/plasmoids/org.openheadset.control.plasmoid/metadata.json
 test -s /usr/share/plasma/plasmoids/org.openheadset.control.plasmoid/contents/ui/main.qml
-grep -q 'momentum-kirigami.desktop' /usr/share/metainfo/io.github.asfax03l.OpenHeadsetControl.metainfo.xml
+grep -q 'momentum-kirigami.desktop' /usr/share/metainfo/io.github.asfax03l.openheadset_control.metainfo.xml
 # Charger réellement QML et ses modules, sans casque ni écran, en démonstration.
 result=0
 QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QT_QUICK_CONTROLS_STYLE=org.kde.desktop \

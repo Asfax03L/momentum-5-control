@@ -87,23 +87,29 @@ applications. Télécharger `openheadset-control-vX.Y.Z-x86_64.flatpak` sur
 la page Releases (la CI le construit à chaque publication), puis :
 
 ```bash
-flatpak install --user openheadset-control-v0.12.0-x86_64.flatpak
+flatpak install --user openheadset-control-v0.13.0-x86_64.flatpak
 ```
 
 Il contient le client KDE, le service (lancé à la demande par activation
-D-Bus) et `ctl` :
+D-Bus) et `ctl`. Identifiant depuis la v0.13.0 :
+`io.github.asfax03l.openheadset_control` (avant : `org.openheadset.Control`,
+voir « Migration des réglages » plus bas) :
 
 ```bash
-flatpak run org.openheadset.Control
+flatpak run io.github.asfax03l.openheadset_control
 ```
 ```bash
-flatpak run --command=ctl org.openheadset.Control etat
+flatpak run --command=ctl io.github.asfax03l.openheadset_control etat
 ```
 
 Le bac à sable n'ouvre que ce qui sert : Wayland, sockets Bluetooth et
-BlueZ (bus système), icône de la zone de notification, raccourcis KDE,
+BlueZ (bus système), le nom D-Bus du service `org.openheadset.Control` (et
+`org.openheadset.ControlWindow` pour la fenêtre unique), l'inscription de
+l'icône de la zone de notification (sous le nom unique de la connexion :
+aucun nom `org.kde.*` à posséder depuis la v0.13.0), raccourcis KDE,
 notifications, le socket natif PipeWire `xdg-run/pipewire-0:ro` (lecture du
-graphe) et le dossier Documents (exports). Le suffixe `:ro` limite le montage
+graphe) et le dossier Documents (exports, import des réglages). Pas de
+réseau, ni à l'exécution ni à la construction. Le suffixe `:ro` limite le montage
 du chemin, **pas les opérations du protocole du socket** ; notre client
 n'utilise que `pw-dump`, sans capture audio ni commande de modification.
 Ce chemin donne accès au graphe global ; le code ne conserve que les
@@ -118,18 +124,64 @@ Voir les [permissions Flatpak](https://docs.flatpak.org/en/latest/sandbox-permis
 et les [permissions des objets PipeWire](https://docs.pipewire.org/page_access.html).
 Différences avec
 l'installation par script : réglages et historique dans
-`~/.var/app/org.openheadset.Control/` (pas repris de `~/.local/share`),
-lancement à l'ouverture de session par le portail du bureau, et raccourcis
-à modifier dans Configuration du système > Raccourcis. Ne pas installer les
-deux à la fois : un seul service peut porter le nom D-Bus
-`org.openheadset.Control`.
+`~/.var/app/io.github.asfax03l.openheadset_control/`, lancement à
+l'ouverture de session par le portail du bureau, et raccourcis à modifier
+dans Configuration du système > Raccourcis. Ne pas installer les deux à la
+fois : un seul service peut porter le nom D-Bus `org.openheadset.Control`.
 
-Construction locale (outil `flatpak-builder`, environnement KDE 6.11 de
-Flathub) :
+Activation D-Bus : Flatpak n'exporte un fichier d'activation que sous
+l'identifiant de l'application. Le service y est déclaré sous
+`io.github.asfax03l.openheadset_control` et prend aussi
+`org.openheadset.Control` ; le client KDE du Flatpak le démarre par ce nom.
+Un client hors du Flatpak (widget Plasma, `ctl` de l'archive) trouve le
+service dès qu'il tourne, mais ne peut pas le démarrer : ouvrir
+l'application une fois, ou `flatpak run --command=momentum-daemon
+io.github.asfax03l.openheadset_control`.
+
+### Migration des réglages
+
+Le Flatpak ne voit pas les dossiers des autres installations : la reprise
+se fait une fois, hors du bac à sable, par
+`packaging/flatpak/migrer-reglages.sh`. Il copie préréglages, scènes,
+raccourcis, panneau rapide, thème, historique de la batterie et profil
+depuis l'ancien Flatpak (`~/.var/app/org.openheadset.Control/`), sinon
+depuis l'installation par script ou par paquet (`~/.local/share`), vers le
+nouveau Flatpak. Copie seulement : rien n'est supprimé, un fichier déjà
+présent est gardé, et `--essai` montre d'abord ce qui serait copié.
+`--depuis flatpak` ou `--depuis local` choisit la source.
+
+À lancer **avant le premier lancement** du nouveau Flatpak (sinon il crée
+ses fichiers par défaut, qui sont alors gardés) et application fermée :
 
 ```bash
-flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/org.openheadset.Control.yml
+curl -fsSLO https://raw.githubusercontent.com/Asfax03L/openheadset-control/v0.13.0/packaging/flatpak/migrer-reglages.sh
 ```
+```bash
+sh migrer-reglages.sh --essai
+```
+```bash
+sh migrer-reglages.sh
+```
+
+Autre voie, sans script : exporter les réglages depuis l'ancienne
+installation dans Documents, puis les importer dans le Flatpak (page
+Paramètres, ou `ctl reglages exporter` puis `ctl reglages importer` ;
+l'historique de la batterie seulement avec `--avec-batterie`).
+
+### Construction locale
+
+Outil `flatpak-builder`, environnement KDE 6.11 de Flathub. Les sources
+Cargo sont d'abord figées (réseau et `python3` nécessaires), puis la
+construction se fait sans réseau :
+
+```bash
+sh packaging/flatpak/sources-cargo.sh
+```
+```bash
+flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/io.github.asfax03l.openheadset_control.yml
+```
+
+Préparation de la soumission à Flathub : [`FLATHUB.md`](FLATHUB.md).
 
 
 ## Installer les paquets Debian et Fedora
@@ -152,20 +204,20 @@ Télécharger le paquet et son fichier `.sha256` depuis la même publication,
 puis vérifier l'empreinte (remplacer le nom par celui téléchargé) :
 
 ```sh
-paquet=openheadset-control_0.12.0-1_amd64.deb
+paquet=openheadset-control_0.13.0-1_amd64.deb
 sha256sum -c "$paquet.sha256"
 ```
 
 Debian 13 / Ubuntu 26.04 :
 
 ```sh
-sudo apt install ./openheadset-control_0.12.0-1_amd64.deb
+sudo apt install ./openheadset-control_0.13.0-1_amd64.deb
 ```
 
 Fedora 43 et suivantes (vérifiées en CI : 43 et 44) :
 
 ```sh
-sudo dnf install ./openheadset-control-0.12.0-1.x86_64.rpm
+sudo dnf install ./openheadset-control-0.13.0-1.x86_64.rpm
 ```
 
 Les fichiers vont dans `/usr`. Aucun script du paquet ne démarre le

@@ -5,7 +5,11 @@ pour tout ce qui passe par le casque, mais pensée pour un PC portable (souris,
 clavier, grand écran, barre système). L'icône reste le raccourci vers la
 fenêtre principale.
 
-**État au 24/10/2026** : dernière publication **v0.12.0** (jalon 0.12 :
+**État au 24/10/2026** : dernière publication **v0.13.0** (jalon
+0.13-bêta : Flatpak construit sans réseau à partir de sources figées,
+nouvel identifiant `io.github.asfax03l.openheadset_control`, permissions
+revues, migration des réglages ; soumission à Flathub préparée dans
+`FLATHUB.md`, pas encore envoyée). Avant elle, v0.12.0 (jalon 0.12 :
 client GNOME en GTK 4 et libadwaita, première étape — page Accueil — et
 parité définie avec le client KDE dans `PARITE.md`, étapes suivantes
 comprises). Avant elle, v0.11.0 (jalon 0.11 :
@@ -95,7 +99,7 @@ et date de l'essai sur le casque.
 | **0.10** (confort et audio Linux) ✅ | Audio Linux en lecture seule, petites fonctions à fort gain, `ctl` plus scriptable | Observations PipeWire cohérentes avec les réglages son du bureau ; aucun changement de routage silencieux ; chaque fonction essayée sur le casque |
 | **0.11** (sécurité et qualité) ✅ | Service durci, chaîne de confiance, tests automatisés | Service limité au Bluetooth et à ses fichiers ; suite d'essais rejouée avant la publication ; provenance vérifiable de chaque paquet |
 | **0.12** (GNOME) ✅ | Interface GTK 4 / libadwaita cliente du même service | Parité définie avec le client KDE, sans connexion directe au casque |
-| **0.13-bêta** (distribution) | Flatpak à sources figées et Flathub | Installation, mise à jour et désinstallation propres sur Bazzite et Windows ; paquet accepté sur Flathub |
+| **0.13-bêta** (distribution) 🟡 | Flatpak à sources figées et Flathub | Installation, mise à jour et désinstallation propres sur Bazzite et Windows ; paquet accepté sur Flathub |
 | **0.14** (paquets natifs) | Installateur Windows, winget, `.deb`, `.rpm`, AUR, KDE Store | Pour chaque format : installation, mise à jour par-dessus la version précédente et désinstallation propres, puis essai sur le casque |
 | **0.15** (intégration au bureau) | KRunner, widgets Windows, mode jeu | Chaque intégration passe par l'API du service, avec les mêmes refus que les interfaces |
 | **0.16** (langues, accessibilité, accueil) | Anglais, accessibilité, premier lancement, documentation | Interfaces complètes en anglais ; parcours au clavier et au lecteur d'écran sans blocage |
@@ -152,6 +156,9 @@ avec `rpm-ostree` ; le Flatpak est la voie prévue), et Kubuntu 24.04 LTS
 **0.13-bêta — distribution**
 - Flatpak à sources figées (hors ligne), permissions revues, migration des
   réglages ; soumission à **Flathub**.
+- Fait en v0.13.0 : tout sauf la soumission, préparée (`FLATHUB.md`) et
+  attendant l'accord du mainteneur ; le critère « paquet accepté sur
+  Flathub » reste ouvert.
 
 **0.14 — paquets natifs**
 - Windows : installateur par utilisateur, sans droits administrateur

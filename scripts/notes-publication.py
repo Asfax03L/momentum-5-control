@@ -20,6 +20,8 @@ ROOT = Path(__file__).resolve().parent.parent
 REPO = "https://github.com/Asfax03L/openheadset-control"
 TODO = "À faire après la mise à jour"
 BRIEF = "En bref"
+FLATPAK_ID = "io.github.asfax03l.openheadset_control"
+OLD_FLATPAK_ID = "org.openheadset.Control"
 FIRST_PUBLIC = (0, 8, 0)
 
 
@@ -165,26 +167,43 @@ def main():
     if flatpak:
         w("### Flatpak (recommandé sur Bazzite)")
         w("")
+        w(f"Identifiant : `{FLATPAK_ID}` (depuis la v0.13.0 ; "
+          f"`{OLD_FLATPAK_ID}` avant).")
+        w("")
         w("1. Quitter OpenHeadset Control (menu de l'icône > Quitter), puis arrêter "
-          "l'ancien service s'il tourne :")
+          "le service s'il tourne :")
         w("   ```sh")
-        w("   flatpak kill org.openheadset.Control")
+        w(f"   flatpak kill {FLATPAK_ID}; flatpak kill {OLD_FLATPAK_ID}")
         w("   ```")
-        w("2. Première installation :")
+        w(f"2. Venant d'un Flatpak `{OLD_FLATPAK_ID}` (v0.12.0 et avant) : "
+          "le désinstaller ; ses réglages restent sur le disque pour la "
+          "migration (étape 4).")
         w("   ```sh")
-        w(f"   flatpak install --user ./{flatpak}")
+        w(f"   flatpak uninstall --user {OLD_FLATPAK_ID}")
         w("   ```")
-        w("   Mise à jour d'une version déjà installée :")
+        w("   Venant de l'archive Linux : `./installer-linux.sh --desinstaller` "
+          "depuis le dossier de l'archive (réglages gardés). Un seul service "
+          "peut porter le nom D-Bus `org.openheadset.Control`.")
+        w("3. Installation, ou mise à jour d'une version déjà installée :")
         w("   ```sh")
         w(f"   flatpak install --user --reinstall ./{flatpak}")
         w("   ```")
-        w("3. Relancer « OpenHeadset Control » depuis le menu des applications, "
-          "ou `flatpak run org.openheadset.Control`.")
+        w("4. Une seule fois, **avant le premier lancement** si une ancienne "
+          "installation existe : reprise des réglages, scènes et historique "
+          "(copie seulement, rien n'est supprimé ni écrasé ; `--essai` "
+          "montre d'abord ce qui sera copié).")
+        w("   ```sh")
+        w(f"   curl -fsSLO https://raw.githubusercontent.com/Asfax03L/openheadset-control/{tag}/packaging/flatpak/migrer-reglages.sh")
+        w("   sh migrer-reglages.sh --essai")
+        w("   sh migrer-reglages.sh")
+        w("   ```")
+        w("5. Relancer « OpenHeadset Control » depuis le menu des applications, "
+          f"ou `flatpak run {FLATPAK_ID}`.")
         w("")
-        w("Réglages : `~/.var/app/org.openheadset.Control/` (conservés par "
+        w(f"Réglages : `~/.var/app/{FLATPAK_ID}/` (conservés par "
           "`--reinstall`). `ctl` : `flatpak run --command=ctl "
-          "org.openheadset.Control etat`. Désinstaller : "
-          "`flatpak uninstall --user org.openheadset.Control`.")
+          f"{FLATPAK_ID} etat`. Désinstaller : "
+          f"`flatpak uninstall --user {FLATPAK_ID}`.")
         if tar:
             w("")
             w("Widget Plasma avec le Flatpak : il n'est pas dans le Flatpak. "
@@ -202,7 +221,8 @@ def main():
           "Si OpenHeadset Control a été installé avant par l'archive, le "
           "désinstaller d'abord depuis le dossier de cette archive : "
           "`./installer-linux.sh --desinstaller` ; s'il a été installé en "
-          "Flatpak : `flatpak uninstall --user org.openheadset.Control`. "
+          f"Flatpak : `flatpak uninstall --user {FLATPAK_ID}` (ou "
+          f"`{OLD_FLATPAK_ID}` avant la v0.13.0). "
           "Les réglages sont gardés.")
         w("")
         if deb:
@@ -282,7 +302,7 @@ def main():
     w("## Après la mise à jour : contrôler")
     w("")
     w(f"- `ctl --version` doit afficher `ctl {tag[1:]}` (Flatpak : "
-      "`flatpak run --command=ctl org.openheadset.Control --version` ; Windows : "
+      f"`flatpak run --command=ctl {FLATPAK_ID} --version` ; Windows : "
       "`& \"$env:LOCALAPPDATA\\Programs\\momentum-ctl-win\\ctl.exe\" --version`) ; "
       "la page « À propos » de l'interface donne aussi la version.")
     w("- `ctl etat` affiche la batterie et le mode de bruit. Si le casque "

@@ -24,8 +24,8 @@ permissions:
   contents: read
 
 env:
-  MANIFESTE: packaging/flatpak/io.github.asfax03l.OpenHeadsetControl.yml
-  APP: io.github.asfax03l.OpenHeadsetControl
+  MANIFESTE: packaging/flatpak/io.github.asfax03l.openheadset_control.yml
+  APP: io.github.asfax03l.openheadset_control
 
 jobs:
   sources:
