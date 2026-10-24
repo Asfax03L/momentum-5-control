@@ -3,7 +3,7 @@
 # (docs/FLATHUB.md), sans rien envoyer :
 #   sh packaging/flatpak/flathub.sh v0.13.0 dossier
 # Écrit dans « dossier » :
-#   - io.github.asfax03l.OpenHeadsetControl.yml : le manifeste du dépôt,
+#   - io.github.asfax03l.openheadset-control.yml : le manifeste du dépôt,
 #     source du code remplacée par l'étiquette et sa révision (git) ;
 #   - cargo-sources.json : sources Cargo figées de cette révision ;
 #   - flathub.json : x86_64 seulement (le seul essayé sur le casque).
@@ -12,7 +12,7 @@ set -eu
 tag=$1
 sortie=$2
 cd "$(dirname "$0")/../.."
-app=io.github.asfax03l.OpenHeadsetControl
+app=io.github.asfax03l.openheadset-control
 revision=$(git rev-parse --verify "refs/tags/$tag^{commit}")
 [ "$(git rev-parse HEAD)" = "$revision" ] ||
     { echo "Extraire d'abord l'étiquette : git checkout $tag" >&2; exit 1; }

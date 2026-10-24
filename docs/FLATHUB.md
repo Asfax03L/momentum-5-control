@@ -9,10 +9,10 @@ reste à faire.
 
 | Exigence de Flathub | Où | État |
 |---|---|---|
-| Identifiant d'un domaine contrôlé par l'auteur | `io.github.asfax03l.OpenHeadsetControl` (compte GitHub `Asfax03L`) | ✅ |
+| Identifiant d'un domaine contrôlé par l'auteur | `io.github.asfax03l.openheadset-control` (compte GitHub `Asfax03L`) | ✅ |
 | Construction sans réseau, sources figées | manifeste sans `--share=network` ; `cargo-sources.json` produit depuis `Cargo.lock` (empreinte de chaque crate) | ✅ CI |
 | Contrôle `flatpak-builder-lint` (manifeste et dépôt construit) | tâche `flatpak` de la CI ; seules restent, pour le dépôt, les deux erreurs de copie des captures d'écran, que fait l'infrastructure de Flathub | ✅ CI |
-| Fiche AppStream valide, en anglais avec traduction française | `assets/linux/io.github.asfax03l.OpenHeadsetControl.metainfo.xml` | ✅ CI |
+| Fiche AppStream valide, en anglais avec traduction française | `assets/linux/io.github.asfax03l.openheadset-control.metainfo.xml` | ✅ CI |
 | Captures d'écran, notes de version, couleurs, classement OARS | fiche AppStream | ✅ |
 | Fichier d'activation D-Bus, entrée de menu et icône sous l'identifiant | `packaging/flatpak/installer-flatpak.sh`, vérifié par la CI | ✅ CI |
 | Permissions justifiées, sans joker | manifeste (commentaire par permission) | ✅ |
@@ -54,12 +54,12 @@ Le dossier contient le manifeste (source git : étiquette et révision),
 Procédure de Flathub (<https://docs.flathub.org/docs/for-app-authors/submission>) :
 dupliquer `flathub/flathub` en gardant toutes les branches, partir de la
 branche `new-pr`, y ajouter les trois fichiers, puis ouvrir la PR vers
-`new-pr` avec le titre `Add io.github.asfax03l.OpenHeadsetControl`.
+`new-pr` avec le titre `Add io.github.asfax03l.openheadset-control`.
 
 Texte de la PR, prêt à coller (Flathub demande l'anglais) :
 
 ```text
-Add io.github.asfax03l.OpenHeadsetControl
+Add io.github.asfax03l.openheadset-control
 
 OpenHeadset Control is an unofficial desktop controller for the Sennheiser
 MOMENTUM 5 headphones (KDE client, background service and `ctl` CLI). I am
@@ -86,10 +86,10 @@ the screenshot-mirroring errors remain (mirroring is done by Flathub).
 
 ## Après l'acceptation
 
-- Le dépôt `flathub/io.github.asfax03l.OpenHeadsetControl` reçoit chaque
+- Le dépôt `flathub/io.github.asfax03l.openheadset-control` reçoit chaque
   nouvelle version : étiquette, révision et `cargo-sources.json` mis à
   jour par `flathub.sh`.
 - Vérification du domaine (badge « vérifié ») : par le compte GitHub
   `Asfax03L` sur le site de Flathub.
 - La documentation passera de « installer le fichier `.flatpak` » à
-  `flatpak install flathub io.github.asfax03l.OpenHeadsetControl`.
+  `flatpak install flathub io.github.asfax03l.openheadset-control`.
