@@ -12,6 +12,87 @@ refuse de publier sans elles) :
 - « À faire après la mise à jour » : les actions concrètes par système,
   ou « Rien de particulier » avec la raison.
 
+## Non publié
+
+### En bref
+Version de confiance et de solidité, sans nouveau réglage du casque :
+- **Linux, service plus sûr** : le service ne peut plus toucher qu'au
+  Bluetooth, à D-Bus, à son propre dossier et à `~/Documents` (export du
+  profil). Même s'il était piraté, il ne pourrait ni lire ni modifier le
+  reste de vos fichiers.
+- **Téléchargements vérifiables** : chaque fichier publié est accompagné
+  d'une preuve signée par GitHub de l'endroit où il a été construit, et de
+  la liste de toutes les bibliothèques qu'il contient (SBOM). Mode
+  d'emploi dans `docs/VERIFIER.md`.
+- **Notes de publication détaillées** : chaque publication dit quel
+  fichier télécharger, comment installer ou mettre à jour pas à pas, et
+  quoi faire après la mise à jour.
+- **`ctl essais`** : une suite d'essais qui vérifie, sur votre casque, que
+  chaque réglage validé s'écrit, se relit et revient à sa valeur
+  d'origine.
+
+Concerne surtout Linux (service durci) ; les vérifications de
+téléchargement concernent tout le monde.
+
+### À faire après la mise à jour
+- **Linux, installation par l'archive** : `./installer-linux.sh` relance
+  lui-même le service avec les nouvelles protections ; rien de plus.
+- **Linux, `.deb` ou `.rpm`** : après la mise à jour du paquet, recharger
+  systemd et relancer le service, pour qu'il démarre avec les nouvelles
+  protections :
+  `systemctl --user daemon-reload && systemctl --user try-restart momentum-daemon.service`.
+- **Linux, export du profil auditif** : le service n'écrit plus que dans
+  `~/Documents` ; choisir un dossier à l'intérieur (ou y exporter, puis
+  déplacer le fichier).
+- **Flatpak et Windows** : rien de particulier, le service n'a pas changé
+  (le Flatpak a déjà son propre bac à sable).
+
+### Sécurité et confiance (jalon 0.11)
+- **Service Linux durci** (PR #44) : unité systemd commune à l'archive,
+  au `.deb` et au `.rpm` (`ProtectSystem=strict`, dossier personnel en
+  lecture seule sauf les données du service et `~/Documents`, réseau
+  limité à `AF_UNIX` et `AF_BLUETOOTH`, aucune capacité, filtre d'appels
+  système). Score `systemd-analyze security` : 9,4 avant, 1,5 après.
+  Essayé sur le casque (connexion, lecture, anti-vent écrit puis remis).
+  CI : tâche `service-durci` (score maximal 2,5 et démarrage réel du
+  service). Étude des droits réduits sous Windows dans
+  `docs/SECURITE.md` : rien changé pour l'instant.
+- **Provenance et SBOM des publications** (PR #45) : attestations de
+  provenance GitHub (Sigstore) sur chaque paquet, inventaire CycloneDX 1.5
+  de toutes les dépendances joint à la publication, essai à blanc du
+  workflow à la main. `docs/VERIFIER.md` : empreintes, `gh attestation
+  verify`, lecture du SBOM, premiers résultats de reproductibilité (`ctl`
+  identique octet pour octet entre deux constructions).
+- **Notes de publication détaillées** (PR #46) : générées par
+  `scripts/notes-publication.py` depuis ce journal et les noms réels des
+  fichiers (« En bref », « À faire après la mise à jour », fichier à
+  télécharger, installation par système, vérification, contrôle après
+  mise à jour). Sans ces deux sous-sections, la publication est refusée.
+
+### `ctl`
+- **`ctl essais`** (PR #49) : rejoue les 12 écritures validées sur le M5,
+  chacune écrite, relue, remise à sa valeur d'origine et relue ; arrêt à
+  la première anomalie, après une tentative de remise. `--liste` choisit
+  les essais (tous par défaut), `--simulation` montre le plan sans rien
+  écrire, `--rapport` écrit un compte rendu en Markdown sans donnée
+  personnelle. Jamais le nom, le
+  multipoint, les connexions ni le profil auditif. Essayé sur le casque
+  (micrologiciel 6.21.5, 24/10/2026) : 12 réussis sur 12, état d'origine
+  retrouvé. Juste après le démarrage du service, attendre quelques
+  secondes : les réglages pas encore lus sont « sautés ».
+
+### Qualité
+- **Couverture des tests** (PR #47) : tâche CI `couverture`
+  (`cargo-llvm-cov`), échec si le protocole passe sous 80 % des lignes ;
+  descriptions des trames (`probe`, journaux) désormais testées.
+- **Budget de ressources** (PR #48) : tâche CI `ressources` qui mesure la
+  mémoire et le temps processeur du service et du client KDE au repos
+  (seuils : 40 Mio et 3 s pour le service, 450 Mio et 15 s pour le
+  client) ; script équivalent pour WinUI. Méthode et chiffres dans
+  `docs/RESSOURCES.md`.
+- CI : YAML de la tâche `couverture` réparé (PR #50), qui empêchait toute
+  la CI principale de tourner.
+
 ## v0.10.0 — 23/10/2026
 
 Essais sur le casque (M5, micrologiciel 6.21.5, Bazzite, 23/10/2026) :
