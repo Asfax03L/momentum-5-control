@@ -172,6 +172,50 @@ jobs:
           cat daemon.log
           grep -q "service OpenHeadset Control prêt" daemon.log
 
+  # Couverture des tests (cargo-llvm-cov, sans service tiers) : résumé dans
+  # l'onglet Summary, seuil sur le cœur du protocole (trames, messages, SDP).
+  couverture:
+    runs-on: ubuntu-24.04
+    env:
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+    steps:
+      - uses: actions/checkout@v7
+      - run: sudo apt-get update && sudo apt-get install -y dbus-daemon libdbus-1-dev pkg-config
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.0"
+          components: llvm-tools-preview
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo install cargo-llvm-cov --version 0.9.1 --locked
+      - run: cargo llvm-cov --locked --json --summary-only --output-path couverture.json
+      - name: Résumé et seuil du protocole
+        run: |
+          python3 - <<'PY'
+          import json, os
+          files = json.load(open("couverture.json"))["data"][0]["files"]
+          total = json.load(open("couverture.json"))["data"][0]["totals"]["lines"]
+          protocol = [f for f in files
+                      if "/momentum-core/src/protocol/" in f["filename"]
+                      or f["filename"].endswith("/momentum-core/src/sdp.rs")]
+          count = sum(f["summary"]["lines"]["count"] for f in protocol)
+          covered = sum(f["summary"]["lines"]["covered"] for f in protocol)
+          percent = 100 * covered / count
+          lines = ["| Fichier | Lignes couvertes |", "|---|---|"]
+          for f in protocol:
+              name = f["filename"].split("/momentum-core/src/")[1]
+              lines.append(f"| {name} | {f['summary']['lines']['percent']:.1f} % |")
+          lines.append(f"| **protocole et SDP** | **{percent:.1f} %** |")
+          lines.append(f"| espace de travail | {total['percent']:.1f} % |")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
+              out.write("### Couverture des tests\n\n" + "\n".join(lines) + "\n")
+          print("\n".join(lines))
+          # Seuil : valeur du 23/10/2026 (82,6 % sous Windows) moins 2 points,
+          # arrondie à l'unité inférieure.
+          if percent < 80:
+              raise SystemExit(f"couverture du protocole {percent:.1f} % < 80 %")
+          PY
+
   # Version minimale de Rust annoncée (rust-version) : 1.89 pour l'ensemble,
   # 1.95 pour l'interface WinUI. RUSTUP_TOOLCHAIN passe outre
   # rust-toolchain.toml (version de travail).
@@ -192,7 +236,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+        run: sudo apt-get update && sudo apt-get install -y dbus-daemon libdbus-1-dev pkg-config
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}

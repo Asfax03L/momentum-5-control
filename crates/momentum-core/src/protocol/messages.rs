@@ -569,3 +569,124 @@ fn describe_extended(request: CommandId, p: &[u8]) -> Option<Result<String, Prot
         return None;
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn text(command: CommandId, payload: &[u8]) -> String {
+        describe(&Frame::new(
+            VENDOR_SENNHEISER,
+            command.response(),
+            payload.to_vec(),
+        ))
+    }
+
+    #[test]
+    fn every_documented_reading_is_described() {
+        // Payloads de la forme documentée pour chaque lecture ; seul le
+        // texte est vérifié (aucune trame n'est envoyée).
+        let cases: &[(CommandId, &[u8], &str)] = &[
+            (get::BATTERY, &[42], "batterie 42 %"),
+            (get::MODEL_NAME, b"M5\0", "modèle « M5 »"),
+            (get::SMART_PAUSE, &[1], "Smart Pause activée"),
+            (get::ON_HEAD_DETECTION, &[0], "détection de port désactivée"),
+            (get::AUTO_ANSWER, &[1], "décroché automatique activé"),
+            (get::COMFORT_CALL, &[0], "Comfort Call désactivé"),
+            (get::LOW_LATENCY, &[1], "faible latence activée"),
+            (get::BASS_BOOST, &[1], "Bass Boost activé"),
+            (get::SIDETONE, &[3], "sidetone niveau 3"),
+            (get::PROMPT_MODE, &[2], "tonalités et voix"),
+            (get::PROMPT_MODE, &[9], "invites : valeur 9"),
+            (
+                get::PROMPT_LANGUAGE,
+                &[2],
+                "langue des invites 2 (français)",
+            ),
+            (get::PROMPT_LANGUAGE, &[42], "(inconnue)"),
+            (get::BT_COMPATIBILITY, &[1], "Qualité audio avancée"),
+            (
+                get::BT_COMPATIBILITY,
+                &[0],
+                "haute résolution 24 bits/96 kHz",
+            ),
+            (
+                get::SOUND_PERSONALIZATION,
+                &[2],
+                "profil reçu par le casque",
+            ),
+            (get::SOUND_PERSONALIZATION, &[0], "aucun profil"),
+            (get::LOSSLESS, &[0], "mode sans perte"),
+            (get::SPATIAL_AUDIO, &[1], "audio spatial activé"),
+            (get::PROMPT_VOLUME, &[0], "volume des invites 0"),
+            (
+                get::BATTERY_PROTECTION,
+                &[1],
+                "protection de la batterie activée",
+            ),
+            (get::TOUCH_LOCK, &[1], "commandes tactiles désactivées"),
+            (get::TOUCH_LOCK, &[0], "commandes tactiles actives"),
+            (get::AUDIO_MODE, &[0, 2], "mode audio 2 (Speech Clarity)"),
+            (
+                get::TIMER,
+                &[0, 0x07, 0x08],
+                "extinction auto (id 0) = 30 min",
+            ),
+            (get::TIMER, &[0, 0, 0], "= jamais"),
+            (get::HARDWARE_REVISION, &[0, 3], "révision matérielle 3"),
+            (get::PAIRED_LIST_SIZE, &[2], "2 appareil(s) appairé(s)"),
+            (
+                get::PAIRED_DEVICE_INFO,
+                b"\x01\x00\x01Casque demo\0",
+                "appareil n°1 « Casque demo », connecté",
+            ),
+            (get::TRANSPARENCY_LEVEL, &[50], "niveau de transparence 50"),
+        ];
+        for (command, payload, expected) in cases {
+            let text = text(*command, payload);
+            assert!(text.contains(expected), "{command}: « {text} »");
+            assert!(!text.contains("non interprété"), "{text}");
+        }
+    }
+
+    #[test]
+    fn short_payloads_are_reported_without_panicking() {
+        for command in [
+            get::BATTERY,
+            get::SIDETONE,
+            get::PROMPT_MODE,
+            get::AUDIO_MODE,
+            get::TIMER,
+            get::HARDWARE_REVISION,
+            get::PAIRED_LIST_SIZE,
+            get::PAIRED_DEVICE_INFO,
+            get::TRANSPARENCY_LEVEL,
+        ] {
+            let text = text(command, &[]);
+            assert!(text.contains("payload"), "{command}: « {text} »");
+        }
+    }
+
+    #[test]
+    fn other_kinds_and_vendors_are_described_by_their_fields() {
+        let error = describe(&Frame::new(
+            VENDOR_SENNHEISER,
+            get::BATTERY.error(),
+            vec![0x80],
+        ));
+        assert!(error.contains("ERREUR") && error.contains("80"), "{error}");
+        let request = describe(&Frame::new(VENDOR_SENNHEISER, get::BATTERY, vec![]));
+        assert!(request.contains("requête") && request.contains("non interprété"));
+        let other = describe(&Frame::new(0x1234, get::BATTERY.response(), vec![1, 2]));
+        assert!(
+            other.contains("vendor 0x1234") && other.contains("01, 02"),
+            "{other}"
+        );
+        let unknown = describe(&Frame::new(
+            VENDOR_SENNHEISER,
+            CommandId::new(0x7F7F).response(),
+            vec![7],
+        ));
+        assert!(unknown.contains("non interprété"), "{unknown}");
+    }
+}
