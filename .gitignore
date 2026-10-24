@@ -6,3 +6,4 @@ packaging/flatpak/cargo-sources.json
 /build-flatpak
 /.flatpak-builder
 /repo
+__pycache__/
