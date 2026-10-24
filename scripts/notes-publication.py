@@ -73,7 +73,9 @@ def main():
     deb = find(files, r"\.deb$")
     rpm = find(files, r"\.rpm$")
     sbom = find(files, r"sbom.*\.tar\.gz$")
-    known = {zip_, tar, flatpak, deb, rpm, sbom}
+    exe = find(files, r"-windows-x86_64-installateur\.exe$")
+    plasmoid = find(files, r"\.plasmoid$")
+    known = {zip_, tar, flatpak, deb, rpm, sbom, exe, plasmoid}
     others = [f for f in files if f not in known]
     tar_dir = tar[: -len(".tar.gz")] if tar else None
     zip_dir = zip_[: -len(".zip")] if zip_ else None
@@ -109,8 +111,10 @@ def main():
     w("")
     w("| Votre système | Fichier | Contenu |")
     w("|---|---|---|")
+    if exe:
+        w(f"| Windows 10 ou 11 (x64), **recommandé** | `{exe}` | installateur : interface WinUI 3, service, `ctl` ; désinstallation par Paramètres > Applications |")
     if zip_:
-        w(f"| Windows 10 ou 11 (x64) | `{zip_}` | interface WinUI 3, service, `ctl`, `probe`, installateur |")
+        w(f"| Windows 10 ou 11 (x64), sans installateur | `{zip_}` | interface WinUI 3, service, `ctl`, `probe`, script `installer.ps1` |")
     if flatpak:
         w(f"| Bazzite, SteamOS, Linux en lecture seule, ou toute distribution avec Flatpak | `{flatpak}` | client KDE, service, `ctl` |")
     if deb:
@@ -120,6 +124,8 @@ def main():
     if tar:
         widget = ", widget Plasma" if v09 else ""
         w(f"| Autre Linux avec KDE Plasma 6 | `{tar}` | client KDE, service, `ctl`{widget}, installateur sans sudo |")
+    if plasmoid:
+        w(f"| Widget Plasma seul (avec le Flatpak, par exemple) | `{plasmoid}` | widget pour le panneau ou le bureau |")
     if sbom:
         w(f"| (vérification) | `{sbom}` | inventaire des dépendances (SBOM CycloneDX) |")
     for f in others:
@@ -138,8 +144,25 @@ def main():
     w("La même procédure sert pour une première installation et pour une "
       "mise à jour : la version en place est remplacée, vos réglages restent.")
     w("")
+    if exe:
+        w("### Windows : installateur (recommandé)")
+        w("")
+        w("Prérequis : Bluetooth, casque appairé et connecté au PC, "
+          "[Windows App Runtime 2](https://aka.ms/windowsappsdk/2.0/latest/windowsappruntimeinstall-x64.exe) "
+          "(l'installateur prévient s'il manque et n'installe rien).")
+        w("")
+        w(f"1. Télécharger `{exe}` et l'ouvrir (SmartScreen : « Informations "
+          "complémentaires » > « Exécuter quand même »). Sans droits administrateur.")
+        w("2. Il arrête la version en place (installée par lui ou par "
+          "`installer.ps1`), la remplace dans "
+          "`%LOCALAPPDATA%\\Programs\\momentum-ctl-win` et propose de lancer l'interface.")
+        w("")
+        w("Réglages : `%LOCALAPPDATA%\\momentum-ctl-win` (conservés). "
+          "Désinstaller : Paramètres > Applications > Applications installées > "
+          "OpenHeadset Control.")
+        w("")
     if zip_:
-        w("### Windows")
+        w("### Windows : archive et script" if exe else "### Windows")
         w("")
         w("Prérequis : Bluetooth, casque appairé et connecté au PC "
           "(Paramètres > Bluetooth et appareils), "
@@ -204,7 +227,15 @@ def main():
           "`--reinstall`). `ctl` : `flatpak run --command=ctl "
           f"{FLATPAK_ID} etat`. Désinstaller : "
           f"`flatpak uninstall --user {FLATPAK_ID}`.")
-        if tar:
+        if plasmoid:
+            w("")
+            w("Widget Plasma avec le Flatpak : il n'est pas dans le Flatpak. "
+              f"L'installer ou le mettre à jour avec `{plasmoid}` :")
+            w("```sh")
+            w(f"kpackagetool6 --type Plasma/Applet --upgrade {plasmoid} \\")
+            w(f"  || kpackagetool6 --type Plasma/Applet --install {plasmoid}")
+            w("```")
+        elif tar:
             w("")
             w("Widget Plasma avec le Flatpak : il n'est pas dans le Flatpak. "
               f"L'installer ou le mettre à jour depuis l'archive Linux `{tar}` :")

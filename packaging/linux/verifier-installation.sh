@@ -8,6 +8,9 @@ fi
 test "$(id -u)" -eq 0
 family=${1:-}
 package=${2:-}
+# Facultatif : paquet de la version précédente, installé d'abord pour
+# essayer la mise à jour par-dessus.
+previous=${3:-}
 test -f "$package"
 test "$(sha256sum "$package" | cut -d' ' -f1)" = "$(cat "$package.sha256")"
 test_root=$(mktemp -d)
@@ -33,6 +36,10 @@ case "$family" in
             'path-include=/usr/share/doc/openheadset-control/*' \
             > /etc/dpkg/dpkg.cfg.d/zz-openheadset-controle
         apt-get update -qq
+        if [ -n "$previous" ]; then
+            DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$previous"
+            echo "version précédente : $(/usr/bin/ctl --version)"
+        fi
         DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             "$package" binutils
         dpkg-query -L openheadset-control > "$test_root/contenu"
@@ -43,10 +50,23 @@ case "$family" in
             test "$(rpm -qp --qf "%{$hook}" "$package")" = "(none)"
         done
         test "$(rpm -qp --qf '%{POSTUN}' "$package")" = "$(cat packaging/rpm/apres-retrait.sh)"
+        if [ -n "$previous" ]; then
+            dnf install -y "$previous"
+            echo "version précédente : $(/usr/bin/ctl --version)"
+        fi
         dnf install -y "$package" binutils
         rpm -ql openheadset-control > "$test_root/contenu"
         ;;
-    *) echo "Famille attendue : deb ou rpm." >&2; exit 2 ;;
+    pacman)
+        # Aucun script d'installation (.INSTALL) dans le paquet.
+        ! bsdtar -tf "$package" | grep -qx '.INSTALL'
+        pacman -U --noconfirm "$package"
+        # Réinstallation par-dessus (pas encore de version précédente sur
+        # l'AUR).
+        pacman -U --noconfirm "$package"
+        pacman -Qlq openheadset-control > "$test_root/contenu"
+        ;;
+    *) echo "Famille attendue : deb, rpm ou pacman." >&2; exit 2 ;;
 esac
 sha256sum -c "$test_root/temoin.sha256"
 # L'installation n'a ajouté aucun fichier dans le dossier personnel.
@@ -61,6 +81,8 @@ for executable in ctl momentum-daemon momentum-kirigami; do
     ldd "/usr/bin/$executable" > "$test_root/liaison"
     if grep -q 'not found' "$test_root/liaison"; then cat "$test_root/liaison"; exit 1; fi
 done
+version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
+test "$(/usr/bin/ctl --version)" = "ctl $version"
 /usr/bin/ctl --help > "$test_root/aide"
 /usr/bin/ctl man > "$test_root/manuel"
 grep -q etat "$test_root/aide"
@@ -94,6 +116,7 @@ fi
 case "$family" in
     deb) DEBIAN_FRONTEND=noninteractive apt-get purge -y openheadset-control ;;
     rpm) dnf remove -y openheadset-control ;;
+    pacman) pacman -Rns --noconfirm openheadset-control ;;
 esac
 while IFS= read -r path; do
     test ! -e "$path"

@@ -81,6 +81,20 @@ jobs:
       - name: Essai de l'interface WinUI (UI Automation)
         shell: pwsh
         run: ./scripts/essai-interface-winui.ps1 -Exe target/debug/momentum-winui.exe
+      # Installateur Windows (Inno Setup) : mise à jour par-dessus la
+      # version publiée précédente (installer.ps1), réinstallation, puis
+      # désinstallation propre.
+      - run: cargo build --release --locked -p momentum-daemon -p momentum-cli
+      - name: Installateur Windows
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.*)"$' | Select-Object -First 1).Matches.Groups[1].Value
+          ./packaging/windows/construire-installateur.ps1 -Version $version -Bin target/release -Sortie installateur
+          gh release download v0.13.0 -p '*-windows-x86_64.zip' -D precedente
+          Expand-Archive precedente/*.zip -DestinationPath precedente
+          ./scripts/essai-installateur-windows.ps1 -Installateur "installateur/openheadset-control-v$version-windows-x86_64-installateur.exe" -Version $version -Precedente precedente/openheadset-control-v0.13.0-windows-x86_64
       - uses: actions/upload-artifact@v7
         if: failure()
         with:

@@ -1,0 +1,81 @@
+# Maintainer: Asfax03L <https://github.com/Asfax03L>
+#
+# PKGBUILD pour l'AUR (Arch Linux, CachyOS) : mêmes fichiers que les
+# paquets .deb et .rpm (client KDE, service, ctl, widget Plasma, manuel,
+# complétions). Compilé depuis l'archive de l'étiquette publiée.
+# packaging/aur/preparer.sh remplit la version et l'empreinte ; la CI le
+# construit et l'installe dans un conteneur Arch propre.
+pkgname=openheadset-control
+pkgver=@VERSION@
+pkgrel=1
+pkgdesc="Réglages du casque Sennheiser MOMENTUM 5 : client KDE, service et ctl (non officiel)"
+arch=('x86_64')
+url="https://github.com/Asfax03L/openheadset-control"
+license=('MIT OR Apache-2.0')
+depends=('gcc-libs' 'glibc' 'dbus' 'bluez' 'qt6-base' 'qt6-declarative'
+         'qt6-wayland' 'kirigami' 'qqc2-desktop-style')
+makedepends=('cargo' 'gzip')
+optdepends=('plasma-workspace: widget Plasma'
+            'pipewire: diagnostic audio (pw-dump)')
+options=('!lto')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('@SHA256@')
+
+prepare() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    export CARGO_TARGET_DIR=target
+    export QMAKE=/usr/bin/qmake6
+    cargo build --frozen --release -p momentum-kirigami -p momentum-daemon -p momentum-cli
+    mkdir -p target/aur/completions
+    target/release/ctl man | gzip -n > target/aur/ctl.1.gz
+    target/release/ctl completions bash > target/aur/completions/ctl.bash
+    target/release/ctl completions zsh > target/aur/completions/_ctl
+    target/release/ctl completions fish > target/aur/completions/ctl.fish
+}
+
+check() {
+    cd "$pkgname-$pkgver"
+    export RUSTUP_TOOLCHAIN=stable
+    cargo test --frozen -p momentum-core -p momentum-cli
+}
+
+package() {
+    cd "$pkgname-$pkgver"
+    install -Dm755 -t "$pkgdir/usr/bin" target/release/momentum-kirigami \
+        target/release/momentum-daemon target/release/ctl
+    install -Dm644 assets/linux/momentum-kirigami.desktop \
+        "$pkgdir/usr/share/applications/momentum-kirigami.desktop"
+    sed 's|ExecStart=%h/.local/bin/momentum-daemon|ExecStart=/usr/bin/momentum-daemon|' \
+        assets/linux/momentum-daemon.service |
+        install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/user/momentum-daemon.service"
+    sed 's|Exec=/bin/false|Exec=/usr/bin/momentum-daemon|' \
+        assets/linux/org.openheadset.Control.service |
+        install -Dm644 /dev/stdin "$pkgdir/usr/share/dbus-1/services/org.openheadset.Control.service"
+    sed 's|io.github.asfax03l.openheadset-control.desktop|momentum-kirigami.desktop|' \
+        assets/linux/io.github.asfax03l.openheadset-control.metainfo.xml |
+        install -Dm644 /dev/stdin "$pkgdir/usr/share/metainfo/io.github.asfax03l.openheadset-control.metainfo.xml"
+    install -Dm644 assets/logo/openheadset.svg \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/org.openheadset.control.svg"
+    for size in 16 22 24 32 48 64 128 256; do
+        install -Dm644 "assets/logo/png/$size.png" \
+            "$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/org.openheadset.control.png"
+    done
+    widget=plasma/org.openheadset.control.plasmoid
+    install -Dm644 "$widget/metadata.json" \
+        "$pkgdir/usr/share/plasma/plasmoids/org.openheadset.control.plasmoid/metadata.json"
+    install -Dm644 "$widget/contents/ui/main.qml" \
+        "$pkgdir/usr/share/plasma/plasmoids/org.openheadset.control.plasmoid/contents/ui/main.qml"
+    install -Dm644 target/aur/ctl.1.gz "$pkgdir/usr/share/man/man1/ctl.1.gz"
+    install -Dm644 target/aur/completions/ctl.bash "$pkgdir/usr/share/bash-completion/completions/ctl"
+    install -Dm644 target/aur/completions/_ctl "$pkgdir/usr/share/zsh/site-functions/_ctl"
+    install -Dm644 target/aur/completions/ctl.fish "$pkgdir/usr/share/fish/vendor_completions.d/ctl.fish"
+    install -Dm644 -t "$pkgdir/usr/share/licenses/$pkgname" LICENSE-MIT LICENSE-APACHE
+    install -Dm644 -t "$pkgdir/usr/share/doc/$pkgname" LICENSE-MIT LICENSE-APACHE
+}

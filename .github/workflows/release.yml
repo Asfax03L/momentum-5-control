@@ -3,10 +3,11 @@ name: Publication
 # Pousser une étiquette « v0.9.0 » (par exemple) construit et teste chaque
 # paquet, puis publie tout d'un coup (F09 de la revue) : rien n'est visible
 # tant qu'un paquet manque. Paquets prêts à installer sans Rust :
-#   - Windows : WinUI 3, service, ctl, probe et installer.ps1 ;
+#   - Windows : installateur (Inno Setup), et archive avec WinUI 3,
+#     service, ctl, probe et installer.ps1 ;
 #   - Linux : client KDE, service, ctl, widget Plasma et installer-linux.sh ;
 #   - Flatpak : client KDE, service et ctl ;
-#   - paquets .deb et .rpm ;
+#   - paquets .deb et .rpm ; widget Plasma seul (.plasmoid) ;
 #   - inventaire des dépendances (SBOM CycloneDX).
 # Chaque fichier est accompagné de son empreinte SHA-256 et d'une
 # attestation de provenance GitHub (docs/VERIFIER.md).
@@ -52,10 +53,21 @@ jobs:
           Copy-Item target/release/momentum-winui.exe, target/release/momentum-daemon.exe, target/release/ctl.exe, target/release/probe.exe $dir
           Copy-Item scripts/installer.ps1, README.md, LICENSE-MIT, LICENSE-APACHE $dir
           Compress-Archive -Path $dir -DestinationPath "$dir.zip"
+      # Installateur par utilisateur (Inno Setup), essayé en silencieux :
+      # installation, réinstallation, désinstallation (sans runtime sur le
+      # runner : l'interface n'y est pas lancée).
+      - name: Installateur
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.*)"$' | Select-Object -First 1).Matches.Groups[1].Value
+          ./packaging/windows/construire-installateur.ps1 -Version $version -Bin target/release -Sortie .
+          ./scripts/essai-installateur-windows.ps1 -Installateur "openheadset-control-v$version-windows-x86_64-installateur.exe" -Version $version -SansRuntime
       - uses: actions/upload-artifact@v7
         with:
           name: windows
-          path: openheadset-control-*-windows-x86_64.zip
+          path: |
+            openheadset-control-*-windows-x86_64.zip
+            openheadset-control-*-windows-x86_64-installateur.exe
           if-no-files-found: error
 
   linux:
@@ -81,16 +93,25 @@ jobs:
           cp -r assets/linux assets/logo "$dir/assets/"
           cp -r plasma "$dir/"
           cp scripts/installer-linux.sh README.md LICENSE-MIT LICENSE-APACHE "$dir/"
+          # Exécutable, comme l'indiquent les notes (./installer-linux.sh).
+          chmod 755 "$dir/installer-linux.sh"
           mkdir -p "$dir/man" "$dir/completions"
           target/release/ctl man > "$dir/man/ctl.1"
           target/release/ctl completions bash > "$dir/completions/ctl.bash"
           target/release/ctl completions zsh > "$dir/completions/_ctl"
           target/release/ctl completions fish > "$dir/completions/ctl.fish"
           tar -czf "$dir.tar.gz" "$dir"
+          tar -tvzf "$dir.tar.gz" "$dir/installer-linux.sh" | grep -q '^-rwxr-xr-x'
+          # Widget Plasma seul (KDE Store, kpackagetool6 -i) : métadonnées à
+          # la racine de l'archive.
+          (cd plasma/org.openheadset.control.plasmoid && zip -qrX "../../openheadset-control-${{ github.ref_name }}.plasmoid" .)
+          unzip -l "openheadset-control-${{ github.ref_name }}.plasmoid" | grep -q ' metadata.json$'
       - uses: actions/upload-artifact@v7
         with:
           name: linux
-          path: openheadset-control-*-linux-x86_64.tar.gz
+          path: |
+            openheadset-control-*-linux-x86_64.tar.gz
+            openheadset-control-*.plasmoid
           if-no-files-found: error
 
   # Même construction que les PR (sources figées, sans réseau, contrôle de
@@ -154,12 +175,14 @@ jobs:
       - name: Empreintes et vérification
         working-directory: paquets
         run: |
-          # Liste des sources du Flatpak : sert à sa construction, pas publiée.
-          rm -f cargo-sources.json
+          # Sources du Flatpak et PKGBUILD de l'essai Arch : servent à la
+          # construction, pas publiés.
+          rm -f cargo-sources.json PKGBUILD .SRCINFO
           ls -la
-          set -- ./*.zip ./*.tar.gz ./*.flatpak ./*.deb ./*.rpm
-          # Archive Windows, archive Linux, SBOM, Flatpak, .deb, .rpm.
-          test "$#" -eq 6
+          set -- ./*.zip ./*.exe ./*.tar.gz ./*.flatpak ./*.deb ./*.rpm ./*.plasmoid
+          # Archive et installateur Windows, archive Linux, SBOM, Flatpak,
+          # .deb, .rpm, widget Plasma.
+          test "$#" -eq 8
           for f do
             test -s "$f"
             # Format de `sha256sum -c` : empreinte, deux espaces, nom.
@@ -171,10 +194,12 @@ jobs:
         with:
           subject-path: |
             paquets/*.zip
+            paquets/*.exe
             paquets/*.tar.gz
             paquets/*.flatpak
             paquets/*.deb
             paquets/*.rpm
+            paquets/*.plasmoid
       - name: Publication
         if: github.event_name == 'push'
         working-directory: paquets
@@ -192,5 +217,5 @@ jobs:
             ./*
           # Tous les fichiers sont bien attachés avant de rendre public.
           count=$(gh release view "${GITHUB_REF_NAME}" --json assets --jq '.assets | length')
-          test "$count" -eq 12
+          test "$count" -eq 16
           gh release edit "${GITHUB_REF_NAME}" --draft=false
