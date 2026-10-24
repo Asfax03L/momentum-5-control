@@ -273,7 +273,8 @@ def main():
     w("(Get-FileHash .\\<fichier> -Algorithm SHA256).Hash")
     w("(Get-Content .\\<fichier>.sha256).Split(' ')[0]")
     w("```")
-    if (ROOT / "docs" / "VERIFIER.md").exists():
+    # Attestations et SBOM : publications faites depuis l'ajout de la provenance.
+    if sbom and (ROOT / "docs" / "VERIFIER.md").exists():
         w("")
         w(f"Attestations de provenance et SBOM : voir [docs/VERIFIER.md]({REPO}/blob/{tag}/docs/VERIFIER.md).")
     w("")
