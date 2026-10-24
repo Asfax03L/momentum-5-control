@@ -12,7 +12,7 @@ refuse de publier sans elles) :
 - « À faire après la mise à jour » : les actions concrètes par système,
   ou « Rien de particulier » avec la raison.
 
-## Non publié
+## v0.11.0 — 24/10/2026
 
 ### En bref
 Version de confiance et de solidité, sans nouveau réglage du casque :
@@ -90,6 +90,13 @@ téléchargement concernent tout le monde.
   (seuils : 40 Mio et 3 s pour le service, 450 Mio et 15 s pour le
   client) ; script équivalent pour WinUI. Méthode et chiffres dans
   `docs/RESSOURCES.md`.
+- **Tests d'interface automatisés** (PR #52), en mode démonstration, à
+  chaque PR : client KDE (auto-test `--demo --essai-interface` : chaque
+  page, un réglage simulé relu à l'affichage, panneau rapide) et WinUI
+  (UI Automation : chaque page par la navigation, anti-vent basculé et
+  relu ; capture jointe en cas d'échec). Les interrupteurs de WinUI ont
+  désormais un nom accessible (« Anti-vent »… au lieu de « Activé »), lu
+  par les lecteurs d'écran.
 - CI : YAML de la tâche `couverture` réparé (PR #50), qui empêchait toute
   la CI principale de tourner.
 
