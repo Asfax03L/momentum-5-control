@@ -104,9 +104,16 @@ pub fn run() -> anyhow::Result<()> {
         commands,
         shared: Arc::clone(&shared),
     };
+    // Dans le Flatpak, le fichier d'activation porte l'identifiant de
+    // l'application (seul nom que Flatpak exporte) : le service le prend
+    // aussi, sinon le bus considérerait l'activation comme échouée.
+    let flatpak_id = std::env::var("FLATPAK_ID").ok().filter(|id| id != BUS_NAME);
     let (connection, iface) = zbus::block_on(async {
-        let connection = zbus::connection::Builder::session()
-            .name(BUS_NAME)
+        let mut builder = zbus::connection::Builder::session().name(BUS_NAME);
+        if let Some(id) = &flatpak_id {
+            builder = builder.name(id.as_str());
+        }
+        let connection = builder
             .serve_at(OBJECT_PATH, control)
             .build()
             .await

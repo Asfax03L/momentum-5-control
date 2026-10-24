@@ -2,3 +2,7 @@
 
 # Rapports du probe : noms d'appareils personnels, ne pas versionner.
 rapport*.txt
+packaging/flatpak/cargo-sources.json
+/build-flatpak
+/.flatpak-builder
+/repo

@@ -63,6 +63,23 @@ fn service_error(e: zbus::Error) -> ClientError {
     }
 }
 
+/// Flatpak n'exporte un fichier d'activation D-Bus que sous l'identifiant
+/// de l'application : dans le Flatpak, le service y est déclaré sous ce nom
+/// (`$FLATPAK_ID`) et porte aussi `org.openheadset.Control`. `true` :
+/// service démarré par ce nom.
+fn start_flatpak_service(proxy: &ControlProxy<'static>) -> bool {
+    let Some(app_id) = std::env::var("FLATPAK_ID").ok().filter(|id| id != BUS_NAME) else {
+        return false;
+    };
+    block_on(async {
+        let bus = zbus::fdo::DBusProxy::new(proxy.inner().connection()).await?;
+        let name = zbus::names::WellKnownName::try_from(app_id.as_str())?;
+        bus.start_service_by_name(name, 0).await?;
+        zbus::Result::Ok(())
+    })
+    .is_ok()
+}
+
 /// Connexion au service sur le bus de session.
 pub struct Client {
     proxy: ControlProxy<'static>,
@@ -81,7 +98,14 @@ impl Client {
         })
         .map_err(service_error)?;
         let client = Self { proxy };
-        client.snapshot()?;
+        match client.snapshot() {
+            Err(ClientError::NoService) if start_flatpak_service(&client.proxy) => {
+                client.snapshot()?;
+            }
+            result => {
+                result?;
+            }
+        }
         Ok(client)
     }
 

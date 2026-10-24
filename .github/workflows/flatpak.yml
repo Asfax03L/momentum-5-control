@@ -2,32 +2,89 @@ name: Flatpak
 
 # Paquet Flatpak (client KDE, service, ctl) construit dans l'environnement
 # KDE de Flathub, à chaque PR et sur main (paquet en artefact). Pour une
-# étiquette « v* », c'est release.yml qui le construit et le publie avec
-# les autres paquets.
+# étiquette « v* », release.yml appelle ce même workflow et publie le
+# paquet avec les autres.
+#
+# Sources figées : cargo-sources.json est produit depuis Cargo.lock, puis la
+# construction se fait sans réseau (aucun --share=network). Le paquet passe
+# ensuite le contrôle de Flathub (flatpak-builder-lint).
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      bundle:
+        description: Nom du fichier .flatpak
+        type: string
+        required: true
 
 permissions:
   contents: read
 
+env:
+  MANIFESTE: packaging/flatpak/io.github.asfax03l.OpenHeadsetControl.yml
+  APP: io.github.asfax03l.OpenHeadsetControl
+
 jobs:
+  sources:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Sources Cargo figées
+        run: sh packaging/flatpak/sources-cargo.sh
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sources-cargo
+          path: packaging/flatpak/cargo-sources.json
+          if-no-files-found: error
+
   flatpak:
+    needs: sources
     runs-on: ubuntu-24.04
     container:
       image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.11
       options: --privileged
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: sources-cargo
+          path: packaging/flatpak
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6.8
         with:
-          bundle: openheadset-control.flatpak
-          manifest-path: packaging/flatpak/org.openheadset.Control.yml
+          bundle: ${{ inputs.bundle || 'openheadset-control.flatpak' }}
+          manifest-path: ${{ env.MANIFESTE }}
           cache-key: flatpak-builder-${{ github.sha }}
           build-dir: build-flatpak
-      - name: Outil PipeWire du runtime et permission du paquet
+          upload-artifact: false
+      - uses: actions/upload-artifact@v7
+        with:
+          name: flatpak
+          path: "*.flatpak"
+          if-no-files-found: error
+      - name: Outil PipeWire du runtime et permissions du paquet
         run: |
           flatpak build --runtime build-flatpak pw-dump --help
-          grep -F 'xdg-run/pipewire-0:ro' build-flatpak/metadata
+          meta=build-flatpak/metadata
+          cat "$meta"
+          grep -F 'xdg-run/pipewire-0:ro' "$meta"
+          # Aucun nom org.kde.* à posséder (icône inscrite sous le nom unique).
+          ! grep -F 'org.kde.*' "$meta"
+          grep -F 'org.openheadset.Control=own' "$meta"
+      - name: Fichiers exportés (activation D-Bus, menu, fiche, icône)
+        run: |
+          export=build-flatpak/export/share
+          ls -R "$export"
+          grep -qx "Name=$APP" "$export/dbus-1/services/$APP.service"
+          test -f "$export/applications/$APP.desktop"
+          test -f "$export/metainfo/$APP.metainfo.xml"
+          test -f "$export/icons/hicolor/scalable/apps/$APP.svg"
+      - name: Contrôle de Flathub (flatpak-builder-lint)
+        run: |
+          flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y --noninteractive flathub org.flatpak.Builder
+          lint() { flatpak run --command=flatpak-builder-lint org.flatpak.Builder "$@"; }
+          lint manifest "$MANIFESTE"
+          lint repo repo
