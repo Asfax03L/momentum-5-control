@@ -24,6 +24,7 @@ namcap "$paquet" | tee /tmp/namcap.txt
 # Erreurs de namcap (« E: ») : refusées ; avertissements affichés seulement.
 ! grep -q ' E: ' /tmp/namcap.txt
 sha256sum "$paquet" | cut -d' ' -f1 > "$paquet.sha256"
-sh packaging/linux/verifier-installation.sh pacman "$paquet"
+# Trace : la commande en échec apparaît dans le journal.
+sh -x packaging/linux/verifier-installation.sh pacman "$paquet"
 mkdir -p target/paquets/aur
 cp "$dossier/PKGBUILD" "$dossier/.SRCINFO" target/paquets/aur/
