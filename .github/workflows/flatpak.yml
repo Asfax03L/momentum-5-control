@@ -87,4 +87,14 @@ jobs:
           flatpak install --user -y --noninteractive flathub org.flatpak.Builder
           lint() { flatpak run --command=flatpak-builder-lint org.flatpak.Builder "$@"; }
           lint manifest "$MANIFESTE"
-          lint repo repo
+          # Dépôt construit : seules les erreurs de copie des captures
+          # d'écran sont attendues, l'infrastructure de Flathub faisant cette
+          # copie (dl.flathub.org/media) ; toute autre erreur échoue.
+          if ! resultat=$(lint repo repo); then
+              echo "$resultat"
+              # Échec sans liste d'erreurs : le contrôle lui-même a échoué.
+              echo "$resultat" | grep -q '"errors"'
+          fi
+          echo "$resultat" | awk '/"errors"/ { e = 1; next } e && /\]/ { e = 0 } e { gsub(/[ ",]/, ""); print }' > erreurs.txt
+          ! grep -v -x -e appstream-screenshots-not-mirrored-in-ostree \
+              -e appstream-external-screenshot-url erreurs.txt

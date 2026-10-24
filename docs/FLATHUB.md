@@ -11,7 +11,7 @@ reste à faire.
 |---|---|---|
 | Identifiant d'un domaine contrôlé par l'auteur | `io.github.asfax03l.OpenHeadsetControl` (compte GitHub `Asfax03L`) | ✅ |
 | Construction sans réseau, sources figées | manifeste sans `--share=network` ; `cargo-sources.json` produit depuis `Cargo.lock` (empreinte de chaque crate) | ✅ CI |
-| Contrôle `flatpak-builder-lint` (manifeste et dépôt construit) | tâche `flatpak` de la CI | ✅ CI |
+| Contrôle `flatpak-builder-lint` (manifeste et dépôt construit) | tâche `flatpak` de la CI ; seules restent, pour le dépôt, les deux erreurs de copie des captures d'écran, que fait l'infrastructure de Flathub | ✅ CI |
 | Fiche AppStream valide, en anglais avec traduction française | `assets/linux/io.github.asfax03l.OpenHeadsetControl.metainfo.xml` | ✅ CI |
 | Captures d'écran, notes de version, couleurs, classement OARS | fiche AppStream | ✅ |
 | Fichier d'activation D-Bus, entrée de menu et icône sous l'identifiant | `packaging/flatpak/installer-flatpak.sh`, vérifié par la CI | ✅ CI |
@@ -80,7 +80,8 @@ Permissions:
 - --filesystem=xdg-documents: exports and settings import.
 
 The build is offline (cargo-sources.json generated from Cargo.lock) and
-passes flatpak-builder-lint for the manifest and the built repository.
+passes flatpak-builder-lint for the manifest; for the built repository, only
+the screenshot-mirroring errors remain (mirroring is done by Flathub).
 ```
 
 ## Après l'acceptation
