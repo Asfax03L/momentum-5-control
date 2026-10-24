@@ -208,13 +208,8 @@ jobs:
           lines.append(f"| **protocole et SDP** | **{percent:.1f} %** |")
           lines.append(f"| espace de travail | {total['percent']:.1f} % |")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
-              out.write("### Couverture des tests
-
-" + "
-".join(lines) + "
-")
-          print("
-".join(lines))
+              out.write("### Couverture des tests\n\n" + "\n".join(lines) + "\n")
+          print("\n".join(lines))
           # Seuil : valeur du 23/10/2026 (82,6 % sous Windows) moins 2 points,
           # arrondie à l'unité inférieure.
           if percent < 80:
