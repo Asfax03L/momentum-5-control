@@ -42,8 +42,9 @@ au casque, et deux outils en ligne de commande.
 | R | Sécurité et qualité : service Linux durci, provenance et SBOM des publications, `ctl essais`, tests d'interface, couverture, budget de ressources | ✅ suite d'essais rejouée sur M5 (v0.11.0) |
 | S | Client GNOME (GTK 4, libadwaita), première étape : page Accueil, demandes suivies, `--demo` ; parité définie avec le client KDE | 🟡 état du M5 lu (v0.12.0) ; écritures essayées en démonstration |
 | T | Distribution : Flatpak construit sans réseau (sources figées), identifiant `io.github.asfax03l.openheadset-control`, permissions revues, migration des réglages ; soumission à Flathub préparée | 🟡 installation, mise à jour, migration et désinstallation essayées sur Bazzite (v0.13.0) ; Flathub non soumis |
+| U | Paquets natifs : installateur Windows (Inno Setup, par utilisateur), `.deb` et `.rpm` mis à jour par-dessus la version précédente, `PKGBUILD` (AUR), widget `.plasmoid` ; winget, AUR et KDE Store préparés | 🟡 installateur essayé sur Windows 11 avec le M5 (v0.14.0) ; paquets Linux essayés en conteneurs ; catalogues non soumis |
 
-Dernière publication : **v0.13.0** (page Releases du dépôt). Le détail des
+Dernière publication : **v0.14.0** (page Releases du dépôt). Le détail des
 étapes est dans [`docs/ROADMAP.md`](docs/ROADMAP.md), les nouveautés de chaque
 version dans [`CHANGELOG.md`](CHANGELOG.md).
 
@@ -60,10 +61,16 @@ connecté** au PC (Paramètres > Bluetooth et appareils).
 (publiée par la CI à chaque étiquette `v*`, avec son empreinte SHA-256,
 une attestation de provenance et l'inventaire des dépendances :
 [`docs/VERIFIER.md`](docs/VERIFIER.md)) :
+sous Windows, l'installateur
+`openheadset-control-vX.Y.Z-windows-x86_64-installateur.exe` (par
+utilisateur, sans droits administrateur, désinstallation par Paramètres >
+Applications) ; sinon l'archive
 `openheadset-control-vX.Y.Z-windows-x86_64.zip` ou
-`openheadset-control-vX.Y.Z-linux-x86_64.tar.gz`, la décompresser, puis
-lancer l'installateur qu'elle contient. Les exécutables ne sont pas signés :
-SmartScreen peut demander une confirmation.
+`openheadset-control-vX.Y.Z-linux-x86_64.tar.gz`, à décompresser avant de
+lancer le script qu'elle contient. Sous Linux, voir aussi le Flatpak, les
+paquets `.deb` et `.rpm` et le `PKGBUILD` ([`docs/LINUX.md`](docs/LINUX.md)).
+Les exécutables ne sont pas signés : SmartScreen peut demander une
+confirmation.
 
 **Windows** (depuis les sources : Rust 1.95 ou plus récent, 1.89 pour la partie
 Linux ; version testée figée dans `rust-toolchain.toml`) :

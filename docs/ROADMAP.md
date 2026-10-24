@@ -5,8 +5,12 @@ pour tout ce qui passe par le casque, mais pensée pour un PC portable (souris,
 clavier, grand écran, barre système). L'icône reste le raccourci vers la
 fenêtre principale.
 
-**État au 24/10/2026** : dernière publication **v0.13.0** (jalon
-0.13-bêta : Flatpak construit sans réseau à partir de sources figées,
+**État au 24/10/2026** : dernière publication **v0.14.0** (jalon 0.14 :
+installateur Windows par utilisateur, `.deb` et `.rpm` essayés en mise à
+jour par-dessus la version précédente, `PKGBUILD` pour l'AUR essayé dans
+Arch, widget Plasma seul en `.plasmoid` ; soumissions à winget, à l'AUR et
+au KDE Store préparées dans `SOUMISSIONS.md`, pas encore envoyées). Avant
+elle, v0.13.0 (jalon 0.13-bêta : Flatpak construit sans réseau à partir de sources figées,
 nouvel identifiant `io.github.asfax03l.openheadset-control`, permissions
 revues, migration des réglages ; soumission à Flathub préparée dans
 `FLATHUB.md`, pas encore envoyée). Avant elle, v0.12.0 (jalon 0.12 :
@@ -100,7 +104,7 @@ et date de l'essai sur le casque.
 | **0.11** (sécurité et qualité) ✅ | Service durci, chaîne de confiance, tests automatisés | Service limité au Bluetooth et à ses fichiers ; suite d'essais rejouée avant la publication ; provenance vérifiable de chaque paquet |
 | **0.12** (GNOME) ✅ | Interface GTK 4 / libadwaita cliente du même service | Parité définie avec le client KDE, sans connexion directe au casque |
 | **0.13-bêta** (distribution) 🟡 | Flatpak à sources figées et Flathub | Installation, mise à jour et désinstallation propres sur Bazzite et Windows ; paquet accepté sur Flathub |
-| **0.14** (paquets natifs) | Installateur Windows, winget, `.deb`, `.rpm`, AUR, KDE Store | Pour chaque format : installation, mise à jour par-dessus la version précédente et désinstallation propres, puis essai sur le casque |
+| **0.14** (paquets natifs) 🟡 | Installateur Windows, winget, `.deb`, `.rpm`, AUR, KDE Store | Pour chaque format : installation, mise à jour par-dessus la version précédente et désinstallation propres, puis essai sur le casque |
 | **0.15** (intégration au bureau) | KRunner, widgets Windows, mode jeu | Chaque intégration passe par l'API du service, avec les mêmes refus que les interfaces |
 | **0.16** (langues, accessibilité, accueil) | Anglais, accessibilité, premier lancement, documentation | Interfaces complètes en anglais ; parcours au clavier et au lecteur d'écran sans blocage |
 | **1.0** | Version stable | Critères de publication remplis, politique de versions publiée, aucun constat ouvert sans décision |
@@ -169,6 +173,11 @@ avec `rpm-ostree` ; le Flatpak est la voie prévue), et Kubuntu 24.04 LTS
   (`cargo-deb`, `cargo-generate-rpm`) et joints aux publications ;
   `PKGBUILD` pour l'**AUR** (Arch, CachyOS) ; widget Plasma sur le
   **KDE Store**.
+- Fait en v0.14.0 : installateur Inno Setup (`.exe`, par utilisateur),
+  `PKGBUILD`, `.plasmoid` et manifestes winget, avec leurs essais
+  d'installation, de mise à jour et de retrait. Publications sur winget,
+  l'AUR et le KDE Store préparées (`SOUMISSIONS.md`), en attente de
+  l'accord du mainteneur.
 
 **0.15 — intégration au bureau**
 - **KRunner (KDE)** : « anc off », « scène Transport » depuis la recherche
