@@ -12,6 +12,51 @@ refuse de publier sans elles) :
 - « À faire après la mise à jour » : les actions concrètes par système,
   ou « Rien de particulier » avec la raison.
 
+## v0.12.0 — 24/10/2026
+
+### En bref
+Version pour GNOME :
+- **Nouveau client GNOME** (GTK 4 et libadwaita), au style de GNOME, à
+  côté du client KDE. Cette première étape contient la page Accueil :
+  batterie, mode de réduction de bruit, curseur ANC ↔ transparence,
+  anti-vent et audio spatial. Comme les autres interfaces, il passe par
+  le service et affiche l'état relu sur le casque ; un refus ou un échec
+  s'affiche en notification.
+- **Feuille de route GNOME** : `docs/PARITE.md` liste ce que le client
+  KDE sait faire et dans quel ordre le client GNOME le rattrapera
+  (égaliseur, paramètres, scènes…).
+
+Concerne surtout les utilisateurs de GNOME sous Linux. Rien ne change
+pour Windows, KDE, le widget Plasma ni le service.
+
+### À faire après la mise à jour
+- **GNOME, installation par l'archive** : `./installer-linux.sh` installe
+  aussi le client GNOME (entrée de menu « OpenHeadset Control (GTK) ») ;
+  il demande GTK 4.14 et libadwaita 1.5 ou plus récents (Fedora 40,
+  Ubuntu 24.04 et suivantes). Pour essayer sans casque :
+  `momentum-gtk --demo`.
+- **GNOME avec le Flatpak ou les paquets `.deb`/`.rpm`** : le client GNOME
+  n'y est pas encore ; continuer avec le client KDE, ou installer
+  l'archive.
+- **Windows, KDE, Flatpak** : rien de particulier.
+
+### GNOME (jalon 0.12)
+- **Client GTK 4 / libadwaita** (`momentum-gtk`, PR #54) : client du
+  service (mêmes fils que le client KDE, mêmes modèles de vue, même suivi
+  des demandes), page Accueil, bandeau d'incident ou de démonstration,
+  indicateur d'envoi, une seule instance, entrée de menu. Curseur envoyé
+  après 350 ms sans mouvement, comme sous Windows. Essayé avec le vrai
+  service sur Bazzite (M5, 6.21.5) : état lu et affiché ; écritures
+  essayées en démonstration.
+- **Parité définie** avec le client KDE (`docs/PARITE.md`) : six étapes,
+  de l'Accueil aux pages Batterie et Audio ; zone de notification à
+  décider (GNOME n'en a pas de standard).
+- CI : tâche `gnome` (Fedora 44, auto-test de l'interface sur Broadway)
+  et compilation dans la tâche `linux` (Ubuntu 24.04, GTK 4.14). Le
+  client GTK demande Rust 1.92 (gtk-rs).
+- Archive Linux : `momentum-gtk` inclus, installé par
+  `installer-linux.sh` et retiré par `--desinstaller`.
+
 ## v0.11.0 — 24/10/2026
 
 ### En bref

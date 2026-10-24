@@ -5,7 +5,10 @@ pour tout ce qui passe par le casque, mais pensée pour un PC portable (souris,
 clavier, grand écran, barre système). L'icône reste le raccourci vers la
 fenêtre principale.
 
-**État au 24/10/2026** : dernière publication **v0.11.0** (jalon 0.11 :
+**État au 24/10/2026** : dernière publication **v0.12.0** (jalon 0.12 :
+client GNOME en GTK 4 et libadwaita, première étape — page Accueil — et
+parité définie avec le client KDE dans `PARITE.md`, étapes suivantes
+comprises). Avant elle, v0.11.0 (jalon 0.11 :
 service Linux durci, provenance et SBOM de chaque fichier publié, suite
 d'essais `ctl essais` rejouée sur le casque, tests d'interface, couverture
 et budget de ressources en CI ; droits réduits du service Windows étudiés
@@ -91,7 +94,7 @@ et date de l'essai sur le casque.
 | **0.9.1** (KDE) ✅ | Panneau rapide KDE, widget enrichi | Commandes usuelles en deux clics, état relu affiché |
 | **0.10** (confort et audio Linux) ✅ | Audio Linux en lecture seule, petites fonctions à fort gain, `ctl` plus scriptable | Observations PipeWire cohérentes avec les réglages son du bureau ; aucun changement de routage silencieux ; chaque fonction essayée sur le casque |
 | **0.11** (sécurité et qualité) ✅ | Service durci, chaîne de confiance, tests automatisés | Service limité au Bluetooth et à ses fichiers ; suite d'essais rejouée avant la publication ; provenance vérifiable de chaque paquet |
-| **0.12** (GNOME) | Interface GTK 4 / libadwaita cliente du même service | Parité définie avec le client KDE, sans connexion directe au casque |
+| **0.12** (GNOME) ✅ | Interface GTK 4 / libadwaita cliente du même service | Parité définie avec le client KDE, sans connexion directe au casque |
 | **0.13-bêta** (distribution) | Flatpak à sources figées et Flathub | Installation, mise à jour et désinstallation propres sur Bazzite et Windows ; paquet accepté sur Flathub |
 | **0.14** (paquets natifs) | Installateur Windows, winget, `.deb`, `.rpm`, AUR, KDE Store | Pour chaque format : installation, mise à jour par-dessus la version précédente et désinstallation propres, puis essai sur le casque |
 | **0.15** (intégration au bureau) | KRunner, widgets Windows, mode jeu | Chaque intégration passe par l'API du service, avec les mêmes refus que les interfaces |

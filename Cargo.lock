@@ -1576,7 +1576,7 @@ dependencies = [
 
 [[package]]
 name = "momentum-cli"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -1593,7 +1593,7 @@ dependencies = [
 
 [[package]]
 name = "momentum-client"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "futures-core",
  "momentum-core",
@@ -1605,7 +1605,7 @@ dependencies = [
 
 [[package]]
 name = "momentum-core"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "bluer",
  "futures",
@@ -1620,7 +1620,7 @@ dependencies = [
 
 [[package]]
 name = "momentum-daemon"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "momentum-client",
@@ -1634,7 +1634,7 @@ dependencies = [
 
 [[package]]
 name = "momentum-gtk"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "gtk4",
  "libadwaita",
@@ -1646,7 +1646,7 @@ dependencies = [
 
 [[package]]
 name = "momentum-kirigami"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "cxx",
  "cxx-qt",
@@ -1663,7 +1663,7 @@ dependencies = [
 
 [[package]]
 name = "momentum-service"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "dbus",
  "momentum-core",
@@ -1673,7 +1673,7 @@ dependencies = [
 
 [[package]]
 name = "momentum-winui"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "embed-resource",
  "momentum-client",

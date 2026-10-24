@@ -40,8 +40,9 @@ au casque, et deux outils en ligne de commande.
 | P | KDE : panneau rapide, widget Plasma enrichi (demandes suivies, scènes), icône sur zbus 6 | ✅ essayé sur M5 (v0.9.1) |
 | Q | Confort et audio Linux : scène depuis l'état, export et import des réglages, reconnexion par le Bluetooth du système, diagnostic PipeWire, `ctl --json`, complétions et `man`, paquets `.deb` et `.rpm` | ✅ essayé sur M5 sous Bazzite (v0.10.0) |
 | R | Sécurité et qualité : service Linux durci, provenance et SBOM des publications, `ctl essais`, tests d'interface, couverture, budget de ressources | ✅ suite d'essais rejouée sur M5 (v0.11.0) |
+| S | Client GNOME (GTK 4, libadwaita), première étape : page Accueil, demandes suivies, `--demo` ; parité définie avec le client KDE | 🟡 état du M5 lu (v0.12.0) ; écritures essayées en démonstration |
 
-Dernière publication : **v0.11.0** (page Releases du dépôt). Le détail des
+Dernière publication : **v0.12.0** (page Releases du dépôt). Le détail des
 étapes est dans [`docs/ROADMAP.md`](docs/ROADMAP.md), les nouveautés de chaque
 version dans [`CHANGELOG.md`](CHANGELOG.md).
 
