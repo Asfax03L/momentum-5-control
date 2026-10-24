@@ -92,14 +92,14 @@ flatpak install --user openheadset-control-v0.13.0-x86_64.flatpak
 
 Il contient le client KDE, le service (lancé à la demande par activation
 D-Bus) et `ctl`. Identifiant depuis la v0.13.0 :
-`io.github.asfax03l.openheadset_control` (avant : `org.openheadset.Control`,
+`io.github.asfax03l.openheadset-control` (avant : `org.openheadset.Control`,
 voir « Migration des réglages » plus bas) :
 
 ```bash
-flatpak run io.github.asfax03l.openheadset_control
+flatpak run io.github.asfax03l.openheadset-control
 ```
 ```bash
-flatpak run --command=ctl io.github.asfax03l.openheadset_control etat
+flatpak run --command=ctl io.github.asfax03l.openheadset-control etat
 ```
 
 Le bac à sable n'ouvre que ce qui sert : Wayland, sockets Bluetooth et
@@ -124,19 +124,19 @@ Voir les [permissions Flatpak](https://docs.flatpak.org/en/latest/sandbox-permis
 et les [permissions des objets PipeWire](https://docs.pipewire.org/page_access.html).
 Différences avec
 l'installation par script : réglages et historique dans
-`~/.var/app/io.github.asfax03l.openheadset_control/`, lancement à
+`~/.var/app/io.github.asfax03l.openheadset-control/`, lancement à
 l'ouverture de session par le portail du bureau, et raccourcis à modifier
 dans Configuration du système > Raccourcis. Ne pas installer les deux à la
 fois : un seul service peut porter le nom D-Bus `org.openheadset.Control`.
 
 Activation D-Bus : Flatpak n'exporte un fichier d'activation que sous
 l'identifiant de l'application. Le service y est déclaré sous
-`io.github.asfax03l.openheadset_control` et prend aussi
+`io.github.asfax03l.openheadset-control` et prend aussi
 `org.openheadset.Control` ; le client KDE du Flatpak le démarre par ce nom.
 Un client hors du Flatpak (widget Plasma, `ctl` de l'archive) trouve le
 service dès qu'il tourne, mais ne peut pas le démarrer : ouvrir
 l'application une fois, ou `flatpak run --command=momentum-daemon
-io.github.asfax03l.openheadset_control`.
+io.github.asfax03l.openheadset-control`.
 
 ### Migration des réglages
 
@@ -178,7 +178,7 @@ construction se fait sans réseau :
 sh packaging/flatpak/sources-cargo.sh
 ```
 ```bash
-flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/io.github.asfax03l.openheadset_control.yml
+flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/io.github.asfax03l.openheadset-control.yml
 ```
 
 Préparation de la soumission à Flathub : [`FLATHUB.md`](FLATHUB.md).

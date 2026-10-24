@@ -1,7 +1,7 @@
 #!/bin/sh
 # Installation dans /app, appelée par le manifeste Flatpak après cargo build.
 set -eu
-app=${FLATPAK_ID:-io.github.asfax03l.openheadset_control}
+app=${FLATPAK_ID:-io.github.asfax03l.openheadset-control}
 install -Dm755 -t /app/bin target/release/momentum-kirigami \
     target/release/momentum-daemon target/release/ctl
 

@@ -16,7 +16,7 @@ refuse de publier sans elles) :
 
 ### En bref
 Version bêta de la distribution, surtout pour le Flatpak :
-- **Nouvel identifiant du Flatpak** : `io.github.asfax03l.openheadset_control`
+- **Nouvel identifiant du Flatpak** : `io.github.asfax03l.openheadset-control`
   (avant : `org.openheadset.Control`). Flathub n'accepte un identifiant que
   s'il correspond à un domaine ou à un dépôt de l'auteur. Le nom D-Bus du
   service (`org.openheadset.Control`) ne change pas : widget Plasma, `ctl`
@@ -56,7 +56,7 @@ sauf le nom de la fiche AppStream.
   `cargo-sources.json` produit depuis `Cargo.lock` par
   flatpak-cargo-generator, à une révision et une empreinte fixées. Le
   manifeste n'a plus `--share=network` et compile avec `--offline`.
-- **Identifiant** `io.github.asfax03l.openheadset_control` : manifeste,
+- **Identifiant** `io.github.asfax03l.openheadset-control` : manifeste,
   fiche AppStream (`<replaces>` l'ancien identifiant ; anglais par défaut,
   français en traduction ; couleurs, notes de version), entrée de menu,
   icônes. Les paquets `.deb` et `.rpm` installent la fiche sous ce nom.

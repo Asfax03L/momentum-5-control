@@ -4,14 +4,14 @@
 #
 # Construction locale, depuis la racine du dépôt (docs/LINUX.md) :
 #   sh packaging/flatpak/sources-cargo.sh
-#   flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/io.github.asfax03l.openheadset_control.yml
+#   flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/io.github.asfax03l.openheadset-control.yml
 # La CI construit le même manifeste et publie le paquet (.flatpak).
 #
 # Sources figées : la construction se fait sans réseau. Les dépendances
 # Rust viennent de cargo-sources.json, produit depuis Cargo.lock par
 # sources-cargo.sh (empreinte SHA-256 de chaque crate). Le manifeste pour
 # Flathub ne diffère que par la source du dépôt (docs/FLATHUB.md).
-id: io.github.asfax03l.openheadset_control
+id: io.github.asfax03l.openheadset-control
 runtime: org.kde.Platform
 runtime-version: '6.11'
 sdk: org.kde.Sdk

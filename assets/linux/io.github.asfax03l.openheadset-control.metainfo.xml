@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.asfax03l.openheadset_control</id>
+  <id>io.github.asfax03l.openheadset-control</id>
   <name>OpenHeadset Control</name>
   <summary>Control the Sennheiser MOMENTUM 5 headphones (unofficial)</summary>
   <summary xml:lang="fr">Réglages du casque Sennheiser MOMENTUM 5 (non officiel)</summary>
@@ -38,7 +38,7 @@
       réinitialisation d'usine.
     </p>
   </description>
-  <launchable type="desktop-id">io.github.asfax03l.openheadset_control.desktop</launchable>
+  <launchable type="desktop-id">io.github.asfax03l.openheadset-control.desktop</launchable>
   <!-- Ancien identifiant du Flatpak (v0.12.0 et avant). -->
   <replaces>
     <id>org.openheadset.Control</id>

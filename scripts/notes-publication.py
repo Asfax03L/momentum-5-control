@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parent.parent
 REPO = "https://github.com/Asfax03L/openheadset-control"
 TODO = "À faire après la mise à jour"
 BRIEF = "En bref"
-FLATPAK_ID = "io.github.asfax03l.openheadset_control"
+FLATPAK_ID = "io.github.asfax03l.openheadset-control"
 OLD_FLATPAK_ID = "org.openheadset.Control"
 FIRST_PUBLIC = (0, 8, 0)
 

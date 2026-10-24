@@ -1,5 +1,5 @@
 #!/bin/sh
-# Migration des réglages vers le Flatpak io.github.asfax03l.openheadset_control
+# Migration des réglages vers le Flatpak io.github.asfax03l.openheadset-control
 # (v0.13.0 et suivantes), à lancer une fois, hors du bac à sable (le Flatpak
 # ne voit pas les dossiers des autres installations).
 #
@@ -16,7 +16,7 @@
 # sans rien copier.
 set -eu
 umask 077
-nouveau=io.github.asfax03l.openheadset_control
+nouveau=io.github.asfax03l.openheadset-control
 ancien=org.openheadset.Control
 local_data=${XDG_DATA_HOME:-$HOME/.local/share}/momentum-ctl-win
 ancien_data=$HOME/.var/app/$ancien/data/momentum-ctl-win

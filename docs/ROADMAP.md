@@ -7,7 +7,7 @@ fenêtre principale.
 
 **État au 24/10/2026** : dernière publication **v0.13.0** (jalon
 0.13-bêta : Flatpak construit sans réseau à partir de sources figées,
-nouvel identifiant `io.github.asfax03l.openheadset_control`, permissions
+nouvel identifiant `io.github.asfax03l.openheadset-control`, permissions
 revues, migration des réglages ; soumission à Flathub préparée dans
 `FLATHUB.md`, pas encore envoyée). Avant elle, v0.12.0 (jalon 0.12 :
 client GNOME en GTK 4 et libadwaita, première étape — page Accueil — et
