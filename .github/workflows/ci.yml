@@ -99,7 +99,7 @@ jobs:
       - uses: actions/checkout@v7
       # Outils préinstallés inutiles ici (Android, .NET) : environ 10 Go.
       - run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet && df -h /
-      - run: sudo apt-get update && sudo apt-get install -y dbus-daemon libdbus-1-dev pkg-config qt6-base-dev qt6-declarative-dev qmake6
+      - run: sudo apt-get update && sudo apt-get install -y dbus-daemon libdbus-1-dev pkg-config qt6-base-dev qt6-declarative-dev qmake6 libgtk-4-dev libadwaita-1-dev
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.99.0"
@@ -114,7 +114,10 @@ jobs:
       - run: cargo test --locked -p momentum-kirigami
         env:
           QMAKE: /usr/bin/qmake6
-      - run: cargo build --release -p momentum-cli -p momentum-daemon -p momentum-kirigami
+      # Client GTK : hors des membres par défaut (GTK 4.14 et libadwaita
+      # 1.5 d'Ubuntu 24.04, comme l'archive publiée).
+      - run: cargo clippy -p momentum-gtk --all-targets -- -D warnings
+      - run: cargo build --release -p momentum-cli -p momentum-daemon -p momentum-kirigami -p momentum-gtk
         env:
           QMAKE: /usr/bin/qmake6
       - uses: actions/upload-artifact@v7
@@ -124,7 +127,33 @@ jobs:
             target/release/ctl
             target/release/momentum-daemon
             target/release/momentum-kirigami
+            target/release/momentum-gtk
           if-no-files-found: error
+
+  # Client GNOME (GTK 4, libadwaita) récent (Fedora 44) : compilation et
+  # essai de l'interface en démonstration, sans écran (Broadway).
+  gnome:
+    runs-on: ubuntu-24.04
+    container: fedora:44
+    env:
+      CARGO_PROFILE_DEV_DEBUG: 0
+    steps:
+      - run: dnf install -y --setopt=install_weak_deps=False git gcc pkgconf-pkg-config dbus-devel gtk4-devel libadwaita-devel rust cargo clippy dbus-daemon
+      - uses: actions/checkout@v7
+      - run: cargo clippy -p momentum-gtk --all-targets -- -D warnings
+      - name: Essai de l'interface GNOME
+        run: |
+          cargo build -p momentum-gtk
+          gtk4-broadwayd :5 &
+          sleep 1
+          set +e
+          GDK_BACKEND=broadway BROADWAY_DISPLAY=:5 timeout 60 dbus-run-session -- \
+            target/debug/momentum-gtk --demo --essai-interface > essai-interface.log 2>&1
+          code=$?
+          set -e
+          cat essai-interface.log
+          test "$code" -eq 0
+          grep -q "ESSAI INTERFACE RÉUSSI" essai-interface.log
 
   # Client KDE avec un Qt récent (Fedora 44 : Qt 6.11, comme Bazzite) : le
   # code réservé à Qt 6.8 et plus (thème clair ou sombre) n'est compilé
@@ -266,7 +295,8 @@ jobs:
           PY
 
   # Version minimale de Rust annoncée (rust-version) : 1.89 pour l'ensemble,
-  # 1.95 pour l'interface WinUI. RUSTUP_TOOLCHAIN passe outre
+  # 1.95 pour l'interface WinUI, 1.92 pour le client GTK (gtk-rs ; tâche
+  # gnome, sur Fedora). RUSTUP_TOOLCHAIN passe outre
   # rust-toolchain.toml (version de travail).
   msrv:
     strategy:
@@ -274,8 +304,9 @@ jobs:
         include:
           - os: ubuntu-24.04
             rust: "1.89"
-            # WinUI (1.95) ne se compile pas sous Linux ; Kirigami : tâche à part.
-            args: --workspace --exclude momentum-winui --exclude momentum-kirigami
+            # WinUI (1.95) ne se compile pas sous Linux ; Kirigami et GTK :
+            # tâches à part (bibliothèques du système).
+            args: --workspace --exclude momentum-winui --exclude momentum-kirigami --exclude momentum-gtk
           - os: windows-latest
             rust: "1.95"
             args: ""

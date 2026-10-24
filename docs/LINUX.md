@@ -243,6 +243,21 @@ Wayland) :
 - 22/10/2026 : demandes numérotées (« appliqué et relu ») et casque
   retrouvé sans filtre de nom.
 
+## Client GNOME (GTK 4)
+
+Sous GNOME, `momentum-gtk` (libadwaita) est un client du même service :
+page Accueil (batterie, mode de bruit, curseur ANC ↔ transparence,
+anti-vent, audio spatial) en 0.12, les autres pages suivent
+([`PARITE.md`](PARITE.md)). Installé par `installer-linux.sh` depuis
+l'archive (entrée « OpenHeadset Control (GTK) ») ; demande GTK 4.14 et
+libadwaita 1.5 ou plus récents. Depuis le dépôt :
+
+```bash
+cargo build --release -p momentum-gtk
+```
+
+Essai sans casque : `momentum-gtk --demo`.
+
 ## Widget Plasma
 
 `plasma/org.openheadset.control.plasmoid` (Plasma 6, QML seul, module

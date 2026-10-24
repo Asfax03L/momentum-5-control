@@ -1,0 +1,24 @@
+[package]
+name = "momentum-gtk"
+description = "Client GTK 4 / libadwaita (GNOME) pour Linux"
+version.workspace = true
+edition.workspace = true
+# gtk-rs 0.11 (gtk4, libadwaita) demande Rust 1.92.
+rust-version = "1.92"
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "momentum-gtk"
+path = "src/main.rs"
+
+[dependencies]
+momentum-core.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+[target.'cfg(target_os = "linux")'.dependencies]
+momentum-client.workspace = true
+gtk = { package = "gtk4", version = "0.11.5", features = ["v4_14"] }
+adw = { package = "libadwaita", version = "0.9.2", features = ["v1_5"] }

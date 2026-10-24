@@ -66,18 +66,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet
-      - run: sudo apt-get update && sudo apt-get install -y dbus-daemon libdbus-1-dev pkg-config qt6-base-dev qt6-declarative-dev qmake6
+      - run: sudo apt-get update && sudo apt-get install -y dbus-daemon libdbus-1-dev pkg-config qt6-base-dev qt6-declarative-dev qmake6 libgtk-4-dev libadwaita-1-dev
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.99.0"
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --locked
-      - run: cargo build --release --locked -p momentum-cli -p momentum-daemon -p momentum-kirigami
+      - run: cargo build --release --locked -p momentum-cli -p momentum-daemon -p momentum-kirigami -p momentum-gtk
       - name: Archive
         run: |
           dir="openheadset-control-${{ github.ref_name }}-linux-x86_64"
           mkdir -p "$dir/assets"
-          cp target/release/ctl target/release/momentum-daemon target/release/momentum-kirigami "$dir/"
+          cp target/release/ctl target/release/momentum-daemon target/release/momentum-kirigami target/release/momentum-gtk "$dir/"
           cp -r assets/linux assets/logo "$dir/assets/"
           cp -r plasma "$dir/"
           cp scripts/installer-linux.sh README.md LICENSE-MIT LICENSE-APACHE "$dir/"
