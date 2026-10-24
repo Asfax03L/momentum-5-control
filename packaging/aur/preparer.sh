@@ -21,7 +21,8 @@ fi
 empreinte=$(sha256sum "$sortie/$nom" | cut -d' ' -f1)
 sed -e "s/@VERSION@/$version/" -e "s/@SHA256@/$empreinte/" "$ici/PKGBUILD" > "$sortie/PKGBUILD"
 ! grep -q '@[A-Z0-9]*@' "$sortie/PKGBUILD"
-if command -v makepkg >/dev/null; then
+# makepkg refuse de tourner en root (essai Arch : .SRCINFO fait ensuite).
+if command -v makepkg >/dev/null && [ "$(id -u)" -ne 0 ]; then
     (cd "$sortie" && makepkg --printsrcinfo > .SRCINFO)
 fi
 echo "PKGBUILD prêt dans $sortie (rien n'a été publié sur l'AUR)."

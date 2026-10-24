@@ -13,7 +13,7 @@ archive=$2
 pacman -Syu --noconfirm --needed base-devel namcap sudo
 useradd -m constructeur
 echo 'constructeur ALL=(ALL) NOPASSWD: /usr/bin/pacman' > /etc/sudoers.d/constructeur
-dossier=/home/constructeur/aur
+dossier=$(su constructeur -c 'printf %s "$HOME"')/aur
 sh packaging/aur/preparer.sh "$version" "$dossier" "$archive"
 chown -R constructeur "$dossier"
 su constructeur -c "cd $dossier && makepkg --syncdeps --noconfirm && makepkg --printsrcinfo > .SRCINFO"
