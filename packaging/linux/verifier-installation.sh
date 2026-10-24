@@ -60,6 +60,9 @@ case "$family" in
     pacman)
         # Aucun script d'installation (.INSTALL) dans le paquet.
         ! bsdtar -tf "$package" | grep -qx '.INSTALL'
+        # L'image Docker d'Arch exclut manuels et documentation (NoExtract) :
+        # les garder dans ce conteneur pour vérifier aussi ces fichiers.
+        sed -i '/^NoExtract/d' /etc/pacman.conf
         pacman -U --noconfirm "$package"
         # Réinstallation par-dessus (pas encore de version précédente sur
         # l'AUR).
