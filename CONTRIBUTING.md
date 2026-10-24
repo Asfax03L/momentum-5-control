@@ -83,6 +83,19 @@ sh scripts/verifier-confidentialite.sh
 - Documentation à jour : README, `CHANGELOG.md` (section « Non publié »),
   `docs/MOMENTUM5.md` pour le protocole.
 
+## Couverture des tests
+
+La CI (tâche `couverture`) affiche la couverture par fichier dans l'onglet
+Summary et échoue si celle du protocole (`protocol/` et `sdp.rs` de
+`momentum-core`) passe sous 80 % des lignes. En local :
+
+```bash
+cargo install cargo-llvm-cov --version 0.9.1 --locked
+```
+```bash
+cargo llvm-cov -p momentum-core --summary-only
+```
+
 ## Fuzzing des lectures
 
 Sous Linux, installer un compilateur C++, `pkg-config`, les fichiers de

@@ -5,11 +5,17 @@ name: Publication
 # tant qu'un paquet manque. Paquets prêts à installer sans Rust :
 #   - Windows : WinUI 3, service, ctl, probe et installer.ps1 ;
 #   - Linux : client KDE, service, ctl, widget Plasma et installer-linux.sh ;
-#   - Flatpak : client KDE, service et ctl.
-# Chaque fichier est accompagné de son empreinte SHA-256.
+#   - Flatpak : client KDE, service et ctl ;
+#   - paquets .deb et .rpm ;
+#   - inventaire des dépendances (SBOM CycloneDX).
+# Chaque fichier est accompagné de son empreinte SHA-256 et d'une
+# attestation de provenance GitHub (docs/VERIFIER.md).
 on:
   push:
     tags: ["v*"]
+  # Essai à blanc : tout est construit, empreint et attesté, mais aucune
+  # publication n'est créée.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -21,6 +27,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Étiquette et version
+        if: github.event_name == 'push'
         run: |
           version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
           echo "Cargo.toml : $version ; étiquette : ${GITHUB_REF_NAME}"
@@ -110,11 +117,45 @@ jobs:
     needs: version
     uses: ./.github/workflows/paquets-linux.yml
 
+  # Inventaire des dépendances de chaque paquet Rust de l'espace de travail
+  # (toutes cibles : Windows et Linux), au format CycloneDX 1.5.
+  sbom:
+    needs: version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.0"
+      - run: cargo install cargo-cyclonedx --version 0.5.9 --locked
+      - name: SBOM CycloneDX
+        run: |
+          cargo cyclonedx --format json --target all --spec-version 1.5 --no-build-deps
+          dir="openheadset-control-${{ github.ref_name }}-sbom-cyclonedx"
+          mkdir "$dir"
+          for f in crates/*/*.cdx.json frontends/*/*.cdx.json; do
+            # Identifiants relatifs au dépôt, sans le dossier du runner.
+            sed "s#path+file://$GITHUB_WORKSPACE#path+file://.#g" "$f" > "$dir/$(basename "$f")"
+          done
+          test "$(ls "$dir" | wc -l)" -ge 6
+          ! grep -l "$GITHUB_WORKSPACE" "$dir"/*
+          tar -czf "$dir.tar.gz" "$dir"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sbom
+          path: openheadset-control-*-sbom-cyclonedx.tar.gz
+          if-no-files-found: error
+
   # Publication unique, seulement si tous les paquets sont prêts : créée en
   # brouillon avec tous les fichiers, vérifiée, puis rendue publique.
   publication:
-    needs: [windows, linux, flatpak, paquets]
+    needs: [windows, linux, flatpak, paquets, sbom]
     runs-on: ubuntu-24.04
+    # Attestations de provenance : jeton OIDC et écriture des attestations.
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
       # CHANGELOG.md et le script des notes de publication.
       - uses: actions/checkout@v7
@@ -127,13 +168,25 @@ jobs:
         run: |
           ls -la
           set -- ./*.zip ./*.tar.gz ./*.flatpak ./*.deb ./*.rpm
-          test "$#" -eq 5
+          # Archive Windows, archive Linux, SBOM, Flatpak, .deb, .rpm.
+          test "$#" -eq 6
           for f do
             test -s "$f"
             # Format de `sha256sum -c` : empreinte, deux espaces, nom.
             sha256sum "${f#./}" > "$f.sha256"
           done
+      # Provenance signée par GitHub (Sigstore) : quel dépôt, quel workflow et
+      # quelle révision ont produit chaque fichier.
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            paquets/*.zip
+            paquets/*.tar.gz
+            paquets/*.flatpak
+            paquets/*.deb
+            paquets/*.rpm
       - name: Publication
+        if: github.event_name == 'push'
         working-directory: paquets
         env:
           GH_TOKEN: ${{ github.token }}
@@ -149,5 +202,5 @@ jobs:
             ./*
           # Tous les fichiers sont bien attachés avant de rendre public.
           count=$(gh release view "${GITHUB_REF_NAME}" --json assets --jq '.assets | length')
-          test "$count" -eq 10
+          test "$count" -eq 12
           gh release edit "${GITHUB_REF_NAME}" --draft=false
