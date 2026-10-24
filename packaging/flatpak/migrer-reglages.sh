@@ -7,9 +7,10 @@
 # de la batterie et profil, depuis :
 #   - l'ancien Flatpak org.openheadset.Control (v0.12.0 et avant) :
 #     ~/.var/app/org.openheadset.Control/data/momentum-ctl-win ;
-#   - sinon l'installation par script ou par paquet :
+#   - ou l'installation par script ou par paquet :
 #     ~/.local/share/momentum-ctl-win.
-# --depuis flatpak|local choisit la source.
+# Une seule des deux présente : elle est prise. Les deux : le script
+# s'arrête sans rien copier ; --depuis flatpak|local choisit alors.
 #
 # Copie seulement : rien n'est supprimé, et un fichier déjà présent dans le
 # nouveau Flatpak est gardé tel quel. --essai affiche ce qui serait copié
@@ -41,7 +42,14 @@ case "$depuis" in
     flatpak) source=$ancien_data ;;
     local) source=$local_data ;;
     "")
-        if [ -d "$ancien_data" ]; then
+        if [ -d "$ancien_data" ] && [ -d "$local_data" ]; then
+            echo "Deux anciennes installations trouvées, rien n'a été copié :" >&2
+            for d in "$ancien_data" "$local_data"; do
+                echo "  $d ($(find "$d" -type f | wc -l) fichier(s), modifié le $(date -r "$d" '+%d/%m/%Y %H:%M'))" >&2
+            done
+            echo "Choisir celle qui sert : --depuis flatpak (la première) ou --depuis local (la seconde)." >&2
+            exit 2
+        elif [ -d "$ancien_data" ]; then
             source=$ancien_data
         else
             source=$local_data

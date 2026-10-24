@@ -144,11 +144,13 @@ Le Flatpak ne voit pas les dossiers des autres installations : la reprise
 se fait une fois, hors du bac à sable, par
 `packaging/flatpak/migrer-reglages.sh`. Il copie préréglages, scènes,
 raccourcis, panneau rapide, thème, historique de la batterie et profil
-depuis l'ancien Flatpak (`~/.var/app/org.openheadset.Control/`), sinon
+depuis l'ancien Flatpak (`~/.var/app/org.openheadset.Control/`) ou
 depuis l'installation par script ou par paquet (`~/.local/share`), vers le
 nouveau Flatpak. Copie seulement : rien n'est supprimé, un fichier déjà
-présent est gardé, et `--essai` montre d'abord ce qui serait copié.
-`--depuis flatpak` ou `--depuis local` choisit la source.
+présent est gardé, et `--essai` montre d'abord ce qui serait copié. Si les
+deux anciennes installations existent, le script s'arrête sans rien
+copier et les montre (nombre de fichiers, date) : `--depuis flatpak` ou
+`--depuis local` choisit celle qui sert.
 
 À lancer **avant le premier lancement** du nouveau Flatpak (sinon il crée
 ses fichiers par défaut, qui sont alors gardés) et application fermée :

@@ -69,8 +69,14 @@ sauf le nom de la fiche AppStream.
   `--own-name=org.openheadset.Control` ajouté (le nom n'est plus celui de
   l'application).
 - **Migration** (`packaging/flatpak/migrer-reglages.sh`) : copie seule,
-  fichiers déjà présents gardés, `--essai`, `--depuis flatpak|local`,
-  refus si le nouveau Flatpak est lancé.
+  fichiers déjà présents gardés, `--essai`, `--depuis flatpak|local`
+  (exigé si les deux anciennes installations existent), refus si le
+  nouveau Flatpak est lancé.
+- **Essayé sur Bazzite** (M5, 6.21.5), avec le paquet de la CI :
+  installation, migration depuis l'installation par script, service du
+  Flatpak démarré par activation, état du casque lu par le Bluetooth du
+  bac à sable, scènes migrées retrouvées, mise à jour par-dessus,
+  désinstallation (exports retirés, réglages gardés).
 - **Flathub** (`docs/FLATHUB.md`, `packaging/flatpak/flathub.sh`) :
   manifeste à source git figée (étiquette et révision), sources Cargo,
   `flathub.json`, permissions justifiées et texte de la PR. Non soumis.
