@@ -65,6 +65,25 @@ enum Command {
     Etat,
     /// Liste les scènes du fichier scenes.txt.
     Scenes,
+    /// Suite d'essais avant une publication (service requis) : chaque
+    /// réglage validé de la liste est écrit, relu, puis remis à sa valeur
+    /// d'origine et relu. Arrêt à la première anomalie. Jamais : nom,
+    /// multipoint, connexions, profil, langue, priorité du mode audio.
+    Essais {
+        /// Essais à lancer, séparés par des virgules (tous par défaut) :
+        /// niveau, anti-vent, bande, basses, tactile, smart-pause,
+        /// reponse-auto, appels-confort, extinction, invites,
+        /// volume-invites, voix.
+        #[arg(long, value_delimiter = ',')]
+        liste: Vec<String>,
+        /// Affiche seulement le plan, sans rien envoyer au casque.
+        #[arg(long)]
+        simulation: bool,
+        /// Écrit aussi le compte rendu Markdown dans ce fichier (jamais
+        /// écrasé).
+        #[arg(long)]
+        rapport: Option<std::path::PathBuf>,
+    },
     /// Applique une scène (réglages un par un, arrêt à la première erreur).
     /// Passe par le service s'il tourne.
     Scene { nom: String },
@@ -412,6 +431,125 @@ mod app {
     #[cfg(any(windows, target_os = "linux"))]
     const DAEMON_SCENE: Duration = Duration::from_secs(90);
 
+    /// Service vu par la suite d'essais : demandes suivies, résultat attendu
+    /// par son numéro (`Done`), état relu ensuite.
+    #[cfg(any(windows, target_os = "linux"))]
+    struct EssaisService {
+        client: momentum_client::Client,
+        events: std::sync::mpsc::Receiver<momentum_client::Event>,
+    }
+
+    #[cfg(any(windows, target_os = "linux"))]
+    impl momentum_client::essais::Service for EssaisService {
+        fn snapshot(&mut self) -> Result<momentum_client::Snapshot, String> {
+            self.client.snapshot().map_err(|e| e.to_string())
+        }
+
+        fn submit(
+            &mut self,
+            command: &momentum_client::Command,
+            session: u64,
+        ) -> Result<momentum_client::Outcome, String> {
+            let id = self
+                .client
+                .submit(command, session)
+                .map_err(|e| format!("refusé par le service : {e}"))?;
+            momentum_client::tracker::wait_for(&self.events, id, DAEMON_REPLY)
+                .map(|(outcome, _)| outcome)
+                .ok_or_else(|| "pas de résultat dans le délai : résultat inconnu".to_string())
+        }
+    }
+
+    /// `ctl essais` : suite rejouable avant une publication.
+    #[cfg(any(windows, target_os = "linux"))]
+    fn essais(
+        liste: &[String],
+        simulation: bool,
+        rapport: Option<&std::path::Path>,
+        output: &mut Output,
+    ) -> anyhow::Result<()> {
+        use momentum_client::essais::{self, Contexte, Essai, Statut};
+
+        let choisis: Vec<Essai> = if liste.is_empty() {
+            essais::TOUS.to_vec()
+        } else {
+            liste
+                .iter()
+                .map(|key| {
+                    Essai::from_key(key).with_context(|| {
+                        format!("essai inconnu « {key} » (voir ctl essais --help)")
+                    })
+                })
+                .collect::<anyhow::Result<_>>()?
+        };
+        let client =
+            momentum_client::Client::connect().context("service requis pour la suite d'essais")?;
+        let events = client.events()?;
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            for event in events {
+                if tx.send(event).is_err() {
+                    break;
+                }
+            }
+        });
+        let mut service = EssaisService { client, events: rx };
+        let before = essais::Service::snapshot(&mut service).map_err(anyhow::Error::msg)?;
+        if before.state.is_none() {
+            bail!("casque non connecté au service : aucun essai possible");
+        }
+        if let Some(reason) = &before.read_only {
+            bail!("casque en lecture seule ({reason}) : aucun essai possible");
+        }
+        eprintln!("(par le service momentum-daemon)");
+        let results = if simulation {
+            essais::plan(&choisis, &before)
+        } else {
+            essais::run(&mut service, &choisis)
+        };
+        let date = momentum_core::profile::iso_utc(
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_secs()),
+        );
+        let systeme = format!("{} {}", std::env::consts::OS, std::env::consts::ARCH);
+        let texte = essais::report(
+            &Contexte {
+                date: &date,
+                version: env!("CARGO_PKG_VERSION"),
+                systeme: &systeme,
+                simulation,
+            },
+            &before,
+            &results,
+        );
+        if let Some(path) = rapport {
+            use std::io::Write as _;
+            let mut file = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(path)
+                .with_context(|| format!("compte rendu {} (jamais écrasé)", path.display()))?;
+            file.write_all(texte.as_bytes())?;
+        }
+        let failed = results.iter().any(|r| matches!(r.statut, Statut::Echec(_)));
+        output.message(format_args!("{texte}"));
+        output.value = Some(
+            serde_json::json!({
+                "version": 1,
+                "ok": !failed,
+                "simulation": simulation,
+                "essais": results,
+                "rapport": texte,
+            })
+            .to_string(),
+        );
+        if failed {
+            output.exit_code = 1;
+        }
+        Ok(())
+    }
+
     /// Passe la commande au service `momentum-daemon` s'il tourne ; `false` :
     /// pas de service (connexion directe), ou commande sans casque (scènes).
     #[cfg(any(windows, target_os = "linux"))]
@@ -472,6 +610,7 @@ mod app {
             Command::SceneEnregistrer { .. } => {
                 bail!("enregistrer une scène exige l'état connu du service")
             }
+            Command::Essais { .. } => bail!("la suite d'essais a son propre chemin"),
             Command::Reglages { .. } => bail!("les réglages locaux ne passent pas par le service"),
             Command::Scenes | Command::Completions { .. } | Command::Man => return Ok(false),
             Command::Etat => {
@@ -867,6 +1006,14 @@ mod app {
             output.details = Some(details);
             return Ok(());
         }
+        if let Command::Essais {
+            liste,
+            simulation,
+            rapport,
+        } = &args.command
+        {
+            return essais(liste, *simulation, rapport.as_deref(), output);
+        }
         // Cette opération ne doit jamais tomber dans le chemin RFCOMM direct,
         // attendre une nouvelle lecture ou soumettre une commande au service.
         if let Command::SceneEnregistrer { nom, remplacer } = &args.command {
@@ -931,6 +1078,9 @@ mod app {
         match args.command {
             Command::SceneEnregistrer { .. } => {
                 bail!("service requis pour enregistrer une scène ; aucune connexion directe")
+            }
+            Command::Essais { .. } => {
+                bail!("service requis pour la suite d'essais ; aucune connexion directe")
             }
             Command::Reconnecter => {
                 bail!("service requis pour reconnecter le casque ; aucune connexion directe")

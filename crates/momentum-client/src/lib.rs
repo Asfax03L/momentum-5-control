@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(target_os = "linux")]
 pub mod dbus;
 pub mod demo;
+pub mod essais;
 pub mod menu;
 #[cfg(windows)]
 pub mod pipe;

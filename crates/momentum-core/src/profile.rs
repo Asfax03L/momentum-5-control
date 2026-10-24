@@ -164,7 +164,7 @@ pub fn file_stamp(unix: u64) -> String {
 }
 
 /// Date ISO 8601 UTC (algorithme « days to civil » de H. Hinnant).
-fn iso_utc(unix: u64) -> String {
+pub fn iso_utc(unix: u64) -> String {
     let days = (unix / 86_400) as i64;
     let secs = unix % 86_400;
     let z = days + 719_468;
