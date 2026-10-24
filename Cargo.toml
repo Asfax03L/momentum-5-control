@@ -27,7 +27,8 @@ default-members = [
 version = "0.11.0"
 edition = "2024"
 # Version minimale de Rust (uuid, via BlueZ) ; l'interface WinUI demande
-# 1.95 (windows-reactor). Vérifiées par la tâche « msrv » de la CI.
+# 1.95 (windows-reactor), le client GTK 1.92 (gtk-rs). Vérifiées par la
+# tâche « msrv » de la CI.
 rust-version = "1.89"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/Asfax03L/openheadset-control"
