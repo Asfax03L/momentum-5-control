@@ -67,7 +67,6 @@ impl Tray {
             },
             revision: 1,
         }));
-        let name = format!("org.kde.StatusNotifierItem-{}-1", std::process::id());
         let connection = block_on(async {
             let connection = Connection::session().await?;
             let server = connection.object_server();
@@ -89,10 +88,17 @@ impl Tray {
                     },
                 )
                 .await?;
-            connection.request_name(name.as_str()).await?;
+            // Le nom unique de la connexion suffit (spécification SNI) :
+            // aucun nom org.kde.* à posséder, donc aucune permission
+            // --own-name=org.kde.* dans le Flatpak.
+            let name = connection
+                .unique_name()
+                .map(|name| name.to_string())
+                .ok_or_else(|| zbus::Error::Failure("bus sans nom unique".into()))?;
             register(&connection, &name).await?;
-            zbus::Result::Ok(connection)
+            zbus::Result::Ok((connection, name))
         })?;
+        let (connection, name) = connection;
         watch_restarts(connection.clone(), name);
         Ok(Self { connection, shared })
     }

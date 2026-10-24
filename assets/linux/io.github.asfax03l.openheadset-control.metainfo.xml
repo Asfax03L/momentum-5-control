@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.asfax03l.openheadset-control</id>
+  <name>OpenHeadset Control</name>
+  <summary>Control the Sennheiser MOMENTUM 5 headphones (unofficial)</summary>
+  <summary xml:lang="fr">Réglages du casque Sennheiser MOMENTUM 5 (non officiel)</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT OR Apache-2.0</project_license>
+  <developer id="io.github.asfax03l">
+    <name>Asfax03L</name>
+  </developer>
+  <description>
+    <p>
+      Lightweight desktop control of the Sennheiser MOMENTUM 5 headphones,
+      as an alternative to the mobile app: noise cancellation, ANC ↔
+      transparency slider, wind reduction, spatial audio, 8-band equalizer
+      and presets, scenes, battery history, global shortcuts and a system
+      tray icon. The interface is in French.
+    </p>
+    <p xml:lang="fr">
+      Contrôle léger du casque Sennheiser MOMENTUM 5 depuis le bureau, en
+      alternative à l'application mobile : réduction de bruit, curseur ANC ↔
+      transparence, anti-vent, audio spatial, égaliseur 8 bandes et
+      préréglages, scènes, historique de la batterie, raccourcis globaux et
+      icône de la zone de notification.
+    </p>
+    <p>
+      Unofficial project, not affiliated with Sennheiser or Sonova. Only
+      writes captured and then verified on the headphones are sent, and only
+      to the validated model and firmware; any other headphones stay
+      read-only. No firmware update, no factory reset.
+    </p>
+    <p xml:lang="fr">
+      Projet non officiel, sans lien avec Sennheiser ni Sonova. Seules les
+      écritures capturées puis vérifiées sur le casque sont envoyées, et
+      uniquement au modèle et au micrologiciel validés ; tout autre casque
+      reste en lecture seule. Ni mise à jour du micrologiciel, ni
+      réinitialisation d'usine.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.asfax03l.openheadset-control.desktop</launchable>
+  <!-- Ancien identifiant du Flatpak (v0.12.0 et avant). -->
+  <replaces>
+    <id>org.openheadset.Control</id>
+  </replaces>
+  <provides>
+    <dbus type="user">org.openheadset.Control</dbus>
+    <binary>ctl</binary>
+  </provides>
+  <url type="homepage">https://github.com/Asfax03L/openheadset-control</url>
+  <url type="bugtracker">https://github.com/Asfax03L/openheadset-control/issues</url>
+  <url type="vcs-browser">https://github.com/Asfax03L/openheadset-control</url>
+  <branding>
+    <color type="primary" scheme_preference="light">#d6e6ff</color>
+    <color type="primary" scheme_preference="dark">#123a8c</color>
+  </branding>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Home page (demo mode)</caption>
+      <caption xml:lang="fr">Accueil (mode démonstration)</caption>
+      <image>https://raw.githubusercontent.com/Asfax03L/openheadset-control/main/docs/captures/kde-accueil-sombre.jpg</image>
+    </screenshot>
+    <screenshot>
+      <caption>Equalizer (demo mode)</caption>
+      <caption xml:lang="fr">Égaliseur (mode démonstration)</caption>
+      <image>https://raw.githubusercontent.com/Asfax03L/openheadset-control/main/docs/captures/kde-son-sombre.jpg</image>
+    </screenshot>
+  </screenshots>
+  <content_rating type="oars-1.1"/>
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <releases>
+    <release version="0.13.0" date="2026-10-24">
+      <description>
+        <p>Flatpak built offline from pinned sources, new application ID, reviewed permissions and settings migration.</p>
+      </description>
+    </release>
+    <release version="0.12.0" date="2026-10-24"/>
+    <release version="0.11.0" date="2026-10-24"/>
+    <release version="0.10.0" date="2026-10-23"/>
+    <release version="0.9.1" date="2026-10-22"/>
+    <release version="0.9.0" date="2026-10-22"/>
+    <release version="0.8.0" date="2026-10-21"/>
+  </releases>
+</component>

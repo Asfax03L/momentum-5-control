@@ -14,8 +14,8 @@ sed 's|ExecStart=%h/.local/bin/momentum-daemon|ExecStart=/usr/bin/momentum-daemo
     assets/linux/momentum-daemon.service > "$integration/momentum-daemon.service"
 sed 's|Exec=/bin/false|Exec=/usr/bin/momentum-daemon|' \
     assets/linux/org.openheadset.Control.service > "$integration/org.openheadset.Control.service"
-sed 's|org.openheadset.Control.desktop|momentum-kirigami.desktop|' \
-    assets/linux/org.openheadset.Control.metainfo.xml > "$integration/org.openheadset.Control.metainfo.xml"
+sed 's|io.github.asfax03l.openheadset-control.desktop|momentum-kirigami.desktop|' \
+    assets/linux/io.github.asfax03l.openheadset-control.metainfo.xml > "$integration/io.github.asfax03l.openheadset-control.metainfo.xml"
 target/release/ctl man > "$integration/man/ctl.1"
 gzip -n -c "$integration/man/ctl.1" > "$integration/man/ctl.1.gz"
 target/release/ctl completions bash > "$integration/completions/ctl.bash"

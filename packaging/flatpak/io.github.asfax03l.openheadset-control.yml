@@ -2,14 +2,16 @@
 # client KDE (momentum-kirigami), service (momentum-daemon, lancé par
 # activation D-Bus) et ctl.
 #
-# Construction locale, depuis la racine du dépôt :
-#   flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/org.openheadset.Control.yml
+# Construction locale, depuis la racine du dépôt (docs/LINUX.md) :
+#   sh packaging/flatpak/sources-cargo.sh
+#   flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/io.github.asfax03l.openheadset-control.yml
 # La CI construit le même manifeste et publie le paquet (.flatpak).
 #
-# Les dépendances Rust sont téléchargées pendant la construction (réseau
-# autorisé) : simple pour un paquet du projet ; Flathub demanderait une liste
-# de sources figée (flatpak-cargo-generator).
-id: org.openheadset.Control
+# Sources figées : la construction se fait sans réseau. Les dépendances
+# Rust viennent de cargo-sources.json, produit depuis Cargo.lock par
+# sources-cargo.sh (empreinte SHA-256 de chaque crate). Le manifeste pour
+# Flathub ne diffère que par la source du dépôt (docs/FLATHUB.md).
+id: io.github.asfax03l.openheadset-control
 runtime: org.kde.Platform
 runtime-version: '6.11'
 sdk: org.kde.Sdk
@@ -28,29 +30,29 @@ finish-args:
   # Casque : sockets Bluetooth (RFCOMM) et BlueZ sur le bus système.
   - --allow=bluetooth
   - --system-talk-name=org.bluez
-  # Instance unique de la fenêtre (le service porte l'identifiant de l'app).
+  # API du service (widget Plasma, ctl, scripts) : même nom D-Bus que les
+  # autres installations. Fenêtre unique : nom propre à la fenêtre.
+  - --own-name=org.openheadset.Control
   - --own-name=org.openheadset.ControlWindow
-  # Icône de la zone de notification : l'élément s'enregistre sous
-  # « org.kde.StatusNotifierItem-<pid>-<n> », que Flatpak ne sait désigner
-  # que par org.kde.* (usage courant sur Flathub pour ces icônes).
+  # Icône de la zone de notification, inscrite sous le nom unique de la
+  # connexion (aucun nom org.kde.* à posséder).
   - --talk-name=org.kde.StatusNotifierWatcher
-  - --own-name=org.kde.*
   # Raccourcis globaux KDE et notifications du service.
   - --talk-name=org.kde.kglobalaccel
   - --talk-name=org.freedesktop.Notifications
-  # Exports (batterie en CSV, profil) dans Documents.
+  # Exports (batterie en CSV, profil, réglages) et import des réglages,
+  # dans Documents.
   - --filesystem=xdg-documents
 build-options:
   append-path: /usr/lib/sdk/rust-stable/bin
-  build-args:
-    - --share=network
   env:
     CARGO_HOME: /run/build/openheadset-control/cargo
+    CARGO_NET_OFFLINE: 'true'
 modules:
   - name: openheadset-control
     buildsystem: simple
     build-commands:
-      - QMAKE="$(command -v qmake6 || command -v qmake)" cargo build --release --locked -p momentum-kirigami -p momentum-daemon -p momentum-cli
+      - QMAKE="$(command -v qmake6 || command -v qmake)" cargo build --release --locked --offline -p momentum-kirigami -p momentum-daemon -p momentum-cli
       - sh packaging/flatpak/installer-flatpak.sh
     sources:
       - type: dir
@@ -59,3 +61,6 @@ modules:
           - target
           - build-flatpak
           - .flatpak-builder
+          - repo
+      # Produit par sources-cargo.sh, non versionné.
+      - cargo-sources.json

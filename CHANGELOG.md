@@ -12,6 +12,78 @@ refuse de publier sans elles) :
 - « À faire après la mise à jour » : les actions concrètes par système,
   ou « Rien de particulier » avec la raison.
 
+## v0.13.0 — 24/10/2026
+
+### En bref
+Version bêta de la distribution, surtout pour le Flatpak :
+- **Nouvel identifiant du Flatpak** : `io.github.asfax03l.openheadset-control`
+  (avant : `org.openheadset.Control`). Flathub n'accepte un identifiant que
+  s'il correspond à un domaine ou à un dépôt de l'auteur. Le nom D-Bus du
+  service (`org.openheadset.Control`) ne change pas : widget Plasma, `ctl`
+  et scripts continuent de fonctionner.
+- **Flatpak construit sans réseau** : chaque dépendance Rust est figée avec
+  son empreinte, comme Flathub l'exige, et le paquet passe le contrôle de
+  Flathub (`flatpak-builder-lint`) à chaque PR.
+- **Permissions resserrées** : l'icône de la zone de notification n'a plus
+  besoin de posséder les noms `org.kde.*`.
+- **Migration des réglages** : un script recopie réglages, scènes et
+  historique de l'ancien Flatpak, ou de l'installation par l'archive, vers
+  le nouveau Flatpak, sans rien supprimer ni écraser.
+- **Flathub** : la soumission est prête (`docs/FLATHUB.md`) mais **pas
+  envoyée** ; elle attend l'accord du mainteneur.
+
+Rien ne change pour Windows, l'archive Linux ni les paquets `.deb`/`.rpm`,
+sauf le nom de la fiche AppStream.
+
+### À faire après la mise à jour
+- **Flatpak** : l'ancien Flatpak n'est pas remplacé automatiquement (autre
+  identifiant). Quitter l'application, désinstaller l'ancien
+  (`flatpak uninstall --user org.openheadset.Control`, réglages gardés sur
+  le disque), installer le nouveau, puis **avant de le lancer** reprendre
+  les réglages avec `migrer-reglages.sh` (`--essai` d'abord). Commandes
+  exactes dans les notes de publication et `docs/LINUX.md`.
+- **Passage de l'archive Linux au Flatpak** : `./installer-linux.sh
+  --desinstaller`, puis la même procédure (le script reprend
+  `~/.local/share/momentum-ctl-win`). Un seul service peut porter le nom
+  D-Bus `org.openheadset.Control`.
+- **Widget Plasma ou `ctl` hors du Flatpak** : ils ne peuvent plus
+  démarrer le service du Flatpak eux-mêmes ; ouvrir l'application une fois
+  par session (ou la lancer à l'ouverture de session).
+- **Windows, archive Linux, `.deb`, `.rpm`** : rien de particulier.
+
+### Distribution (jalon 0.13-bêta)
+- **Sources figées** (`packaging/flatpak/sources-cargo.sh`) :
+  `cargo-sources.json` produit depuis `Cargo.lock` par
+  flatpak-cargo-generator, à une révision et une empreinte fixées. Le
+  manifeste n'a plus `--share=network` et compile avec `--offline`.
+- **Identifiant** `io.github.asfax03l.openheadset-control` : manifeste,
+  fiche AppStream (`<replaces>` l'ancien identifiant ; anglais par défaut,
+  français en traduction ; couleurs, notes de version), entrée de menu,
+  icônes. Les paquets `.deb` et `.rpm` installent la fiche sous ce nom.
+- **Activation D-Bus dans le Flatpak** : Flatpak n'exporte que les
+  fichiers nommés d'après l'application. Le service est déclaré sous cet
+  identifiant et prend aussi `org.openheadset.Control` ; le client du
+  Flatpak le démarre par ce nom quand le service n'est pas trouvé.
+- **Permissions** : `--own-name=org.kde.*` retiré (icône inscrite sous le
+  nom unique de la connexion, essayé avec la zone de notification de KDE) ;
+  `--own-name=org.openheadset.Control` ajouté (le nom n'est plus celui de
+  l'application).
+- **Migration** (`packaging/flatpak/migrer-reglages.sh`) : copie seule,
+  fichiers déjà présents gardés, `--essai`, `--depuis flatpak|local`
+  (exigé si les deux anciennes installations existent), refus si le
+  nouveau Flatpak est lancé.
+- **Essayé sur Bazzite** (M5, 6.21.5), avec le paquet de la CI :
+  installation, migration depuis l'installation par script, service du
+  Flatpak démarré par activation, état du casque lu par le Bluetooth du
+  bac à sable, scènes migrées retrouvées, mise à jour par-dessus,
+  désinstallation (exports retirés, réglages gardés).
+- **Flathub** (`docs/FLATHUB.md`, `packaging/flatpak/flathub.sh`) :
+  manifeste à source git figée (étiquette et révision), sources Cargo,
+  `flathub.json`, permissions justifiées et texte de la PR. Non soumis.
+- CI : le workflow Flatpak sert aussi à la publication (même construction),
+  vérifie les fichiers exportés et passe `flatpak-builder-lint` sur le
+  manifeste et le dépôt construit.
+
 ## v0.12.0 — 24/10/2026
 
 ### En bref
