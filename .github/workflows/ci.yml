@@ -76,6 +76,18 @@ jobs:
         shell: pwsh
         run: ./scripts/mesurer-ressources.ps1 -Binaires target/release -Duree 30
 
+      # Essai de l'interface par UI Automation (démonstration) : chaque page
+      # par la navigation, puis un réglage simulé relu à l'affichage.
+      - name: Essai de l'interface WinUI (UI Automation)
+        shell: pwsh
+        run: ./scripts/essai-interface-winui.ps1 -Exe target/debug/momentum-winui.exe
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: capture-essai-interface-winui
+          path: essai-interface-winui.png
+          if-no-files-found: ignore
+
   linux:
     runs-on: ubuntu-24.04
     env:
@@ -144,6 +156,18 @@ jobs:
             test "$code" -eq 124
             ! grep -E "qrc:.*(Error|error)|is not a type|is not installed|ReferenceError|TypeError|Cannot assign" "demarrage-$page.log"
           done
+      # Essai de l'interface (démonstration) : chaque page se charge, un
+      # réglage simulé change l'affichage, le panneau rapide s'ouvre.
+      - name: Essai de l'interface KDE
+        run: |
+          set +e
+          QT_QPA_PLATFORM=offscreen timeout 90 dbus-run-session -- \
+            target/debug/momentum-kirigami --demo --essai-interface > essai-interface.log 2>&1
+          code=$?
+          set -e
+          cat essai-interface.log
+          test "$code" -eq 0
+          grep -q "ESSAI INTERFACE RÉUSSI" essai-interface.log
 
   # Service durci (assets/linux/momentum-daemon.service, docs/SECURITE.md) :
   # score d'exposition de systemd, puis démarrage réel du service compilé,

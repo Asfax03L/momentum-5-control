@@ -160,6 +160,13 @@ impl Page {
             .find(|(_, t, _, _)| *t == tag)
             .map(|(p, ..)| *p)
     }
+    /// Repère de la page (`--page`, essais UIA).
+    fn tag(self) -> &'static str {
+        Self::ALL
+            .iter()
+            .find(|(p, ..)| *p == self)
+            .map_or("accueil", |(_, t, ..)| *t)
+    }
 }
 
 /// Ce qui arrive du service (thread d'écoute).
@@ -1815,6 +1822,8 @@ impl Component for Root {
                 *tag,
                 NavigationViewItem::new()
                     .tag(*tag)
+                    // Repères stables pour l'accessibilité et les essais UIA.
+                    .automation_id(format!("nav-{tag}"))
                     .is_selected(*p == self.page)
                     .slots([
                         SlotView::new(NavigationViewItemSlot::Content, *label),
@@ -1840,6 +1849,7 @@ impl Component for Root {
                             .spacing(12.0)
                             .margin(Thickness::new(32.0, 24.0, 32.0, 32.0))
                             .max_width(860.0)
+                            .automation_id(format!("page-{}", self.page.tag()))
                             .children((self.header(context), page)),
                     ),
                 ),
@@ -1976,6 +1986,8 @@ fn switch_row(
                 .is_on(on)
                 .is_enabled(enabled)
                 .on_toggled(toggled)
+                // Nom lu par les lecteurs d'écran (sinon « Activé »).
+                .automation_name(label)
                 .grid_column(1),
         ))
 }

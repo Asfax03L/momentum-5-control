@@ -74,6 +74,7 @@ Kirigami.ApplicationWindow {
     // Il se ferme quand il perd le focus, ou par un second clic sur l'icône.
     Window {
         id: quickPanel
+        objectName: "panneau-rapide"
         title: "OpenHeadset Control"
         flags: Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
         width: Kirigami.Units.gridUnit * 22
@@ -228,6 +229,71 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // Essai de l'interface (CI, `--demo --essai-interface`) : chaque page se
+    // charge, un réglage simulé change l'affichage, le panneau rapide
+    // s'ouvre. Fin par « ESSAI INTERFACE RÉUSSI » (code 0) ou un échec
+    // (code 1). Jamais actif hors du mode démonstration.
+    property int essaiEtape: 0
+    property bool essaiAntiVent: false
+    function essaiEchec(message) {
+        console.error("ESSAI INTERFACE ÉCHEC : " + message)
+        Qt.exit(1)
+    }
+    function essaiChercher(item, name) {
+        if (!item)
+            return null
+        if (item.objectName === name)
+            return item
+        const enfants = item.children || []
+        for (let i = 0; i < enfants.length; ++i) {
+            const trouve = essaiChercher(enfants[i], name)
+            if (trouve)
+                return trouve
+        }
+        return null
+    }
+    Timer {
+        running: headset.selfTest
+        interval: 1500
+        repeat: true
+        onTriggered: {
+            if (root.essaiEtape === 0) {
+                const pages = [
+                    [homePage, "page-accueil"], [soundPage, "page-egaliseur"],
+                    [scenesPage, "page-scenes"], [batteryPage, "page-batterie"],
+                    [settingsPage, "page-parametres"], [audioPage, "page-audio"],
+                    [aboutPage, "page-apropos"]
+                ]
+                for (const [page, name] of pages) {
+                    root.pageStack.replace(page)
+                    const courante = root.pageStack.currentItem
+                    if (!courante || courante.objectName !== name)
+                        return root.essaiEchec("page " + name + " non chargée")
+                    console.info("essai interface : " + name + " chargée")
+                }
+                root.pageStack.replace(homePage)
+            } else if (root.essaiEtape === 1) {
+                const interrupteur = root.essaiChercher(root.pageStack.currentItem, "accueil-anti-vent")
+                if (!interrupteur)
+                    return root.essaiEchec("interrupteur anti-vent introuvable")
+                root.essaiAntiVent = headset.antiWind
+                headset.sendAntiWind(!root.essaiAntiVent)
+            } else if (root.essaiEtape === 2) {
+                const interrupteur = root.essaiChercher(root.pageStack.currentItem, "accueil-anti-vent")
+                if (headset.antiWind === root.essaiAntiVent || interrupteur.checked === root.essaiAntiVent)
+                    return root.essaiEchec("anti-vent simulé non relu à l'affichage")
+                console.info("essai interface : anti-vent " + root.essaiAntiVent + " → " + headset.antiWind)
+                headset.panelRequested()
+            } else if (root.essaiEtape === 3) {
+                if (!quickPanel.visible)
+                    return root.essaiEchec("panneau rapide non ouvert")
+                console.info("ESSAI INTERFACE RÉUSSI")
+                Qt.exit(0)
+            }
+            root.essaiEtape += 1
+        }
+    }
+
     // Remet un interrupteur sur la valeur confirmée par le casque après un
     // clic : la nouvelle valeur n'apparaîtra qu'une fois relue.
     function confirmed(control, getter) {
@@ -323,6 +389,7 @@ Kirigami.ApplicationWindow {
     Component {
         id: homePage
         Kirigami.ScrollablePage {
+            objectName: "page-accueil"
             title: "Accueil"
             actions: [
                 Kirigami.Action {
@@ -455,6 +522,7 @@ Kirigami.ApplicationWindow {
                             }
                             QQC2.Switch {
                                 id: antiWind
+                                objectName: "accueil-anti-vent"
                                 Kirigami.FormData.label: "Anti-vent :"
                                 checked: headset.antiWind
                                 enabled: headset.writable
@@ -642,6 +710,7 @@ Kirigami.ApplicationWindow {
     Component {
         id: soundPage
         Kirigami.ScrollablePage {
+            objectName: "page-egaliseur"
             title: "Égaliseur"
             ColumnLayout {
                 spacing: Kirigami.Units.largeSpacing
@@ -892,6 +961,7 @@ Kirigami.ApplicationWindow {
     Component {
         id: settingsPage
         Kirigami.ScrollablePage {
+            objectName: "page-parametres"
             title: "Paramètres"
             ColumnLayout {
                 StatusHeader {}
@@ -1147,6 +1217,7 @@ Kirigami.ApplicationWindow {
     Component {
         id: scenesPage
         Kirigami.ScrollablePage {
+            objectName: "page-scenes"
             title: "Scènes"
             Component.onCompleted: headset.reloadScenes()
             actions: [
@@ -1490,6 +1561,7 @@ Kirigami.ApplicationWindow {
     Component {
         id: audioPage
         Kirigami.ScrollablePage {
+            objectName: "page-audio"
             id: audioScroll
             title: "Connexion et audio"
             Component.onCompleted: headset.reloadAudio()
@@ -1520,6 +1592,7 @@ Kirigami.ApplicationWindow {
     Component {
         id: batteryPage
         Kirigami.ScrollablePage {
+            objectName: "page-batterie"
             id: batteryScroll
             title: "Batterie"
             property string notice: ""
@@ -1637,6 +1710,7 @@ Kirigami.ApplicationWindow {
     Component {
         id: aboutPage
         Kirigami.ScrollablePage {
+            objectName: "page-apropos"
             title: "À propos"
             actions: [
                 Kirigami.Action {
