@@ -45,8 +45,11 @@ au casque, et deux outils en ligne de commande.
 | U | Paquets natifs : installateur Windows (Inno Setup, par utilisateur), `.deb` et `.rpm` mis à jour par-dessus la version précédente, `PKGBUILD` (AUR), widget `.plasmoid` ; winget, AUR et KDE Store préparés | 🟡 installateur essayé sur Windows 11 avec le M5 (v0.14.0) ; paquets Linux essayés en conteneurs ; catalogues non soumis |
 | V | Intégration au bureau : recherche KRunner (« anc off », « scène Transport »), liste de raccourcis Windows (scènes) et pastille de batterie, extension Decky Loader pour le mode jeu ; tout par l'API du service | 🟡 KRunner essayé sur le M5 (Bazzite) et scènes de la liste de raccourcis sur le M5 (Windows 11), v0.15.0 ; extension Decky essayée hors du mode jeu |
 | W | Langues et accueil : interfaces en anglais (choix de la langue), accessibilité (noms lus par les lecteurs d'écran, parcours clavier, contrastes), assistant de premier lancement, rapport de bogue prérempli, guide et FAQ, site GitHub Pages | 🟡 vérifié en CI (UI Automation, KDE hors écran) dans les deux langues (v0.16.0) ; écoute au Narrateur et à Orca à faire |
+| X | Version stable : politique de versions (`docs/VERSIONS.md`), politique de sécurité (`SECURITY.md`), avis de nouvelle version désactivé par défaut, décisions écrites sur les points ouverts | ✅ v1.0.0 |
 
-Dernière publication : **v0.16.0** (page Releases du dépôt). **Guide
+Dernière publication : **v1.0.0**, version stable (page Releases du
+dépôt). Ce qui reste compatible en 1.x : [`docs/VERSIONS.md`](docs/VERSIONS.md) ;
+signaler une faille : [`SECURITY.md`](SECURITY.md). **Guide
 d'utilisation et FAQ** : [`docs/GUIDE.md`](docs/GUIDE.md),
 [`docs/FAQ.md`](docs/FAQ.md) (en anglais : [`GUIDE.en.md`](docs/GUIDE.en.md),
 [`FAQ.en.md`](docs/FAQ.en.md)), aussi sur le site

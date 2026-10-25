@@ -72,9 +72,11 @@ environment variable takes priority.
 
 ### Does the application send data over the Internet?
 
-The application sends no data. The bug report only opens a GitHub form in
-your browser, prefilled with the redacted diagnostic you reviewed; you are
-the one who submits it.
+No. Two exceptions, always on your initiative: the **new version
+notice**, off by default, reads the latest release on GitHub at startup
+(GitHub sees your IP address, nothing else is sent); the bug report opens
+a GitHub form in your browser, prefilled with the redacted diagnostic you
+reviewed, and you are the one who submits it.
 
 ### What does the diagnostic contain?
 
@@ -84,7 +86,7 @@ number, personal folder, hearing profile.
 
 ### Where are my settings? How do I move them?
 
-In the data folder (see the [guide](GUIDE.en.md#9-where-your-data-lives)).
+In the data folder (see the [guide](GUIDE.en.md#10-where-your-data-lives)).
 Settings > backup exports and imports a JSON file, after a preview of what
 will change.
 
@@ -99,6 +101,13 @@ cancelling, anti-wind and scenes.
 Not yet: the submissions are prepared ([SOUMISSIONS.md](SOUMISSIONS.md),
 French). Meanwhile, use the files on the Releases page (installer, Flatpak,
 `.deb`, `.rpm`, `PKGBUILD`).
+
+### What does version 1.0 guarantee?
+
+Settings files, the JSON backup, the `ctl` command line and the D-Bus API
+stay compatible for the whole 1.x series: see the
+[version policy](VERSIONS.md) (French). Vulnerabilities are reported
+privately ([SECURITY.md](../SECURITY.md)).
 
 ### How do I report a problem or ask a question?
 

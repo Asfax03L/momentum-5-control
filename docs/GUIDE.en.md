@@ -134,7 +134,16 @@ The form is in French; answers in English are welcome. A question rather
 than a bug:
 [Discussions](https://github.com/Asfax03L/openheadset-control/discussions).
 
-## 9. Where your data lives
+## 9. New versions
+
+Settings > **New version notice** (off by default): at startup, the
+interface reads the latest release on GitHub and points out a newer
+version, with a “View the release” button. Only your IP address and the
+application name reach GitHub; nothing is downloaded or installed
+automatically. The Flatpak is updated by Flatpak. What each version
+guarantees: [version policy](VERSIONS.md) (French).
+
+## 10. Where your data lives
 
 Everything stays on the PC, in the data folder:
 
@@ -143,4 +152,5 @@ Everything stays on the PC, in the data folder:
 - Flatpak: `~/.var/app/io.github.asfax03l.openheadset-control/`.
 
 It holds `scenes.txt`, `prereglages.txt`, `raccourcis.txt`, `panneau.txt`,
-`apparence.txt`, `langue.txt`, `batterie.csv` and the service log.
+`apparence.txt`, `langue.txt`, `mises-a-jour.txt`, `batterie.csv` and the
+service log.

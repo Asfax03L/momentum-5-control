@@ -24,7 +24,7 @@ default-members = [
 ]
 
 [workspace.package]
-version = "0.16.0"
+version = "1.0.0"
 edition = "2024"
 # Version minimale de Rust (uuid, via BlueZ) ; l'interface WinUI demande
 # 1.95 (windows-reactor), le client GTK 1.92 (gtk-rs). Vérifiées par la

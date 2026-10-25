@@ -72,9 +72,12 @@ prochain lancement. Pour un essai ponctuel, la variable d'environnement
 
 ### L'application envoie-t-elle des données sur Internet ?
 
-Aucune donnée n'est envoyée par l'application. Le rapport de bogue ouvre
-seulement un formulaire GitHub dans le navigateur, prérempli avec le
-diagnostic expurgé que vous avez relu ; c'est vous qui l'envoyez.
+Non. Deux exceptions, toujours à votre initiative : l'**avis de nouvelle
+version**, désactivé par défaut, lit la dernière publication sur GitHub au
+lancement (GitHub voit votre adresse IP, rien d'autre n'est envoyé) ; le
+rapport de bogue ouvre un formulaire GitHub dans le navigateur, prérempli
+avec le diagnostic expurgé que vous avez relu, et c'est vous qui
+l'envoyez.
 
 ### Que contient le diagnostic ?
 
@@ -84,7 +87,7 @@ Bluetooth, numéro de série, dossier personnel, profil auditif.
 
 ### Où sont mes réglages ? Comment les transférer ?
 
-Dans le dossier des données (voir le [guide](GUIDE.md#9-où-sont-mes-données)).
+Dans le dossier des données (voir le [guide](GUIDE.md#10-où-sont-mes-données)).
 Paramètres > sauvegarde exporte et importe un fichier JSON, après un aperçu
 de ce qui changera.
 
@@ -99,6 +102,13 @@ réduction de bruit, anti-vent et scènes.
 Pas encore : les soumissions sont préparées
 ([SOUMISSIONS.md](SOUMISSIONS.md)). En attendant, les fichiers de la page
 Releases (installateur, Flatpak, `.deb`, `.rpm`, `PKGBUILD`).
+
+### Que garantit la version 1.0 ?
+
+Les fichiers de réglages, la sauvegarde JSON, la ligne de commande `ctl`
+et l'API D-Bus restent compatibles pour toute la série 1.x : voir la
+[politique de versions](VERSIONS.md). Une faille se signale en privé
+([SECURITY.md](../SECURITY.md)).
 
 ### Comment signaler un problème ou poser une question ?
 
