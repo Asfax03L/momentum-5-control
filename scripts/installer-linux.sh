@@ -58,6 +58,7 @@ if [ "${1:-}" = "--desinstaller" ]; then
         "$data/krunner/dbusplugins/openheadset-control-krunner.desktop" \
         "$config/autostart/momentum-kirigami.desktop" \
         "$config/systemd/user/momentum-daemon.service" \
+        "$config/systemd/user/momentum-daemon.service.d/apparmor.conf" \
         "$data/dbus-1/services/org.openheadset.Control.service" \
         "$data/man/man1/ctl.1" "$data/bash-completion/completions/ctl" \
         "$data/zsh/site-functions/_ctl" "$data/fish/vendor_completions.d/ctl.fish"; do
@@ -86,7 +87,8 @@ for exe in $exes; do
     [ -x "$bins/$exe" ] || missing="$missing $bins/$exe"
 done
 for f in "$assets/logo/openheadset.svg" "$assets/linux/momentum-kirigami.desktop" \
-    "$assets/linux/momentum-daemon.service" "$assets/linux/org.openheadset.Control.service"; do
+    "$assets/linux/momentum-daemon.service" "$assets/linux/org.openheadset.Control.service" \
+    "$assets/linux/momentum-daemon-apparmor.conf"; do
     [ -f "$f" ] || missing="$missing $f"
 done
 for size in 16 22 24 32 48 64 128 256; do
@@ -229,6 +231,18 @@ fi
 mkdir -p "$config/systemd/user" "$data/dbus-1/services"
 install -m 644 "$assets/linux/momentum-daemon.service" \
     "$config/systemd/user/momentum-daemon.service"
+# AppArmor restreint les espaces de noms utilisateur (Ubuntu 24.04 et
+# suivants) : complément qui lève les options empêchant le démarrage
+# (assets/linux/momentum-daemon-apparmor.conf). Ailleurs, unité complète.
+dropin="$config/systemd/user/momentum-daemon.service.d"
+if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null)" = 1 ]; then
+    mkdir -p "$dropin"
+    install -m 644 "$assets/linux/momentum-daemon-apparmor.conf" "$dropin/apparmor.conf"
+    echo "service : compatibilité AppArmor posée (durcissement réduit, docs/SECURITE.md)"
+elif [ -e "$dropin/apparmor.conf" ]; then
+    rm -f "$dropin/apparmor.conf"
+    rmdir "$dropin" 2>/dev/null || true
+fi
 install -m 644 "$assets/linux/org.openheadset.Control.service" \
     "$data/dbus-1/services/org.openheadset.Control.service"
 systemctl --user daemon-reload 2>/dev/null || true

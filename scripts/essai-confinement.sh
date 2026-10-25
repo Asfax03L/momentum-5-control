@@ -8,12 +8,22 @@
 #   - Documents (s'il existe) : inscriptible ; /etc : non inscriptible ;
 #   - bus de session et bus système (BlueZ) joignables ;
 #   - binaire du service visible (s'il est installé dans ~/.local/bin).
-#   sh scripts/essai-confinement.sh [unité] [fichier témoin]
+#   sh scripts/essai-confinement.sh [unité] [fichier témoin] [complément]
+# Avec un complément (drop-in), ses options remplacent celles de l'unité qui
+# portent le même nom. Si AppArmor restreint les espaces de noms utilisateur
+# (Ubuntu 24.04 et suivants), systemd n'applique pas le masquage des
+# fichiers : ces contrôles sont alors signalés « non appliqués », pas
+# comptés en échec.
 # Le témoin est un fichier personnel existant (par défaut ~/.bashrc) : il
 # est seulement lu, rien n'est créé ni supprimé.
 set -eu
 unite=${1:-assets/linux/momentum-daemon.service}
 temoin=${2:-$HOME/.bashrc}
+complement=${3:-}
+restreint=false
+if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null)" = 1 ]; then
+    restreint=true
+fi
 : "${XDG_RUNTIME_DIR:=/run/user/$(id -u)}"
 donnees="$HOME/.local/share/momentum-ctl-win"
 mkdir -p "$donnees"
@@ -21,10 +31,18 @@ test -r "$temoin" || { echo "Fichier témoin illisible hors du bac à sable : $t
 
 # Options de [Service] après le commentaire « Durcissement », spécificateurs
 # remplacés (%h : dossier personnel, %t : dossier d'exécution).
-options=$(awk '
-    /^\[/ { section = $0 }
-    section == "[Service]" && /^[A-Za-z]+=/ && !/^(Type|BusName|ExecStart|ExecStartPre|Restart|RestartSec)=/ { print }
-' "$unite" | sed -e "s|%h|$HOME|g" -e "s|%t|$XDG_RUNTIME_DIR|g")
+extraire() {
+    awk '
+        /^\[/ { section = $0 }
+        section == "[Service]" && /^[A-Za-z]+=/ && !/^(Type|BusName|ExecStart|ExecStartPre|Restart|RestartSec)=/ { print }
+    ' "$1" | sed -e "s|%h|$HOME|g" -e "s|%t|$XDG_RUNTIME_DIR|g"
+}
+options=$(extraire "$unite")
+if [ -n "$complement" ]; then
+    remplacees=$(extraire "$complement")
+    cles=$(printf '%s\n' "$remplacees" | sed 's/=.*//' | sort -u)
+    options=$(printf '%s\n' "$options" | grep -v -x -E "($(printf '%s' "$cles" | tr '\n' '|'))=.*"; printf '%s\n' "$remplacees")
+fi
 set --
 nl='
 '
@@ -40,8 +58,15 @@ printf '  %s\n' $options
 controle=$(cat <<EOF
 ok=0
 verifier() { if eval "\$2"; then echo "ok : \$1"; else echo "ÉCHEC : \$1"; ok=1; fi; }
-verifier "fichier personnel illisible" "! cat '$temoin' >/dev/null 2>&1"
-verifier "fichier personnel non inscriptible" "! test -w '$temoin'"
+masquage() {
+    if $restreint; then
+        if eval "\$2"; then echo "ok : \$1"; else echo "non appliqué (AppArmor) : \$1"; fi
+    else
+        verifier "\$1" "\$2"
+    fi
+}
+masquage "fichier personnel illisible" "! cat '$temoin' >/dev/null 2>&1"
+masquage "fichier personnel non inscriptible" "! test -w '$temoin'"
 verifier "dossier des données lisible" "test -r '$donnees'"
 verifier "dossier des données inscriptible" "test -w '$donnees'"
 if [ -d '$HOME/Documents' ]; then verifier "Documents inscriptible" "test -w '$HOME/Documents'"; fi

@@ -103,6 +103,9 @@ for size in 16 22 24 32 48 64 128 256; do
     test -s "/usr/share/icons/hicolor/${size}x${size}/apps/org.openheadset.control.png"
 done
 grep -qx 'ExecStart=/usr/bin/momentum-daemon' /usr/lib/systemd/user/momentum-daemon.service
+if [ "$family" = deb ]; then
+    grep -qx 'CapabilityBoundingSet=~' /usr/lib/systemd/user/momentum-daemon.service.d/apparmor.conf
+fi
 grep -qx 'Exec=/usr/bin/momentum-daemon' /usr/share/dbus-1/services/org.openheadset.Control.service
 test -s /usr/share/plasma/plasmoids/org.openheadset.control.plasmoid/metadata.json
 test -s /usr/share/plasma/plasmoids/org.openheadset.control.plasmoid/contents/ui/main.qml
