@@ -1,4 +1,4 @@
-# Essai de l'installateur Windows (Inno Setup), en silencieux :
+﻿# Essai de l'installateur Windows (Inno Setup), en silencieux :
 #   1. (si -Precedente) version précédente installée par installer.ps1 ;
 #   2. installation par l'installateur (mise à jour par-dessus) ;
 #   3. réinstallation par-dessus elle-même ;

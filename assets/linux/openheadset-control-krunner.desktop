@@ -1,6 +1,7 @@
 [Desktop Entry]
 Name=OpenHeadset Control
-Comment=Réglages du casque MOMENTUM 5 depuis la recherche (anc off, scène Transport…)
+Comment=MOMENTUM 5 headphone settings from the search (anc off, scene Transport…)
+Comment[fr]=Réglages du casque MOMENTUM 5 depuis la recherche (anc off, scène Transport…)
 Type=Service
 Icon=org.openheadset.control
 X-KDE-PluginInfo-Author=Asfax03L
@@ -12,5 +13,7 @@ X-Plasma-API=DBus
 X-Plasma-DBusRunner-Service=org.openheadset.Control
 X-Plasma-DBusRunner-Path=/runner
 X-Plasma-Request-Actions-Once=true
-X-Plasma-Runner-Syntaxes=anc off,scène :q:,transparence,batterie
-X-Plasma-Runner-Syntax-Descriptions=Coupe la réduction de bruit du casque,Applique la scène :q: du casque,Passe le casque en transparence maximale,Affiche la batterie du casque
+X-Plasma-Runner-Syntaxes=anc off,scene :q:,transparency,battery
+X-Plasma-Runner-Syntax-Descriptions=Turns off the headphones' noise cancelling,Applies the headphones scene :q:,Sets the headphones to maximum transparency,Shows the headphone battery
+X-Plasma-Runner-Syntaxes[fr]=anc off,scène :q:,transparence,batterie
+X-Plasma-Runner-Syntax-Descriptions[fr]=Coupe la réduction de bruit du casque,Applique la scène :q: du casque,Passe le casque en transparence maximale,Affiche la batterie du casque
