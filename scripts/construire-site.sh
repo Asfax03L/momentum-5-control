@@ -36,7 +36,7 @@ page() {
     fi
     # Identifiants des titres à la manière de GitHub : les ancres des
     # documents restent valables sur le site.
-    pandoc --from markdown-auto_identifiers+gfm_auto_identifiers --to html5 \
+    pandoc --from markdown+gfm_auto_identifiers --to html5 \
         --template site/modele.html --lua-filter site/liens.lua \
         "$@" --output "$sortie/$destination" "$source"
 }
