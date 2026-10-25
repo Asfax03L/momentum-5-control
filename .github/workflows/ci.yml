@@ -277,7 +277,12 @@ jobs:
           install -Dm644 assets/linux/momentum-daemon.service "$HOME/.config/systemd/user/momentum-daemon.service"
           test -f "$HOME/.bashrc" || echo "# témoin" > "$HOME/.bashrc"
           systemctl --user daemon-reload
-          systemctl --user start momentum-daemon
+          if ! systemctl --user start momentum-daemon; then
+            systemctl --user status momentum-daemon --no-pager || true
+            journalctl --user -u momentum-daemon --no-pager | tail -40 || true
+            sudo journalctl -b --no-pager | grep -i -E "momentum|namespace|apparmor" | tail -40 || true
+            exit 1
+          fi
           sleep 5
           systemctl --user status momentum-daemon --no-pager
           systemctl --user show momentum-daemon -p ProtectHome | grep -qx 'ProtectHome=tmpfs'

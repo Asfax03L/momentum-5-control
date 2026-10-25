@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 
 use windows::Win32::Foundation::{
     CloseHandle, ERROR_BROKEN_PIPE, ERROR_FILE_NOT_FOUND, ERROR_IO_PENDING, ERROR_PIPE_BUSY,
-    ERROR_PIPE_CONNECTED, GENERIC_READ, GENERIC_WRITE, HANDLE, HLOCAL, LocalFree,
+    ERROR_PIPE_CONNECTED, GENERIC_READ, GENERIC_WRITE, HANDLE, HLOCAL, LocalFree, WAIT_TIMEOUT,
 };
 use windows::Win32::Security::Authorization::{
     ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
@@ -286,6 +286,11 @@ fn exchange(name: &str, line: &str, timeout: Duration) -> Result<ClientOutcome, 
     let deadline = Instant::now() + timeout;
     let late = || format!("pas de réponse du service après {timeout:?}");
     let left = || deadline.saturating_duration_since(Instant::now());
+    // Délai écoulé : code WAIT_TIMEOUT de GetOverlappedResultEx (l'attente
+    // est arrondie à la milliseconde : l'horloge seule ne suffit pas).
+    let timed_out = |e: &windows::core::Error| {
+        e.code() == windows::core::HRESULT::from_win32(WAIT_TIMEOUT.0) || left().is_zero()
+    };
     let name = HSTRING::from(name);
     let mut attempts = 0;
     let pipe = loop {
@@ -330,7 +335,7 @@ fn exchange(name: &str, line: &str, timeout: Duration) -> Result<ClientOutcome, 
         let mut write = overlapped();
         let started = WriteFile(pipe.0, Some(line.as_bytes()), None, Some(&mut write));
         finish_io(pipe.0, started, &write, Some(left())).map_err(|e| {
-            if left().is_zero() {
+            if timed_out(&e) {
                 late()
             } else {
                 format!("envoi au canal : {e}")
@@ -345,7 +350,7 @@ fn exchange(name: &str, line: &str, timeout: Duration) -> Result<ClientOutcome, 
                 Ok(0) => break,
                 Ok(n) => reply.extend_from_slice(&chunk[..n as usize]),
                 Err(e) if e.code() == ERROR_BROKEN_PIPE.to_hresult() => break,
-                Err(_) if left().is_zero() => return Err(late()),
+                Err(e) if timed_out(&e) => return Err(late()),
                 Err(e) => return Err(format!("lecture du canal : {e}")),
             }
             // Fin de la réponse : on ferme, ce qui libère le serveur.
@@ -411,7 +416,8 @@ mod tests {
             let result = request_named(silent_name, "{}\n", Duration::from_millis(300));
             assert!(
                 matches!(&result, Err(e) if e.contains("pas de réponse")),
-                "tour {round}"
+                "tour {round} : {:?}",
+                result.as_ref().err()
             );
             assert!(started.elapsed() < Duration::from_secs(2), "tour {round}");
             closed_rx
