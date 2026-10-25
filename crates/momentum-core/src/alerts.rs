@@ -119,11 +119,10 @@ impl NotificationPrefs {
     pub fn to_text(&self) -> String {
         let yes = |b: bool| if b { "oui" } else { "non" };
         format!(
-            "# Notifications d'OpenHeadset Control : oui ou non
-             batterie-faible = {}
-             connexion = {}
-             sans-son = {}
-",
+            "# Notifications d'OpenHeadset Control : oui ou non\n\
+             batterie-faible = {}\n\
+             connexion = {}\n\
+             sans-son = {}\n",
             yes(self.low_battery),
             yes(self.connection),
             yes(self.idle)
@@ -197,13 +196,7 @@ mod tests {
             idle: true,
         };
         assert_eq!(NotificationPrefs::parse(&p.to_text()), p);
-        assert_eq!(
-            NotificationPrefs::parse(
-                "sans-son = peut-être
-"
-            ),
-            d
-        );
+        assert_eq!(NotificationPrefs::parse("sans-son = peut-être\n"), d);
     }
 
     #[test]

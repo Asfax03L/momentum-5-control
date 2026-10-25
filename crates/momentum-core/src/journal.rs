@@ -162,6 +162,35 @@ impl Entry {
     }
 }
 
+/// Ancienneté d'un événement : « il y a 5 min ».
+pub fn ago(now: u64, time: u64) -> String {
+    let seconds = now.saturating_sub(time);
+    match seconds {
+        s if s < 60 => tr("à l'instant").to_string(),
+        s if s < 3_600 => trf("il y a {} min", &[&(s / 60)]),
+        s if s < 86_400 => trf("il y a {} h", &[&(s / 3_600)]),
+        s => trf("il y a {} j", &[&(s / 86_400)]),
+    }
+}
+
+/// Journal enregistré par le service (vide s'il n'existe pas).
+pub fn load(now: u64) -> Journal {
+    crate::paths::journal_file()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .map(|text| Journal::parse(&text, now))
+        .unwrap_or_default()
+}
+
+/// Lignes affichées : les `count` derniers événements, du plus récent au
+/// plus ancien, « il y a 5 min — Casque connecté ».
+pub fn lines(journal: &Journal, now: u64, count: usize) -> Vec<String> {
+    journal
+        .recent(count)
+        .into_iter()
+        .map(|e| format!("{} — {}", ago(now, e.time), e.describe()))
+        .collect()
+}
+
 /// Journal en mémoire, borné.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Journal {
@@ -309,6 +338,18 @@ mod tests {
         assert_eq!(j.noise_at(15), Some(NoiseKind::Off));
         assert_eq!(j.noise_at(25), None);
         assert_eq!(j.noise_at(40), Some(NoiseKind::Off));
+    }
+
+    #[test]
+    fn displayed_lines() {
+        let mut j = Journal::default();
+        j.record(1_000, Event::Connected);
+        j.record(4_000, Event::Lost);
+        let l = lines(&j, 4_030, 10);
+        assert_eq!(l.len(), 2);
+        assert!(l[0].starts_with("à l'instant") && l[0].contains("Connexion perdue"));
+        assert!(l[1].starts_with("il y a 50 min"));
+        assert_eq!(ago(200_000, 0), "il y a 2 j");
     }
 
     #[test]

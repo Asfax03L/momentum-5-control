@@ -2191,3 +2191,15 @@ line {}: scene “{}”: trigger already used by “{}”
 
 « {} » et « {} » ont le même déclenchement automatique
 “{}” and “{}” have the same automatic trigger
+
+Scène automatique incomplète
+Automatic scene incomplete
+
+journal non effacé : écriture impossible ({})
+log not cleared: cannot write ({})
+
+à l'instant
+just now
+
+export Equalizer APO : {} bandes, {} attendues
+Equalizer APO export: {} bands, {} expected

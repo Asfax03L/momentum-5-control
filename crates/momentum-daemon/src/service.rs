@@ -9,9 +9,10 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
 use momentum_client::{Command, ConnectionInfo, Event, Snapshot};
-use momentum_core::alerts::{Alert, AlertTracker};
+use momentum_core::alerts::{Alert, AlertTracker, IdleTracker, NotificationPrefs};
 use momentum_core::battery_log::BatteryLog;
 use momentum_core::device::Connection;
+use momentum_core::journal::{self, Journal, NoiseKind};
 use momentum_core::request::Outcome;
 use momentum_core::{paths, scenes};
 use momentum_service::worker::{self, Job, WorkerCommand, WorkerEvent};
@@ -38,6 +39,16 @@ pub struct Shared {
     /// Demandes venues de la recherche du bureau (KRunner) : sans fenêtre
     /// pour l'afficher, un échec est montré en notification.
     pub runner_requests: Vec<u64>,
+    /// Journal des événements, écrit dans `journal_file` (même règle que
+    /// `battery_file` : `None` dans les essais).
+    pub journal: Journal,
+    pub journal_file: Option<std::path::PathBuf>,
+    /// Entrée du worker, pour les scènes automatiques.
+    pub commands: Option<Sender<Job>>,
+    /// Scènes lancées automatiquement, en attente de leur compte rendu.
+    pub auto_scenes: Vec<String>,
+    /// Scène « à la connexion » à lancer dès le premier état lu.
+    pub connection_scene_pending: bool,
 }
 
 /// Reçoit une demande d'une interface : numéro attribué, puis la demande
@@ -118,6 +129,15 @@ fn submit_reconnect(
 /// Traite une commande de l'API : `Some` pour le worker (casque), `None`
 /// si le service l'a faite lui-même ; `Err` : refusée (raison).
 pub fn handle(command: Command, shared: &mut Shared) -> Result<Option<WorkerCommand>, String> {
+    if command == Command::ClearJournal {
+        let mut empty = shared.journal.clone();
+        empty.clear();
+        store_journal(&empty, shared.journal_file.as_deref())
+            .map_err(|e| trf("journal non effacé : écriture impossible ({})", &[&e]))?;
+        shared.journal = empty;
+        tracing::info!("journal des événements effacé");
+        return Ok(None);
+    }
     if command == Command::ClearBatteryHistory {
         // Effacé seulement une fois l'historique vide enregistré : un échec
         // d'écriture est un refus, pas un faux succès (A04).
@@ -201,7 +221,9 @@ fn to_worker(command: Command, shared: &Shared) -> Result<WorkerCommand, String>
         }
         Command::ExportProfile(path) => WorkerCommand::ExportProfile(path),
         Command::ReconnectHeadset => unreachable!("traitée par `submit`"),
-        Command::ClearBatteryHistory => unreachable!("traitée par `handle`"),
+        Command::ClearBatteryHistory | Command::ClearJournal => {
+            unreachable!("traitée par `handle`")
+        }
     })
 }
 
@@ -283,10 +305,87 @@ fn record_battery_log(shared: &Shared) {
     }
 }
 
-fn toast(alert: Option<Alert>) {
-    if let Some(a) = alert {
+fn toast(alert: Option<Alert>, enabled: impl FnOnce(&NotificationPrefs) -> bool) {
+    // Préférences relues à chaque avis : un changement dans les interfaces
+    // compte sans redémarrer le service.
+    if let Some(a) = alert
+        && enabled(&NotificationPrefs::load())
+    {
         momentum_service::desktop::show_toast(&a.title, &a.body);
     }
+}
+
+fn load_journal(path: Option<&std::path::Path>) -> Journal {
+    path.and_then(|p| std::fs::read_to_string(p).ok())
+        .map(|text| Journal::parse(&text, unix_now()))
+        .unwrap_or_default()
+}
+
+fn store_journal(journal: &Journal, path: Option<&std::path::Path>) -> std::io::Result<()> {
+    match path {
+        Some(p) => paths::write_user_file(p, &journal.to_text()),
+        None => Ok(()),
+    }
+}
+
+/// Note un événement au journal et l'écrit.
+fn note(shared: &mut Shared, event: journal::Event) {
+    if shared.journal.record(unix_now(), event)
+        && let Err(e) = store_journal(&shared.journal, shared.journal_file.as_deref())
+    {
+        tracing::warn!(%e, "enregistrement du journal des événements");
+    }
+}
+
+/// Lance une scène automatique (casque inscriptible) ; son compte rendu
+/// sera noté « automatique » au journal.
+fn apply_automatic(shared: &mut Shared, name: &str) {
+    let Some(commands) = shared.commands.clone() else {
+        return;
+    };
+    match submit(Command::ApplyScene(name.to_string()), 0, shared, &commands) {
+        Ok(_) => {
+            tracing::info!("scène automatique lancée");
+            shared.auto_scenes.push(name.to_lowercase());
+        }
+        Err(reason) => {
+            tracing::warn!(%reason, "scène automatique refusée");
+            note(shared, journal::Event::Refused(reason));
+        }
+    }
+}
+
+/// Scènes à heure fixe : vérifie l'heure locale toutes les 20 s et lance la
+/// scène prévue, une fois par jour et seulement si le casque est connecté.
+pub fn spawn_scheduler(shared: Arc<Mutex<Shared>>) -> anyhow::Result<()> {
+    std::thread::Builder::new()
+        .name("scenes-automatiques".into())
+        .spawn(move || {
+            let mut last: Option<(u32, u8, u8)> = None;
+            loop {
+                std::thread::sleep(std::time::Duration::from_secs(20));
+                let Some(now) = momentum_service::clock::local_minute() else {
+                    continue;
+                };
+                if last == Some(now) {
+                    continue;
+                }
+                last = Some(now);
+                let (scene_list, _) = paths::load_scenes();
+                let Some(scene) = scenes::scene_at(&scene_list, now.1, now.2) else {
+                    continue;
+                };
+                if let Ok(mut sh) = shared.lock()
+                    && sh.snapshot.state.is_some()
+                    && sh.snapshot.read_only.is_none()
+                {
+                    let name = scene.name.clone();
+                    apply_automatic(&mut sh, &name);
+                }
+            }
+        })
+        .context("lancement du thread des scènes automatiques")?;
+    Ok(())
 }
 
 /// Lance le worker (seul propriétaire de la connexion) ; ses événements
@@ -321,33 +420,88 @@ pub fn pump(
 ) {
     if let Ok(mut s) = shared.lock() {
         s.battery_log = load_battery_log(s.battery_file.as_deref());
+        s.journal = load_journal(s.journal_file.as_deref());
     }
     let mut alerts = AlertTracker::new();
+    let mut idle = IdleTracker::default();
     for event in events {
         match &event {
             WorkerEvent::Connected { name, .. } => {
                 // Le nom du casque peut être personnel : pas dans le journal.
                 tracing::info!("casque connecté");
-                toast(alerts.on_connected(name));
+                toast(alerts.on_connected(name), |p| p.connection);
+                if let Ok(mut sh) = shared.lock() {
+                    note(&mut sh, journal::Event::Connected);
+                    sh.connection_scene_pending = true;
+                }
             }
             WorkerEvent::State(s) => {
-                toast(alerts.on_battery(s.battery));
-                if let Ok(mut sh) = shared.lock()
-                    && sh.battery_log.record(unix_now(), s.battery)
-                {
-                    record_battery_log(&sh);
+                toast(alerts.on_battery(s.battery), |p| p.low_battery);
+                toast(idle.on_codec(unix_now(), s.codec), |p| p.idle);
+                if let Ok(mut sh) = shared.lock() {
+                    if sh.battery_log.record(unix_now(), s.battery) {
+                        record_battery_log(&sh);
+                    }
+                    note(
+                        &mut sh,
+                        journal::Event::Noise(NoiseKind::from_mode(s.noise.mode())),
+                    );
+                    // Scène « à la connexion » : une fois l'état connu, et
+                    // seulement si le casque accepte les réglages.
+                    if std::mem::take(&mut sh.connection_scene_pending)
+                        && sh.snapshot.read_only.is_none()
+                    {
+                        let (scene_list, _) = paths::load_scenes();
+                        if let Some(scene) = scenes::scene_on_connection(&scene_list) {
+                            let name = scene.name.clone();
+                            apply_automatic(&mut sh, &name);
+                        }
+                    }
                 }
             }
             WorkerEvent::Lost(reason) => {
                 tracing::warn!(%reason, "connexion perdue");
-                toast(alerts.on_lost());
-                if let Ok(mut sh) = shared.lock()
-                    && sh.battery_log.interrupt(unix_now())
-                {
-                    record_battery_log(&sh);
+                toast(alerts.on_lost(), |p| p.connection);
+                idle.reset();
+                if let Ok(mut sh) = shared.lock() {
+                    if sh.battery_log.interrupt(unix_now()) {
+                        record_battery_log(&sh);
+                    }
+                    note(&mut sh, journal::Event::Lost);
+                    sh.connection_scene_pending = false;
                 }
             }
-            WorkerEvent::Refused(reason) => tracing::warn!(%reason, "réglage refusé"),
+            WorkerEvent::Refused(reason) => {
+                tracing::warn!(%reason, "réglage refusé");
+                if let Ok(mut sh) = shared.lock() {
+                    note(&mut sh, journal::Event::Refused(reason.clone()));
+                }
+            }
+            WorkerEvent::SceneApplied(report) => {
+                if let Ok(mut sh) = shared.lock() {
+                    let key = report.scene.to_lowercase();
+                    let automatic = sh.auto_scenes.contains(&key);
+                    sh.auto_scenes.retain(|n| n != &key);
+                    note(
+                        &mut sh,
+                        journal::Event::Scene {
+                            name: report.scene.clone(),
+                            automatic,
+                            complete: report.is_complete(),
+                        },
+                    );
+                    if automatic && !report.is_complete() {
+                        drop(sh);
+                        toast(
+                            Some(Alert {
+                                title: tr("Scène automatique incomplète").to_string(),
+                                body: report.summary(),
+                            }),
+                            |_| true,
+                        );
+                    }
+                }
+            }
             WorkerEvent::Done { id, outcome, .. } => {
                 let from_runner = shared.lock().is_ok_and(|mut sh| {
                     let found = sh.runner_requests.contains(id);

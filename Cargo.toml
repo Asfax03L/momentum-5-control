@@ -55,6 +55,7 @@ bluer = { version = "0.17.4", features = ["bluetoothd", "rfcomm"] }
 tokio = { version = "1.53.3", features = ["rt-multi-thread", "net", "time", "io-util", "macros"] }
 futures = "0.3.31"
 dbus = "0.9.12"
+libc = "0.2.190"
 windows = { version = "0.62.2", features = [
     "Foundation",
     "Foundation_Collections",

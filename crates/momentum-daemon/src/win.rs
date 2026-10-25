@@ -83,12 +83,14 @@ pub fn run() -> anyhow::Result<()> {
         .context("canal du service (service déjà lancé ?)")?;
     momentum_service::desktop::register_notifications();
 
-    let shared = Arc::new(Mutex::new(Shared {
-        battery_file: momentum_core::paths::battery_file(),
-        ..Shared::default()
-    }));
     let log = Arc::new(Mutex::new(EventLog::default()));
     let (commands, commands_rx) = mpsc::channel::<Job>();
+    let shared = Arc::new(Mutex::new(Shared {
+        battery_file: momentum_core::paths::battery_file(),
+        journal_file: momentum_core::paths::journal_file(),
+        commands: Some(commands.clone()),
+        ..Shared::default()
+    }));
     {
         let shared = Arc::clone(&shared);
         let log = Arc::clone(&log);
@@ -107,6 +109,7 @@ pub fn run() -> anyhow::Result<()> {
     tracing::info!("service OpenHeadset Control prêt (canal nommé)");
 
     let events = service::spawn_worker(commands_rx, &shared)?;
+    service::spawn_scheduler(Arc::clone(&shared))?;
     service::pump(events, &shared, |api_event| {
         if let Ok(mut l) = log.lock() {
             l.push(api_event.clone());

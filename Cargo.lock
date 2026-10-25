@@ -1666,6 +1666,7 @@ name = "momentum-service"
 version = "1.0.0"
 dependencies = [
  "dbus",
+ "libc",
  "momentum-core",
  "tracing",
  "windows",
