@@ -12,6 +12,80 @@ refuse de publier sans elles) :
 - « À faire après la mise à jour » : les actions concrètes par système,
   ou « Rien de particulier » avec la raison.
 
+## v1.1.0 — 25/10/2026
+
+### En bref
+Version des fonctions avancées, toutes locales et facultatives :
+- **Autonomie mesurée** (page Batterie) : combien de pourcents le casque
+  perd par heure et combien dure une charge complète à ce rythme, d'après
+  les mesures de ce PC, puis la même chose selon le mode de réduction de
+  bruit. Des mesures, jamais une « santé » de batterie.
+- **Journal des événements** (page Batterie) : connexions, pertes, modes,
+  refus du casque, scènes appliquées ; 30 jours, exportable, effaçable,
+  jamais envoyé.
+- **Notifications au choix** (Paramètres) : batterie faible, connexion
+  perdue et retrouvée, et nouveau **« casque allumé sans son »** (aucune
+  lecture depuis 30 minutes ; désactivé par défaut).
+- **Scènes automatiques** : une scène peut s'appliquer seule à la
+  connexion du casque, ou chaque jour à une heure donnée (liste
+  « Automatique » de l'éditeur de scènes). Seules les commandes validées
+  partent ; chaque application est notée au journal.
+- **Export pour Equalizer APO** (page Égaliseur, Windows) : la courbe du
+  casque au format GraphicEQ, pour la reproduire côté PC (correspondance
+  approchée).
+- **Reportés, avec leur raison** (ROADMAP) : égaliseur calculé d'après des
+  mesures publiques et export EasyEffects (forme des filtres du casque non
+  documentée), avis de fin de charge (le casque ne la signale pas).
+
+### À faire après la mise à jour
+- **Rien d'obligatoire** : vos réglages sont repris. Le journal commence à
+  la mise à jour ; l'autonomie apparaît après au moins une heure de
+  décharge continue (l'historique de batterie existant compte déjà).
+- **Facultatif** : Paramètres > Notifications pour activer « Casque allumé
+  sans son » ; éditeur de scènes > « Automatique » pour une scène au
+  branchement ou à heure fixe.
+- **Retour à la 1.0** : une sauvegarde ou un `scenes.txt` contenant une
+  scène automatique n'est pas lu par la 1.0 (voir `docs/VERSIONS.md`).
+- **Windows, KDE (archive), `.deb`, `.rpm`, AUR, Flatpak, mode jeu** :
+  installer comme d'habitude ; le service est remplacé et relancé par
+  l'installation.
+
+### Fonctions avancées (jalon 1.1)
+- `momentum_core::journal` : `journal.csv` (`horodatage;type;détail`),
+  30 jours, 5 000 lignes au plus ; détail sans nom ni adresse (refus
+  passés par `mask_addresses`) ; mode de bruit noté seulement quand il
+  change ; affichage relatif (« il y a 5 min ») et export dans Documents.
+  Tenu par le service ; `Command::ClearJournal` l'efface (refus si
+  l'écriture échoue).
+- `battery_log` : décharges continues (au moins 1 h et 5 points),
+  `autonomy`, `consumption_by_mode` (chaque intervalle compte pour le mode
+  noté au journal à son début), textes `autonomy_lines`.
+- `alerts` : `NotificationPrefs` (`notifications.txt` : `batterie-faible`,
+  `connexion`, `sans-son` = oui/non ; relu par le service à chaque avis) et
+  `IdleTracker` (codec `0xFF`, relevé à l'arrêt de la lecture, pendant
+  30 min ; un avis par période).
+- `scenes` : clé `auto = connexion | HH:MM`, `Trigger`, un déclenchement
+  par scène au plus (refus à la lecture et à l'enregistrement). Service :
+  scène « à la connexion » lancée après l'enregistrement du premier état ;
+  scènes à heure fixe vérifiées toutes les 20 s, une fois par jour
+  (`momentum_service::clock`, `GetLocalTime` sous Windows, `localtime_r`
+  sous Linux). Une scène automatique incomplète donne une notification.
+- `presets::format_graphic_eq` : 8 bandes du M5 en GraphicEQ ; refus sinon.
+- Interfaces WinUI et KDE : carte « Autonomie mesurée », « Journal des
+  événements » (export, effacement confirmé), interrupteurs de
+  notifications, liste « Automatique » et heure dans l'éditeur de scènes,
+  bouton « Exporter pour Equalizer APO ».
+- Essai sur le M5 (Bazzite, service 1.1 avec un dossier de données
+  d'essai) : scène « à la connexion » appliquée (anti-vent coupé, relu),
+  réappliquée après une perte de connexion passagère, puis scène à heure
+  fixe appliquée (anti-vent remis, relu) ; journal conforme ; état final
+  identique à l'état d'origine. Un premier essai avait montré que la scène
+  « à la connexion » partait avant l'enregistrement de l'état (refusée) :
+  corrigé avant la publication.
+- `docs/VERSIONS.md` : `notifications.txt` et `journal.csv` ajoutés aux
+  fichiers stables ; compatibilité des sauvegardes précisée (une 1.y
+  importe celles des 1.x antérieures ou égales).
+
 ## v1.0.0 — 25/10/2026
 
 ### En bref

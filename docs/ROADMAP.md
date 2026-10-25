@@ -5,7 +5,13 @@ pour tout ce qui passe par le casque, mais pensée pour un PC portable (souris,
 clavier, grand écran, barre système). L'icône reste le raccourci vers la
 fenêtre principale.
 
-**État au 25/10/2026** : dernière publication **v1.0.0**, version stable :
+**État au 25/10/2026** : dernière publication **v1.1.0** (jalon 1.1 :
+autonomie mesurée, y compris selon le mode de réduction de bruit ; journal
+local des événements ; notifications au choix, dont « casque allumé sans
+son » ; scènes automatiques à la connexion ou à heure fixe, essayées sur
+le M5 ; export de la courbe pour Equalizer APO. Reportés avec leur raison :
+égaliseur d'après des mesures publiques, export EasyEffects, avis de fin
+de charge). Avant elle, v1.0.0, version stable :
 politique de versions ([`VERSIONS.md`](VERSIONS.md)), politique de
 sécurité ([`SECURITY.md`](../SECURITY.md), signalement privé activé), avis
 de nouvelle version désactivé par défaut, et une décision écrite pour
@@ -126,7 +132,7 @@ et date de l'essai sur le casque.
 | **0.15** (intégration au bureau) 🟡 | KRunner, widgets Windows, mode jeu | Chaque intégration passe par l'API du service, avec les mêmes refus que les interfaces |
 | **0.16** (langues, accessibilité, accueil) 🟡 | Anglais, accessibilité, premier lancement, documentation | Interfaces complètes en anglais ; parcours au clavier et au lecteur d'écran sans blocage |
 | **1.0** (version stable) ✅ | Version stable | Critères de publication remplis, politique de versions publiée, aucun constat ouvert sans décision |
-| **1.1** (fonctions avancées) | Mesures, égaliseur, journal, automatisations | Fonctions désactivables ; aucune donnée envoyée ; seules les commandes validées |
+| **1.1** (fonctions avancées) ✅ | Mesures, égaliseur, journal, automatisations | Fonctions désactivables ; aucune donnée envoyée ; seules les commandes validées |
 | **1.2** (recherche sur le matériel) | Nouvelles écritures, autres casques | Capture dans l'application officielle, puis essai sur le casque avec relecture et retour à la valeur d'origine ; accord avant chaque essai |
 | **Après la signature** | MSIX, COPR, widgets Windows 11 et Xbox Game Bar | Décision sur la signature prise ; mêmes critères que 0.14 |
 
@@ -250,24 +256,30 @@ Points encore ouverts à la sortie de la 1.0, chacun avec sa décision :
 | Écoute au Narrateur et à Orca (0.16) | Noms accessibles et parcours clavier vérifiés automatiquement à chaque PR ; écoute réelle par le mainteneur, tout défaut traité comme un bogue en 1.0.x. |
 | Reconnexion sous Windows : essai sur le matériel « à valider » | Comportement documenté (ouverture des paramètres Bluetooth, jamais de connexion forcée) ; essai par le mainteneur, défaut traité comme un bogue. |
 
-**1.1 — fonctions avancées**
-- **Autonomie réelle mesurée** d'après `batterie.csv` : durée moyenne par
-  charge, consommation selon le mode de réduction de bruit. Des mesures
-  seulement, jamais une « santé » de batterie inventée.
-- **Égaliseur d'après des mesures publiques** : meilleur réglage des 8
-  bandes (±6 dB, fréquences fixes) vers une courbe cible, après
-  vérification de la licence des données de mesure.
-- **Export de la courbe vers EasyEffects (Linux) et Equalizer APO
-  (Windows)**, pour une correction plus fine côté PC, sans toucher au
-  casque.
-- **Notifications supplémentaires**, chacune désactivable : casque resté
-  allumé sans son, charge terminée si le casque la signale, retour de la
-  connexion.
-- **Journal local des événements** (déconnexions, changements de mode,
-  refus) : consultable, effaçable, jamais envoyé.
-- **Automatisations des scènes** à la demande de l'utilisateur
-  (application au branchement du casque ou à une heure donnée), toujours
-  avec les seules commandes validées.
+**1.1 — fonctions avancées** (v1.1.0)
+- ✅ **Autonomie réelle mesurée** d'après `batterie.csv` : points perdus
+  par heure et durée d'une charge complète, puis consommation selon le mode
+  de réduction de bruit (noté au journal). Des mesures seulement, jamais
+  une « santé » de batterie inventée.
+- ⏭ **Égaliseur d'après des mesures publiques** : **reporté**. Raisons :
+  la forme des filtres des 8 bandes du casque (largeur, type) n'est pas
+  documentée, donc tout calcul de « meilleur réglage » serait inventé ; et
+  la licence des données de mesure publiques reste à vérifier. À reprendre
+  si la réponse des filtres est mesurée sur le casque.
+- ✅ **Export de la courbe vers Equalizer APO** (Windows, format GraphicEQ,
+  correspondance approchée et signalée comme telle). ⏭ **EasyEffects**
+  (Linux) : **reporté**, son format de préréglage exige la largeur des
+  filtres, non documentée ; l'import d'un fichier GraphicEQ par EasyEffects
+  reste à vérifier.
+- ✅ **Notifications au choix** : batterie faible, connexion perdue et
+  retrouvée, et **casque allumé sans son** (aucune lecture depuis
+  30 minutes, désactivée par défaut). ⏭ **Charge terminée** : **reportée**,
+  le casque ne signale aucun état de charge connu.
+- ✅ **Journal local des événements** (connexions, pertes, modes,
+  refus, scènes) : consultable, exportable, effaçable, jamais envoyé.
+- ✅ **Automatisations des scènes** (à la connexion du casque ou chaque
+  jour à une heure donnée), avec les seules commandes validées ; essayées
+  sur le M5 sous Bazzite.
 
 **1.2 — recherche sur le matériel** (nouvelles captures de l'application
 et accord pour chaque essai)
