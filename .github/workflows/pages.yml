@@ -1,0 +1,69 @@
+# Site GitHub Pages : accueil, guide d'utilisation et FAQ (fr, en), construits
+# par pandoc (scripts/construire-site.sh). Vérifié sur chaque PR qui le
+# touche ; publié depuis main seulement.
+name: Site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/GUIDE*.md"
+      - "docs/FAQ*.md"
+      - "docs/captures/**"
+      - "site/**"
+      - "scripts/construire-site.sh"
+      - "scripts/verifier-site.py"
+      - ".github/workflows/pages.yml"
+  pull_request:
+    paths:
+      - "docs/GUIDE*.md"
+      - "docs/FAQ*.md"
+      - "docs/captures/**"
+      - "site/**"
+      - "scripts/construire-site.sh"
+      - "scripts/verifier-site.py"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  # Une publication en cours va au bout.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  construire:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: pandoc
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pandoc
+          pandoc --version | head -1
+      - name: Construction
+        run: sh scripts/construire-site.sh _site
+      - name: Liens, ancres, langues, textes de remplacement
+        run: python3 scripts/verifier-site.py _site
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+        if: github.ref == 'refs/heads/main'
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        if: github.ref == 'refs/heads/main'
+        with:
+          path: _site
+
+  publier:
+    if: github.ref == 'refs/heads/main'
+    needs: construire
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.publication.outputs.page_url }}
+    steps:
+      - id: publication
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
