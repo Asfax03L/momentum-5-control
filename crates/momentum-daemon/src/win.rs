@@ -83,7 +83,10 @@ pub fn run() -> anyhow::Result<()> {
         .context("canal du service (service déjà lancé ?)")?;
     momentum_service::desktop::register_notifications();
 
-    let shared = Arc::new(Mutex::new(Shared::default()));
+    let shared = Arc::new(Mutex::new(Shared {
+        battery_file: momentum_core::paths::battery_file(),
+        ..Shared::default()
+    }));
     let log = Arc::new(Mutex::new(EventLog::default()));
     let (commands, commands_rx) = mpsc::channel::<Job>();
     {

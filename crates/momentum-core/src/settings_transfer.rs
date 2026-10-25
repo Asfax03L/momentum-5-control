@@ -255,6 +255,9 @@ impl ImportPlan {
         }
         self.check_current()?;
         fs::create_dir_all(&self.dir)?;
+        // Verrou commun aux écritures du dossier (interfaces, service) : aucun
+        // autre auteur ne modifie un fichier pendant l'import.
+        let _dir_lock = crate::paths::lock_dir(&self.dir)?;
         let lock_path = self.dir.join(".reglages-import.lock");
         let lock = OpenOptions::new()
             .write(true)

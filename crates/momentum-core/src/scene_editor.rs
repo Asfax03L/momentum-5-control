@@ -257,31 +257,54 @@ impl SceneEditor {
 /// changé (à réenregistrer). Rien n'est envoyé au casque.
 pub fn save(editor: &SceneEditor) -> Result<(String, bool), String> {
     let path = paths::scenes_file().ok_or("dossier des données introuvable")?;
-    let current = std::fs::read_to_string(&path).ok();
-    let (text, changes) = editor.save_plan(current.as_deref())?;
-    paths::write_user_file(&path, &text).map_err(|e| e.to_string())?;
+    let mut changes = Vec::new();
+    // Lecture du fichier actuel et remplacement d'un bloc (A03).
+    paths::update_user_file(&path, |current| {
+        let (text, found) = editor.save_plan(current)?;
+        changes = found;
+        Ok(Some(text))
+    })?;
     let mut message = "Scènes enregistrées (rien n'a été envoyé au casque).".to_string();
     let mut hotkeys_changed = false;
     if !changes.is_empty() {
-        let before = paths::load_hotkey_config();
-        let mut keys = before.clone();
-        let mut panel = paths::load_panel_prefs();
-        for (old, new) in &changes {
-            keys = hotkeys::rename_scene(&keys, old, new.as_deref());
-            panel.rename_scene(old, new.as_deref());
-        }
         if let Some(p) = paths::panel_file() {
-            let _ = paths::write_user_file(&p, &panel.to_text());
-        }
-        if keys != before
-            && let Some(p) = paths::hotkeys_file()
-        {
-            match paths::write_user_file(&p, &keys) {
-                Ok(()) => {
-                    hotkeys_changed = true;
-                    message.push_str(" Raccourcis mis à jour.");
+            let _ = paths::update_user_file(&p, |current| {
+                let Some(text) = current else { return Ok(None) };
+                let mut panel = crate::quick_panel::PanelPrefs::parse(text);
+                for (old, new) in &changes {
+                    panel.rename_scene(old, new.as_deref());
                 }
-                Err(e) => message.push_str(&format!(" Raccourcis non mis à jour : {e}.")),
+                Ok(Some(panel.to_text()))
+            });
+        }
+        match paths::hotkey_config() {
+            // Illisible (autre encodage) : gardé tel quel, sans réécriture (A05).
+            Err(e) => message.push_str(&format!(
+                " Raccourcis non mis à jour (fichier illisible : {e})."
+            )),
+            Ok(_) => {
+                let updated = paths::hotkeys_file()
+                    .ok_or_else(|| "dossier des données introuvable".to_string())
+                    .and_then(|p| {
+                        paths::update_user_file(&p, |current| {
+                            let Some(before) = current else {
+                                return Ok(None);
+                            };
+                            let mut keys = before.to_string();
+                            for (old, new) in &changes {
+                                keys = hotkeys::rename_scene(&keys, old, new.as_deref());
+                            }
+                            Ok((keys != before).then_some(keys))
+                        })
+                    });
+                match updated {
+                    Ok(true) => {
+                        hotkeys_changed = true;
+                        message.push_str(" Raccourcis mis à jour.");
+                    }
+                    Ok(false) => {}
+                    Err(e) => message.push_str(&format!(" Raccourcis non mis à jour : {e}.")),
+                }
             }
         }
     }

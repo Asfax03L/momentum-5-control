@@ -185,7 +185,10 @@ impl Runner {
 }
 
 pub fn run() -> anyhow::Result<()> {
-    let shared = Arc::new(Mutex::new(Shared::default()));
+    let shared = Arc::new(Mutex::new(Shared {
+        battery_file: momentum_core::paths::battery_file(),
+        ..Shared::default()
+    }));
     let (commands, commands_rx) = mpsc::channel::<Job>();
     // zbus 6 n'a plus d'API bloquante : la connexion est construite dans
     // `block_on`, puis servie par zbus entre deux appels.

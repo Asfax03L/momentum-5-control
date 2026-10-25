@@ -34,7 +34,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
-      - run: cargo test
+      # Suite complète avec un dossier de données témoin (A01).
+      - shell: bash
+        run: sh scripts/essai-temoin.sh cargo test
 
   # Démarrage réel de WinUI (F13) : runtime installé, mode démonstration ;
   # la fenêtre doit toujours tourner après 20 s (pas de plantage au
@@ -134,7 +136,7 @@ jobs:
           components: clippy
       - uses: Swatinem/rust-cache@v2
       - run: cargo clippy --all-targets -- -D warnings
-      - run: cargo test
+      - run: sh scripts/essai-temoin.sh cargo test
       # Client Kirigami : hors des membres par défaut (Qt 6 requis).
       - run: cargo clippy -p momentum-kirigami --all-targets -- -D warnings
         env:
