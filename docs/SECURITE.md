@@ -14,19 +14,28 @@ faire sur le système, et ce qui le limite.
 | Exporter le profil auditif | `~/Documents` | `Documents` de l'utilisateur |
 | Notifications | bus de session | notifications de Windows |
 
-Rien d'autre : ni réseau, ni privilèges, ni accès aux fichiers du reste du
-dossier personnel.
+Rien d'autre : ni réseau, ni privilèges. Sous Linux, depuis la v0.15.1, le
+reste du dossier personnel est masqué (ni lu ni écrit) ; sous Windows, le
+service garde les droits ordinaires de l'utilisateur (voir plus bas).
 
 ## Linux : unité systemd durcie
 
 `assets/linux/momentum-daemon.service`, la même pour `installer-linux.sh` et
 les paquets `.deb` et `.rpm` (seul le chemin de l'exécutable change) :
 
-- **Fichiers** : `ProtectSystem=strict` et `ProtectHome=read-only` ; seuls le
-  dossier des données et `~/Documents` sont accessibles en écriture
-  (`ReadWritePaths`). Le dossier des données est créé avant le démarrage, hors
-  du bac à sable (`ExecStartPre=+`). `PrivateTmp`, `PrivateDevices`,
-  `UMask=0077`.
+- **Fichiers** : `ProtectSystem=strict` (système en lecture seule) et, depuis
+  la v0.15.1, `ProtectHome=tmpfs` : le dossier personnel est remplacé par un
+  dossier vide, où seuls apparaissent le dossier des données et
+  `~/Documents` (lecture et écriture, `BindPaths`), le socket du bus de
+  session (`%t/bus`) et le binaire installé par script (lecture seule).
+  Le dossier des données est créé avant le démarrage, hors du bac à sable
+  (`ExecStartPre=+`). `PrivateTmp`, `PrivateDevices`, `UMask=0077`.
+- **Correction (audit du 24/10/2026, A02)** : de la v0.11.0 à la v0.15.0,
+  l'unité utilisait `ProtectHome=read-only`. Cette option interdit
+  l'**écriture** dans le dossier personnel, **pas la lecture** : un service
+  compromis aurait pu lire les autres fichiers de l'utilisateur. Les notes
+  de la v0.11.0, qui affirmaient le contraire, étaient fausses sur ce
+  point. La v0.15.1 masque réellement ces fichiers.
 - **Réseau** : `RestrictAddressFamilies=AF_UNIX AF_BLUETOOTH` (D-Bus et
   Bluetooth seulement, aucun accès IP).
 - **Privilèges** : `NoNewPrivileges`, aucune capacité
@@ -39,15 +48,56 @@ les paquets `.deb` et `.rpm` (seul le chemin de l'exécutable change) :
   `SystemCallFilter=@system-service` sans `@privileged` ni `@resources`.
 
 Score de `systemd-analyze --user security` : **9,4 (« UNSAFE ») avant,
-1,5 (« OK ») après** (systemd 259, Bazzite, 23/10/2026). La CI recalcule le
-score à chaque PR (tâche `service-durci`, seuil 2,5) et démarre le service
-compilé, sans casque, sur un bus privé.
+1,5 (« OK ») après** (systemd 259, Bazzite, 23/10/2026). Ce score est un
+contrôle **statique** de l'unité. La CI (tâche `service-durci`) le recalcule
+à chaque PR (seuil 2,5), puis fait un contrôle **à l'exécution** (A06) : le
+service est lancé par son unité, sous le gestionnaire systemd de
+l'utilisateur, répond sur le bus, et `scripts/essai-confinement.sh`
+vérifie avec les mêmes options :
+- un fichier personnel est illisible et non inscriptible ;
+- le dossier des données est lisible et inscriptible, Documents est
+  inscriptible ;
+- `/etc` n'est pas inscriptible ;
+- les deux bus sont joignables.
 
-Essayé sur le casque (M5, 6.21.5, Bazzite, 23/10/2026) avec l'unité
-durcie : connexion, lecture de l'état, anti-vent coupé puis remis (relu).
-Écriture vérifiée sous les mêmes options : possible dans le dossier des
-données et dans `~/Documents`, refusée dans le reste du dossier personnel
-et dans `/etc`.
+Essayé sur le casque (M5, 6.21.5, Bazzite) avec l'unité durcie :
+connexion, lecture de l'état, anti-vent coupé puis remis (relu), le
+23/10/2026 avec `ProtectHome=read-only`, puis le 25/10/2026 avec
+`ProtectHome=tmpfs`. Le 25/10, `scripts/essai-confinement.sh` a vérifié
+sous les mêmes options :
+- fichier personnel illisible et non inscriptible ;
+- dossier des données lisible et inscriptible, Documents inscriptible ;
+- `/etc` non inscriptible ;
+- bus de session et bus système joignables.
+
+### Ubuntu 24.04 et suivants (AppArmor)
+
+Ubuntu restreint les espaces de noms utilisateur
+(`kernel.apparmor_restrict_unprivileged_userns=1`). Pour un service
+utilisateur, cela a deux effets, mesurés en CI le 25/10/2026 (Ubuntu
+24.04, systemd 255) :
+
+- cinq options empêchent le démarrage : `CapabilityBoundingSet=` vide,
+  `PrivateDevices`, `ProtectKernelModules`, `ProtectKernelLogs` et
+  `ProtectClock`. **De la v0.11.0 à la v0.15.0, le service ne démarrait donc
+  pas sous Ubuntu** (le bus le lance par systemd), ni par l'archive ni par
+  le paquet `.deb`. Aucun essai ne lançait l'unité elle-même (A06).
+- systemd n'applique pas le masquage des fichiers (`ProtectSystem`,
+  `ProtectHome`, `PrivateTmp`…) : il l'ignore sans erreur.
+
+Depuis la v0.15.1, le complément `momentum-daemon-apparmor.conf` lève ces
+cinq options. `installer-linux.sh` le pose quand la restriction est
+active ; le paquet `.deb` l'inclut toujours (Debian et Ubuntu partagent le
+paquet). Le service démarre, avec les restrictions qui ne demandent pas
+d'espace de noms :
+- `NoNewPrivileges` ;
+- familles d'adresses limitées à D-Bus et Bluetooth ;
+- filtre d'appels système ;
+- `RestrictNamespaces`, `MemoryDenyWriteExecute`, `LockPersonality`.
+
+Sous Ubuntu, il garde en revanche l'accès en lecture au dossier personnel,
+comme tout programme de l'utilisateur. Sous Fedora, Bazzite, Arch et
+Debian (sans cette restriction par défaut), l'unité complète s'applique.
 
 Conséquences pour l'utilisateur :
 

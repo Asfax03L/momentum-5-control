@@ -31,6 +31,13 @@ data=${XDG_DATA_HOME:-$HOME/.local/share}
 config=${XDG_CONFIG_HOME:-$HOME/.config}
 bin=$HOME/.local/bin
 exes="momentum-daemon momentum-kirigami ctl"
+# Client GNOME, facultatif : s'il est fourni, il est sauvegardé et remis
+# comme les autres binaires (A08 de l'audit du 24/10/2026).
+gtk=false
+if [ -x "$bins/momentum-gtk" ] && [ -f "$assets/linux/momentum-gtk.desktop" ]; then
+    gtk=true
+    exes="$exes momentum-gtk"
+fi
 widget_id=org.openheadset.control.plasmoid
 # Dépôt ou archive : le dossier plasma est à côté de assets.
 widget="$assets/../plasma/$widget_id"
@@ -46,10 +53,12 @@ if [ "${1:-}" = "--desinstaller" ]; then
     for f in "$bin/momentum-daemon" "$bin/momentum-kirigami" "$bin/ctl" \
         "$bin/momentum-gtk" "$data/applications/momentum-gtk.desktop" \
         "$bin/momentum-daemon.ancien" "$bin/momentum-kirigami.ancien" "$bin/ctl.ancien" \
+        "$bin/momentum-gtk.ancien" \
         "$data/applications/momentum-kirigami.desktop" \
         "$data/krunner/dbusplugins/openheadset-control-krunner.desktop" \
         "$config/autostart/momentum-kirigami.desktop" \
         "$config/systemd/user/momentum-daemon.service" \
+        "$config/systemd/user/momentum-daemon.service.d/apparmor.conf" \
         "$data/dbus-1/services/org.openheadset.Control.service" \
         "$data/man/man1/ctl.1" "$data/bash-completion/completions/ctl" \
         "$data/zsh/site-functions/_ctl" "$data/fish/vendor_completions.d/ctl.fish"; do
@@ -78,7 +87,8 @@ for exe in $exes; do
     [ -x "$bins/$exe" ] || missing="$missing $bins/$exe"
 done
 for f in "$assets/logo/openheadset.svg" "$assets/linux/momentum-kirigami.desktop" \
-    "$assets/linux/momentum-daemon.service" "$assets/linux/org.openheadset.Control.service"; do
+    "$assets/linux/momentum-daemon.service" "$assets/linux/org.openheadset.Control.service" \
+    "$assets/linux/momentum-daemon-apparmor.conf"; do
     [ -f "$f" ] || missing="$missing $f"
 done
 for size in 16 22 24 32 48 64 128 256; do
@@ -139,6 +149,24 @@ for exe in $exes; do
     echo "installé : $bin/$exe"
 done
 
+# À partir d'ici, les binaires sont en place : une panne laisse les
+# fichiers d'intégration à moitié mis à jour. Elle est annoncée comme telle,
+# avec la marche à suivre, au lieu d'une installation « terminée ».
+integration=true
+partielle() {
+    status=$?
+    # Remplace le nettoyage posé plus haut (documentation générée).
+    if [ "$documentation" != "$bins" ]; then
+        rm -rf "$documentation"
+    fi
+    if [ "$status" -ne 0 ] && [ "${integration:-false}" = true ]; then
+        echo "Installation partielle : les nouveaux binaires sont en place (anciens dans $bin/*.ancien)," >&2
+        echo "mais les fichiers d'intégration (manuel, icônes, menu, widget, service) n'ont pas tous été copiés." >&2
+        echo "Relancer ce script une fois la cause corrigée, ou revenir en arrière avec --desinstaller." >&2
+    fi
+}
+trap partielle EXIT
+
 # Manuel et complétions : uniquement dans les dossiers de l'utilisateur.
 mkdir -p "$data/man/man1" "$data/bash-completion/completions" \
     "$data/zsh/site-functions" "$data/fish/vendor_completions.d"
@@ -171,10 +199,9 @@ if [ -f "$assets/linux/openheadset-control-krunner.desktop" ]; then
     echo "recherche KRunner installée"
 fi
 
-# Client GNOME (GTK 4, libadwaita), facultatif : installé s'il est fourni
-# (archive publiée, ou cargo build --release -p momentum-gtk).
-if [ -x "$bins/momentum-gtk" ] && [ -f "$assets/linux/momentum-gtk.desktop" ]; then
-    install -m 755 "$bins/momentum-gtk" "$bin/momentum-gtk"
+# Client GNOME (GTK 4, libadwaita), facultatif : binaire déjà installé
+# avec les autres ; ici son entrée de menu.
+if $gtk; then
     install -m 644 "$assets/linux/momentum-gtk.desktop" "$data/applications/momentum-gtk.desktop"
     echo "client GNOME installé : $bin/momentum-gtk"
 fi
@@ -204,15 +231,36 @@ fi
 mkdir -p "$config/systemd/user" "$data/dbus-1/services"
 install -m 644 "$assets/linux/momentum-daemon.service" \
     "$config/systemd/user/momentum-daemon.service"
+# AppArmor restreint les espaces de noms utilisateur (Ubuntu 24.04 et
+# suivants) : complément qui lève les options empêchant le démarrage
+# (assets/linux/momentum-daemon-apparmor.conf). Ailleurs, unité complète.
+dropin="$config/systemd/user/momentum-daemon.service.d"
+if [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null)" = 1 ]; then
+    mkdir -p "$dropin"
+    install -m 644 "$assets/linux/momentum-daemon-apparmor.conf" "$dropin/apparmor.conf"
+    echo "service : compatibilité AppArmor posée (durcissement réduit, docs/SECURITE.md)"
+elif [ -e "$dropin/apparmor.conf" ]; then
+    rm -f "$dropin/apparmor.conf"
+    rmdir "$dropin" 2>/dev/null || true
+fi
 install -m 644 "$assets/linux/org.openheadset.Control.service" \
     "$data/dbus-1/services/org.openheadset.Control.service"
 systemctl --user daemon-reload 2>/dev/null || true
-# Service déjà lancé : il reprend le nouveau binaire.
-systemctl --user try-restart momentum-daemon.service 2>/dev/null || true
+# Service déjà lancé : il reprend le nouveau binaire. Un échec est signalé.
+service_ok=true
+if command -v systemctl >/dev/null && ! systemctl --user try-restart momentum-daemon.service 2>/dev/null; then
+    service_ok=false
+fi
 # Le bus relit ses fichiers d'activation.
 busctl --user call org.freedesktop.DBus /org/freedesktop/DBus \
     org.freedesktop.DBus ReloadConfig >/dev/null 2>&1 || true
 echo "service installé (activation D-Bus : org.openheadset.Control)"
 
 refresh_caches
-echo "Installation terminée (ancienne version gardée en $bin/*.ancien)."
+integration=false
+if $service_ok; then
+    echo "Installation terminée (ancienne version gardée en $bin/*.ancien)."
+else
+    echo "Installation terminée, mais le service n'a pas redémarré : systemctl --user status momentum-daemon" >&2
+    echo "(ancienne version gardée en $bin/*.ancien)." >&2
+fi

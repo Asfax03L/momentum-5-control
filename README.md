@@ -45,7 +45,7 @@ au casque, et deux outils en ligne de commande.
 | U | Paquets natifs : installateur Windows (Inno Setup, par utilisateur), `.deb` et `.rpm` mis à jour par-dessus la version précédente, `PKGBUILD` (AUR), widget `.plasmoid` ; winget, AUR et KDE Store préparés | 🟡 installateur essayé sur Windows 11 avec le M5 (v0.14.0) ; paquets Linux essayés en conteneurs ; catalogues non soumis |
 | V | Intégration au bureau : recherche KRunner (« anc off », « scène Transport »), liste de raccourcis Windows (scènes) et pastille de batterie, extension Decky Loader pour le mode jeu ; tout par l'API du service | 🟡 KRunner essayé sur le M5 (Bazzite) et scènes de la liste de raccourcis sur le M5 (Windows 11), v0.15.0 ; extension Decky essayée hors du mode jeu |
 
-Dernière publication : **v0.15.0** (page Releases du dépôt). Le détail des
+Dernière publication : **v0.15.1** (page Releases du dépôt). Le détail des
 étapes est dans [`docs/ROADMAP.md`](docs/ROADMAP.md), les nouveautés de chaque
 version dans [`CHANGELOG.md`](CHANGELOG.md).
 
@@ -137,12 +137,18 @@ casque en même temps : le M5 accepte le PC en multipoint.
 
 ## Interfaces OpenHeadset Control
 
-Deux interfaces natives, clientes du service `momentum-daemon` qui tient
+Trois interfaces natives, clientes du service `momentum-daemon` qui tient
 seul la connexion au casque :
 
 - **Windows** : `momentum-winui`, en WinUI 3 (fond Mica, contrôles Fluent) ;
 - **KDE Plasma** : `momentum-kirigami`, en Qt 6 / Kirigami (couleurs du
-  thème Plasma, Wayland natif).
+  thème Plasma, Wayland natif) ;
+- **GNOME** : `momentum-gtk`, en GTK 4 / libadwaita, encore partielle (page
+  Accueil ; rattrapage prévu dans [`docs/PARITE.md`](docs/PARITE.md)).
+
+S'y ajoutent `ctl`, le widget Plasma, la recherche KRunner, la liste de
+raccourcis Windows et l'extension Decky du mode jeu, tous clients du même
+service.
 
 Elles offrent les mêmes fonctions et partagent les mêmes fichiers de
 réglages (`scenes.txt`, `raccourcis.txt`, `prereglages.txt`,

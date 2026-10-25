@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Environnement Debian 13
         run: docker build -t ohc-deb -f packaging/deb/Containerfile packaging/deb
       - name: Construction du paquet
@@ -50,7 +50,7 @@ jobs:
             docker run --rm -v "$PWD:/src:ro" -w /src "$image" \
               sh packaging/linux/verifier-installation.sh deb "/src/$package" "/src/$previous"
           done
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: deb
           path: target/paquets/deb/*.deb*
@@ -61,7 +61,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Environnement Fedora 43
         run: docker build -t ohc-rpm -f packaging/rpm/Containerfile packaging/rpm
       - name: Construction du paquet
@@ -76,7 +76,7 @@ jobs:
             docker run --rm -v "$PWD:/src:ro" -w /src "registry.fedoraproject.org/fedora:$version" \
               sh packaging/linux/verifier-installation.sh rpm "/src/$package" "/src/$previous"
           done
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: rpm
           path: target/paquets/rpm/*.rpm*
@@ -87,7 +87,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: makepkg, namcap, installation et retrait
         run: |
           version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
@@ -96,7 +96,7 @@ jobs:
           git archive --prefix="openheadset-control-$version/" -o target/aur-source/source.tar.gz HEAD
           docker run --rm -v "$PWD:/src" -w /src archlinux:latest \
             sh packaging/aur/essai-arch.sh "$version" target/aur-source/source.tar.gz
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: aur
           path: target/paquets/aur/

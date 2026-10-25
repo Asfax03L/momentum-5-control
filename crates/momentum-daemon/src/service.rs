@@ -21,8 +21,12 @@ pub struct Shared {
     pub snapshot: Snapshot,
     /// Appareils appairés avec leur adresse (jamais envoyée aux interfaces).
     pub devices: Vec<Connection>,
-    /// Historique de la batterie, écrit dans `batterie.csv` à chaque mesure.
+    /// Historique de la batterie, écrit dans `battery_file` à chaque mesure.
     pub battery_log: BatteryLog,
+    /// `batterie.csv` du service (`paths::battery_file`), fixé au démarrage ;
+    /// `None` : rien n'est écrit (essais, qui ne touchent jamais aux données
+    /// de l'utilisateur, A01 de l'audit du 24/10/2026).
+    pub battery_file: Option<std::path::PathBuf>,
     /// Dernier numéro de demande attribué.
     pub last_id: u64,
     /// Une seule action système à la fois, indépendante de la session GAIA.
@@ -114,8 +118,13 @@ fn submit_reconnect(
 /// si le service l'a faite lui-même ; `Err` : refusée (raison).
 pub fn handle(command: Command, shared: &mut Shared) -> Result<Option<WorkerCommand>, String> {
     if command == Command::ClearBatteryHistory {
-        shared.battery_log.clear();
-        store_battery_log(&shared.battery_log);
+        // Effacé seulement une fois l'historique vide enregistré : un échec
+        // d'écriture est un refus, pas un faux succès (A04).
+        let mut empty = shared.battery_log.clone();
+        empty.clear();
+        store_battery_log(&empty, shared.battery_file.as_deref())
+            .map_err(|e| format!("historique non effacé : écriture impossible ({e})"))?;
+        shared.battery_log = empty;
         tracing::info!("historique de la batterie effacé");
         return Ok(None);
     }
@@ -249,22 +258,25 @@ fn unix_now() -> u64 {
         .map_or(0, |d| d.as_secs())
 }
 
-fn load_battery_log() -> BatteryLog {
-    paths::battery_file()
-        .and_then(|p| std::fs::read_to_string(p).ok())
+fn load_battery_log(path: Option<&std::path::Path>) -> BatteryLog {
+    path.and_then(|p| std::fs::read_to_string(p).ok())
         .map(|text| BatteryLog::parse(&text, unix_now()))
         .unwrap_or_default()
 }
 
-fn store_battery_log(log: &BatteryLog) {
-    let Some(path) = paths::battery_file() else {
-        return;
-    };
-    if let Err(e) = path
-        .parent()
-        .map_or(Ok(()), std::fs::create_dir_all)
-        .and_then(|()| std::fs::write(&path, log.to_text()))
-    {
+/// Écrit l'historique (remplacement d'un bloc, sous le verrou du dossier) ;
+/// sans fichier (`None`), rien n'est écrit.
+fn store_battery_log(log: &BatteryLog, path: Option<&std::path::Path>) -> std::io::Result<()> {
+    match path {
+        Some(path) => paths::write_user_file(path, &log.to_text()),
+        None => Ok(()),
+    }
+}
+
+/// Enregistrement d'une mesure : un échec est journalisé, la mesure reste
+/// en mémoire et repart à l'écriture suivante.
+fn record_battery_log(shared: &Shared) {
+    if let Err(e) = store_battery_log(&shared.battery_log, shared.battery_file.as_deref()) {
         tracing::warn!(%e, "enregistrement de l'historique de la batterie");
     }
 }
@@ -306,7 +318,7 @@ pub fn pump(
     mut publish: impl FnMut(&Event),
 ) {
     if let Ok(mut s) = shared.lock() {
-        s.battery_log = load_battery_log();
+        s.battery_log = load_battery_log(s.battery_file.as_deref());
     }
     let mut alerts = AlertTracker::new();
     for event in events {
@@ -321,7 +333,7 @@ pub fn pump(
                 if let Ok(mut sh) = shared.lock()
                     && sh.battery_log.record(unix_now(), s.battery)
                 {
-                    store_battery_log(&sh.battery_log);
+                    record_battery_log(&sh);
                 }
             }
             WorkerEvent::Lost(reason) => {
@@ -330,7 +342,7 @@ pub fn pump(
                 if let Ok(mut sh) = shared.lock()
                     && sh.battery_log.interrupt(unix_now())
                 {
-                    store_battery_log(&sh.battery_log);
+                    record_battery_log(&sh);
                 }
             }
             WorkerEvent::Refused(reason) => tracing::warn!(%reason, "réglage refusé"),
@@ -405,9 +417,25 @@ mod tests {
         assert!(handle(Command::SetAntiWind(true), &mut shared).is_err());
     }
 
+    /// Dossier d'essai propre au test (jamais celui de l'utilisateur).
+    fn test_dir(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "momentum-daemon-test-{name}-{}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
     #[test]
     fn battery_history_is_cleared_without_the_headset() {
-        let mut shared = Shared::default();
+        let dir = test_dir("effacement");
+        let file = dir.join("batterie.csv");
+        let mut shared = Shared {
+            battery_file: Some(file.clone()),
+            ..Shared::default()
+        };
         shared.battery_log.record(1_000, 80);
         shared.battery_log.record(2_000, 79);
         assert!(!shared.battery_log.entries().is_empty());
@@ -417,6 +445,31 @@ mod tests {
             Ok(None)
         ));
         assert!(shared.battery_log.entries().is_empty());
+        let written = std::fs::read_to_string(&file).unwrap();
+        assert!(BatteryLog::parse(&written, 3_000).entries().is_empty());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_failed_clear_is_refused_and_keeps_the_history() {
+        // A04 : destination impossible à écrire (un dossier porte son nom).
+        let dir = test_dir("effacement-echec");
+        let file = dir.join("batterie.csv");
+        std::fs::create_dir_all(&file).unwrap();
+        let (commands, _received) = mpsc::channel();
+        let (events, published) = mpsc::channel();
+        let mut shared = Shared {
+            battery_file: Some(file.clone()),
+            events: Some(events),
+            ..Shared::default()
+        };
+        shared.battery_log.record(1_000, 80);
+        let refused = submit(Command::ClearBatteryHistory, 0, &mut shared, &commands);
+        assert!(refused.unwrap_err().contains("historique non effacé"));
+        assert!(published.try_recv().is_err());
+        assert_eq!(shared.battery_log.entries().len(), 1);
+        assert!(file.is_dir());
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -490,10 +543,12 @@ mod tests {
     fn a_request_done_by_the_service_publishes_its_result() {
         let (commands, received) = mpsc::channel();
         let (events, published) = mpsc::channel();
+        // Sans fichier : rien n'est écrit (jamais les données réelles, A01).
         let mut shared = Shared {
             events: Some(events),
             ..Shared::default()
         };
+        assert!(shared.battery_file.is_none());
         let id = submit(Command::ClearBatteryHistory, 0, &mut shared, &commands).unwrap();
         assert!(received.try_recv().is_err());
         assert!(matches!(

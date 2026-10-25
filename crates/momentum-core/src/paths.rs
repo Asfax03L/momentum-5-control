@@ -31,19 +31,48 @@ pub fn hotkeys_file() -> Option<PathBuf> {
     Some(data_dir()?.join("raccourcis.txt"))
 }
 
-/// Lit `raccourcis.txt`, créé avec les valeurs par défaut s'il manque.
-pub fn load_hotkey_config() -> String {
-    let path = hotkeys_file();
-    match path.as_ref().map(fs::read_to_string) {
-        Some(Ok(text)) => text,
-        _ => {
-            if let Some(p) = &path {
-                let _ = p.parent().map(fs::create_dir_all);
-                let _ = fs::write(p, crate::hotkeys::DEFAULT_CONFIG);
+/// Lit `raccourcis.txt`. Absent seulement : créé avec les valeurs par
+/// défaut. Illisible (autre encodage, droits) : `Err`, le fichier reste tel
+/// quel (A05 de l'audit du 24/10/2026).
+pub fn hotkey_config() -> std::io::Result<String> {
+    let path =
+        hotkeys_file().ok_or_else(|| std::io::Error::other("dossier des données introuvable"))?;
+    read_or_create_hotkeys(&path)
+}
+
+fn read_or_create_hotkeys(path: &std::path::Path) -> std::io::Result<String> {
+    match fs::read_to_string(path) {
+        Ok(text) => Ok(text),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            if let Some(dir) = path.parent() {
+                fs::create_dir_all(dir)?;
             }
-            crate::hotkeys::DEFAULT_CONFIG.to_string()
+            // Création exclusive : un fichier apparu entre-temps est gardé.
+            match fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(path)
+            {
+                Ok(mut file) => {
+                    use std::io::Write;
+                    file.write_all(crate::hotkeys::DEFAULT_CONFIG.as_bytes())?;
+                    Ok(crate::hotkeys::DEFAULT_CONFIG.to_string())
+                }
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => fs::read_to_string(path),
+                Err(e) => Err(e),
+            }
         }
+        Err(e) => Err(e),
     }
+}
+
+/// Raccourcis à utiliser : ceux de `raccourcis.txt`, ou les valeurs par
+/// défaut (en mémoire seulement) si le fichier est illisible.
+pub fn load_hotkey_config() -> String {
+    hotkey_config().unwrap_or_else(|e| {
+        tracing::warn!(%e, "raccourcis.txt illisible : gardé tel quel, valeurs par défaut");
+        crate::hotkeys::DEFAULT_CONFIG.to_string()
+    })
 }
 
 /// `prereglages.txt` : préréglages personnels de l'égaliseur.
@@ -186,10 +215,62 @@ pub fn export_file(prefix: &str, extension: &str, unix_now: u64) -> Option<PathB
     )))
 }
 
+/// Verrou des fichiers d'un dossier de données, commun à tous les
+/// processus (interfaces, service, `ctl`, import) : chaque écriture, et
+/// chaque modification « lire, vérifier, remplacer », se fait d'un bloc
+/// (A03 de l'audit du 24/10/2026). Libéré à la fin de vie de la valeur.
+pub struct DirLock {
+    _file: fs::File,
+}
+
+/// Prend le verrou du dossier `dir` (fichier `.verrou`), en attendant
+/// qu'un autre auteur ait fini.
+pub fn lock_dir(dir: &std::path::Path) -> std::io::Result<DirLock> {
+    fs::create_dir_all(dir)?;
+    let file = fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(dir.join(".verrou"))?;
+    file.lock()?;
+    Ok(DirLock { _file: file })
+}
+
+fn lock_parent(path: &std::path::Path) -> std::io::Result<DirLock> {
+    lock_dir(path.parent().unwrap_or_else(|| std::path::Path::new(".")))
+}
+
+/// Modifie un fichier de l'utilisateur d'un bloc, sous le verrou de son
+/// dossier : `change` reçoit le contenu actuel (`None` : absent) et rend le
+/// nouveau (`None` : rien à écrire). Rend `true` si le fichier a été écrit.
+pub fn update_user_file(
+    path: &std::path::Path,
+    change: impl FnOnce(Option<&str>) -> Result<Option<String>, String>,
+) -> Result<bool, String> {
+    let _lock = lock_parent(path).map_err(|e| e.to_string())?;
+    let current = match fs::read_to_string(path) {
+        Ok(text) => Some(text),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+        Err(e) => return Err(e.to_string()),
+    };
+    match change(current.as_deref())? {
+        Some(text) => write_locked(path, &text)
+            .map(|()| true)
+            .map_err(|e| e.to_string()),
+        None => Ok(false),
+    }
+}
+
 /// Écrit un fichier de l'utilisateur sans le laisser à moitié écrit :
 /// l'ancien contenu est gardé dans `<nom>.bak`, le nouveau est écrit dans
-/// `<nom>.tmp` puis remplace le fichier.
+/// `<nom>.tmp` puis remplace le fichier. Sous le verrou du dossier.
 pub fn write_user_file(path: &std::path::Path, text: &str) -> std::io::Result<()> {
+    let _lock = lock_parent(path)?;
+    write_locked(path, text)
+}
+
+/// [`write_user_file`], verrou déjà pris.
+fn write_locked(path: &std::path::Path, text: &str) -> std::io::Result<()> {
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir)?;
     }
@@ -221,15 +302,17 @@ pub fn write_if_unchanged(
     loaded: Option<&str>,
     text: &str,
 ) -> Result<(), String> {
-    let current = fs::read_to_string(path).ok();
-    if current.as_deref() != loaded {
-        return Err(format!(
-            "{} a été modifié ailleurs depuis son ouverture : relu, à refaire",
-            path.file_name()
-                .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
-        ));
-    }
-    write_user_file(path, text).map_err(|e| e.to_string())
+    update_user_file(path, |current| {
+        if current != loaded {
+            return Err(format!(
+                "{} a été modifié ailleurs depuis son ouverture : relu, à refaire",
+                path.file_name()
+                    .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
+            ));
+        }
+        Ok(Some(text.to_string()))
+    })
+    .map(|_| ())
 }
 
 /// Texte de `panneau.txt`, s'il existe.
@@ -244,11 +327,12 @@ fn modify_presets(
     path: &std::path::Path,
     change: impl FnOnce(&mut Vec<Preset>) -> Result<(), String>,
 ) -> Result<Vec<Preset>, String> {
-    let mut list = fs::read_to_string(path)
-        .map(|text| presets::parse_user_presets(&text))
-        .unwrap_or_default();
-    change(&mut list)?;
-    write_user_file(path, &presets::serialize_user_presets(&list)).map_err(|e| e.to_string())?;
+    let mut list = Vec::new();
+    update_user_file(path, |current| {
+        list = current.map(presets::parse_user_presets).unwrap_or_default();
+        change(&mut list)?;
+        Ok(Some(presets::serialize_user_presets(&list)))
+    })?;
     Ok(list)
 }
 
@@ -294,6 +378,104 @@ mod tests {
             .filter(|e| e.as_ref().unwrap().path().extension() == Some("tmp".as_ref()))
             .count();
         assert_eq!(leftovers, 0);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn only_a_missing_hotkey_file_is_created() {
+        // A05 : un fichier présent mais illisible (UTF-16) reste intact.
+        let dir = std::env::temp_dir().join(format!(
+            "momentum-ctl-win-test-raccourcis-{}",
+            std::process::id()
+        ));
+        let path = dir.join("raccourcis.txt");
+        let _ = fs::remove_dir_all(&dir);
+        assert_eq!(
+            read_or_create_hotkeys(&path).unwrap(),
+            crate::hotkeys::DEFAULT_CONFIG
+        );
+        assert_eq!(
+            fs::read_to_string(&path).unwrap(),
+            crate::hotkeys::DEFAULT_CONFIG
+        );
+        fs::write(&path, "scene Transport = Ctrl+Alt+T\n").unwrap();
+        assert_eq!(
+            read_or_create_hotkeys(&path).unwrap(),
+            "scene Transport = Ctrl+Alt+T\n"
+        );
+        let utf16 = [0xFF, 0xFE, b's', 0, b'c', 0, 0x0A, 0];
+        fs::write(&path, utf16).unwrap();
+        assert!(read_or_create_hotkeys(&path).is_err());
+        assert_eq!(fs::read(&path).unwrap(), utf16);
+        assert!(!dir.join("raccourcis.txt.bak").exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn concurrent_checked_writes_never_both_succeed() {
+        // A03 : deux auteurs partent du même contenu ; l'un écrit, l'autre
+        // apprend le conflit. Jamais deux succès avec une perte.
+        let dir = std::env::temp_dir().join(format!(
+            "momentum-ctl-win-test-course-{}",
+            std::process::id()
+        ));
+        let path = dir.join("scenes.txt");
+        for round in 0..200 {
+            write_user_file(&path, "départ").unwrap();
+            let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+            let writers: Vec<_> = ["A", "B"]
+                .into_iter()
+                .map(|text| {
+                    let (path, barrier) = (path.clone(), std::sync::Arc::clone(&barrier));
+                    std::thread::spawn(move || {
+                        barrier.wait();
+                        write_if_unchanged(&path, Some("départ"), text).is_ok()
+                    })
+                })
+                .collect();
+            let ok: Vec<bool> = writers.into_iter().map(|w| w.join().unwrap()).collect();
+            assert_eq!(
+                ok.iter().filter(|&&o| o).count(),
+                1,
+                "tour {round} : {ok:?}"
+            );
+            let written = fs::read_to_string(&path).unwrap();
+            assert_eq!(written, if ok[0] { "A" } else { "B" });
+        }
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn concurrent_preset_changes_are_both_kept() {
+        let dir = std::env::temp_dir().join(format!(
+            "momentum-ctl-win-test-presets-course-{}",
+            std::process::id()
+        ));
+        let path = dir.join("prereglages.txt");
+        for round in 0..50 {
+            let _ = fs::remove_file(&path);
+            let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+            let writers: Vec<_> = ["Soirée", "Train"]
+                .into_iter()
+                .map(|name| {
+                    let (path, barrier) = (path.clone(), std::sync::Arc::clone(&barrier));
+                    std::thread::spawn(move || {
+                        barrier.wait();
+                        modify_presets(&path, |list| {
+                            presets::upsert(list, name, &[0; 8]).map_err(str::to_string)
+                        })
+                        .unwrap();
+                    })
+                })
+                .collect();
+            writers.into_iter().for_each(|w| w.join().unwrap());
+            let names: Vec<String> =
+                presets::parse_user_presets(&fs::read_to_string(&path).unwrap())
+                    .into_iter()
+                    .map(|p| p.name)
+                    .collect();
+            assert_eq!(names.len(), 2, "tour {round} : {names:?}");
+        }
         let _ = fs::remove_dir_all(&dir);
     }
 

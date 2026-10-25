@@ -75,6 +75,13 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="0.15.1" date="2026-10-25">
+      <description>
+        <p>Reliability release: user files protected against concurrent writes and failed saves, Linux service confinement corrected.</p>
+      </description>
+    </release>
+    <release version="0.15.0" date="2026-10-25"/>
+    <release version="0.14.0" date="2026-10-24"/>
     <release version="0.13.0" date="2026-10-24">
       <description>
         <p>Flatpak built offline from pinned sources, new application ID, reviewed permissions and settings migration.</p>

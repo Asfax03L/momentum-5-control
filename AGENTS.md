@@ -48,8 +48,9 @@ Architecture : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Protocole :
   commits et les PR, comme le reste du dépôt.
 - **Une tâche, une branche, une PR**, ciblée sur `main`. Ne pas toucher aux
   fichiers sans rapport avec la tâche.
-- **Ne pas modifier `CHANGELOG.md`** : le mainteneur l'écrit à la fusion.
-  Décrire les changements dans la PR, avec deux paragraphes destinés aux
+- **`CHANGELOG.md`** : c'est le mainteneur qui écrit la section d'une
+  version, au moment de la publication. Un contributeur ne la remplit pas :
+  il décrit ses changements dans la PR, avec deux paragraphes destinés aux
   notes de publication (voir l'en-tête de `CHANGELOG.md`) :
   - **En bref** : ce qui change pour l'utilisateur et qui est concerné
     (Windows, KDE, Flatpak, paquets, `ctl`…), en langage simple, sans

@@ -5,7 +5,10 @@ pour tout ce qui passe par le casque, mais pensée pour un PC portable (souris,
 clavier, grand écran, barre système). L'icône reste le raccourci vers la
 fenêtre principale.
 
-**État au 25/10/2026** : dernière publication **v0.15.0** (jalon 0.15 :
+**État au 25/10/2026** : dernière publication **v0.15.1**, version de
+fiabilisation qui traite les constats A01 à A12 de l'audit du 24/10/2026
+(données de l'utilisateur, confinement Linux, publication). Avant elle,
+v0.15.0 (jalon 0.15 :
 recherche KRunner servie par le service, liste de raccourcis Windows pour
 les scènes et pastille de batterie sur l'icône de la barre des tâches,
 extension Decky Loader pour le mode jeu ; tout passe par l'API du service.

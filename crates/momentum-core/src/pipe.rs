@@ -11,11 +11,11 @@
 //! ferme, et le serveur attend cette fermeture avant de déconnecter (une
 //! déconnexion plus tôt jetterait la réponse non lue).
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use windows::Win32::Foundation::{
     CloseHandle, ERROR_BROKEN_PIPE, ERROR_FILE_NOT_FOUND, ERROR_IO_PENDING, ERROR_PIPE_BUSY,
-    ERROR_PIPE_CONNECTED, GENERIC_READ, GENERIC_WRITE, HANDLE, HLOCAL, LocalFree,
+    ERROR_PIPE_CONNECTED, GENERIC_READ, GENERIC_WRITE, HANDLE, HLOCAL, LocalFree, WAIT_TIMEOUT,
 };
 use windows::Win32::Security::Authorization::{
     ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
@@ -25,8 +25,8 @@ use windows::Win32::Security::{
     TokenUser,
 };
 use windows::Win32::Storage::FileSystem::{
-    CreateFileW, FILE_FLAG_FIRST_PIPE_INSTANCE, FILE_FLAG_OVERLAPPED, FILE_FLAGS_AND_ATTRIBUTES,
-    FILE_SHARE_NONE, OPEN_EXISTING, PIPE_ACCESS_DUPLEX, ReadFile, WriteFile,
+    CreateFileW, FILE_FLAG_FIRST_PIPE_INSTANCE, FILE_FLAG_OVERLAPPED, FILE_SHARE_NONE,
+    OPEN_EXISTING, PIPE_ACCESS_DUPLEX, ReadFile, WriteFile,
 };
 use windows::Win32::System::IO::{
     CancelIoEx, GetOverlappedResult, GetOverlappedResultEx, OVERLAPPED,
@@ -145,26 +145,7 @@ impl PipeServer {
         overlapped: &OVERLAPPED,
         timeout: Option<Duration>,
     ) -> windows::core::Result<u32> {
-        let mut done = 0u32;
-        match started {
-            Ok(()) => {}
-            Err(e) if e.code() == ERROR_IO_PENDING.to_hresult() => {}
-            Err(e) => return Err(e),
-        }
-        let millis = timeout.map_or(u32::MAX, |t| {
-            u32::try_from(t.as_millis()).unwrap_or(u32::MAX)
-        });
-        // SAFETY: `overlapped` vit jusqu'à la fin de l'opération (attendue
-        // ou annulée puis attendue ci-dessous).
-        unsafe {
-            let result = GetOverlappedResultEx(self.pipe.0, overlapped, &mut done, millis, false);
-            if let Err(e) = result {
-                let _ = CancelIoEx(self.pipe.0, Some(overlapped));
-                let _ = GetOverlappedResult(self.pipe.0, overlapped, &mut done, true);
-                return Err(e);
-            }
-        }
-        Ok(done)
+        finish_io(self.pipe.0, started, overlapped, timeout)
     }
 
     fn overlapped(&self) -> OVERLAPPED {
@@ -240,6 +221,37 @@ impl PipeServer {
     }
 }
 
+/// Attend une opération asynchrone sur `handle`, au plus `timeout` (`None` :
+/// sans limite). Délai dépassé : l'opération est annulée puis attendue, ses
+/// tampons peuvent donc être libérés au retour.
+fn finish_io(
+    handle: HANDLE,
+    started: windows::core::Result<()>,
+    overlapped: &OVERLAPPED,
+    timeout: Option<Duration>,
+) -> windows::core::Result<u32> {
+    let mut done = 0u32;
+    match started {
+        Ok(()) => {}
+        Err(e) if e.code() == ERROR_IO_PENDING.to_hresult() => {}
+        Err(e) => return Err(e),
+    }
+    let millis = timeout.map_or(u32::MAX, |t| {
+        u32::try_from(t.as_millis()).unwrap_or(u32::MAX)
+    });
+    // SAFETY: `overlapped` vit jusqu'à la fin de l'opération (attendue ou
+    // annulée puis attendue ci-dessous).
+    unsafe {
+        let result = GetOverlappedResultEx(handle, overlapped, &mut done, millis, false);
+        if let Err(e) = result {
+            let _ = CancelIoEx(handle, Some(overlapped));
+            let _ = GetOverlappedResult(handle, overlapped, &mut done, true);
+            return Err(e);
+        }
+    }
+    Ok(done)
+}
+
 /// Première ligne d'une requête reçue, ou la raison de son refus.
 fn request_line(request: &[u8]) -> Result<&str, &'static str> {
     if request.len() > MAX_REQUEST_LEN {
@@ -258,25 +270,27 @@ pub enum ClientOutcome {
 }
 
 /// Envoie une requête au pipe `name` (d'après le SID) de l'utilisateur et
-/// attend sa réponse au plus `timeout`.
+/// attend sa réponse au plus `timeout`. Délai dépassé : l'opération en cours
+/// est annulée et le canal fermé avant de rendre l'erreur (A09 de l'audit
+/// du 24/10/2026) ; aucun thread ni poignée ne reste en attente.
 pub fn request_named(
     name: fn(&str) -> String,
     line: &str,
     timeout: Duration,
 ) -> Result<ClientOutcome, String> {
     let sid = current_user_sid().map_err(|e| format!("SID de l'utilisateur : {e}"))?;
-    let name = name(&sid);
-    let line = line.to_string();
-    let (tx, rx) = std::sync::mpsc::channel();
-    // Lecture bloquante dans un thread : le délai reste maîtrisé ici.
-    std::thread::spawn(move || {
-        let _ = tx.send(exchange(&name, &line));
-    });
-    rx.recv_timeout(timeout)
-        .map_err(|_| format!("pas de réponse du service après {timeout:?}"))?
+    exchange(&name(&sid), line, timeout)
 }
 
-fn exchange(name: &str, line: &str) -> Result<ClientOutcome, String> {
+fn exchange(name: &str, line: &str, timeout: Duration) -> Result<ClientOutcome, String> {
+    let deadline = Instant::now() + timeout;
+    let late = || format!("pas de réponse du service après {timeout:?}");
+    let left = || deadline.saturating_duration_since(Instant::now());
+    // Délai écoulé : code WAIT_TIMEOUT de GetOverlappedResultEx (l'attente
+    // est arrondie à la milliseconde : l'horloge seule ne suffit pas).
+    let timed_out = |e: &windows::core::Error| {
+        e.code() == windows::core::HRESULT::from_win32(WAIT_TIMEOUT.0) || left().is_zero()
+    };
     let name = HSTRING::from(name);
     let mut attempts = 0;
     let pipe = loop {
@@ -288,7 +302,7 @@ fn exchange(name: &str, line: &str) -> Result<ClientOutcome, String> {
                 FILE_SHARE_NONE,
                 None,
                 OPEN_EXISTING,
-                FILE_FLAGS_AND_ATTRIBUTES(0),
+                FILE_FLAG_OVERLAPPED,
                 None,
             )
         };
@@ -300,24 +314,43 @@ fn exchange(name: &str, line: &str) -> Result<ClientOutcome, String> {
             // Un autre client est servi : on patiente un peu.
             Err(e) if e.code() == ERROR_PIPE_BUSY.to_hresult() && attempts < 5 => {
                 attempts += 1;
+                let wait = u32::try_from(left().as_millis().min(2000)).unwrap_or(2000);
+                if wait == 0 {
+                    return Err(late());
+                }
                 // SAFETY: simple attente sur le nom du pipe.
-                let _ = unsafe { WaitNamedPipeW(&name, 2000) };
+                let _ = unsafe { WaitNamedPipeW(&name, wait) };
             }
             Err(e) => return Err(format!("ouverture du canal du service : {e}")),
         }
     };
-    // SAFETY: poignée ouverte ci-dessus ; tampons valides pendant les appels.
+    // SAFETY: poignée et événement possédés ; chaque opération est attendue
+    // (ou annulée puis attendue) avant que ses tampons sortent de portée.
     unsafe {
-        WriteFile(pipe.0, Some(line.as_bytes()), None, None)
-            .map_err(|e| format!("envoi au canal : {e}"))?;
+        let event = Handle(CreateEventW(None, true, false, None).map_err(|e| e.to_string())?);
+        let overlapped = || OVERLAPPED {
+            hEvent: event.0,
+            ..OVERLAPPED::default()
+        };
+        let mut write = overlapped();
+        let started = WriteFile(pipe.0, Some(line.as_bytes()), None, Some(&mut write));
+        finish_io(pipe.0, started, &write, Some(left())).map_err(|e| {
+            if timed_out(&e) {
+                late()
+            } else {
+                format!("envoi au canal : {e}")
+            }
+        })?;
         let mut reply = Vec::new();
         let mut chunk = [0u8; 4096];
         loop {
-            let mut n = 0u32;
-            match ReadFile(pipe.0, Some(&mut chunk), Some(&mut n), None) {
-                Ok(()) if n == 0 => break,
-                Ok(()) => reply.extend_from_slice(&chunk[..n as usize]),
+            let mut read = overlapped();
+            let started = ReadFile(pipe.0, Some(&mut chunk), None, Some(&mut read));
+            match finish_io(pipe.0, started, &read, Some(left())) {
+                Ok(0) => break,
+                Ok(n) => reply.extend_from_slice(&chunk[..n as usize]),
                 Err(e) if e.code() == ERROR_BROKEN_PIPE.to_hresult() => break,
+                Err(e) if timed_out(&e) => return Err(late()),
                 Err(e) => return Err(format!("lecture du canal : {e}")),
             }
             // Fin de la réponse : on ferme, ce qui libère le serveur.
@@ -338,6 +371,60 @@ fn exchange(name: &str, line: &str) -> Result<ClientOutcome, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Nom d'un canal d'essai propre à ce processus.
+    fn silent_name(_sid: &str) -> String {
+        format!(r"\\.\pipe\momentum-essai-muet-{}", std::process::id())
+    }
+
+    #[test]
+    fn a_silent_server_times_out_and_the_client_releases_the_pipe() {
+        // A09 : serveur qui accepte, lit la requête et ne répond jamais. À
+        // l'échéance, le client annule et ferme : le serveur le voit (sa
+        // lecture suivante se termine), au lieu d'un thread resté bloqué.
+        let (closed_tx, closed_rx) = std::sync::mpsc::channel();
+        let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let name = HSTRING::from(silent_name(""));
+            loop {
+                // SAFETY: canal d'essai local ; poignée fermée par `Handle`.
+                unsafe {
+                    let pipe = Handle(CreateNamedPipeW(
+                        &name,
+                        PIPE_ACCESS_DUPLEX,
+                        PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+                        1,
+                        4096,
+                        4096,
+                        0,
+                        None,
+                    ));
+                    let _ = ready_tx.send(());
+                    let _ = ConnectNamedPipe(pipe.0, None);
+                    let mut request = [0u8; 64];
+                    let mut n = 0u32;
+                    let _ = ReadFile(pipe.0, Some(&mut request), Some(&mut n), None);
+                    // Attend la fermeture côté client (fin de fichier ou erreur).
+                    let _ = ReadFile(pipe.0, Some(&mut request), Some(&mut n), None);
+                    let _ = closed_tx.send(());
+                }
+            }
+        });
+        for round in 0..3 {
+            ready_rx.recv().unwrap();
+            let started = Instant::now();
+            let result = request_named(silent_name, "{}\n", Duration::from_millis(300));
+            assert!(
+                matches!(&result, Err(e) if e.contains("pas de réponse")),
+                "tour {round} : {:?}",
+                result.as_ref().err()
+            );
+            assert!(started.elapsed() < Duration::from_secs(2), "tour {round}");
+            closed_rx
+                .recv_timeout(Duration::from_secs(2))
+                .unwrap_or_else(|_| panic!("tour {round} : canal resté ouvert côté client"));
+        }
+    }
 
     #[test]
     fn request_line_keeps_the_first_line_and_names_refusals() {

@@ -77,5 +77,5 @@ Distribution : dans l'archive Linux et installé par `installer-linux.sh`
 | Paquet | Contenu |
 |---|---|
 | Archive Windows | WinUI, service, `ctl`, `probe`, `installer.ps1` |
-| Archive Linux | client KDE, service, `ctl`, widget Plasma, `installer-linux.sh` |
+| Archive Linux | client KDE, client GNOME (`momentum-gtk`), service, `ctl`, widget Plasma, recherche KRunner, `installer-linux.sh` |
 | Flatpak | client KDE, service, `ctl` (le widget s'installe à part) |

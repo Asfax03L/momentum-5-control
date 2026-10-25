@@ -46,6 +46,9 @@ assets = [
     ["../../assets/linux/momentum-kirigami.desktop", "usr/share/applications/momentum-kirigami.desktop", "644"],
     ["../../assets/linux/openheadset-control-krunner.desktop", "usr/share/krunner/dbusplugins/openheadset-control-krunner.desktop", "644"],
     ["../../target/paquets/integration/momentum-daemon.service", "usr/lib/systemd/user/momentum-daemon.service", "644"],
+    # Debian et Ubuntu : Ubuntu 24.04 et suivants restreignent les espaces de
+    # noms utilisateur (AppArmor), le complément lève les options bloquantes.
+    ["../../assets/linux/momentum-daemon-apparmor.conf", "usr/lib/systemd/user/momentum-daemon.service.d/apparmor.conf", "644"],
     ["../../target/paquets/integration/org.openheadset.Control.service", "usr/share/dbus-1/services/org.openheadset.Control.service", "644"],
     ["../../target/paquets/integration/io.github.asfax03l.openheadset-control.metainfo.xml", "usr/share/metainfo/io.github.asfax03l.openheadset-control.metainfo.xml", "644"],
     ["../../assets/logo/openheadset.svg", "usr/share/icons/hicolor/scalable/apps/org.openheadset.control.svg", "644"],
