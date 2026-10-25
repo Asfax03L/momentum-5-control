@@ -36,6 +36,7 @@ Kirigami.ApplicationWindow {
             if (headset.assistantOpen)
                 assistantDialog.open()
         }
+        root.checkUpdates()
     }
 
     Headset {
@@ -411,6 +412,27 @@ Kirigami.ApplicationWindow {
             console.info("essai assistant : étape " + (assistantDialog.step + 1) + " : " + titre)
             assistantDialog.customFooterActions[1].trigger()
         }
+    }
+
+    // Avis de nouvelle version (désactivé par défaut) : une requête GET vers
+    // l'API GitHub ; la réponse est analysée par momentum-core
+    // (update_check), qui n'accepte qu'une page de publication du dépôt.
+    function checkUpdates() {
+        if (!headset.updatePossible || !headset.updateEnabled)
+            return
+        headset.updateStarted()
+        const requete = new XMLHttpRequest()
+        requete.onreadystatechange = function() {
+            if (requete.readyState !== XMLHttpRequest.DONE)
+                return
+            if (requete.status === 200)
+                headset.updateReceived(requete.responseText, "")
+            else
+                headset.updateReceived("", requete.status === 0 ? headset.tr("réseau injoignable") : "HTTP " + requete.status)
+        }
+        requete.open("GET", headset.updateCheckUrl())
+        requete.setRequestHeader("Accept", "application/vnd.github+json")
+        requete.send()
     }
 
     // Remet un interrupteur sur la valeur confirmée par le casque après un
@@ -1181,6 +1203,30 @@ Kirigami.ApplicationWindow {
                         text: headset.languageNotice
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
+                    }
+                    QQC2.Switch {
+                        Kirigami.FormData.label: headset.tr("Avis de nouvelle version")
+                        Accessible.name: headset.tr("Avis de nouvelle version")
+                        text: headset.tr("Au lancement, lit la dernière publication sur GitHub. Seules votre adresse IP et le nom de l'application parviennent à GitHub ; rien d'autre n'est envoyé.")
+                        // Flatpak : pas d'accès au réseau, mises à jour par Flatpak.
+                        visible: headset.updatePossible
+                        checked: headset.updateEnabled
+                        onToggled: {
+                            headset.setUpdateNotice(checked)
+                            root.checkUpdates()
+                        }
+                    }
+                    RowLayout {
+                        visible: headset.updatePossible && headset.updateEnabled
+                        QQC2.Label {
+                            text: headset.updateText
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                        QQC2.Button {
+                            text: headset.updateUrl !== "" ? headset.tr("Voir la publication") : headset.tr("Vérifier maintenant")
+                            onClicked: headset.updateUrl !== "" ? Qt.openUrlExternally(headset.updateUrl) : root.checkUpdates()
+                        }
                     }
                     RowLayout {
                         Kirigami.FormData.label: headset.tr("Thème :")

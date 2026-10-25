@@ -23,6 +23,7 @@ use momentum_core::scene_editor::{self, SceneEditor};
 use momentum_core::scenes::Scene;
 use momentum_core::tray_menu::{self, MenuAction, MenuContext, MenuEntry};
 use momentum_core::ui::{IconKind, band_label, icon_rgba, tooltip};
+use momentum_core::update_check;
 use momentum_core::viewmodel::{self, ConnectionRow};
 use momentum_service::desktop::HotkeyThread;
 use momentum_service::system::{Autostart, Instance, acquire_named_instance};
@@ -339,6 +340,11 @@ enum Msg {
     AssistantClose,
     AssistantBluetooth,
     OpenGuide,
+    /// Avis de nouvelle version (désactivé par défaut).
+    UpdateNotice(bool),
+    UpdateCheck,
+    UpdateResult(update_check::Outcome),
+    OpenRelease,
 }
 
 // Le contenu de `Incoming` ne passe qu'une fois d'un thread à l'autre.
@@ -448,6 +454,10 @@ struct Root {
     report_failed: bool,
     /// Étape affichée de l'assistant de premier lancement.
     assistant: Option<usize>,
+    /// Avis de nouvelle version : choix, dernière vérification, en cours.
+    update_enabled: bool,
+    update: Option<update_check::Outcome>,
+    update_busy: bool,
 }
 
 /// Suit le service dans un fil dédié (reconnexion toutes les 3 s) ; avec
@@ -1163,8 +1173,16 @@ impl Component for Root {
             assistant: (assistant::should_show(demo::requested())
                 || std::env::args().any(|a| a == "--assistant"))
             .then_some(0),
+            update_enabled: update_check::load_enabled(),
+            update: None,
+            update_busy: false,
         };
         let mut root = root;
+        // Avis de nouvelle version : une lecture au lancement, si activé.
+        if root.update_enabled && !demo::requested() {
+            root.update_busy = true;
+            context.spawn_background(|_| Msg::UpdateResult(check_update()));
+        }
         // Scènes du menu de l'icône.
         root.reload_scenes();
         root.open_page(page);
@@ -1473,6 +1491,33 @@ impl Component for Root {
             }
             Msg::OpenGuide => {
                 desktop::open_url(assistant::GUIDE_URL);
+            }
+            Msg::UpdateNotice(on) => {
+                if let Err(e) = update_check::store_enabled(on) {
+                    eprintln!("avis de nouvelle version : {e}");
+                }
+                self.update_enabled = on;
+                self.update = None;
+                if on && !demo::requested() {
+                    self.update_busy = true;
+                    context.spawn_background(|_| Msg::UpdateResult(check_update()));
+                }
+            }
+            Msg::UpdateCheck => {
+                if !self.update_busy && !demo::requested() {
+                    self.update_busy = true;
+                    context.spawn_background(|_| Msg::UpdateResult(check_update()));
+                }
+            }
+            Msg::UpdateResult(outcome) => {
+                self.update_busy = false;
+                self.update = Some(outcome);
+            }
+            Msg::OpenRelease => {
+                // Page vérifiée par `parse_latest` : publication du dépôt.
+                if let Some(update_check::Outcome::Available(r)) = &self.update {
+                    desktop::open_url(&r.url);
+                }
             }
             Msg::NoiseMode(Some(i)) => {
                 let current = viewmodel::main_view(None, state.as_ref(), &[], None, None)
@@ -2126,6 +2171,15 @@ fn switch_row(
         ))
 }
 
+/// Lecture de la dernière publication (fil de fond).
+fn check_update() -> update_check::Outcome {
+    let body = desktop::fetch_latest_release();
+    update_check::Outcome::from_response(
+        env!("CARGO_PKG_VERSION"),
+        body.as_deref().map_err(|e| e.as_str()),
+    )
+}
+
 fn index(value: i32) -> Option<usize> {
     usize::try_from(value).ok()
 }
@@ -2251,7 +2305,48 @@ impl Root {
                 .severity(InfoBarSeverity::Informational)
                 .message(self.reconnect_notice.clone().unwrap_or_default()),
             confirm.map_or_else(View::empty, View::from),
+            match &self.update {
+                Some(update_check::Outcome::Available(_)) => self.update_row(context),
+                _ => View::empty(),
+            },
         ))
+    }
+
+    /// État de l'avis de nouvelle version, avec « Voir la publication »
+    /// quand une version plus récente existe.
+    fn update_row(&self, context: &mut ViewContext<Self>) -> View {
+        if !self.update_enabled {
+            return View::empty();
+        }
+        let current = env!("CARGO_PKG_VERSION");
+        let text = if self.update_busy {
+            tr("Vérification en cours…").to_string()
+        } else {
+            self.update
+                .as_ref()
+                .map(|o| o.text(current))
+                .unwrap_or_default()
+        };
+        let available = matches!(self.update, Some(update_check::Outcome::Available(_)));
+        StackPanel::new()
+            .orientation(Orientation::Horizontal)
+            .spacing(8.0)
+            .children((
+                TextBlock::new()
+                    .text(text)
+                    .vertical_alignment(VerticalAlignment::Center)
+                    .text_wrapping(TextWrapping::Wrap),
+                if available {
+                    Button::new()
+                        .on_click(context.message(Msg::OpenRelease))
+                        .content(tr("Voir la publication"))
+                } else {
+                    Button::new()
+                        .is_enabled(!self.update_busy && !demo::requested())
+                        .on_click(context.message(Msg::UpdateCheck))
+                        .content(tr("Vérifier maintenant"))
+                },
+            ))
     }
 
     fn home(&self, context: &mut ViewContext<Self>) -> View {
@@ -2615,6 +2710,14 @@ impl Root {
                     true,
                     context.callback(Msg::Autostart),
                 ),
+                switch_row(
+                    tr("Avis de nouvelle version"),
+                    tr("Au lancement, lit la dernière publication sur GitHub. Seules votre adresse IP et le nom de l'application parviennent à GitHub ; rien d'autre n'est envoyé."),
+                    self.update_enabled,
+                    !demo::requested(),
+                    context.callback(Msg::UpdateNotice),
+                ),
+                self.update_row(context),
             )),
         );
         let hotkey_rows = self

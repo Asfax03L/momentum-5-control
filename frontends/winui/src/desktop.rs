@@ -253,6 +253,30 @@ pub fn open_url(url: &str) -> bool {
     result.0 as isize > 32
 }
 
+/// Dernière publication du dépôt sur l'API GitHub (avis de nouvelle
+/// version, activé par l'utilisateur) : une requête GET, en-tête
+/// `User-Agent` seul. Bloquant : à appeler hors du fil de l'interface.
+pub fn fetch_latest_release() -> Result<String, String> {
+    use momentum_core::update_check::{LATEST_URL, USER_AGENT};
+    use windows::Foundation::Uri;
+    use windows::Web::Http::HttpClient;
+    use windows::core::HSTRING;
+    let fetch = || -> windows::core::Result<String> {
+        let client = HttpClient::new()?;
+        let headers = client.DefaultRequestHeaders()?;
+        headers
+            .UserAgent()?
+            .TryParseAdd(&HSTRING::from(USER_AGENT))?;
+        headers.TryAppendWithoutValidation(
+            &HSTRING::from("Accept"),
+            &HSTRING::from("application/vnd.github+json"),
+        )?;
+        let uri = Uri::CreateUri(&HSTRING::from(LATEST_URL))?;
+        Ok(client.GetStringAsync(&uri)?.join()?.to_string())
+    };
+    fetch().map_err(|e| e.message().to_string())
+}
+
 /// Choisit un fichier de courbe d'égaliseur (`*.txt`) ; `None` si
 /// l'utilisateur annule. Boîte de dialogue modale sur la fenêtre.
 pub fn pick_curve_file() -> Option<std::path::PathBuf> {
@@ -422,4 +446,17 @@ pub fn close_panel() {
         }
     }
     PANEL.store(0, Ordering::Release);
+}
+
+#[cfg(test)]
+mod tests {
+    /// Lecture réelle de l'API GitHub (réseau) : `cargo test -p momentum-winui -- --ignored`.
+    #[test]
+    #[ignore = "réseau"]
+    fn latest_release_is_read_from_github() {
+        let body = super::fetch_latest_release().expect("API GitHub");
+        let release =
+            momentum_core::update_check::parse_latest(&body).expect("publication lisible");
+        assert!(release.version >= (0, 16, 0), "{release:?}");
+    }
 }
