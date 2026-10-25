@@ -13,7 +13,7 @@
         "Id": "org.openheadset.control.plasmoid",
         "License": "MIT OR Apache-2.0",
         "Name": "OpenHeadset Control",
-        "Version": "0.14.0",
+        "Version": "0.15.0",
         "Website": "https://github.com/Asfax03L/openheadset-control"
     },
     "X-Plasma-API-Minimum-Version": "6.0"

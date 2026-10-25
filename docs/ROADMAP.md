@@ -5,7 +5,12 @@ pour tout ce qui passe par le casque, mais pensée pour un PC portable (souris,
 clavier, grand écran, barre système). L'icône reste le raccourci vers la
 fenêtre principale.
 
-**État au 24/10/2026** : dernière publication **v0.14.0** (jalon 0.14 :
+**État au 25/10/2026** : dernière publication **v0.15.0** (jalon 0.15 :
+recherche KRunner servie par le service, liste de raccourcis Windows pour
+les scènes et pastille de batterie sur l'icône de la barre des tâches,
+extension Decky Loader pour le mode jeu ; tout passe par l'API du service.
+Widgets Windows 11 et Xbox Game Bar reportés après la signature : ils
+demandent une application empaquetée, MSIX). Avant elle, v0.14.0 (jalon 0.14 :
 installateur Windows par utilisateur, `.deb` et `.rpm` essayés en mise à
 jour par-dessus la version précédente, `PKGBUILD` pour l'AUR essayé dans
 Arch, widget Plasma seul en `.plasmoid` ; soumissions à winget, à l'AUR et
@@ -105,12 +110,12 @@ et date de l'essai sur le casque.
 | **0.12** (GNOME) ✅ | Interface GTK 4 / libadwaita cliente du même service | Parité définie avec le client KDE, sans connexion directe au casque |
 | **0.13-bêta** (distribution) 🟡 | Flatpak à sources figées et Flathub | Installation, mise à jour et désinstallation propres sur Bazzite et Windows ; paquet accepté sur Flathub |
 | **0.14** (paquets natifs) 🟡 | Installateur Windows, winget, `.deb`, `.rpm`, AUR, KDE Store | Pour chaque format : installation, mise à jour par-dessus la version précédente et désinstallation propres, puis essai sur le casque |
-| **0.15** (intégration au bureau) | KRunner, widgets Windows, mode jeu | Chaque intégration passe par l'API du service, avec les mêmes refus que les interfaces |
+| **0.15** (intégration au bureau) 🟡 | KRunner, widgets Windows, mode jeu | Chaque intégration passe par l'API du service, avec les mêmes refus que les interfaces |
 | **0.16** (langues, accessibilité, accueil) | Anglais, accessibilité, premier lancement, documentation | Interfaces complètes en anglais ; parcours au clavier et au lecteur d'écran sans blocage |
 | **1.0** | Version stable | Critères de publication remplis, politique de versions publiée, aucun constat ouvert sans décision |
 | **1.1** (fonctions avancées) | Mesures, égaliseur, journal, automatisations | Fonctions désactivables ; aucune donnée envoyée ; seules les commandes validées |
 | **1.2** (recherche sur le matériel) | Nouvelles écritures, autres casques | Capture dans l'application officielle, puis essai sur le casque avec relecture et retour à la valeur d'origine ; accord avant chaque essai |
-| **Après la signature** | MSIX, COPR | Décision sur la signature prise ; mêmes critères que 0.14 |
+| **Après la signature** | MSIX, COPR, widgets Windows 11 et Xbox Game Bar | Décision sur la signature prise ; mêmes critères que 0.14 |
 
 Formats écartés : `.rpm` sur Bazzite (il faudrait modifier le système
 avec `rpm-ostree` ; le Flatpak est la voie prévue), et Kubuntu 24.04 LTS
@@ -187,6 +192,9 @@ avec `rpm-ostree` ; le Flatpak est la voie prévue), et Kubuntu 24.04 LTS
 - **Pastille de batterie** sur l'icône de la barre des tâches Windows.
 - **Widget Windows 11** (tableau des widgets) et **widget Xbox Game Bar** :
   batterie et réduction de bruit, sur le modèle du widget Plasma.
+  Reportés après la signature : ces deux widgets exigent une identité de
+  paquet (MSIX), que l'application n'a pas tant que ses exécutables ne
+  sont pas signés.
 - **Mode jeu de Bazzite et Steam Deck** : extension Decky Loader cliente
   de l'API D-Bus (batterie, réduction de bruit, scènes).
 
@@ -241,6 +249,8 @@ et accord pour chaque essai)
 **Après la signature**
 - **MSIX** (signature obligatoire), dépôt **COPR** pour Fedora (mises à
   jour automatiques).
+- **Widget Windows 11** et **widget Xbox Game Bar** (venus de 0.15) :
+  possibles une fois l'application empaquetée en MSIX.
 
 Les versions sont indicatives : un jalon peut être scindé, mais une
 fonction n'en change qu'avec une raison écrite ici.
