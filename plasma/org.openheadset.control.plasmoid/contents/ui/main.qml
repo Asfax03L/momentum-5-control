@@ -28,6 +28,7 @@ PlasmoidItem {
     // anglais sinon). Le widget, en QML seul, a son propre dictionnaire.
     readonly property bool francais: Qt.locale().name.startsWith("fr")
     readonly property var anglais: ({
+        "ANC ↔ transparence": "ANC ↔ transparency",
         "Service arrêté": "Service stopped",
         "Connexion au casque…": "Connecting to the headphones…",
         "Recherche du casque…": "Searching for the headphones…",
@@ -440,6 +441,7 @@ PlasmoidItem {
                 }
                 PlasmaComponents.Slider {
                     id: level
+                    Accessible.name: root.t("ANC ↔ transparence")
                     Layout.fillWidth: true
                     from: 0
                     to: 100

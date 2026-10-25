@@ -100,8 +100,6 @@ Type: filesandordirs; Name: "{localappdata}\Programs\momentum-ctl-win.nouveau"
 Filename: "{app}\momentum-winui.exe"; Description: "{cm:RunApp}"; Flags: nowait postinstall skipifsilent
 
 [Code]
-const
-
 function PowerShell(Script: String): Integer;
 var
   Code: Integer;

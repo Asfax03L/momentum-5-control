@@ -152,6 +152,7 @@ Kirigami.ApplicationWindow {
                 Layout.fillWidth: true
                 QQC2.Label { text: headset.tr("ANC ↔ transparence") }
                 QQC2.Slider {
+                    Accessible.name: headset.tr("ANC ↔ transparence")
                     id: panelLevel
                     Layout.fillWidth: true
                     from: 0
@@ -176,6 +177,7 @@ Kirigami.ApplicationWindow {
                 Layout.fillWidth: true
                 QQC2.Label { text: headset.tr("Anti-vent"); Layout.fillWidth: true }
                 QQC2.Switch {
+                    Accessible.name: headset.tr("Anti-vent")
                     id: panelAntiWind
                     checked: headset.antiWind
                     enabled: headset.writable
@@ -190,6 +192,7 @@ Kirigami.ApplicationWindow {
                 Layout.fillWidth: true
                 QQC2.Label { text: headset.tr("Profil personnalisé"); Layout.fillWidth: true }
                 QQC2.Switch {
+                    Accessible.name: headset.tr("Profil personnalisé")
                     id: panelProfile
                     checked: headset.profileOn
                     enabled: headset.profileToggleEnabled
@@ -507,6 +510,7 @@ Kirigami.ApplicationWindow {
                             RowLayout {
                                 Kirigami.FormData.label: headset.tr("ANC ↔ transparence :")
                                 QQC2.Slider {
+                                    Accessible.name: headset.tr("ANC ↔ transparence")
                                     id: levelSlider
                                     Layout.fillWidth: true
                                     from: 0
@@ -527,6 +531,7 @@ Kirigami.ApplicationWindow {
                                 }
                             }
                             QQC2.Switch {
+                                Accessible.name: headset.tr("Anti-vent")
                                 id: antiWind
                                 objectName: "accueil-anti-vent"
                                 Kirigami.FormData.label: headset.tr("Anti-vent :")
@@ -587,6 +592,7 @@ Kirigami.ApplicationWindow {
                             }
                         }
                         QQC2.Switch {
+                            Accessible.name: headset.tr("Commandes tactiles")
                             id: touch
                             Kirigami.FormData.label: headset.tr("Commandes tactiles :")
                             checked: headset.touch
@@ -791,6 +797,7 @@ Kirigami.ApplicationWindow {
                                         font: Kirigami.Theme.smallFont
                                     }
                                     QQC2.Slider {
+                                        Accessible.name: headset.tr("Bande {}").replace("{}", headset.bandLabel(band.index))
                                         id: bandSlider
                                         Layout.alignment: Qt.AlignHCenter
                                         Layout.fillHeight: true
@@ -1114,6 +1121,7 @@ Kirigami.ApplicationWindow {
                         Kirigami.FormData.label: headset.tr("Appels")
                     }
                     QQC2.Switch {
+                        Accessible.name: headset.tr("Réponse automatique")
                         id: autoAnswer
                         Kirigami.FormData.label: headset.tr("Réponse automatique :")
                         checked: headset.autoAnswer
@@ -1124,6 +1132,7 @@ Kirigami.ApplicationWindow {
                         }
                     }
                     QQC2.Switch {
+                        Accessible.name: headset.tr("Appels confortables")
                         id: comfort
                         Kirigami.FormData.label: headset.tr("Appels confortables :")
                         checked: headset.comfort
@@ -1139,6 +1148,7 @@ Kirigami.ApplicationWindow {
                         Kirigami.FormData.label: headset.tr("Alimentation")
                     }
                     QQC2.ComboBox {
+                        Accessible.name: headset.tr("Extinction automatique")
                         Kirigami.FormData.label: headset.tr("Extinction automatique :")
                         model: headset.autoOffLabels
                         currentIndex: headset.autoOff
@@ -1149,6 +1159,7 @@ Kirigami.ApplicationWindow {
                         }
                     }
                     QQC2.Switch {
+                        Accessible.name: headset.tr("Protection de la batterie")
                         id: protection
                         Kirigami.FormData.label: headset.tr("Protection de la batterie :")
                         checked: headset.batteryProtection
@@ -1164,6 +1175,7 @@ Kirigami.ApplicationWindow {
                         Kirigami.FormData.label: headset.tr("Invites")
                     }
                     QQC2.ComboBox {
+                        Accessible.name: headset.tr("Invites")
                         Kirigami.FormData.label: headset.tr("Invites :")
                         model: headset.promptModes
                         currentIndex: headset.promptMode
@@ -1176,6 +1188,7 @@ Kirigami.ApplicationWindow {
                     RowLayout {
                         Kirigami.FormData.label: headset.tr("Volume des invites :")
                         QQC2.Slider {
+                            Accessible.name: headset.tr("Volume des invites")
                             id: promptVolume
                             Layout.fillWidth: true
                             from: 0
@@ -1455,12 +1468,14 @@ Kirigami.ApplicationWindow {
                             Layout.fillWidth: true
                             visible: headset.sceneEditNames.length > 0
                             QQC2.TextField {
+                                Accessible.name: headset.tr("Nom de la scène")
                                 id: sceneName
                                 Kirigami.FormData.label: headset.tr("Nom :")
                                 text: headset.sceneFormName
                                 onTextEdited: sceneEditor.send()
                             }
                             QQC2.ComboBox {
+                                Accessible.name: headset.tr("Mode audio")
                                 id: sceneSound
                                 Kirigami.FormData.label: headset.tr("Mode audio :")
                                 model: headset.sceneSoundChoices
@@ -1468,6 +1483,7 @@ Kirigami.ApplicationWindow {
                                 onActivated: sceneEditor.send()
                             }
                             QQC2.ComboBox {
+                                Accessible.name: headset.tr("Audio spatial")
                                 id: sceneSpatial
                                 Kirigami.FormData.label: headset.tr("Audio spatial :")
                                 model: headset.sceneSwitchChoices
@@ -1475,6 +1491,7 @@ Kirigami.ApplicationWindow {
                                 onActivated: sceneEditor.send()
                             }
                             QQC2.ComboBox {
+                                Accessible.name: headset.tr("Contrôle du bruit")
                                 id: sceneNoise
                                 Kirigami.FormData.label: headset.tr("Contrôle du bruit :")
                                 model: headset.sceneNoiseChoices
@@ -1489,6 +1506,7 @@ Kirigami.ApplicationWindow {
                                 onTextEdited: sceneEditor.send()
                             }
                             QQC2.ComboBox {
+                                Accessible.name: headset.tr("Anti-vent")
                                 id: sceneAntiWind
                                 Kirigami.FormData.label: headset.tr("Anti-vent :")
                                 model: headset.sceneSwitchChoices
@@ -1496,6 +1514,7 @@ Kirigami.ApplicationWindow {
                                 onActivated: sceneEditor.send()
                             }
                             QQC2.ComboBox {
+                                Accessible.name: headset.tr("Commandes tactiles")
                                 id: sceneTouch
                                 Kirigami.FormData.label: headset.tr("Commandes tactiles :")
                                 model: headset.sceneSwitchChoices
@@ -1503,6 +1522,7 @@ Kirigami.ApplicationWindow {
                                 onActivated: sceneEditor.send()
                             }
                             QQC2.ComboBox {
+                                Accessible.name: headset.tr("Préréglage d'égaliseur")
                                 id: sceneEq
                                 Kirigami.FormData.label: headset.tr("Préréglage d'égaliseur :")
                                 model: headset.sceneEqChoices
@@ -1510,6 +1530,7 @@ Kirigami.ApplicationWindow {
                                 onActivated: sceneEditor.send()
                             }
                             QQC2.ComboBox {
+                                Accessible.name: headset.tr("Amplification des basses")
                                 id: sceneBass
                                 Kirigami.FormData.label: headset.tr("Amplification des basses :")
                                 model: headset.sceneSwitchChoices
@@ -1578,7 +1599,7 @@ Kirigami.ApplicationWindow {
                     wrapMode: Text.WordWrap
                     visible: modelData.indexOf("\t") >= 0
                     text: modelData.split("\t")[1] || ""
-                    opacity: 0.6
+                    opacity: 0.7
                     font: Kirigami.Theme.smallFont
                 }
             }
@@ -1665,6 +1686,7 @@ Kirigami.ApplicationWindow {
                         level: 2
                     }
                     QQC2.ComboBox {
+                        Accessible.name: headset.tr("Période de l'historique")
                         model: headset.batterySpans
                         currentIndex: headset.batterySpan
                         onActivated: index => headset.reloadBattery(index)

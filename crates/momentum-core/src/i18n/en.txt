@@ -1996,3 +1996,9 @@ Language saved: applied the next time the interface starts.
 
 Langue non enregistrée : {}.
 Language not saved: {}.
+
+Volume des invites
+Prompt volume
+
+Période de l'historique
+History period

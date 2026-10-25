@@ -2019,7 +2019,8 @@ fn card(title: &str, content: impl Into<View>) -> View {
                 TextBlock::new()
                     .text(title)
                     .font_size(18.0)
-                    .font_weight(FontWeight::SEMI_BOLD),
+                    .font_weight(FontWeight::SEMI_BOLD)
+                    .automation_heading_level(AutomationHeadingLevel::Level2),
                 content.into(),
             )),
         )
@@ -2148,6 +2149,7 @@ impl Root {
             TextBlock::new()
                 .text(v.title.clone())
                 .font_size(28.0)
+                .automation_heading_level(AutomationHeadingLevel::Level1)
                 .font_weight(FontWeight::SEMI_BOLD),
             StackPanel::new()
                 .orientation(Orientation::Horizontal)
@@ -2254,6 +2256,7 @@ impl Root {
                         .step_frequency(1.0)
                         .value(f64::from(c.level))
                         .is_enabled(v.writable)
+                        .automation_name(tr("ANC ↔ transparence"))
                         .on_value_changed(context.callback(Msg::Level)),
                     switch_row(
                         tr("Anti-vent"),
@@ -2352,6 +2355,7 @@ impl Root {
                         .value(db)
                         .height(180.0)
                         .is_enabled(v.writable)
+                        .automation_name(trf("Bande {}", &[&band_label(i, count)]))
                         .horizontal_alignment(HorizontalAlignment::Center)
                         .on_value_changed(context.callback(move |value| Msg::Band(i, value))),
                     TextBlock::new()
@@ -2392,6 +2396,7 @@ impl Root {
                                 .items_source(sv.preset_names.clone())
                                 .selected_index(index(sv.current_preset))
                                 .placeholder_text(tr("Préréglage"))
+                                .automation_name(tr("Préréglage"))
                                 .is_enabled(v.writable)
                                 .on_selection_changed(context.callback(Msg::Preset)),
                             Button::new()
@@ -2684,6 +2689,7 @@ impl Root {
                         .items_source(viewmodel::AUTO_OFF_LABELS.map(tr))
                         .selected_index(index(st.auto_off))
                         .is_enabled(st.auto_off_enabled)
+                        .automation_name(tr("Extinction automatique"))
                         .on_selection_changed(context.callback(Msg::AutoOff)),
                     switch_row(
                         tr("Protection de la batterie"),
@@ -2701,6 +2707,7 @@ impl Root {
                         .items_source(viewmodel::PROMPT_MODES.map(tr))
                         .selected_index(index(st.prompt_mode))
                         .is_enabled(st.prompts_enabled)
+                        .automation_name(tr("Invites"))
                         .on_selection_changed(context.callback(Msg::PromptMode)),
                     TextBlock::new().text(if st.prompt_volume < 0 {
                         tr("Volume des invites : non lu").to_string()
@@ -2713,6 +2720,7 @@ impl Root {
                         .step_frequency(1.0)
                         .value(f64::from(st.prompt_volume.max(0)))
                         .is_enabled(st.prompt_volume_enabled)
+                        .automation_name(tr("Volume des invites"))
                         .on_value_changed(context.callback(Msg::PromptVolume)),
                 )),
             ),
@@ -2866,6 +2874,7 @@ impl Root {
                         ComboBox::new()
                             .items_source(items)
                             .selected_index(index(value))
+                            .automation_name(label)
                             .on_selection_changed(
                                 context.callback(move |i| Msg::SceneChoice(field, i)),
                             ),
@@ -3137,7 +3146,7 @@ impl Root {
                             TextBlock::new()
                                 .text(trf("{} : {}", &[&r.label, &r.value]))
                                 .text_wrapping(TextWrapping::Wrap),
-                            TextBlock::new().text(r.source).font_size(12.0).opacity(0.6),
+                            TextBlock::new().text(r.source).font_size(12.0).opacity(0.7),
                         )),
                     )
                 }))
