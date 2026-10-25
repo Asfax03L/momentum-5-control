@@ -2086,3 +2086,33 @@ Skip the assistant
 
 Premier lancement — étape {} sur {}
 First launch — step {} of {}
+
+réponse de GitHub illisible
+unreadable answer from GitHub
+
+À jour (version {}).
+Up to date (version {}).
+
+Nouvelle version disponible : {}.
+New version available: {}.
+
+Vérification impossible : {}.
+Check failed: {}.
+
+Vérification en cours…
+Checking…
+
+Voir la publication
+View the release
+
+Vérifier maintenant
+Check now
+
+Avis de nouvelle version
+New version notice
+
+Au lancement, lit la dernière publication sur GitHub. Seules votre adresse IP et le nom de l'application parviennent à GitHub ; rien d'autre n'est envoyé.
+At startup, reads the latest release on GitHub. Only your IP address and the application name reach GitHub; nothing else is sent.
+
+réseau injoignable
+network unreachable

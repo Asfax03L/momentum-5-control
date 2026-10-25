@@ -5,7 +5,12 @@ pour tout ce qui passe par le casque, mais pensée pour un PC portable (souris,
 clavier, grand écran, barre système). L'icône reste le raccourci vers la
 fenêtre principale.
 
-**État au 25/10/2026** : dernière publication **v0.16.0** (jalon 0.16 :
+**État au 25/10/2026** : dernière publication **v1.0.0**, version stable :
+politique de versions ([`VERSIONS.md`](VERSIONS.md)), politique de
+sécurité ([`SECURITY.md`](../SECURITY.md), signalement privé activé), avis
+de nouvelle version désactivé par défaut, et une décision écrite pour
+chaque point encore ouvert (section « Décisions de la 1.0 » plus bas).
+Avant elle, v0.16.0 (jalon 0.16 :
 interfaces en anglais avec choix de la langue, noms accessibles et
 parcours clavier vérifiés en CI, contrastes, assistant de premier
 lancement, rapport de bogue prérempli, guide et FAQ en deux langues, site
@@ -120,7 +125,7 @@ et date de l'essai sur le casque.
 | **0.14** (paquets natifs) 🟡 | Installateur Windows, winget, `.deb`, `.rpm`, AUR, KDE Store | Pour chaque format : installation, mise à jour par-dessus la version précédente et désinstallation propres, puis essai sur le casque |
 | **0.15** (intégration au bureau) 🟡 | KRunner, widgets Windows, mode jeu | Chaque intégration passe par l'API du service, avec les mêmes refus que les interfaces |
 | **0.16** (langues, accessibilité, accueil) 🟡 | Anglais, accessibilité, premier lancement, documentation | Interfaces complètes en anglais ; parcours au clavier et au lecteur d'écran sans blocage |
-| **1.0** | Version stable | Critères de publication remplis, politique de versions publiée, aucun constat ouvert sans décision |
+| **1.0** (version stable) ✅ | Version stable | Critères de publication remplis, politique de versions publiée, aucun constat ouvert sans décision |
 | **1.1** (fonctions avancées) | Mesures, égaliseur, journal, automatisations | Fonctions désactivables ; aucune donnée envoyée ; seules les commandes validées |
 | **1.2** (recherche sur le matériel) | Nouvelles écritures, autres casques | Capture dans l'application officielle, puis essai sur le casque avec relecture et retour à la valeur d'origine ; accord avant chaque essai |
 | **Après la signature** | MSIX, COPR, widgets Windows 11 et Xbox Game Bar | Décision sur la signature prise ; mêmes critères que 0.14 |
@@ -222,11 +227,28 @@ réelle au Narrateur et à Orca)
 - **Discussions GitHub** pour les questions ; les issues restent pour les
   bogues et la compatibilité.
 
-**1.0 — version stable**
-- **Politique de versions écrite** : sens de la 1.0, compatibilité des
-  fichiers de réglages, délai de correction des failles.
+**1.0 — version stable** (v1.0.0)
+- **Politique de versions écrite** ([`VERSIONS.md`](VERSIONS.md)) : sens de
+  la 1.0, interfaces stables (fichiers de réglages, sauvegarde JSON, `ctl`,
+  API D-Bus), délais de correction des failles
+  ([`SECURITY.md`](../SECURITY.md) : accusé de réception visé sous 7 jours,
+  correctif d'une faille sérieuse sous 30 jours).
 - **Avis de nouvelle version**, désactivé par défaut : simple lecture des
-  publications GitHub, sans télémétrie ni envoi de données.
+  publications GitHub, sans télémétrie ni envoi de données (WinUI, KDE ;
+  pas dans le Flatpak, sans réseau).
+
+### Décisions de la 1.0
+
+Points encore ouverts à la sortie de la 1.0, chacun avec sa décision :
+
+| Point | Décision |
+|---|---|
+| Soumissions à Flathub, winget, l'AUR et au KDE Store (0.13, 0.14) | Prêtes (`FLATHUB.md`, `SOUMISSIONS.md`) ; envoyées seulement avec l'accord du mainteneur, après la 1.0. Les fichiers restent publiés sur la page Releases. |
+| Client GNOME partiel (page Accueil, 0.12) | Reste un aperçu en 1.x ; rattrapage selon [`PARITE.md`](PARITE.md). Les clients pris en charge sont WinUI et KDE. |
+| Extension Decky jamais essayée dans le vrai mode jeu (0.15) | Essai par le mainteneur s'il installe Decky Loader ; d'ici là, elle reste signalée comme essayée hors du mode jeu. |
+| Widgets Windows 11 et Xbox Game Bar, MSIX (0.15) | Après la décision sur la signature (section « Après la signature »). |
+| Écoute au Narrateur et à Orca (0.16) | Noms accessibles et parcours clavier vérifiés automatiquement à chaque PR ; écoute réelle par le mainteneur, tout défaut traité comme un bogue en 1.0.x. |
+| Reconnexion sous Windows : essai sur le matériel « à valider » | Comportement documenté (ouverture des paramètres Bluetooth, jamais de connexion forcée) ; essai par le mainteneur, défaut traité comme un bogue. |
 
 **1.1 — fonctions avancées**
 - **Autonomie réelle mesurée** d'après `batterie.csv` : durée moyenne par

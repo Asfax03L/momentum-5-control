@@ -156,6 +156,13 @@ pub mod qobject {
         // (`--demo --essai-assistant`, CI seulement).
         #[qproperty(bool, assistant_open)]
         #[qproperty(bool, assistant_test)]
+        // Avis de nouvelle version : choix (désactivé par défaut), lecture
+        // possible (ni démonstration, ni Flatpak sans réseau), texte de la
+        // dernière vérification, page de la publication plus récente.
+        #[qproperty(bool, update_enabled)]
+        #[qproperty(bool, update_possible)]
+        #[qproperty(QString, update_text)]
+        #[qproperty(QString, update_url)]
         #[qproperty(QString, settings_notice)]
         #[qproperty(bool, settings_ready)]
         // Lancement à l'ouverture de session.
@@ -344,6 +351,17 @@ pub mod qobject {
         fn assistant_connection_text(self: &Headset, connected: bool) -> QString;
         #[qinvokable]
         fn open_bluetooth_settings(self: &Headset);
+        /// Avis de nouvelle version : enregistre le choix.
+        #[qinvokable]
+        fn set_update_notice(self: Pin<&mut Headset>, enabled: bool);
+        /// Adresse lue par l'avis (API GitHub).
+        #[qinvokable]
+        fn update_check_url(self: &Headset) -> QString;
+        #[qinvokable]
+        fn update_started(self: Pin<&mut Headset>);
+        /// Réponse de l'API (`body`) ou erreur (`error`, non vide).
+        #[qinvokable]
+        fn update_received(self: Pin<&mut Headset>, body: &QString, error: &QString);
         /// Rouvre l'assistant (« À propos »).
         #[qinvokable]
         fn show_assistant(self: Pin<&mut Headset>);
@@ -596,6 +614,10 @@ pub struct HeadsetRust {
     language_notice: QString,
     assistant_open: bool,
     assistant_test: bool,
+    update_enabled: bool,
+    update_possible: bool,
+    update_text: QString,
+    update_url: QString,
     settings_notice: QString,
     settings_ready: bool,
     settings_plan: Option<momentum_core::settings_transfer::ImportPlan>,
@@ -767,6 +789,10 @@ impl Default for HeadsetRust {
             assistant_open: momentum_core::assistant::should_show(demo::requested())
                 || std::env::args().any(|a| a == "--assistant" || a == "--essai-assistant"),
             assistant_test: demo::requested() && std::env::args().any(|a| a == "--essai-assistant"),
+            update_enabled: momentum_core::update_check::load_enabled(),
+            update_possible: !demo::requested() && !autostart::in_flatpak(),
+            update_text: QString::default(),
+            update_url: QString::default(),
             settings_notice: QString::default(),
             settings_ready: false,
             settings_plan: None,
@@ -2080,6 +2106,46 @@ impl qobject::Headset {
         {
             tracing::warn!(%e, "ouverture des réglages Bluetooth de KDE");
         }
+    }
+
+    fn set_update_notice(mut self: Pin<&mut Self>, enabled: bool) {
+        if let Err(e) = momentum_core::update_check::store_enabled(enabled) {
+            tracing::warn!(%e, "avis de nouvelle version");
+        }
+        self.as_mut().set_update_enabled(enabled);
+        self.as_mut().set_update_text(QString::default());
+        self.as_mut().set_update_url(QString::default());
+    }
+
+    fn update_check_url(&self) -> QString {
+        QString::from(momentum_core::update_check::LATEST_URL)
+    }
+
+    fn update_started(mut self: Pin<&mut Self>) {
+        self.as_mut()
+            .set_update_text(QString::from(tr("Vérification en cours…")));
+        self.as_mut().set_update_url(QString::default());
+    }
+
+    fn update_received(mut self: Pin<&mut Self>, body: &QString, error: &QString) {
+        use momentum_core::update_check::Outcome;
+        let current = env!("CARGO_PKG_VERSION");
+        let (body, error) = (body.to_string(), error.to_string());
+        let outcome = Outcome::from_response(
+            current,
+            if error.is_empty() {
+                Ok(&body)
+            } else {
+                Err(&error)
+            },
+        );
+        let url = match &outcome {
+            Outcome::Available(r) => r.url.as_str(),
+            _ => "",
+        };
+        self.as_mut().set_update_url(QString::from(url));
+        self.as_mut()
+            .set_update_text(QString::from(outcome.text(current).as_str()));
     }
 
     fn show_assistant(mut self: Pin<&mut Self>) {

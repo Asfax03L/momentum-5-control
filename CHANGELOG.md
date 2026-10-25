@@ -12,6 +12,57 @@ refuse de publier sans elles) :
 - « À faire après la mise à jour » : les actions concrètes par système,
   ou « Rien de particulier » avec la raison.
 
+## v1.0.0 — 25/10/2026
+
+### En bref
+**Première version stable.** Rien ne change dans l'usage quotidien ; ce
+qui change, ce sont les engagements :
+- **Compatibilité garantie pour toute la série 1.x** : vos fichiers de
+  réglages (scènes, préréglages, raccourcis…), la sauvegarde JSON, la
+  ligne de commande `ctl` (et sa sortie `--json`) et l'API D-Bus restent
+  compatibles jusqu'à une éventuelle 2.0, annoncée à l'avance
+  ([`docs/VERSIONS.md`](docs/VERSIONS.md)).
+- **Failles de sécurité** : signalement privé depuis l'onglet Security du
+  dépôt ; accusé de réception visé sous 7 jours, correctif d'une faille
+  sérieuse sous 30 jours ([`SECURITY.md`](SECURITY.md)).
+- **Avis de nouvelle version**, nouveau et **désactivé par défaut**
+  (Paramètres, WinUI et KDE) : au lancement, l'interface lit la dernière
+  publication sur GitHub et propose de voir sa page. Seules votre adresse
+  IP et le nom de l'application parviennent à GitHub ; rien n'est
+  téléchargé ni installé. Pas dans le Flatpak, qui se met à jour par
+  Flatpak.
+- Chaque point encore ouvert a une décision écrite (ROADMAP, « Décisions
+  de la 1.0 ») : soumissions aux catalogues après votre accord, client
+  GNOME en aperçu, écoute au lecteur d'écran par le mainteneur.
+
+### À faire après la mise à jour
+- **Rien d'obligatoire** : réglages, scènes et historique de la 0.16 sont
+  repris tels quels.
+- **Facultatif** : pour être prévenu des prochaines versions, activer
+  Paramètres > « Avis de nouvelle version ».
+- **Windows, KDE (archive), `.deb`, `.rpm`, AUR, Flatpak, mode jeu** :
+  installer comme d'habitude.
+
+### Version stable (jalon 1.0)
+- `docs/VERSIONS.md` : versionnage sémantique, interfaces publiques
+  (fichiers du dossier des données, sauvegarde `version: 1`, `ctl` et
+  `--json` version 1 avec ses codes de sortie, `org.openheadset.Control1`),
+  ce qui n'en fait pas partie (interfaces graphiques, textes, journaux,
+  diagnostic, canal nommé Windows, crates internes), cas d'un nouveau
+  micrologiciel, versions maintenues.
+- `SECURITY.md` : versions maintenues, signalement privé (activé sur le
+  dépôt), délais visés, périmètre ; résumé en anglais.
+- `momentum_core::update_check` : lecture de la réponse de l'API GitHub
+  (ni brouillon, ni préversion, page limitée aux publications du dépôt),
+  comparaison des versions, choix dans `mises-a-jour.txt` (`avis = oui`,
+  absent = non). Requête par WinRT (`Windows.Web.Http`) sous Windows, par
+  `XMLHttpRequest` de QML sous KDE ; jamais en démonstration ni dans le
+  Flatpak. Test réseau de la lecture Windows, lancé à la main
+  (`cargo test -p momentum-winui -- --ignored`).
+- `docs/SECURITE.md` : section « Réseau des interfaces » ; le service n'a
+  toujours aucun accès réseau.
+- Guide, FAQ et site : nouvelles versions, garanties de la 1.0.
+
 ## v0.16.0 — 25/10/2026
 
 ### En bref

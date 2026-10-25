@@ -141,7 +141,22 @@ particulier ; c'est la voie la plus simple pour réduire les droits du
 service sous Windows. D'ici là, le canal nommé reste limité à
 l'utilisateur, et le service n'a aucun privilège.
 
+## Réseau des interfaces
+
+Le service n'a jamais accès au réseau. Les interfaces WinUI et KDE n'y
+accèdent que pour l'**avis de nouvelle version**, désactivé par défaut et
+activé seulement par l'utilisateur dans les Paramètres
+(`mises-a-jour.txt`) : au lancement, une requête GET vers
+`api.github.com/repos/Asfax03L/openheadset-control/releases/latest`, avec
+le seul en-tête `User-Agent: OpenHeadset-Control`. GitHub voit l'adresse IP,
+rien d'autre n'est envoyé. La réponse est analysée par
+`momentum_core::update_check`, qui n'accepte qu'une publication du dépôt
+(ni brouillon, ni préversion) et n'ouvre que sa page, sur demande. Rien
+n'est téléchargé ni installé. Jamais en démonstration, jamais dans le
+Flatpak (sans permission réseau ; mises à jour par Flatpak).
+
 ## Signaler une faille
 
-Par un avis de sécurité privé sur GitHub (onglet « Security » du dépôt),
-pas par une issue publique.
+Par le signalement privé de GitHub (onglet « Security » du dépôt >
+« Report a vulnerability »), pas par une issue publique. Délais visés et
+versions maintenues : [`SECURITY.md`](../SECURITY.md).

@@ -142,7 +142,17 @@ demande. Aucun profil auditif ni identifiant d'appareil n'est exporté.
 Une question plutôt qu'un bogue :
 [Discussions](https://github.com/Asfax03L/openheadset-control/discussions).
 
-## 9. Où sont mes données
+## 9. Nouvelles versions
+
+Paramètres > **Avis de nouvelle version** (désactivé par défaut) : au
+lancement, l'interface lit la dernière publication sur GitHub et signale
+une version plus récente, avec un bouton « Voir la publication ». Seules
+votre adresse IP et le nom de l'application parviennent à GitHub ; rien
+n'est téléchargé ni installé automatiquement. Le Flatpak se met à jour par
+Flatpak. Ce que garantit chaque version :
+[politique de versions](VERSIONS.md).
+
+## 10. Où sont mes données
 
 Tout reste sur le PC, dans le dossier des données :
 
@@ -151,5 +161,5 @@ Tout reste sur le PC, dans le dossier des données :
 - Flatpak : `~/.var/app/io.github.asfax03l.openheadset-control/`.
 
 On y trouve `scenes.txt`, `prereglages.txt`, `raccourcis.txt`,
-`panneau.txt`, `apparence.txt`, `langue.txt`, `batterie.csv` et le journal
-du service.
+`panneau.txt`, `apparence.txt`, `langue.txt`, `mises-a-jour.txt`,
+`batterie.csv` et le journal du service.

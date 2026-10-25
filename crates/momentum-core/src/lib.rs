@@ -35,4 +35,5 @@ pub mod settings_transfer;
 pub mod transport;
 pub mod tray_menu;
 pub mod ui;
+pub mod update_check;
 pub mod viewmodel;

@@ -75,6 +75,11 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="1.0.0" date="2026-10-25">
+      <description>
+        <p>First stable release: written version policy (settings files, JSON backup, command line and D-Bus API stay compatible across 1.x), security policy, and an optional new version notice, off by default.</p>
+      </description>
+    </release>
     <release version="0.16.0" date="2026-10-25">
       <description>
         <p>Interfaces in English, accessibility (screen reader names, keyboard navigation, contrast), first-launch assistant, one-click bug report, user guide and FAQ.</p>
