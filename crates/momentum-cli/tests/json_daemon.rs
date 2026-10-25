@@ -267,6 +267,26 @@ fn missing_snapshot_or_service_does_not_create_files_or_connect_directly() {
 }
 
 #[test]
+fn service_requis_refuse_sans_service_et_ne_cherche_pas_le_casque() {
+    let bus = Bus::new();
+    let output = bus.ctl(&["--json", "--service-requis", "etat"]);
+    assert!(output.status.success());
+    assert_eq!(one_object(&output)["connecte"], true);
+    zbus::block_on(bus._connection.release_name(momentum_client::BUS_NAME)).unwrap();
+    for args in [
+        vec!["--json", "--service-requis", "etat"],
+        vec!["--json", "--service-requis", "mode", "arret"],
+    ] {
+        let output = bus.ctl(&args);
+        assert!(!output.status.success(), "{args:?}");
+        let error = one_object(&output)["erreur"].as_str().unwrap().to_string();
+        assert!(error.contains("aucune connexion directe"), "{error}");
+        // Aucune recherche Bluetooth : pas de message de connexion directe.
+        assert!(!String::from_utf8_lossy(&output.stderr).contains("Connecté à"));
+    }
+}
+
+#[test]
 fn etat_reste_identique_avant_et_apres_la_sous_commande() {
     let bus = Bus::new();
     let expected = format!(

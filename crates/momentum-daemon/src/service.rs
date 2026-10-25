@@ -30,6 +30,9 @@ pub struct Shared {
     /// Entrée des événements du worker : le service y publie le résultat
     /// des demandes qu'il traite lui-même.
     pub events: Option<Sender<WorkerEvent>>,
+    /// Demandes venues de la recherche du bureau (KRunner) : sans fenêtre
+    /// pour l'afficher, un échec est montré en notification.
+    pub runner_requests: Vec<u64>,
 }
 
 /// Reçoit une demande d'une interface : numéro attribué, puis la demande
@@ -331,6 +334,19 @@ pub fn pump(
                 }
             }
             WorkerEvent::Refused(reason) => tracing::warn!(%reason, "réglage refusé"),
+            WorkerEvent::Done { id, outcome, .. } => {
+                let from_runner = shared.lock().is_ok_and(|mut sh| {
+                    let found = sh.runner_requests.contains(id);
+                    sh.runner_requests.retain(|r| r != id);
+                    found
+                });
+                if from_runner && !outcome.is_success() {
+                    momentum_service::desktop::show_toast(
+                        "OpenHeadset Control",
+                        &outcome.describe(),
+                    );
+                }
+            }
             _ => {}
         }
         let api_event = {

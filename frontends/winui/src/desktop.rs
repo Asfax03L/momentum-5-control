@@ -80,6 +80,11 @@ static WINDOW: AtomicIsize = AtomicIsize::new(0);
 /// « Quitter » choisi : la fermeture n'est plus interceptée.
 static QUITTING: AtomicBool = AtomicBool::new(false);
 
+/// Fenêtre principale, une fois retrouvée par [`attach`].
+pub fn hwnd() -> Option<HWND> {
+    window()
+}
+
 fn window() -> Option<HWND> {
     match WINDOW.load(Ordering::Acquire) {
         0 => None,

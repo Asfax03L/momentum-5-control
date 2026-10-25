@@ -1,0 +1,16 @@
+[Desktop Entry]
+Name=OpenHeadset Control
+Comment=Réglages du casque MOMENTUM 5 depuis la recherche (anc off, scène Transport…)
+Type=Service
+Icon=org.openheadset.control
+X-KDE-PluginInfo-Author=Asfax03L
+X-KDE-PluginInfo-Name=openheadset-control
+X-KDE-PluginInfo-Version=1.0
+X-KDE-PluginInfo-License=MIT
+X-KDE-PluginInfo-EnabledByDefault=true
+X-Plasma-API=DBus
+X-Plasma-DBusRunner-Service=org.openheadset.Control
+X-Plasma-DBusRunner-Path=/runner
+X-Plasma-Request-Actions-Once=true
+X-Plasma-Runner-Syntaxes=anc off,scène :q:,transparence,batterie
+X-Plasma-Runner-Syntax-Descriptions=Coupe la réduction de bruit du casque,Applique la scène :q: du casque,Passe le casque en transparence maximale,Affiche la batterie du casque

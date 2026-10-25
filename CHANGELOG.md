@@ -12,6 +12,67 @@ refuse de publier sans elles) :
 - « À faire après la mise à jour » : les actions concrètes par système,
   ou « Rien de particulier » avec la raison.
 
+## v0.15.0 — 25/10/2026
+
+### En bref
+Version de l'intégration au bureau :
+- **KDE : recherche de Plasma (KRunner)**. Taper « anc off »,
+  « transparence » ou « scène Transport » dans la recherche (Alt+Espace)
+  règle le casque. Un refus s'affiche en notification.
+- **Windows : liste de raccourcis**. Un clic droit sur l'icône
+  d'OpenHeadset Control dans la barre des tâches propose les scènes, à
+  appliquer sans ouvrir la fenêtre.
+- **Windows : pastille de batterie** sur cette icône, quand la fenêtre
+  est ouverte.
+- **Mode jeu (Bazzite, Steam Deck) : extension Decky Loader** avec la
+  batterie, la réduction de bruit, l'anti-vent et les scènes.
+- Tout passe par le service, avec les mêmes refus que les interfaces ;
+  aucune de ces intégrations ne parle directement au casque.
+- **Reportés** : les widgets du tableau de Windows 11 et de la Xbox Game
+  Bar exigent une application empaquetée (MSIX), donc la signature.
+
+### À faire après la mise à jour
+- **KDE (archive Linux)** : relancer `./installer-linux.sh`, qui pose la
+  recherche KRunner. Elle apparaît dans la recherche de Plasma après une
+  nouvelle session, ou dans Configuration du système > Recherche. Avec le
+  Flatpak, la recherche n'est pas disponible (Flatpak ne peut pas
+  l'exporter).
+- **Windows** : installer comme d'habitude. La liste de raccourcis apparaît
+  après le premier lancement de l'interface.
+- **Mode jeu** : installer `openheadset-control-v0.15.0-decky.zip` depuis
+  Decky (mode développeur, « Install Plugin from ZIP »), avec OpenHeadset
+  Control déjà installé.
+- **`.deb`, `.rpm`, AUR** : rien de particulier (la recherche KRunner est
+  incluse).
+
+### Intégration au bureau (jalon 0.15)
+- **KRunner** : le service sert `org.kde.krunner1` sur `/runner`
+  (déclaration `assets/linux/openheadset-control-krunner.desktop`). La
+  recherche (`momentum_client::runner`, sans accents ni casse) propose les
+  modes de bruit, l'anti-vent, l'audio spatial, les scènes et la batterie ;
+  chaque choix part par `service::submit`, comme les commandes des
+  interfaces, et un échec, immédiat ou après relecture, devient une
+  notification. Essayé sur Bazzite avec le M5 (6.21.5) : résultats pour
+  « anc off », « scène Transport » et « batterie » ; anti-vent coupé par la
+  recherche, relu, puis remis et relu.
+- **Liste de raccourcis Windows** (`frontends/winui/src/taskbar.rs`) : une
+  entrée par scène (dix au plus) qui relance l'interface avec
+  `--scene <nom>`. Ce lancement envoie la scène au service, attend son
+  résultat, montre une notification en cas d'échec et se ferme sans
+  fenêtre. Essayé sous Windows 11 avec le M5 : scène inconnue refusée
+  (code 1, notification), scène de l'état actuel appliquée (code 0, état
+  inchangé), liste écrite.
+- **Pastille de batterie** (`ui::battery_badge_rgba`, verte, orange à 30 %,
+  rouge à 15 %) sur l'icône de la fenêtre dans la barre des tâches, par
+  `ITaskbarList3`.
+- **Extension Decky** (`decky/`) : interface React (`@decky/ui`) et backend
+  Python qui n'accepte que les actions du panneau et appelle
+  `ctl --json --service-requis`. Essais du backend avec un faux `ctl` en
+  CI ; archive `…-decky.zip` jointe aux publications.
+- **`ctl --service-requis`** : jamais de connexion directe au casque
+  (refus si le service est introuvable), pour les intégrations.
+- Publication : 18 fichiers (extension Decky en plus).
+
 ## v0.14.0 — 24/10/2026
 
 ### En bref

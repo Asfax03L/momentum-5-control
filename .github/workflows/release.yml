@@ -8,6 +8,7 @@ name: Publication
 #   - Linux : client KDE, service, ctl, widget Plasma et installer-linux.sh ;
 #   - Flatpak : client KDE, service et ctl ;
 #   - paquets .deb et .rpm ; widget Plasma seul (.plasmoid) ;
+#   - extension Decky Loader pour le mode jeu (.zip) ;
 #   - inventaire des dépendances (SBOM CycloneDX).
 # Chaque fichier est accompagné de son empreinte SHA-256 et d'une
 # attestation de provenance GitHub (docs/VERIFIER.md).
@@ -106,12 +107,15 @@ jobs:
           # la racine de l'archive.
           (cd plasma/org.openheadset.control.plasmoid && zip -qrX "../../openheadset-control-${{ github.ref_name }}.plasmoid" .)
           unzip -l "openheadset-control-${{ github.ref_name }}.plasmoid" | grep -q ' metadata.json$'
+          # Extension Decky Loader (mode jeu).
+          sh decky/empaqueter.sh "${{ github.ref_name }}"
       - uses: actions/upload-artifact@v7
         with:
           name: linux
           path: |
             openheadset-control-*-linux-x86_64.tar.gz
             openheadset-control-*.plasmoid
+            openheadset-control-*-decky.zip
           if-no-files-found: error
 
   # Même construction que les PR (sources figées, sans réseau, contrôle de
@@ -180,9 +184,9 @@ jobs:
           rm -f cargo-sources.json PKGBUILD .SRCINFO
           ls -la
           set -- ./*.zip ./*.exe ./*.tar.gz ./*.flatpak ./*.deb ./*.rpm ./*.plasmoid
-          # Archive et installateur Windows, archive Linux, SBOM, Flatpak,
-          # .deb, .rpm, widget Plasma.
-          test "$#" -eq 8
+          # Archive et installateur Windows, extension Decky, archive Linux,
+          # SBOM, Flatpak, .deb, .rpm, widget Plasma.
+          test "$#" -eq 9
           for f do
             test -s "$f"
             # Format de `sha256sum -c` : empreinte, deux espaces, nom.
@@ -217,5 +221,5 @@ jobs:
             ./*
           # Tous les fichiers sont bien attachés avant de rendre public.
           count=$(gh release view "${GITHUB_REF_NAME}" --json assets --jq '.assets | length')
-          test "$count" -eq 16
+          test "$count" -eq 18
           gh release edit "${GITHUB_REF_NAME}" --draft=false

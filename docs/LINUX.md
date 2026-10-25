@@ -312,6 +312,28 @@ cargo build --release -p momentum-gtk
 
 Essai sans casque : `momentum-gtk --demo`.
 
+## Recherche de Plasma (KRunner)
+
+Depuis la recherche de Plasma (Alt+Espace ou le lanceur) : « anc off »,
+« transparence », « anc adaptatif », « anti-vent on », « scène Transport »
+(ou le nom de la scène seul), « batterie ». Le choix d'un résultat envoie
+la commande au service, par le même chemin que les interfaces : mêmes
+refus (casque absent, lecture seule, scène inconnue), montrés en
+notification. Le service sert l'objet `/runner` (`org.kde.krunner1`) ;
+`installer-linux.sh` et les paquets `.deb`, `.rpm` et AUR posent sa
+déclaration (`krunner/dbusplugins/openheadset-control-krunner.desktop`).
+Le Flatpak ne peut pas exporter ce fichier : avec le Flatpak, la recherche
+n'est pas disponible.
+
+## Mode jeu (Decky Loader)
+
+En mode jeu de Bazzite ou du Steam Deck, l'extension Decky
+(`openheadset-control-vX.Y.Z-decky.zip`, jointe aux publications) affiche
+batterie, réduction de bruit, anti-vent et scènes dans le menu d'accès
+rapide. Elle passe par `ctl --json --service-requis` : jamais de
+connexion directe au casque, mêmes refus que les interfaces. Installation
+et fonctionnement : [`decky/LISEZMOI.md`](../decky/LISEZMOI.md).
+
 ## Widget Plasma
 
 `plasma/org.openheadset.control.plasmoid` (Plasma 6, QML seul, module

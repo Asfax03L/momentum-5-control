@@ -19,6 +19,8 @@ mod app;
 mod desktop;
 #[cfg(windows)]
 mod panel;
+#[cfg(windows)]
+mod taskbar;
 
 fn main() {
     #[cfg(windows)]
