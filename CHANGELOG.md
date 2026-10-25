@@ -12,6 +12,185 @@ refuse de publier sans elles) :
 - « À faire après la mise à jour » : les actions concrètes par système,
   ou « Rien de particulier » avec la raison.
 
+## v0.16.0 — 25/10/2026
+
+### En bref
+Version des langues, de l'accessibilité et de l'accueil :
+- **Interfaces en anglais.** WinUI, KDE, GNOME, le widget Plasma, la
+  recherche KRunner, l'extension Decky, les entrées de menu et
+  l'installateur Windows suivent la langue du système : français si c'est
+  la sienne, anglais sinon. Paramètres > **Langue** permet de choisir
+  (langue du système, Français, English), au prochain lancement. `ctl` et
+  le texte du diagnostic restent en français.
+- **Accessibilité.** Chaque commande porte un nom lu par les lecteurs
+  d'écran (curseurs, listes et bandes de l'égaliseur compris) ; les titres
+  de page et de section sont annoncés comme titres ; tout se fait au
+  clavier, sans piège ; les textes secondaires gardent un contraste d'au
+  moins 4,5:1. Vérifié automatiquement à chaque modification.
+- **Assistant de premier lancement** : Bluetooth (bouton vers les
+  paramètres), appairage (avec l'état du casque en direct), Windows App
+  Runtime, Multipoint. Rouvrable depuis « À propos ».
+- **Signaler un problème en un clic** (« À propos ») : le diagnostic
+  expurgé s'affiche, puis le formulaire de bogue GitHub s'ouvre dans le
+  navigateur, déjà rempli. Rien n'est envoyé avant que vous le validiez
+  sur GitHub.
+- **Guide d'utilisation et FAQ**, en français et en anglais, et un **site**
+  : <https://asfax03l.github.io/openheadset-control/>.
+- **Discussions GitHub** pour les questions ; les issues restent pour les
+  bogues et la compatibilité.
+
+### À faire après la mise à jour
+- **Tous les systèmes** : au premier lancement de cette version,
+  l'assistant s'ouvre une fois ; « Passer l'assistant » le ferme pour de
+  bon (fichier `assistant.txt` du dossier des données). Pour garder
+  l'interface en français sur un système anglais : Paramètres > Langue >
+  Français, puis relancer l'interface.
+- **Windows** : installer comme d'habitude. L'installateur est maintenant
+  en anglais sur un Windows anglais.
+- **KDE (archive Linux)** : relancer `./installer-linux.sh` pour les
+  entrées de menu et la recherche KRunner traduites. Flatpak, `.deb`,
+  `.rpm`, AUR : rien de particulier.
+- **Mode jeu** : installer `openheadset-control-v0.16.0-decky.zip` ;
+  l'extension suit la langue de Steam.
+
+### Langues (jalon 0.16)
+- **Catalogue** `crates/momentum-core/src/i18n/en.txt` : textes sources
+  français, traduction anglaise en regard (`tr`, `trf`). Langue choisie par
+  `OPENHEADSET_LANG`, puis `langue.txt` (`langue = auto|fr|en`), puis
+  `LC_ALL`/`LC_MESSAGES`/`LANG`, puis la langue d'affichage de Windows ;
+  français par défaut. Les messages d'erreur du service et du client sont
+  traduits aussi.
+- Tests : chaque texte passé à `tr`/`trf` dans le code Rust et QML a sa
+  traduction (`every_text_of_the_interfaces_is_translated`), avec le même
+  nombre de `{}` et de retours à la ligne ; chaque liste de choix est
+  traduite.
+- Widget Plasma et extension Decky : dictionnaires propres (QML seul,
+  React). Entrées `.desktop` : anglais par défaut, `[fr]` en traduction.
+  Inno Setup : langues `fr` et `en`, messages propres en `[CustomMessages]`.
+- Essais d'interface WinUI (UI Automation) et KDE (hors écran) rejoués en
+  français et en anglais en CI.
+
+### Accessibilité
+- WinUI : `AutomationProperties.Name` sur les curseurs (ANC ↔
+  transparence, bandes « Bande 90 Hz »…, volume des invites) et les listes
+  déroulantes (préréglage, extinction automatique, invites, champs de
+  scène) ; titres de niveau 1 (page) et 2 (cartes).
+- KDE : `Accessible.name` sur les curseurs, listes et interrupteurs sans
+  texte propre ; widget Plasma idem. Test `accessibilite_qml` : chaque
+  commande QML a un nom accessible.
+- `scripts/audit-accessibilite-winui.ps1` (CI, deux langues) : chaque
+  commande visible de chaque page a un nom accessible et entre dans le
+  parcours clavier ; puis Tab jusqu'à l'anti-vent, Espace le bascule, et
+  la tabulation fait le tour de la fenêtre.
+- Contraste : textes secondaires à 70 % d'opacité au moins (le seul à
+  60 % passait sous 4,5:1 en thème clair).
+- Écoute réelle au Narrateur et à Orca : à faire par le mainteneur.
+
+### Premier lancement, rapport de bogue, documentation
+- `momentum_core::assistant` : étapes communes à WinUI et KDE ; montré
+  une fois, jamais en démonstration sans `--assistant`. Essais
+  `essai-assistant-winui.ps1` et `--essai-assistant` (KDE) en CI.
+- `diagnostic::issue_url` : formulaire `bogue.yml` prérempli (version,
+  interface, système, diagnostic), adresse limitée à 7 000 caractères
+  (diagnostic raccourci sur une fin de ligne, avec renvoi vers « Copier le
+  diagnostic »). Choix du formulaire vérifiés par un test.
+- `docs/GUIDE.md`, `docs/GUIDE.en.md`, `docs/FAQ.md`, `docs/FAQ.en.md` ;
+  site construit par pandoc (`scripts/construire-site.sh`), liens et
+  ancres vérifiés (`scripts/verifier-site.py`), publié par le workflow
+  « Site ».
+- Lien vers les Discussions dans le choix de formulaire des issues.
+- Installateur Windows : section `const` vide retirée (refusée par ISCC).
+
+## v0.15.1 — 25/10/2026
+
+### En bref
+Version de fiabilisation, sans nouvelle fonction. Elle corrige les douze
+constats (A01 à A12) de l'audit du projet du 24/10/2026 :
+- **Vos réglages ne peuvent plus être écrasés en silence.**
+  - Deux enregistrements simultanés (deux interfaces, ou une interface et
+    `ctl`) ne perdent plus l'une des modifications.
+  - L'effacement de l'historique de la batterie n'est plus annoncé réussi
+    quand l'écriture sur le disque a échoué.
+  - Un fichier de raccourcis dans un autre encodage n'est plus remplacé par
+    les valeurs par défaut.
+- **Linux : le service ne peut plus lire le reste de votre dossier
+  personnel.** Jusqu'ici, il ne pouvait pas y écrire mais pouvait le lire,
+  contrairement à ce que disaient les notes de la v0.11.0.
+- **Ubuntu 24.04 et suivants : le service démarre enfin.** Depuis la
+  v0.11.0, le durcissement l'empêchait d'y démarrer, à cause de la
+  restriction d'AppArmor sur les espaces de noms. Un complément lève les
+  options en cause. Sous Ubuntu, le masquage du dossier personnel ne peut
+  pas s'appliquer (voir `docs/SECURITE.md`).
+- **Tests sans danger pour vos données** : la suite de tests n'écrit plus
+  dans l'historique réel de la batterie (c'est arrivé une fois sur le PC
+  d'essai ; l'historique a été reconstitué).
+- **Windows** : une attente du service qui dépasse son délai libère
+  maintenant le canal, au lieu de laisser une lecture bloquée.
+- **Installateur Linux** : une panne en cours de route est annoncée comme
+  installation partielle, avec la marche à suivre ; le client GNOME est
+  sauvegardé et remis comme les autres programmes.
+
+### À faire après la mise à jour
+- **Ubuntu (archive ou `.deb`)** : installer la v0.15.1. Le service démarre
+  maintenant ; rien d'autre à faire.
+- **Linux (archive, `.deb`, `.rpm`, AUR)** : installer comme d'habitude.
+  L'unité du service change (`ProtectHome=tmpfs`) ; l'installateur et les
+  paquets la remplacent et redémarrent le service. Si vous avez déplacé
+  le dossier des données avec `XDG_DATA_HOME`, le service ne le voit plus :
+  garder `~/.local/share/momentum-ctl-win`.
+- **Windows, Flatpak, mode jeu** : rien de particulier.
+
+### Fiabilisation (audit du 24/10/2026)
+- **A01** : le service reçoit le chemin de l'historique au démarrage
+  (`Shared::battery_file`) au lieu de le relire dans l'environnement ; les
+  essais utilisent un dossier temporaire. La CI lance toute la suite avec un
+  dossier de données témoin et échoue si un fichier témoin change
+  (`scripts/essai-temoin.sh`, Windows et Linux).
+- **A02** : unité systemd `ProtectHome=tmpfs`, avec en écriture le dossier
+  des données et Documents, le socket du bus et, en lecture seule, le
+  binaire (`BindPaths`, `BindReadOnlyPaths`). `docs/SECURITE.md` corrigé.
+  Essayé sur Bazzite avec le M5 (6.21.5) : service démarré par l'unité,
+  état lu, anti-vent coupé, relu, puis remis et relu ; fichier personnel
+  illisible, données et Documents inscriptibles, bus joignables.
+- **A03** : verrou commun à tous les auteurs d'un dossier de données
+  (`paths::lock_dir`, `File::lock`), qui couvre la lecture, la
+  vérification et le remplacement (`update_user_file`). Il est utilisé
+  par les préréglages, les scènes, les raccourcis, le panneau et l'import
+  des réglages. Essais : 200 courses, un seul succès par course ; 50
+  ajouts simultanés de préréglages, les deux gardés.
+- **A04** : l'effacement de l'historique écrit d'abord l'historique vide ;
+  un échec est un refus (« historique non effacé ») et garde les mesures.
+  Les écritures de l'historique remplacent le fichier d'un bloc.
+- **A05** : `raccourcis.txt` n'est créé que s'il est absent (création
+  exclusive). Illisible : gardé tel quel, valeurs par défaut en mémoire,
+  et l'éditeur de scènes ne le réécrit pas.
+- **A06** : la tâche CI `service-durci` lance le service par son unité
+  sous `systemd --user` et vérifie les accès à l'exécution
+  (`scripts/essai-confinement.sh`), en plus du score statique. Ce premier
+  vrai lancement a révélé que le service ne démarrait pas sous Ubuntu 24.04
+  et suivants (AppArmor). D'où le complément `momentum-daemon-apparmor.conf`,
+  posé par `installer-linux.sh` quand la restriction est active et inclus
+  dans le `.deb`. L'essai se fait en deux phases : Ubuntu restreint avec le
+  complément, puis unité complète, masquage du dossier personnel exigé.
+- **A07** : la publication attend une CI verte sur la même révision. Le
+  workflow est en lecture seule, sauf le job qui publie. Les actions sont
+  épinglées sur une révision. Reste la protection de `main`, un réglage du
+  dépôt qui demande l'accord du mainteneur.
+- **A08** : installateur Linux. Le client GTK est sauvegardé et remis avec
+  les autres binaires ; une panne après leur remplacement est annoncée
+  « installation partielle » ; un redémarrage raté du service est
+  signalé. Essai en CI avec panne injectée
+  (`scripts/essai-installateur-linux.sh`).
+- **A09** : client du canal nommé Windows en E/S asynchrones, avec une
+  échéance unique. Délai dépassé : l'opération est annulée (`CancelIoEx`)
+  et le canal fermé. Essai avec un faux serveur muet.
+- **A10** : `cargo deny` vérifie aussi les interdictions (`bans`) ; les
+  exceptions zbus 5, devenues inutiles, sont retirées.
+- **A11** : vérification de `momentum-gtk` avec Rust 1.92 dans la matrice
+  MSRV.
+- **A12** : documentation alignée : règles du CHANGELOG, trois
+  interfaces, contenu de l'archive Linux, F14 requalifié.
+
 ## v0.15.0 — 25/10/2026
 
 ### En bref

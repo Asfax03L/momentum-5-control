@@ -5,7 +5,12 @@ pour tout ce qui passe par le casque, mais pensée pour un PC portable (souris,
 clavier, grand écran, barre système). L'icône reste le raccourci vers la
 fenêtre principale.
 
-**État au 25/10/2026** : dernière publication **v0.15.1**, version de
+**État au 25/10/2026** : dernière publication **v0.16.0** (jalon 0.16 :
+interfaces en anglais avec choix de la langue, noms accessibles et
+parcours clavier vérifiés en CI, contrastes, assistant de premier
+lancement, rapport de bogue prérempli, guide et FAQ en deux langues, site
+GitHub Pages, Discussions ; écoute réelle au Narrateur et à Orca à faire).
+Avant elle, v0.15.1, version de
 fiabilisation qui traite les constats A01 à A12 de l'audit du 24/10/2026
 (données de l'utilisateur, confinement Linux, publication). Avant elle,
 v0.15.0 (jalon 0.15 :
@@ -114,7 +119,7 @@ et date de l'essai sur le casque.
 | **0.13-bêta** (distribution) 🟡 | Flatpak à sources figées et Flathub | Installation, mise à jour et désinstallation propres sur Bazzite et Windows ; paquet accepté sur Flathub |
 | **0.14** (paquets natifs) 🟡 | Installateur Windows, winget, `.deb`, `.rpm`, AUR, KDE Store | Pour chaque format : installation, mise à jour par-dessus la version précédente et désinstallation propres, puis essai sur le casque |
 | **0.15** (intégration au bureau) 🟡 | KRunner, widgets Windows, mode jeu | Chaque intégration passe par l'API du service, avec les mêmes refus que les interfaces |
-| **0.16** (langues, accessibilité, accueil) | Anglais, accessibilité, premier lancement, documentation | Interfaces complètes en anglais ; parcours au clavier et au lecteur d'écran sans blocage |
+| **0.16** (langues, accessibilité, accueil) 🟡 | Anglais, accessibilité, premier lancement, documentation | Interfaces complètes en anglais ; parcours au clavier et au lecteur d'écran sans blocage |
 | **1.0** | Version stable | Critères de publication remplis, politique de versions publiée, aucun constat ouvert sans décision |
 | **1.1** (fonctions avancées) | Mesures, égaliseur, journal, automatisations | Fonctions désactivables ; aucune donnée envoyée ; seules les commandes validées |
 | **1.2** (recherche sur le matériel) | Nouvelles écritures, autres casques | Capture dans l'application officielle, puis essai sur le casque avec relecture et retour à la valeur d'origine ; accord avant chaque essai |
@@ -201,7 +206,8 @@ avec `rpm-ostree` ; le Flatpak est la voie prévue), et Kubuntu 24.04 LTS
 - **Mode jeu de Bazzite et Steam Deck** : extension Decky Loader cliente
   de l'API D-Bus (batterie, réduction de bruit, scènes).
 
-**0.16 — langues, accessibilité, accueil**
+**0.16 — langues, accessibilité, accueil** (v0.16.0 ; reste l'écoute
+réelle au Narrateur et à Orca)
 - **Interface en anglais** (interfaces et documentation principale ; le
   français reste la langue de référence).
 - **Accessibilité** : relecture au lecteur d'écran (Narrateur, Orca),
