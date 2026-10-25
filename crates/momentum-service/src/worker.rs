@@ -5,6 +5,7 @@
 //! Linux). L'interface lui parle par un canal `mpsc` (commandes) et il
 //! répond par une fonction `notify` (événements).
 
+use momentum_core::i18n::{tr, trf};
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, TryRecvError};
 use std::time::{Duration, Instant};
 
@@ -266,7 +267,7 @@ pub fn run(commands: Receiver<Job>, notify: impl Fn(WorkerEvent)) {
             Ok(job) => finish(
                 &notify,
                 job.id,
-                Outcome::Cancelled("casque non connecté".to_string()),
+                Outcome::Cancelled(tr("casque non connecté").to_string()),
                 None,
             ),
             Err(RecvTimeoutError::Timeout) => {}
@@ -288,11 +289,11 @@ fn pick(candidates: &[Candidate]) -> Result<usize, String> {
         &NAME_HINTS,
     ) {
         Choice::One(i) => Ok(i),
-        Choice::None => Err("aucun casque connecté avec service GAIA".to_string()),
+        Choice::None => Err(tr("aucun casque connecté avec service GAIA").to_string()),
         // Les noms peuvent être personnels : seulement leur nombre.
-        Choice::Ambiguous(names) => Err(format!(
+        Choice::Ambiguous(names) => Err(trf(
             "{} appareils GAIA connectés et aucun casque mémorisé : en garder un seul connecté",
-            names.len()
+            &[&(names.len())],
         )),
     }
 }
@@ -405,7 +406,9 @@ fn session<T: Transport>(
                 Ok(job) if for_other_session(&job, generation) => finish(
                     notify,
                     job.id,
-                    Outcome::Cancelled("demande faite pour une connexion précédente".to_string()),
+                    Outcome::Cancelled(
+                        tr("demande faite pour une connexion précédente").to_string(),
+                    ),
                     None,
                 ),
                 Ok(job) => pending.push(job),
@@ -418,7 +421,7 @@ fn session<T: Transport>(
                 finish(
                     notify,
                     job.id,
-                    Outcome::Cancelled("remplacée par une demande plus récente".to_string()),
+                    Outcome::Cancelled(tr("remplacée par une demande plus récente").to_string()),
                     None,
                 );
             }
@@ -652,7 +655,7 @@ fn run_batch<T: Transport>(
             finish(
                 notify,
                 job.id,
-                Outcome::Unknown("connexion perdue avant la relecture".to_string()),
+                Outcome::Unknown(tr("connexion perdue avant la relecture").to_string()),
                 None,
             );
         }
@@ -660,7 +663,7 @@ fn run_batch<T: Transport>(
             finish(
                 notify,
                 job.id,
-                Outcome::Cancelled("connexion perdue avant l'envoi".to_string()),
+                Outcome::Cancelled(tr("connexion perdue avant l'envoi").to_string()),
                 None,
             );
         }
@@ -685,7 +688,7 @@ fn run_batch<T: Transport>(
                     finish(
                         notify,
                         id,
-                        Outcome::Unknown("échange interrompu pendant la scène".to_string()),
+                        Outcome::Unknown(tr("échange interrompu pendant la scène").to_string()),
                         details,
                     );
                     return Err(abort(
@@ -698,7 +701,7 @@ fn run_batch<T: Transport>(
                 let outcome = if report.is_complete() {
                     Outcome::Applied
                 } else {
-                    Outcome::NotApplied("scène appliquée en partie".to_string())
+                    Outcome::NotApplied(tr("scène appliquée en partie").to_string())
                 };
                 scenes_done.push((id, outcome, details));
                 eq_stale = true;
@@ -842,7 +845,7 @@ fn verify(
     match confirmed {
         Some(true) => Outcome::Applied,
         Some(false) => Outcome::NotApplied(
-            "la relecture ne montre pas la valeur demandée (changée ailleurs ?)".to_string(),
+            tr("la relecture ne montre pas la valeur demandée (changée ailleurs ?)").to_string(),
         ),
         None => Outcome::Acknowledged,
     }

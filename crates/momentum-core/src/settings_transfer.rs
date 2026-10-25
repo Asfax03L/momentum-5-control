@@ -26,15 +26,15 @@ const MAX_ARCHIVE: u64 = 16 * 1024 * 1024;
 
 #[derive(Debug, thiserror::Error)]
 pub enum TransferError {
-    #[error("fichier JSON invalide : {0}")]
+    #[error("{}", trf("fichier JSON invalide : {}", &[&.0]))]
     Json(#[from] serde_json::Error),
-    #[error("version de sauvegarde inconnue : {0}")]
+    #[error("{}", trf("version de sauvegarde inconnue : {}", &[&.0]))]
     Version(u32),
-    #[error("réglages refusés : {0}")]
+    #[error("{}", trf("réglages refusés : {}", &[&.0]))]
     Invalid(String),
     // Sans `#[from]` : l'erreur système n'est pas aussi déclarée comme
     // source, sinon `ctl` (anyhow, `{:#}`) l'afficherait deux fois.
-    #[error("opération impossible : {0}")]
+    #[error("{}", trf("opération impossible : {}", &[&.0]))]
     Io(std::io::Error),
 }
 

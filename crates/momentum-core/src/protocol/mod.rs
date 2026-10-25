@@ -26,6 +26,7 @@ pub mod messages;
 pub use command::{CommandId, PacketKind, VENDOR_QUALCOMM, VENDOR_SENNHEISER};
 pub use decoder::FrameDecoder;
 
+use crate::i18n::trf;
 use thiserror::Error;
 
 pub const START_OF_FRAME: u8 = 0xFF;
@@ -41,19 +42,19 @@ pub const MAX_PAYLOAD_LEN: usize = 254;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ProtocolError {
-    #[error("trame incomplète : {needed} octet(s) manquant(s)")]
+    #[error("{}", trf("trame incomplète : {} octet(s) manquant(s)", &[&.needed]))]
     Incomplete { needed: usize },
-    #[error("octet de début invalide : {0:#04X} (attendu 0xFF)")]
+    #[error("{}", trf("octet de début invalide : {} (attendu 0xFF)", &[&format!("{:#04X}", .0)]))]
     BadStartByte(u8),
-    #[error("version de trame non prise en charge : {0:#04X} (03 et 04 sont connues)")]
+    #[error("{}", trf("version de trame non prise en charge : {} (03 et 04 sont connues)", &[&format!("{:#04X}", .0)]))]
     UnsupportedVersion(u8),
-    #[error("flags de trame non pris en charge : {0:#04X} (seul 0x00 est connu)")]
+    #[error("{}", trf("flags de trame non pris en charge : {} (seul 0x00 est connu)", &[&format!("{:#04X}", .0)]))]
     UnsupportedFlags(u8),
-    #[error("payload trop long : {0} octets (max {MAX_PAYLOAD_LEN})")]
+    #[error("{}", trf("payload trop long : {} octets (max {})", &[&.0, &MAX_PAYLOAD_LEN]))]
     PayloadTooLong(usize),
-    #[error("{skipped} octet(s) parasite(s) ignoré(s) avant une trame")]
+    #[error("{}", trf("{} octet(s) parasite(s) ignoré(s) avant une trame", &[&.skipped]))]
     Garbage { skipped: usize },
-    #[error("payload inattendu pour {command} : {reason}")]
+    #[error("{}", trf("payload inattendu pour {} : {}", &[&.command, &.reason]))]
     BadPayload {
         command: CommandId,
         reason: &'static str,

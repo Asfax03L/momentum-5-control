@@ -1,5 +1,6 @@
 //! Fenêtre libadwaita et fils vers le service (ou le casque simulé).
 
+use momentum_core::i18n::{tr, trf};
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 use std::sync::mpsc::{self, Receiver, Sender};
@@ -186,7 +187,7 @@ fn layout(app: &adw::Application) -> Widgets {
     let banner = adw::Banner::new("");
     let waiting = adw::StatusPage::builder()
         .icon_name("network-bluetooth-symbolic")
-        .title("En attente du casque")
+        .title(tr("En attente du casque"))
         .build();
 
     let battery_bar = gtk::LevelBar::for_interval(0.0, 100.0);
@@ -217,24 +218,24 @@ fn layout(app: &adw::Application) -> Widgets {
     level.set_draw_value(true);
     level.set_width_request(200);
     let level_row = adw::ActionRow::builder()
-        .title("ANC ↔ transparence")
-        .subtitle("0 = ANC maximal, 100 = transparence maximale")
+        .title(tr("ANC ↔ transparence"))
+        .subtitle(tr("0 = ANC maximal, 100 = transparence maximale"))
         .build();
     level_row.add_suffix(&level);
     let anti_wind = adw::SwitchRow::builder()
         .title("Anti-vent")
-        .subtitle("Réduit le bruit du vent sur les micros")
+        .subtitle(tr("Réduit le bruit du vent sur les micros"))
         .build();
     let noise_group = adw::PreferencesGroup::builder()
-        .title("Réduction de bruit")
+        .title(tr("Réduction de bruit"))
         .build();
     noise_group.add(&noise_row);
     noise_group.add(&level_row);
     noise_group.add(&anti_wind);
 
-    let spatial = adw::SwitchRow::builder().title("Audio spatial").build();
+    let spatial = adw::SwitchRow::builder().title(tr("Audio spatial")).build();
     let features = adw::PreferencesGroup::builder()
-        .title("Fonctionnalités")
+        .title(tr("Fonctionnalités"))
         .build();
     features.add(&spatial);
 
@@ -270,7 +271,7 @@ fn layout(app: &adw::Application) -> Widgets {
 
     let window = adw::ApplicationWindow::builder()
         .application(app)
-        .title("OpenHeadset Control")
+        .title(tr("OpenHeadset Control"))
         .icon_name("org.openheadset.control")
         .default_width(560)
         .default_height(720)
@@ -340,11 +341,11 @@ fn refresh(widgets: &Widgets, state: &State, updating: &Cell<bool>) {
     let read_only = s
         .read_only
         .as_ref()
-        .map(|reason| format!("Lecture seule : {reason}"));
+        .map(|reason| trf("Lecture seule : {}", &[&reason]));
     let problem = state
         .service_error
         .as_ref()
-        .map(|e| format!("Service OpenHeadset Control injoignable : {e}"))
+        .map(|e| trf("Service OpenHeadset Control injoignable : {}", &[&e]))
         .or_else(|| s.problem.clone());
     let v = viewmodel::main_view(
         name.as_deref(),
@@ -482,7 +483,7 @@ fn follow_service(to_window: &Sender<Incoming>) -> Result<(), ClientError> {
         }
     }
     Err(ClientError::Service(
-        "événements du service interrompus".into(),
+        tr("événements du service interrompus").into(),
     ))
 }
 
@@ -510,7 +511,7 @@ fn self_test(
         match step.get() {
             0 => {
                 if !widgets.pages.is_visible() {
-                    return fail("page Accueil non affichée");
+                    return fail(tr("page Accueil non affichée"));
                 }
                 eprintln!("essai interface : page Accueil affichée");
                 before.set(widgets.anti_wind.is_active());
@@ -533,7 +534,7 @@ fn self_test(
                     return glib::ControlFlow::Break;
                 }
             }
-            _ => return fail("anti-vent simulé non relu à l'affichage"),
+            _ => return fail(tr("anti-vent simulé non relu à l'affichage")),
         }
         step.set(step.get() + 1);
         glib::ControlFlow::Continue

@@ -2,6 +2,7 @@
 //! traduction des commandes de l'API, boucle des événements du worker
 //! (historique de la batterie, notifications).
 
+use momentum_core::i18n::{tr, trf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -50,7 +51,7 @@ pub fn submit(
     commands: &Sender<Job>,
 ) -> Result<u64, String> {
     if command != Command::ReconnectHeadset && session != 0 && session != shared.snapshot.session {
-        return Err("demande faite pour une connexion précédente : état à relire".to_string());
+        return Err(tr("demande faite pour une connexion précédente : état à relire").to_string());
     }
     if command == Command::ReconnectHeadset {
         return submit_reconnect(
@@ -69,7 +70,7 @@ pub fn submit(
                 session,
                 command,
             })
-            .map_err(|_| "le worker s'est arrêté".to_string())?,
+            .map_err(|_| tr("le worker s'est arrêté").to_string())?,
         None => {
             if let Some(events) = &shared.events {
                 let _ = events.send(WorkerEvent::Done {
@@ -89,10 +90,10 @@ fn submit_reconnect(
     remembered: Option<String>,
     action: impl FnOnce(Option<&str>) -> Outcome + Send + 'static,
 ) -> Result<u64, String> {
-    let events = shared.events.clone().ok_or("service pas encore prêt")?;
+    let events = shared.events.clone().ok_or(tr("service pas encore prêt"))?;
     let busy = Arc::clone(&shared.reconnecting);
     if busy.swap(true, Ordering::AcqRel) {
-        return Err("une reconnexion est déjà en cours".into());
+        return Err(tr("une reconnexion est déjà en cours").into());
     }
     shared.last_id += 1;
     let id = shared.last_id;
@@ -109,7 +110,7 @@ fn submit_reconnect(
         });
     if spawned.is_err() {
         shared.reconnecting.store(false, Ordering::Release);
-        return Err("impossible de lancer la demande système".into());
+        return Err(tr("impossible de lancer la demande système").into());
     }
     Ok(id)
 }
@@ -123,7 +124,7 @@ pub fn handle(command: Command, shared: &mut Shared) -> Result<Option<WorkerComm
         let mut empty = shared.battery_log.clone();
         empty.clear();
         store_battery_log(&empty, shared.battery_file.as_deref())
-            .map_err(|e| format!("historique non effacé : écriture impossible ({e})"))?;
+            .map_err(|e| trf("historique non effacé : écriture impossible ({})", &[&e]))?;
         shared.battery_log = empty;
         tracing::info!("historique de la batterie effacé");
         return Ok(None);
@@ -136,7 +137,7 @@ pub fn handle(command: Command, shared: &mut Shared) -> Result<Option<WorkerComm
 fn to_worker(command: Command, shared: &Shared) -> Result<WorkerCommand, String> {
     let writable = shared.snapshot.state.is_some() && shared.snapshot.read_only.is_none();
     if !writable {
-        return Err("casque absent ou en lecture seule".to_string());
+        return Err(tr("casque absent ou en lecture seule").to_string());
     }
     Ok(match command {
         Command::SetMode(m) => WorkerCommand::SetMode(m),
@@ -174,8 +175,9 @@ fn to_worker(command: Command, shared: &Shared) -> Result<WorkerCommand, String>
                 Some(id) => shared.devices.iter().find(|d| &d.opaque_id() == id),
                 None => {
                     if shared.devices.iter().filter(|d| d.name == name).count() > 1 {
-                        return Err(format!(
-                            "plusieurs appareils s'appellent « {name} » : interface à mettre à jour"
+                        return Err(trf(
+                            "plusieurs appareils s'appellent « {} » : interface à mettre à jour",
+                            &[&name],
                         ));
                     }
                     shared.devices.get(index).filter(|d| d.name == name)
@@ -190,7 +192,7 @@ fn to_worker(command: Command, shared: &Shared) -> Result<WorkerCommand, String>
             let (list, _) = paths::load_scenes();
             let scene = scenes::find(&list, &name)
                 .cloned()
-                .ok_or_else(|| format!("scène « {name} » introuvable dans le fichier"))?;
+                .ok_or_else(|| trf("scène « {} » introuvable dans le fichier", &[&name]))?;
             WorkerCommand::ApplyScene {
                 scene,
                 presets: paths::scene_presets(),

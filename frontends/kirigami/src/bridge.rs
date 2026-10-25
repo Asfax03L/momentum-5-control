@@ -184,6 +184,9 @@ pub mod qobject {
         fn equalizer_requested(self: Pin<&mut Headset>);
 
         /// Gain de la bande `index`, en dB.
+        /// Texte du QML dans la langue de l'interface (catalogue commun).
+        #[qinvokable]
+        fn tr(self: &Headset, text: &QString) -> QString;
         #[qinvokable]
         fn band_gain(self: &Headset, index: i32) -> f64;
         /// Fréquence de la bande `index` (« 325 Hz »).
@@ -350,6 +353,7 @@ pub mod qobject {
     impl cxx_qt::Initialize for Headset {}
 }
 
+use momentum_core::i18n::{tr, trf};
 use std::pin::Pin;
 use std::sync::mpsc::{self, Sender};
 use std::time::Duration;
@@ -378,7 +382,7 @@ fn settings_path(url: &QString) -> Result<std::path::PathBuf, String> {
         .to_local_file()
         .filter(|path| !path.to_string().is_empty())
         .map(|path| std::path::PathBuf::from(path.to_string()))
-        .ok_or_else(|| "Un fichier local est requis.".into())
+        .ok_or_else(|| tr("Un fichier local est requis.").into())
 }
 use momentum_core::tray_menu::{self, MenuAction, MenuContext};
 use momentum_core::ui::{IconKind, band_label, tooltip};
@@ -407,17 +411,17 @@ fn unix_now() -> u64 {
 /// Copie `batterie.csv` dans Documents ; renvoie le message à afficher.
 fn export_battery_history() -> String {
     let Some(source) = paths::battery_file() else {
-        return "Export impossible : dossier des données introuvable.".to_string();
+        return tr("Export impossible : dossier des données introuvable.").to_string();
     };
     let Some(target) = paths::export_file("momentum-batterie", "csv", unix_now()) else {
-        return "Export impossible : dossier Documents introuvable.".to_string();
+        return tr("Export impossible : dossier Documents introuvable.").to_string();
     };
     match std::fs::copy(&source, &target) {
-        Ok(_) => format!("Historique exporté dans {}.", target.display()),
+        Ok(_) => trf("Historique exporté dans {}.", &[&(target.display())]),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            "Aucun historique à exporter pour l'instant.".to_string()
+            tr("Aucun historique à exporter pour l'instant.").to_string()
         }
-        Err(e) => format!("Export de l'historique impossible : {e}."),
+        Err(e) => trf("Export de l'historique impossible : {}.", &[&e]),
     }
 }
 
@@ -609,8 +613,8 @@ impl Default for HeadsetRust {
             connected: false,
             writable: false,
             busy: false,
-            title: QString::from("MOMENTUM 5"),
-            connection: QString::from("Recherche du casque…"),
+            title: QString::from(tr("MOMENTUM 5")),
+            connection: QString::from(tr("Recherche du casque…")),
             waiting: QString::default(),
             banner: QString::default(),
             banner_warning: false,
@@ -658,7 +662,7 @@ impl Default for HeadsetRust {
             user_preset: QString::default(),
             eq_notice: QString::default(),
             ab_ready: false,
-            ab_label: QString::from("Écouter A"),
+            ab_label: QString::from(tr("Écouter A")),
             bass_boost: false,
             band_count: 0,
             min_gain: -6.0,
@@ -799,7 +803,7 @@ impl cxx_qt::Initialize for qobject::Headset {
                         std::thread::sleep(Duration::from_millis(450));
                         let outcome = if command == Command::ReconnectHeadset {
                             Outcome::SystemRequested(
-                                "Démonstration : reconnexion simulée, aucun accès Bluetooth."
+                                tr("Démonstration : reconnexion simulée, aucun accès Bluetooth.")
                                     .into(),
                             )
                         } else {
@@ -1028,13 +1032,13 @@ impl qobject::Headset {
                 tracing::warn!(%reason, "connexion perdue");
                 self.as_mut()
                     .rust_mut()
-                    .note_incident(format!("connexion perdue : {reason}"));
+                    .note_incident(trf("connexion perdue : {}", &[&reason]));
             }
             Event::Refused(reason) => {
                 tracing::warn!(%reason, "réglage refusé");
                 self.as_mut()
                     .rust_mut()
-                    .note_incident(format!("réglage refusé : {reason}"));
+                    .note_incident(trf("réglage refusé : {}", &[&reason]));
             }
             Event::SceneApplied(report) => {
                 self.as_mut()
@@ -1043,11 +1047,11 @@ impl qobject::Headset {
             }
             Event::Exported(result) => {
                 let text = match result {
-                    Ok(path) => format!(
+                    Ok(path) => trf(
                         "Profil exporté dans {} (données auditives personnelles : ne pas le publier).",
-                        path.display()
+                        &[&(path.display())],
                     ),
-                    Err(reason) => format!("Export du profil impossible : {reason}."),
+                    Err(reason) => trf("Export du profil impossible : {}.", &[&reason]),
                 };
                 self.as_mut().set_eq_notice(QString::from(text.as_str()));
             }
@@ -1092,8 +1096,7 @@ impl qobject::Headset {
             .map(|p| format!("⚠ {p}"))
             .or(notice)
             .unwrap_or_else(|| {
-                "Le brouillon n'est écrit qu'avec « Enregistrer » ; rien n'est envoyé au casque. \
-             Le panneau et les raccourcis suivent les renommages."
+                tr("Le brouillon n'est écrit qu'avec « Enregistrer » ; rien n'est envoyé au casque. Le panneau et les raccourcis suivent les renommages.")
                     .to_string()
             });
         self.as_mut()
@@ -1168,7 +1171,7 @@ impl qobject::Headset {
         tracing::warn!(%reason, "service momentum-daemon");
         self.as_mut()
             .rust_mut()
-            .note_incident(format!("service injoignable : {reason}"));
+            .note_incident(trf("service injoignable : {}", &[&reason]));
         self.as_mut().rust_mut().snapshot = Snapshot::default();
         self.as_mut().rust_mut().pipewire_audio = None;
         self.as_mut().rust_mut().pipewire_at = None;
@@ -1190,11 +1193,11 @@ impl qobject::Headset {
         let read_only = s
             .read_only
             .as_ref()
-            .map(|reason| format!("Lecture seule : {reason}"));
+            .map(|reason| trf("Lecture seule : {}", &[&reason]));
         let problem = r
             .service_error
             .as_ref()
-            .map(|e| format!("Service OpenHeadset Control injoignable : {e}"))
+            .map(|e| trf("Service OpenHeadset Control injoignable : {}", &[&e]))
             .or_else(|| s.problem.clone());
         // La liste des appareils n'est pas affichée par ce client.
         let v = viewmodel::main_view(
@@ -1251,7 +1254,7 @@ impl qobject::Headset {
                     can_reconnect: r.service_error.is_none() && !r.requests.busy(),
                     scenes: &scene_names,
                     autostart: r.autostart,
-                    autostart_label: "Lancer à l'ouverture de session",
+                    autostart_label: tr("Lancer à l'ouverture de session"),
                 },
             ),
         };
@@ -1349,6 +1352,10 @@ impl qobject::Headset {
             let revision = h.rust().eq_revision.wrapping_add(1);
             h.as_mut().set_eq_revision(revision);
         }
+    }
+
+    fn tr(&self, text: &QString) -> QString {
+        QString::from(momentum_core::i18n::translate(&text.to_string()).as_str())
     }
 
     fn band_gain(&self, index: i32) -> f64 {
@@ -1478,7 +1485,7 @@ impl qobject::Headset {
             return QString::from(e.to_string().as_str());
         }
         if current.as_deref() == Some(name.as_str()) {
-            return QString::from("nom refusé : c'est déjà le nom du casque");
+            return QString::from(tr("nom refusé : c'est déjà le nom du casque"));
         }
         self.send(Command::SetName(name));
         QString::default()
@@ -1583,7 +1590,7 @@ impl qobject::Headset {
                     let result = scene_editor::save(editor);
                     let notice = match result {
                         Ok((message, _)) => message,
-                        Err(reason) => format!("Non enregistré : {reason}"),
+                        Err(reason) => trf("Non enregistré : {}", &[&reason]),
                     };
                     // Les raccourcis KDE des scènes suivent au prochain
                     // démarrage du client.
@@ -1595,7 +1602,7 @@ impl qobject::Headset {
                 "annuler" => {
                     self.as_mut().reload_scene_editor();
                     self.as_mut()
-                        .push_scene_editor(Some("Modifications abandonnées.".to_string()));
+                        .push_scene_editor(Some(tr("Modifications abandonnées.").to_string()));
                     return;
                 }
                 _ => return,
@@ -1640,7 +1647,7 @@ impl qobject::Headset {
         let result = snapshot
             .state
             .as_ref()
-            .ok_or_else(|| "Aucun état connu à enregistrer.".to_string())
+            .ok_or_else(|| tr("Aucun état connu à enregistrer.").to_string())
             .and_then(|state| {
                 momentum_core::scene_capture::save_current(
                     &name.to_string(),
@@ -1656,14 +1663,14 @@ impl qobject::Headset {
                 self.as_mut().reload_scenes();
                 self.as_mut().refresh();
                 (
-                    format!(
+                    trf(
                         "Scène « {} » enregistrée (rien n'a été envoyé au casque).",
-                        scene.name
+                        &[&scene.name],
                     ),
                     true,
                 )
             }
-            Err(error) => (format!("Non enregistré : {error}"), false),
+            Err(error) => (trf("Non enregistré : {}", &[&error]), false),
         };
         self.as_mut()
             .set_scene_result(QString::from(message.as_str()));
@@ -1707,19 +1714,19 @@ impl qobject::Headset {
     fn store_panel(mut self: Pin<&mut Self>) {
         let text = self.rust().panel_prefs.to_text();
         let written = paths::panel_file()
-            .ok_or_else(|| "dossier des données introuvable".to_string())
+            .ok_or_else(|| tr("dossier des données introuvable").to_string())
             .and_then(|path| {
                 paths::write_if_unchanged(&path, self.rust().panel_loaded.as_deref(), &text)
             });
         let notice = match written {
             Ok(()) => {
                 self.as_mut().rust_mut().panel_loaded = Some(text);
-                "Panneau enregistré.".to_string()
+                tr("Panneau enregistré.").to_string()
             }
             Err(e) => {
                 self.as_mut().rust_mut().panel_prefs = paths::load_panel_prefs();
                 self.as_mut().rust_mut().panel_loaded = paths::read_panel_text();
-                format!("Panneau non enregistré : {e}.")
+                trf("Panneau non enregistré : {}.", &[&e])
             }
         };
         self.as_mut()
@@ -1777,7 +1784,7 @@ impl qobject::Headset {
             return;
         };
         self.as_mut().set_scene_result(QString::from(
-            format!("Scène « {name} » en cours…").as_str(),
+            trf("Scène « {} » en cours…", &[&name]).as_str(),
         ));
         self.as_mut().set_scene_result_ok(true);
         self.send(Command::ApplyScene(name));
@@ -1928,12 +1935,12 @@ impl qobject::Headset {
 
     fn clear_battery(mut self: Pin<&mut Self>) -> QString {
         let Some(tx) = self.rust().commands.clone() else {
-            return QString::from("Effacement impossible : service injoignable.");
+            return QString::from(tr("Effacement impossible : service injoignable."));
         };
         // Sans casque aussi : connexion 0 (indifférente). Un refus du service
         // s'affiche comme pour toute demande.
         if tx.send((Command::ClearBatteryHistory, 0)).is_err() {
-            return QString::from("Effacement impossible : service injoignable.");
+            return QString::from(tr("Effacement impossible : service injoignable."));
         }
         self.as_mut().rust_mut().requests.sent();
         self.as_mut().set_busy(true);
@@ -1948,7 +1955,7 @@ impl qobject::Headset {
         });
         let span = *self.battery_span();
         self.as_mut().reload_battery(span);
-        QString::from("Effacement de l'historique demandé au service.")
+        QString::from(tr("Effacement de l'historique demandé au service."))
     }
 
     fn choose_theme(mut self: Pin<&mut Self>, choice: i32) {
@@ -1972,13 +1979,13 @@ impl qobject::Headset {
     fn export_settings(mut self: Pin<&mut Self>, url: QString, battery: bool) {
         self.as_mut().cancel_settings();
         let result = settings_path(&url).and_then(|path| {
-            let dir = paths::data_dir().ok_or("Dossier des données introuvable.")?;
+            let dir = paths::data_dir().ok_or(tr("Dossier des données introuvable."))?;
             momentum_core::settings_transfer::export(&dir, &path, battery)
                 .map_err(|e| e.to_string())
         });
         self.as_mut().set_settings_notice(QString::from(
             result
-                .unwrap_or_else(|e| format!("Export refusé : {e}"))
+                .unwrap_or_else(|e| trf("Export refusé : {}", &[&e]))
                 .as_str(),
         ));
     }
@@ -1986,7 +1993,7 @@ impl qobject::Headset {
     fn preview_settings(mut self: Pin<&mut Self>, url: QString, battery: bool) {
         self.as_mut().cancel_settings();
         let result = settings_path(&url).and_then(|path| {
-            let dir = paths::data_dir().ok_or("Dossier des données introuvable.")?;
+            let dir = paths::data_dir().ok_or(tr("Dossier des données introuvable."))?;
             momentum_core::settings_transfer::prepare_import(&dir, &path, battery)
                 .map_err(|e| e.to_string())
         });
@@ -1997,7 +2004,7 @@ impl qobject::Headset {
                 self.as_mut().set_settings_ready(true);
                 summary
             }
-            Err(error) => format!("Import refusé : {error}"),
+            Err(error) => trf("Import refusé : {}", &[&error]),
         };
         self.as_mut()
             .set_settings_notice(QString::from(message.as_str()));
@@ -2010,7 +2017,7 @@ impl qobject::Headset {
         self.as_mut().set_settings_ready(false);
         let message = plan
             .apply()
-            .unwrap_or_else(|e| format!("Import refusé : {e}"));
+            .unwrap_or_else(|e| trf("Import refusé : {}", &[&e]));
         self.as_mut()
             .set_settings_notice(QString::from(message.as_str()));
     }
@@ -2019,7 +2026,7 @@ impl qobject::Headset {
         self.as_mut().rust_mut().settings_plan = None;
         self.as_mut().set_settings_ready(false);
         self.as_mut()
-            .set_settings_notice(QString::from("Import annulé."));
+            .set_settings_notice(QString::from(tr("Import annulé.")));
     }
 
     fn set_autostart_enabled(mut self: Pin<&mut Self>, on: bool) {
@@ -2087,12 +2094,12 @@ impl qobject::Headset {
             Ok(list) => {
                 self.as_mut().rust_mut().user_presets = list;
                 self.as_mut()
-                    .notice(format!("Préréglage « {name} » enregistré sur ce PC."));
+                    .notice(trf("Préréglage « {} » enregistré sur ce PC.", &[&name]));
                 self.refresh();
                 true
             }
             Err(reason) => {
-                self.notice(format!("Préréglage non enregistré : {reason}."));
+                self.notice(trf("Préréglage non enregistré : {}.", &[&reason]));
                 false
             }
         }
@@ -2106,9 +2113,9 @@ impl qobject::Headset {
         let text = match paths::remove_user_preset(&name) {
             Ok(list) => {
                 self.as_mut().rust_mut().user_presets = list;
-                format!("Préréglage « {name} » supprimé.")
+                trf("Préréglage « {} » supprimé.", &[&name])
             }
-            Err(e) => format!("Suppression non enregistrée : {e}."),
+            Err(e) => trf("Suppression non enregistrée : {}.", &[&e]),
         };
         self.as_mut().notice(text);
         self.refresh();
@@ -2120,7 +2127,7 @@ impl qobject::Headset {
         };
         match presets::parse_gains_db(&text.to_string(), eq.gains.len(), eq.min_gain, eq.max_gain) {
             Ok(gains) if gains == eq.gains => {
-                self.notice("Ce sont déjà les gains du casque.".to_string());
+                self.notice(tr("Ce sont déjà les gains du casque.").to_string());
                 false
             }
             Ok(gains) => {
@@ -2128,7 +2135,7 @@ impl qobject::Headset {
                 true
             }
             Err(reason) => {
-                self.notice(format!("Gains non appliqués : {reason}."));
+                self.notice(trf("Gains non appliqués : {}.", &[&reason]));
                 false
             }
         }
@@ -2143,10 +2150,10 @@ impl qobject::Headset {
         let text = presets::format_curve(model, &eq.gains, eq.bass_boost);
         let notice = match paths::export_file("momentum-egaliseur", "txt", unix_now()) {
             Some(path) => match std::fs::write(&path, text) {
-                Ok(()) => format!("Courbe exportée dans {}.", path.display()),
-                Err(e) => format!("Export de la courbe impossible : {e}."),
+                Ok(()) => trf("Courbe exportée dans {}.", &[&(path.display())]),
+                Err(e) => trf("Export de la courbe impossible : {}.", &[&e]),
             },
-            None => "Export impossible : dossier personnel introuvable.".to_string(),
+            None => tr("Export impossible : dossier personnel introuvable.").to_string(),
         };
         self.notice(notice);
     }
@@ -2182,9 +2189,9 @@ impl qobject::Headset {
                 if let Some(on) = curve.bass_boost.filter(|&on| on != eq.bass_boost) {
                     self.as_mut().send(Command::SetBassBoost(on));
                 }
-                format!("Courbe importée depuis {}.", path.display())
+                trf("Courbe importée depuis {}.", &[&(path.display())])
             }
-            Err(reason) => format!("Courbe non importée : {reason}."),
+            Err(reason) => trf("Courbe non importée : {}.", &[&reason]),
         };
         self.notice(notice);
     }
@@ -2192,7 +2199,9 @@ impl qobject::Headset {
     fn export_profile(self: Pin<&mut Self>) {
         match paths::export_file("momentum-profil", "json", unix_now()) {
             Some(path) => self.send(Command::ExportProfile(path)),
-            None => self.notice("Export impossible : dossier personnel introuvable.".to_string()),
+            None => {
+                self.notice(tr("Export impossible : dossier personnel introuvable.").to_string())
+            }
         }
     }
 
@@ -2207,8 +2216,9 @@ impl qobject::Headset {
             return;
         };
         self.as_mut().rust_mut().ab.remember(&gains);
-        self.as_mut()
-            .notice("Courbe A mémorisée : modifiez l'égaliseur (B), puis comparez.".to_string());
+        self.as_mut().notice(
+            tr("Courbe A mémorisée : modifiez l'égaliseur (B), puis comparez.").to_string(),
+        );
         self.refresh();
     }
 

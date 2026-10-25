@@ -7,6 +7,7 @@
 //! et la demande passe par le portail `org.freedesktop.portal.Background`,
 //! qui crée l'entrée de démarrage du bureau (`flatpak run …`).
 
+use momentum_core::i18n::{tr, trf};
 use std::io;
 use std::path::PathBuf;
 
@@ -23,15 +24,9 @@ fn path() -> Option<PathBuf> {
 
 /// Fichier `.desktop` de lancement automatique.
 fn desktop_entry(exe: &str) -> String {
-    format!(
-        "[Desktop Entry]\n\
-         Type=Application\n\
-         Name=OpenHeadset Control\n\
-         Comment=Réglages du casque Sennheiser MOMENTUM 5 (non officiel)\n\
-         Exec=\"{exe}\" {HIDDEN_FLAG}\n\
-         Icon=org.openheadset.control\n\
-         Terminal=false\n\
-         X-GNOME-Autostart-enabled=true\n"
+    trf(
+        "[Desktop Entry]\nType=Application\nName=OpenHeadset Control\nComment=Réglages du casque Sennheiser MOMENTUM 5 (non officiel)\nExec=\"{}\" {}\nIcon=org.openheadset.control\nTerminal=false\nX-GNOME-Autostart-enabled=true\n",
+        &[&exe, &HIDDEN_FLAG],
     )
 }
 
@@ -49,7 +44,9 @@ fn request_background(autostart: bool) -> zbus::Result<()> {
     let mut options: HashMap<&str, Value> = HashMap::new();
     options.insert(
         "reason",
-        Value::from("Lancer OpenHeadset Control à l'ouverture de session (icône seule)"),
+        Value::from(tr(
+            "Lancer OpenHeadset Control à l'ouverture de session (icône seule)",
+        )),
     );
     options.insert("autostart", Value::from(autostart));
     options.insert(
@@ -76,10 +73,10 @@ pub fn is_enabled() -> bool {
 }
 
 pub fn set(on: bool) -> io::Result<()> {
-    let path = path().ok_or_else(|| io::Error::other("ni XDG_CONFIG_HOME ni HOME"))?;
+    let path = path().ok_or_else(|| io::Error::other(tr("ni XDG_CONFIG_HOME ni HOME")))?;
     if in_flatpak() {
         request_background(on)
-            .map_err(|e| io::Error::other(format!("portail Background : {e}")))?;
+            .map_err(|e| io::Error::other(trf("portail Background : {}", &[&e])))?;
     }
     if on {
         if let Some(dir) = path.parent() {

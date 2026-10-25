@@ -10,6 +10,7 @@
 //! Windows ([`wire`], `pipe`). Les messages circulent en JSON.
 
 use momentum_core::device::{DeviceInfo, EqState, HeadsetState, NoiseModeRequest, PromptMode};
+use momentum_core::i18n::{tr, trf};
 pub use momentum_core::request::Outcome;
 use momentum_core::scenes::SceneReport;
 use serde::{Deserialize, Serialize};
@@ -234,11 +235,14 @@ impl Snapshot {
 /// Erreur d'un client.
 #[derive(Debug, thiserror::Error)]
 pub enum ClientError {
-    #[error("service OpenHeadset Control absent (momentum-daemon lancé ?)")]
+    #[error(
+        "{}",
+        tr("service OpenHeadset Control absent (momentum-daemon lancé ?)")
+    )]
     NoService,
-    #[error("service : {0}")]
+    #[error("{}", trf("service : {}", &[&.0]))]
     Service(String),
-    #[error("message illisible : {0}")]
+    #[error("{}", trf("message illisible : {}", &[&.0]))]
     Json(#[from] serde_json::Error),
 }
 

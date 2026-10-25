@@ -6,6 +6,7 @@
 //! `audio_check::classify`, testée sans Windows.
 
 use momentum_core::audio_check::{AudioOutput, MixFormat, WindowsAudio, classify};
+use momentum_core::i18n::trf;
 use windows::Win32::Foundation::PROPERTYKEY;
 use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
 use windows::Win32::Media::Audio::{
@@ -51,7 +52,7 @@ pub fn read(device_name: Option<&str>) -> Result<WindowsAudio, String> {
         let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
         let enumerator: IMMDeviceEnumerator =
             CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)
-                .map_err(|e| format!("énumération des sorties : {e}"))?;
+                .map_err(|e| trf("énumération des sorties : {}", &[&e]))?;
         // Pas de sortie par défaut : erreur « élément introuvable ».
         let default_output = enumerator
             .GetDefaultAudioEndpoint(eRender, eMultimedia)
@@ -60,7 +61,7 @@ pub fn read(device_name: Option<&str>) -> Result<WindowsAudio, String> {
         let mut headset_outputs = Vec::new();
         let collection = enumerator
             .EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE)
-            .map_err(|e| format!("liste des sorties : {e}"))?;
+            .map_err(|e| trf("liste des sorties : {}", &[&e]))?;
         for i in 0..collection.GetCount().unwrap_or(0) {
             if let Ok(device) = collection.Item(i) {
                 let output = describe(&device, device_name);

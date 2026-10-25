@@ -152,6 +152,15 @@ pub fn tr(fr: &'static str) -> &'static str {
     }
 }
 
+/// Texte quelconque (venu du QML, par exemple) dans la langue en vigueur :
+/// même catalogue que [`tr`], le texte lui-même s'il n'y figure pas.
+pub fn translate(fr: &str) -> String {
+    match language() {
+        Lang::Fr => fr.to_string(),
+        Lang::En => catalogue().get(fr).copied().unwrap_or(fr).to_string(),
+    }
+}
+
 /// Texte avec valeurs : chaque `{}` reçoit la valeur suivante, dans
 /// l'ordre ; le texte anglais garde le même nombre de `{}`.
 pub fn trf(fr: &'static str, args: &[&dyn std::fmt::Display]) -> String {

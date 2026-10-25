@@ -132,15 +132,15 @@ pub struct CapturedScene {
 /// Rien n'est enregistré si le nom ou les lectures ne permettent pas une scène valide.
 #[derive(Debug, thiserror::Error)]
 pub enum CaptureError {
-    #[error("nom refusé : {0}")]
+    #[error("{}", trf("nom refusé : {}", &[&.0]))]
     Name(&'static str),
-    #[error("état non enregistrable : {0}")]
+    #[error("{}", trf("état non enregistrable : {}", &[&.0]))]
     State(String),
-    #[error("{0} existe déjà ; choisir un autre nom ou autoriser le remplacement")]
+    #[error("{}", trf("{} existe déjà ; choisir un autre nom ou autoriser le remplacement", &[&.0]))]
     Exists(String),
     #[error("{0}")]
     File(String),
-    #[error("enregistrement impossible : {0}")]
+    #[error("{}", trf("enregistrement impossible : {}", &[&.0]))]
     Io(#[from] std::io::Error),
 }
 
@@ -230,21 +230,21 @@ impl Scene {
             return Err(tr("scène vide"));
         }
         if self.level.is_some() && matches!(self.noise, Some(n) if n != NoiseModeRequest::Custom) {
-            return Err(tr(
+            return Err(tr(tr(
                 "« niveau » exige « bruit = personnalise » (ou pas de « bruit »)",
-            ));
+            )));
         }
         if (self.equalizer.is_some() || self.bass_boost.is_some())
             && self.sound != Some(SceneSound::Equalizer)
         {
-            return Err(tr(
+            return Err(tr(tr(
                 "« egaliseur » et « basses » exigent « son = egaliseur » dans la scène",
-            ));
+            )));
         }
         if self.spatial == Some(true) && self.sound == Some(SceneSound::Profile) {
-            return Err(tr(
+            return Err(tr(tr(
                 "« spatial = on » est incompatible avec « son = profil »",
-            ));
+            )));
         }
         Ok(())
     }

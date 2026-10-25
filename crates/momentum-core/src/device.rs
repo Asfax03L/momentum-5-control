@@ -4,6 +4,7 @@
 //! Control Plus (capture HCI du 08/10/2026, voir docs/MOMENTUM5.md), puis
 //! l'appelant peut relire l'état pour vérifier qu'il a bien été appliqué.
 
+use crate::i18n::{tr, trf};
 use std::time::Duration;
 
 use thiserror::Error;
@@ -97,10 +98,12 @@ impl AudioMode {
 
     pub fn label(self) -> String {
         match self {
-            AudioMode::Equalizer => "égaliseur graphique".into(),
-            AudioMode::SpeechClarity => "Speech Clarity".into(),
-            AudioMode::Personalization => "profil personnalisé (personnalisation du son)".into(),
-            AudioMode::Unknown(b) => format!("inconnu (valeur {b})"),
+            AudioMode::Equalizer => tr("égaliseur graphique").into(),
+            AudioMode::SpeechClarity => tr("Speech Clarity").into(),
+            AudioMode::Personalization => {
+                tr("profil personnalisé (personnalisation du son)").into()
+            }
+            AudioMode::Unknown(b) => trf("inconnu (valeur {})", &[&b]),
         }
     }
 }
@@ -132,10 +135,10 @@ impl SoundProfileStatus {
 
     pub fn label(self) -> String {
         match self {
-            SoundProfileStatus::NoProfile => "aucun profil".into(),
-            SoundProfileStatus::TestRunning => "test en cours".into(),
-            SoundProfileStatus::Received => "profil reçu par le casque".into(),
-            SoundProfileStatus::Unknown(b) => format!("inconnu (valeur {b})"),
+            SoundProfileStatus::NoProfile => tr("aucun profil").into(),
+            SoundProfileStatus::TestRunning => tr("test en cours").into(),
+            SoundProfileStatus::Received => tr("profil reçu par le casque").into(),
+            SoundProfileStatus::Unknown(b) => trf("inconnu (valeur {})", &[&b]),
         }
     }
 }
@@ -158,20 +161,23 @@ pub enum ProfileSelection {
 /// d'autres commandes. Seul `80` a été observé sur le casque.
 pub fn audio_mode_error_meaning(code: u8) -> Option<&'static str> {
     match code {
-        0x80 => Some("mode déjà sélectionné"),
-        0x81 => Some("mode non configuré"),
-        0x82 => Some("mode non pris en charge"),
-        0x83 => Some("erreur générique"),
+        0x80 => Some(tr("mode déjà sélectionné")),
+        0x81 => Some(tr("mode non configuré")),
+        0x82 => Some(tr("mode non pris en charge")),
+        0x83 => Some(tr("erreur générique")),
         _ => None,
     }
 }
 
 fn describe_audio_mode_error(payload: &[u8]) -> String {
     match payload.first() {
-        None => "sans code".to_string(),
+        None => tr("sans code").to_string(),
         Some(&code) => match audio_mode_error_meaning(code) {
-            Some(meaning) => format!("code {code:02X} : {meaning}, d'après l'app officielle"),
-            None => format!("code {code:02X} inconnu"),
+            Some(meaning) => trf(
+                "code {} : {}, d'après l'app officielle",
+                &[&(format!("{:02X}", code)), &meaning],
+            ),
+            None => trf("code {} inconnu", &[&(format!("{:02X}", code))]),
         },
     }
 }
@@ -186,35 +192,38 @@ pub enum DeviceError {
     Client(#[from] ClientError),
     #[error(transparent)]
     Protocol(#[from] ProtocolError),
-    #[error("niveau {0} hors limites (0 à {MAX_LEVEL})")]
+    #[error("{}", trf("niveau {} hors limites (0 à {})", &[&.0, &MAX_LEVEL]))]
     InvalidLevel(u8),
-    #[error("le casque n'a pas répondu les paires attendues pour le contrôle du bruit")]
+    #[error(
+        "{}",
+        tr("le casque n'a pas répondu les paires attendues pour le contrôle du bruit")
+    )]
     MissingPair,
-    #[error("bande {band} inexistante (l'égaliseur en a {count})")]
+    #[error("{}", trf("bande {} inexistante (l'égaliseur en a {})", &[&.band, &.count]))]
     InvalidBand { band: u8, count: usize },
-    #[error("gain {gain} hors limites ({min} à {max} dixièmes de dB)")]
+    #[error("{}", trf("gain {} hors limites ({} à {} dixièmes de dB)", &[&.gain, &.min, &.max]))]
     InvalidGain { gain: i8, min: i8, max: i8 },
-    #[error("durée d'extinction {0} s non proposée par l'app (0, 900, 1800 ou 3600)")]
+    #[error("{}", trf("durée d'extinction {} s non proposée par l'app (0, 900, 1800 ou 3600)", &[&.0]))]
     InvalidAutoOff(u16),
-    #[error("mode d'invites non validé sur le matériel")]
+    #[error("{}", tr("mode d'invites non validé sur le matériel"))]
     InvalidPromptMode,
-    #[error("volume des invites {0} hors de l'échelle de l'app (−20 à +6)")]
+    #[error("{}", trf("volume des invites {} hors de l'échelle de l'app (−20 à +6)", &[&.0]))]
     InvalidPromptVolume(i8),
-    #[error("nom refusé : {0}")]
+    #[error("{}", trf("nom refusé : {}", &[&.0]))]
     InvalidName(&'static str),
-    #[error("impossible de déconnecter l'appareil qui pilote le casque")]
+    #[error("{}", tr("impossible de déconnecter l'appareil qui pilote le casque"))]
     OwnConnection,
-    #[error("le suivi de tête n'est réglable qu'avec l'audio spatial activé")]
+    #[error(
+        "{}",
+        tr("le suivi de tête n'est réglable qu'avec l'audio spatial activé")
+    )]
     SpatialAudioOff,
-    #[error("aucun profil de personnalisation du son reçu par le casque (état {0:?})")]
+    #[error("{}", trf("aucun profil de personnalisation du son reçu par le casque (état {})", &[&format!("{:?}", .0)]))]
     NoSoundProfile(Option<u8>),
     /// Réponse d'erreur `0983` à `0803`, payload brut conservé.
-    #[error("sélection du mode audio refusée par le casque (0983, {})", describe_audio_mode_error(.0))]
+    #[error("{}", trf("sélection du mode audio refusée par le casque (0983, {})", &[&describe_audio_mode_error(.0)]))]
     AudioModeRefused(Vec<u8>),
-    #[error(
-        "{0} : lecture seule (les écritures n'ont été vérifiées que sur le \
-         MOMENTUM 5, micrologiciel {VALIDATED_FIRMWARE})"
-    )]
+    #[error("{}", trf("{} : lecture seule (les écritures n'ont été vérifiées que sur le MOMENTUM 5, micrologiciel {})", &[&.0, &VALIDATED_FIRMWARE]))]
     WritesBlocked(String),
 }
 

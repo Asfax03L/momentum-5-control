@@ -17,6 +17,7 @@
 //!   requête n'est renvoyée automatiquement (une écriture pourrait être
 //!   appliquée deux fois).
 
+use crate::i18n::trf;
 use std::time::{Duration, Instant};
 
 use thiserror::Error;
@@ -32,15 +33,12 @@ pub enum ClientError {
     Transport(#[from] TransportError),
     #[error(transparent)]
     Protocol(#[from] ProtocolError),
-    #[error("le casque a répondu par une erreur à {command} (payload {payload:02X?})")]
+    #[error("{}", trf("le casque a répondu par une erreur à {} (payload {})", &[&.command, &format!("{:02X?}", .payload)]))]
     Device {
         command: CommandId,
         payload: Vec<u8>,
     },
-    #[error(
-        "session désynchronisée après un échange interrompu sur {0} : une réponse \
-         tardive serait ambiguë, il faut rouvrir la connexion"
-    )]
+    #[error("{}", trf("session désynchronisée après un échange interrompu sur {} : une réponse tardive serait ambiguë, il faut rouvrir la connexion", &[&.0]))]
     Desynchronized(CommandId),
 }
 

@@ -1,6 +1,7 @@
 //! Transport Linux : bus de session D-Bus, nom `org.openheadset.Control`,
 //! interface `org.openheadset.Control1` sur `/org/openheadset/Control`.
 
+use momentum_core::i18n::tr;
 use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
 
@@ -34,20 +35,18 @@ impl Control {
     fn submit(&self, json: String, session: u64) -> zbus::fdo::Result<u64> {
         let command: Command = serde_json::from_str(&json)
             .map_err(|e| zbus::fdo::Error::InvalidArgs(format!("commande illisible : {e}")))?;
-        let mut shared = self
-            .shared
-            .lock()
-            .map_err(|_| zbus::fdo::Error::Failed("état du service inaccessible".to_string()))?;
+        let mut shared = self.shared.lock().map_err(|_| {
+            zbus::fdo::Error::Failed(tr("état du service inaccessible").to_string())
+        })?;
         service::submit(command, session, &mut shared, &self.commands)
             .map_err(zbus::fdo::Error::Failed)
     }
 
     /// État courant en JSON (`momentum_client::Snapshot`).
     fn snapshot(&self) -> zbus::fdo::Result<String> {
-        let shared = self
-            .shared
-            .lock()
-            .map_err(|_| zbus::fdo::Error::Failed("état du service inaccessible".to_string()))?;
+        let shared = self.shared.lock().map_err(|_| {
+            zbus::fdo::Error::Failed(tr("état du service inaccessible").to_string())
+        })?;
         serde_json::to_string(&shared.snapshot).map_err(|e| zbus::fdo::Error::Failed(e.to_string()))
     }
 
@@ -173,7 +172,7 @@ impl Runner {
             Ok(mut shared) => service::submit(command, 0, &mut shared, &self.commands).map(|id| {
                 shared.runner_requests.push(id);
             }),
-            Err(_) => Err("état du service inaccessible".to_string()),
+            Err(_) => Err(tr("état du service inaccessible").to_string()),
         };
         if let Err(reason) = result {
             momentum_service::desktop::show_toast(
