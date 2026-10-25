@@ -106,7 +106,11 @@ pub fn format_mix(mix: &MixFormat) -> String {
             &channels,
             &rate,
             &mix.bits,
-            &(if mix.float { " virgule flottante" } else { "" }),
+            &(if mix.float {
+                tr(" virgule flottante")
+            } else {
+                ""
+            }),
         ],
     )
 }

@@ -239,15 +239,21 @@ mod tests {
     /// Textes passés à `tr("…")` ou `trf("…"` dans les fichiers donnés.
     pub(crate) fn texts_in(source: &str) -> Vec<String> {
         let mut found = Vec::new();
-        for marker in ["tr(\"", "trf(\""] {
+        for marker in ["tr(", "trf("] {
             let mut rest = source;
             while let Some(i) = rest.find(marker) {
-                // « str(" » ou « attr(" » ne sont pas des appels de traduction.
+                // « str( » ou « attr( » ne sont pas des appels de traduction.
                 let before = rest[..i].chars().next_back();
                 rest = &rest[i + marker.len()..];
                 if before.is_some_and(|c| c.is_alphanumeric() || c == '_') {
                     continue;
                 }
+                // Le texte peut commencer à la ligne suivante (rustfmt).
+                let trimmed = rest.trim_start();
+                let Some(text_start) = trimmed.strip_prefix('"') else {
+                    continue;
+                };
+                rest = text_start;
                 let mut text = String::new();
                 let mut chars = rest.chars();
                 while let Some(c) = chars.next() {

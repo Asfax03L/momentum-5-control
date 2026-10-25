@@ -8,7 +8,7 @@
 //! l'application de la barre système.
 
 use crate::device::{AudioMode, HeadsetState, NoiseModeRequest, SoundProfileStatus};
-use crate::i18n::trf;
+use crate::i18n::{tr, trf};
 use crate::protocol::messages::M5NoiseMode;
 
 /// Actions déclenchables au clavier.
@@ -47,10 +47,10 @@ impl HotkeyAction {
 
     pub fn label(&self) -> String {
         match self {
-            HotkeyAction::CycleNoise => "Mode de bruit suivant".to_string(),
-            HotkeyAction::ToggleProfile => "Profil personnalisé / égaliseur".to_string(),
-            HotkeyAction::OpenWindow => "Ouvrir la fenêtre".to_string(),
-            HotkeyAction::Scene(name) => format!("Scène « {name} »"),
+            HotkeyAction::CycleNoise => tr("Mode de bruit suivant").to_string(),
+            HotkeyAction::ToggleProfile => tr("Profil personnalisé / égaliseur").to_string(),
+            HotkeyAction::OpenWindow => tr("Ouvrir la fenêtre").to_string(),
+            HotkeyAction::Scene(name) => trf("Scène « {} »", &[name]),
         }
     }
 

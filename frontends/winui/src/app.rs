@@ -2135,7 +2135,9 @@ impl Root {
                 .is_open(demo::requested())
                 .is_closable(false)
                 .severity(InfoBarSeverity::Informational)
-                .message(demo::BANNER),
+                .message(tr(
+                    "Démonstration : données simulées (aucun casque, aucun service)",
+                )),
             InfoBar::new()
                 .is_open(!v.banner.is_empty())
                 .is_closable(false)
@@ -3001,7 +3003,7 @@ impl Root {
             KeyedView::new(
                 i as u64,
                 TextBlock::new()
-                    .text(format!("{} : {}", row.label, row.value))
+                    .text(trf("{} : {}", &[&row.label, &row.value]))
                     .font_size(12.0)
                     .opacity(0.7)
                     .text_wrapping(TextWrapping::Wrap),
@@ -3095,7 +3097,7 @@ impl Root {
                         format!("{prefix}-{i}"),
                         StackPanel::new().children((
                             TextBlock::new()
-                                .text(format!("{} : {}", r.label, r.value))
+                                .text(trf("{} : {}", &[&r.label, &r.value]))
                                 .text_wrapping(TextWrapping::Wrap),
                             TextBlock::new().text(r.source).font_size(12.0).opacity(0.6),
                         )),

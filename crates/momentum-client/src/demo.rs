@@ -14,6 +14,7 @@ use momentum_core::device::{
 };
 
 use crate::{Command, ConnectionInfo, Event, Snapshot};
+use momentum_core::i18n::tr;
 
 /// Option de la ligne de commande.
 pub const FLAG: &str = "--demo";
@@ -81,17 +82,17 @@ impl Demo {
                 bass_boost: false,
             },
             info: DeviceInfo {
-                name: Some(NAME.to_string()),
-                model: Some("Simulé".to_string()),
-                firmware: Some("Simulé".to_string()),
+                name: Some(tr("MOMENTUM 5 (démo)").to_string()),
+                model: Some(tr("Simulé").to_string()),
+                firmware: Some(tr("Simulé").to_string()),
                 multipoint: Some(true),
                 prompt_volume: Some(0),
                 ..DeviceInfo::default()
             },
             connections: vec![
-                link("Ce PC", true, true),
-                link("Téléphone", true, false),
-                link("Tablette", false, false),
+                link(tr("Ce PC"), true, true),
+                link(tr("Téléphone"), true, false),
+                link(tr("Tablette"), false, false),
             ],
         }
     }
@@ -203,11 +204,12 @@ impl Demo {
                 }
                 events.push(Event::Connections(self.connections.clone()));
             }
-            Command::ExportProfile(_) => events.push(Event::Exported(Err(
-                "mode démonstration : aucun profil réel à exporter".to_string(),
-            ))),
+            Command::ExportProfile(_) => events.push(Event::Exported(Err(tr(
+                "mode démonstration : aucun profil réel à exporter",
+            )
+            .to_string()))),
             Command::ApplyScene(_) => events.push(Event::Refused(
-                "mode démonstration : les scènes ne sont pas simulées".to_string(),
+                tr("mode démonstration : les scènes ne sont pas simulées").to_string(),
             )),
             Command::ClearBatteryHistory | Command::ReconnectHeadset => {}
         }

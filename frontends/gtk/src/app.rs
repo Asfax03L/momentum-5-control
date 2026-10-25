@@ -358,7 +358,7 @@ fn refresh(widgets: &Widgets, state: &State, updating: &Cell<bool>) {
     updating.set(true);
     widgets.window.set_title(Some(&v.title));
     let banner = if v.banner.is_empty() && demo::requested() {
-        demo::BANNER.to_string()
+        tr("Démonstration : données simulées (aucun casque, aucun service)").to_string()
     } else {
         v.banner.clone()
     };

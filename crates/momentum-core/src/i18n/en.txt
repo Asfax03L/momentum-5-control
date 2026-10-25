@@ -1774,3 +1774,213 @@ Spatial audio off
 
 Casque MOMENTUM 5 (OpenHeadset Control)
 MOMENTUM 5 headphones (OpenHeadset Control)
+
+MOMENTUM 5 (démo)
+MOMENTUM 5 (demo)
+
+Simulé
+Simulated
+
+Ce PC
+This PC
+
+Téléphone
+Phone
+
+Tablette
+Tablet
+
+mode démonstration : aucun profil réel à exporter
+demo mode: no real profile to export
+
+mode démonstration : les scènes ne sont pas simulées
+demo mode: scenes are not simulated
+
+ virgule flottante
+ floating point
+
+Les sorties audio de Windows n'ont pas pu être lues.
+Windows audio outputs could not be read.
+
+Windows n'a aucune sortie audio par défaut : le son ne part nulle part.
+Windows has no default audio output: sound goes nowhere.
+
+La sortie du casque est coupée (muet) dans Windows.
+The headphone output is muted in Windows.
+
+Le volume de Windows est à 0 sur la sortie du casque.
+The Windows volume is at 0 on the headphone output.
+
+Le casque indique qu'aucun flux audio n'est en cours (dernière valeur reçue).
+The headphones report that no audio stream is playing (last value received).
+
+{}, {}, {} bits{}
+{}, {}, {} bits{}
+
+code {} : {}, d'après l'app officielle
+code {}: {}, according to the official app
+
+Mode de bruit suivant
+Next noise mode
+
+Profil personnalisé / égaliseur
+Custom profile / equalizer
+
+Ouvrir la fenêtre
+Open the window
+
+{} et {} utilisent tous deux {}
+{} and {} both use {}
+
+{} a été modifié ailleurs depuis son ouverture : relu, à refaire
+{} was changed elsewhere since it was opened: read again, try again
+
+pw-dump est absent : installer les outils PipeWire de la distribution ; dans un Flatpak, vérifier le contenu du paquet
+pw-dump is missing: install the distribution's PipeWire tools; in a Flatpak, check the package contents
+
+l'identité du casque connecté n'est pas disponible : un service récent et un casque piloté sont nécessaires
+the identity of the connected headphones is not available: a recent service and controlled headphones are required
+
+Écouter B
+Listen to B
+
+{} valeurs saisies pour {} bandes (séparer les gains par « ; »)
+{} values entered for {} bands (separate the gains with “;”)
+
+bande {} : {} dB hors de la plage du casque ({} à {} dB)
+band {}: {} dB outside the headphone range ({} to {} dB)
+
+version de fichier « {} » non prise en charge (attendue : {})
+file version “{}” not supported (expected: {})
+
+courbe prévue pour le modèle « {} », pas pour « {} »
+curve made for model “{}”, not for “{}”
+
+courbe à {} bandes, l'égaliseur du casque en a {}
+curve with {} bands, the headphone equalizer has {}
+
+le panneau montre au plus {} scènes : retirez-en une d'abord
+the panel shows {} scenes at most: remove one first
+
+mode audio : égaliseur
+audio mode: equalizer
+
+mode audio : Speech Clarity
+audio mode: Speech Clarity
+
+mode audio : profil personnalisé
+audio mode: custom profile
+
+bruit : adaptatif
+noise: adaptive
+
+bruit : personnalisé
+noise: custom
+
+bruit : arrêt
+noise: off
+
+« niveau » exige « bruit = personnalise » (ou pas de « bruit »)
+“niveau” requires “bruit = personnalise” (or no “bruit”)
+
+« egaliseur » et « basses » exigent « son = egaliseur » dans la scène
+“egaliseur” and “basses” require “son = egaliseur” in the scene
+
+« spatial = on » est incompatible avec « son = profil »
+“spatial = on” is incompatible with “son = profil”
+
+audio spatial {}
+spatial audio {}
+
+niveau ANC ↔ transparence : {}
+ANC ↔ transparency level: {}
+
+anti-vent {}
+anti-wind {}
+
+commandes tactiles {}
+touch controls {}
+
+égaliseur : « {} »
+equalizer: “{}”
+
+amplification des basses {}
+bass boost {}
+
+réglage inconnu « {} » (possibles : {})
+unknown setting “{}” (possible: {})
+
+ligne {} : scène « {} » : {}
+line {}: scene “{}”: {}
+
+ligne {} : scène « {} » déjà définie plus haut
+line {}: scene “{}” already defined above
+
+ligne {} : réglage hors d'une scène (ajouter un titre [Nom] avant)
+line {}: setting outside a scene (add a [Name] title before it)
+
+ligne {} : {} (scène « {} » ignorée)
+line {}: {} (scene “{}” ignored)
+
+la liste des cinq fichiers de réglages est incomplète
+the list of the five settings files is incomplete
+
+ce fichier existe déjà ; choisir un autre nom (rien n'est écrasé)
+this file already exists; choose another name (nothing is overwritten)
+
+fichier modifié ailleurs pendant la restauration
+file changed elsewhere during the restore
+
+{} a changé depuis l'aperçu : refaire la simulation
+{} changed since the preview: run the simulation again
+
+{}.ancien existe déjà : le conserver ailleurs avant de recommencer
+{}.ancien already exists: keep it elsewhere before starting again
+
+Contrôle du bruit : {}\nAnti-vent : {}
+Noise control: {}\nAnti-wind: {}
+
+{}\nBatterie {} %\n{}
+{}\nBattery {} %\n{}
+
+état de charge, santé et cycles de la batterie : le casque ne les donne pas au projet
+charge state, health and cycles of the battery: the headphones do not give them to the project
+
+aucun casque mémorisé : le connecter une première fois depuis les paramètres Bluetooth
+no remembered headphones: connect them once from the Bluetooth settings
+
+la demande Bluetooth a échoué ou dépassé le délai ; vérifier les paramètres Bluetooth avant de réessayer
+the Bluetooth request failed or timed out; check the Bluetooth settings before trying again
+
+plusieurs appareils s'appellent « {} » : interface à mettre à jour
+several devices are named “{}”: the interface must be updated
+
+{} appareils GAIA connectés et aucun casque mémorisé : en garder un seul connecté
+{} GAIA devices connected and no remembered headphones: keep only one connected
+
+Démonstration : données simulées (aucun casque, aucun service)
+Demo: simulated data (no headphones, no service)
+
+Lancer OpenHeadset Control à l'ouverture de session (icône seule)
+Start OpenHeadset Control at session start (icon only)
+
+Profil exporté dans {} (données auditives personnelles : ne pas le publier).
+Profile exported to {} (personal hearing data: do not publish it).
+
+Scène « {} » enregistrée (rien n'a été envoyé au casque).
+Scene “{}” saved (nothing was sent to the headphones).
+
+élément de menu inconnu : {}
+unknown menu item: {}
+
+Raccourcis enregistrés ; refusés : {}.
+Shortcuts saved; refused: {}.
+
+Scènes montrées ({} au plus) :
+Scenes shown ({} at most):
+
+Appliquer la scène « {} » au casque
+Apply the scene “{}” to the headphones
+
+{} : {}
+{}: {}

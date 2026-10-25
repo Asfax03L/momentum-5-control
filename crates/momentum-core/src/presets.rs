@@ -62,9 +62,9 @@ impl AbCompare {
     /// Libellé du bouton de bascule.
     pub fn label(&self) -> &'static str {
         if self.on_a {
-            "Écouter B"
+            crate::i18n::tr("Écouter B")
         } else {
-            "Écouter A"
+            crate::i18n::tr("Écouter A")
         }
     }
 }

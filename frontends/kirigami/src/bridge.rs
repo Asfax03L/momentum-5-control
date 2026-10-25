@@ -1284,7 +1284,7 @@ impl qobject::Headset {
         h.as_mut().set_writable(v.writable);
         h.as_mut().set_waiting(QString::from(v.waiting.as_str()));
         let banner = if v.banner.is_empty() && demo::requested() {
-            demo::BANNER.to_string()
+            tr("Démonstration : données simulées (aucun casque, aucun service)").to_string()
         } else {
             v.banner.clone()
         };
@@ -1802,7 +1802,7 @@ impl qobject::Headset {
         let details: Vec<String> = view
             .details
             .iter()
-            .map(|r| format!("{} : {}", r.label, r.value))
+            .map(|r| trf("{} : {}", &[&r.label, &r.value]))
             .collect();
         let revision = self.rust().battery_revision.wrapping_add(1);
         self.as_mut().rust_mut().battery_path = view.path;

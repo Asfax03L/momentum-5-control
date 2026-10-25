@@ -24,9 +24,8 @@ fn path() -> Option<PathBuf> {
 
 /// Fichier `.desktop` de lancement automatique.
 fn desktop_entry(exe: &str) -> String {
-    trf(
-        "[Desktop Entry]\nType=Application\nName=OpenHeadset Control\nComment=Réglages du casque Sennheiser MOMENTUM 5 (non officiel)\nExec=\"{}\" {}\nIcon=org.openheadset.control\nTerminal=false\nX-GNOME-Autostart-enabled=true\n",
-        &[&exe, &HIDDEN_FLAG],
+    format!(
+        "[Desktop Entry]\nType=Application\nName=OpenHeadset Control\nComment=Réglages du casque Sennheiser MOMENTUM 5 (non officiel)\nExec=\"{exe}\" {HIDDEN_FLAG}\nIcon=org.openheadset.control\nTerminal=false\nX-GNOME-Autostart-enabled=true\n"
     )
 }
 

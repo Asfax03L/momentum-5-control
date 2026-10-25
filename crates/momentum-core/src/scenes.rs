@@ -84,25 +84,29 @@ pub enum Step {
 }
 
 impl Step {
-    /// Libellé en français pour les rapports.
+    /// Libellé pour les rapports et l'aperçu, dans la langue de l'interface.
     pub fn label(&self) -> String {
-        let on_off = |on: bool| if on { "activé" } else { "désactivé" };
+        let on_off = |on: bool| if on { tr("activé") } else { tr("désactivé") };
         match self {
-            Step::Sound(SceneSound::Equalizer) => "mode audio : égaliseur".to_string(),
-            Step::Sound(SceneSound::SpeechClarity) => "mode audio : Speech Clarity".to_string(),
-            Step::Sound(SceneSound::Profile) => "mode audio : profil personnalisé".to_string(),
-            Step::Spatial(on) => format!("audio spatial {}", on_off(*on)),
-            Step::Noise(NoiseModeRequest::Adaptive) => "bruit : adaptatif".to_string(),
-            Step::Noise(NoiseModeRequest::Custom) => "bruit : personnalisé".to_string(),
-            Step::Noise(NoiseModeRequest::Off) => "bruit : arrêt".to_string(),
-            Step::Level(level) => format!("niveau ANC ↔ transparence : {level}"),
-            Step::AntiWind(on) => format!("anti-vent {}", on_off(*on)),
-            Step::Touch(on) => format!(
+            Step::Sound(SceneSound::Equalizer) => tr("mode audio : égaliseur").to_string(),
+            Step::Sound(SceneSound::SpeechClarity) => tr("mode audio : Speech Clarity").to_string(),
+            Step::Sound(SceneSound::Profile) => tr("mode audio : profil personnalisé").to_string(),
+            Step::Spatial(on) => trf("audio spatial {}", &[&on_off(*on)]),
+            Step::Noise(NoiseModeRequest::Adaptive) => tr("bruit : adaptatif").to_string(),
+            Step::Noise(NoiseModeRequest::Custom) => tr("bruit : personnalisé").to_string(),
+            Step::Noise(NoiseModeRequest::Off) => tr("bruit : arrêt").to_string(),
+            Step::Level(level) => trf("niveau ANC ↔ transparence : {}", &[level]),
+            Step::AntiWind(on) => trf("anti-vent {}", &[&on_off(*on)]),
+            Step::Touch(on) => trf(
                 "commandes tactiles {}",
-                if *on { "actives" } else { "désactivées" }
+                &[&if *on {
+                    tr("actives")
+                } else {
+                    tr("désactivées")
+                }],
             ),
-            Step::Equalizer(name) => format!("égaliseur : « {name} »"),
-            Step::BassBoost(on) => format!("amplification des basses {}", on_off(*on)),
+            Step::Equalizer(name) => trf("égaliseur : « {} »", &[name]),
+            Step::BassBoost(on) => trf("amplification des basses {}", &[&on_off(*on)]),
         }
     }
 }
