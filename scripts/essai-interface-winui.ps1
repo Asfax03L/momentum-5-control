@@ -1,13 +1,18 @@
-# Essai de l'interface WinUI par UI Automation (CI, windows-latest) :
+﻿# Essai de l'interface WinUI par UI Automation (CI, windows-latest) :
 # momentum-winui --demo (casque simulé, aucun service), chaque page ouverte
 # par la navigation et reconnue à son repère, puis l'anti-vent simulé
 # basculé et relu à l'affichage. Capture de la fenêtre en cas d'échec.
 #
-# Usage : .\scripts\essai-interface-winui.ps1 -Exe target\debug\momentum-winui.exe
+# Usage : .\scripts\essai-interface-winui.ps1 -Exe target\debug\momentum-winui.exe [-Langue en]
+# -Langue : langue de l'interface (fr par défaut, en) ; les noms cherchés
+# suivent.
 param(
     [Parameter(Mandatory = $true)][string]$Exe,
-    [string]$Capture = 'essai-interface-winui.png'
+    [string]$Capture = 'essai-interface-winui.png',
+    [ValidateSet('fr', 'en')][string]$Langue = 'fr'
 )
+$env:OPENHEADSET_LANG = $Langue
+$NomAntiVent = @{ fr = 'Anti-vent'; en = 'Anti-wind' }[$Langue]
 
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes, System.Drawing
@@ -76,15 +81,15 @@ try {
         # Réglage simulé : l'anti-vent change, l'affichage le relit.
         $item = Find-First $fenetre $AE::AutomationIdProperty 'nav-accueil'
         $item.GetCurrentPattern([System.Windows.Automation.SelectionItemPattern]::Pattern).Select()
-        $interrupteur = Find-Toggle $fenetre 'Anti-vent'
-        if (-not $interrupteur) { throw "interrupteur « Anti-vent » introuvable (nom accessible)" }
+        $interrupteur = Find-Toggle $fenetre $NomAntiVent
+        if (-not $interrupteur) { throw "interrupteur « $NomAntiVent » introuvable (nom accessible)" }
         $bascule = $interrupteur.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern)
         $avant = $bascule.Current.ToggleState
         $bascule.Toggle()
         $limite = (Get-Date).AddSeconds(10)
         do {
             Start-Sleep -Milliseconds 300
-            $interrupteur = Find-Toggle $fenetre 'Anti-vent'
+            $interrupteur = Find-Toggle $fenetre $NomAntiVent
             $apres = $interrupteur.GetCurrentPattern([System.Windows.Automation.TogglePattern]::Pattern).Current.ToggleState
         } while ($apres -eq $avant -and (Get-Date) -lt $limite)
         if ($apres -eq $avant) { throw "anti-vent simulé non relu à l'affichage ($avant)" }

@@ -7,3 +7,6 @@ packaging/flatpak/cargo-sources.json
 /.flatpak-builder
 /repo
 __pycache__/
+
+# Site construit (scripts/construire-site.sh).
+/_site/

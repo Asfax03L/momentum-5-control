@@ -12,6 +12,95 @@ refuse de publier sans elles) :
 - « À faire après la mise à jour » : les actions concrètes par système,
   ou « Rien de particulier » avec la raison.
 
+## v0.16.0 — 25/10/2026
+
+### En bref
+Version des langues, de l'accessibilité et de l'accueil :
+- **Interfaces en anglais.** WinUI, KDE, GNOME, le widget Plasma, la
+  recherche KRunner, l'extension Decky, les entrées de menu et
+  l'installateur Windows suivent la langue du système : français si c'est
+  la sienne, anglais sinon. Paramètres > **Langue** permet de choisir
+  (langue du système, Français, English), au prochain lancement. `ctl` et
+  le texte du diagnostic restent en français.
+- **Accessibilité.** Chaque commande porte un nom lu par les lecteurs
+  d'écran (curseurs, listes et bandes de l'égaliseur compris) ; les titres
+  de page et de section sont annoncés comme titres ; tout se fait au
+  clavier, sans piège ; les textes secondaires gardent un contraste d'au
+  moins 4,5:1. Vérifié automatiquement à chaque modification.
+- **Assistant de premier lancement** : Bluetooth (bouton vers les
+  paramètres), appairage (avec l'état du casque en direct), Windows App
+  Runtime, Multipoint. Rouvrable depuis « À propos ».
+- **Signaler un problème en un clic** (« À propos ») : le diagnostic
+  expurgé s'affiche, puis le formulaire de bogue GitHub s'ouvre dans le
+  navigateur, déjà rempli. Rien n'est envoyé avant que vous le validiez
+  sur GitHub.
+- **Guide d'utilisation et FAQ**, en français et en anglais, et un **site**
+  : <https://asfax03l.github.io/openheadset-control/>.
+- **Discussions GitHub** pour les questions ; les issues restent pour les
+  bogues et la compatibilité.
+
+### À faire après la mise à jour
+- **Tous les systèmes** : au premier lancement de cette version,
+  l'assistant s'ouvre une fois ; « Passer l'assistant » le ferme pour de
+  bon (fichier `assistant.txt` du dossier des données). Pour garder
+  l'interface en français sur un système anglais : Paramètres > Langue >
+  Français, puis relancer l'interface.
+- **Windows** : installer comme d'habitude. L'installateur est maintenant
+  en anglais sur un Windows anglais.
+- **KDE (archive Linux)** : relancer `./installer-linux.sh` pour les
+  entrées de menu et la recherche KRunner traduites. Flatpak, `.deb`,
+  `.rpm`, AUR : rien de particulier.
+- **Mode jeu** : installer `openheadset-control-v0.16.0-decky.zip` ;
+  l'extension suit la langue de Steam.
+
+### Langues (jalon 0.16)
+- **Catalogue** `crates/momentum-core/src/i18n/en.txt` : textes sources
+  français, traduction anglaise en regard (`tr`, `trf`). Langue choisie par
+  `OPENHEADSET_LANG`, puis `langue.txt` (`langue = auto|fr|en`), puis
+  `LC_ALL`/`LC_MESSAGES`/`LANG`, puis la langue d'affichage de Windows ;
+  français par défaut. Les messages d'erreur du service et du client sont
+  traduits aussi.
+- Tests : chaque texte passé à `tr`/`trf` dans le code Rust et QML a sa
+  traduction (`every_text_of_the_interfaces_is_translated`), avec le même
+  nombre de `{}` et de retours à la ligne ; chaque liste de choix est
+  traduite.
+- Widget Plasma et extension Decky : dictionnaires propres (QML seul,
+  React). Entrées `.desktop` : anglais par défaut, `[fr]` en traduction.
+  Inno Setup : langues `fr` et `en`, messages propres en `[CustomMessages]`.
+- Essais d'interface WinUI (UI Automation) et KDE (hors écran) rejoués en
+  français et en anglais en CI.
+
+### Accessibilité
+- WinUI : `AutomationProperties.Name` sur les curseurs (ANC ↔
+  transparence, bandes « Bande 90 Hz »…, volume des invites) et les listes
+  déroulantes (préréglage, extinction automatique, invites, champs de
+  scène) ; titres de niveau 1 (page) et 2 (cartes).
+- KDE : `Accessible.name` sur les curseurs, listes et interrupteurs sans
+  texte propre ; widget Plasma idem. Test `accessibilite_qml` : chaque
+  commande QML a un nom accessible.
+- `scripts/audit-accessibilite-winui.ps1` (CI, deux langues) : chaque
+  commande visible de chaque page a un nom accessible et entre dans le
+  parcours clavier ; puis Tab jusqu'à l'anti-vent, Espace le bascule, et
+  la tabulation fait le tour de la fenêtre.
+- Contraste : textes secondaires à 70 % d'opacité au moins (le seul à
+  60 % passait sous 4,5:1 en thème clair).
+- Écoute réelle au Narrateur et à Orca : à faire par le mainteneur.
+
+### Premier lancement, rapport de bogue, documentation
+- `momentum_core::assistant` : étapes communes à WinUI et KDE ; montré
+  une fois, jamais en démonstration sans `--assistant`. Essais
+  `essai-assistant-winui.ps1` et `--essai-assistant` (KDE) en CI.
+- `diagnostic::issue_url` : formulaire `bogue.yml` prérempli (version,
+  interface, système, diagnostic), adresse limitée à 7 000 caractères
+  (diagnostic raccourci sur une fin de ligne, avec renvoi vers « Copier le
+  diagnostic »). Choix du formulaire vérifiés par un test.
+- `docs/GUIDE.md`, `docs/GUIDE.en.md`, `docs/FAQ.md`, `docs/FAQ.en.md` ;
+  site construit par pandoc (`scripts/construire-site.sh`), liens et
+  ancres vérifiés (`scripts/verifier-site.py`), publié par le workflow
+  « Site ».
+- Lien vers les Discussions dans le choix de formulaire des issues.
+- Installateur Windows : section `const` vide retirée (refusée par ISCC).
+
 ## v0.15.1 — 25/10/2026
 
 ### En bref

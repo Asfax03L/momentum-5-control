@@ -1,4 +1,4 @@
-# Prépare les manifestes winget d'une version publiée, sans rien soumettre :
+﻿# Prépare les manifestes winget d'une version publiée, sans rien soumettre :
 #   .\packaging\winget\preparer.ps1 -Version 0.14.0 -Sortie dossier
 # L'installateur est téléchargé depuis la publication GitHub et son
 # empreinte calculée ; les trois manifestes (version, installateur, fiche

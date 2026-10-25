@@ -1,11 +1,14 @@
 [Desktop Entry]
 Type=Application
 Name=OpenHeadset Control
-GenericName=Réglages du casque
-Comment=Réglages du Sennheiser MOMENTUM 5 (non officiel) — interface KDE
+GenericName=Headphone settings
+GenericName[fr]=Réglages du casque
+Comment=Sennheiser MOMENTUM 5 settings (unofficial) — KDE interface
+Comment[fr]=Réglages du Sennheiser MOMENTUM 5 (non officiel) — interface KDE
 Exec=momentum-kirigami
 Icon=org.openheadset.control
 Terminal=false
 Categories=AudioVideo;Audio;Settings;Qt;KDE;
-Keywords=casque;sennheiser;momentum;bluetooth;anc;égaliseur;
+Keywords=headphones;headset;sennheiser;momentum;bluetooth;anc;equalizer;
+Keywords[fr]=casque;sennheiser;momentum;bluetooth;anc;égaliseur;
 StartupWMClass=momentum-kirigami

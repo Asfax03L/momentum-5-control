@@ -8,6 +8,7 @@
 //! l'application de la barre système.
 
 use crate::device::{AudioMode, HeadsetState, NoiseModeRequest, SoundProfileStatus};
+use crate::i18n::{tr, trf};
 use crate::protocol::messages::M5NoiseMode;
 
 /// Actions déclenchables au clavier.
@@ -46,10 +47,10 @@ impl HotkeyAction {
 
     pub fn label(&self) -> String {
         match self {
-            HotkeyAction::CycleNoise => "Mode de bruit suivant".to_string(),
-            HotkeyAction::ToggleProfile => "Profil personnalisé / égaliseur".to_string(),
-            HotkeyAction::OpenWindow => "Ouvrir la fenêtre".to_string(),
-            HotkeyAction::Scene(name) => format!("Scène « {name} »"),
+            HotkeyAction::CycleNoise => tr("Mode de bruit suivant").to_string(),
+            HotkeyAction::ToggleProfile => tr("Profil personnalisé / égaliseur").to_string(),
+            HotkeyAction::OpenWindow => tr("Ouvrir la fenêtre").to_string(),
+            HotkeyAction::Scene(name) => trf("Scène « {} »", &[name]),
         }
     }
 
@@ -94,17 +95,18 @@ pub fn parse_hotkey(spec: &str) -> Result<Hotkey, String> {
             "win" => key.win = true,
             other => {
                 if key.vk != 0 {
-                    return Err(format!("plusieurs touches dans « {spec} »"));
+                    return Err(trf("plusieurs touches dans « {} »", &[&spec]));
                 }
-                key.vk = virtual_key(other).ok_or_else(|| format!("touche inconnue « {part} »"))?;
+                key.vk =
+                    virtual_key(other).ok_or_else(|| trf("touche inconnue « {} »", &[&part]))?;
             }
         }
     }
     if key.vk == 0 {
-        return Err(format!("aucune touche dans « {spec} »"));
+        return Err(trf("aucune touche dans « {} »", &[&spec]));
     }
     if !(key.ctrl || key.alt || key.win) {
-        return Err(format!("« {spec} » : Ctrl, Alt ou Win obligatoire"));
+        return Err(trf("« {} » : Ctrl, Alt ou Win obligatoire", &[&spec]));
     }
     Ok(key)
 }
@@ -167,7 +169,7 @@ pub fn parse_config(text: &str) -> (Vec<(HotkeyAction, Hotkey)>, Vec<String>) {
             continue;
         };
         let Some(action) = HotkeyAction::from_key(name) else {
-            errors.push(format!("action inconnue : « {} »", name.trim()));
+            errors.push(trf("action inconnue : « {} »", &[&(name.trim())]));
             continue;
         };
         if spec.trim().is_empty() {
@@ -208,11 +210,9 @@ pub fn build_config(entries: &[(HotkeyAction, String)]) -> Result<String, String
         }
         let key = parse_hotkey(spec).map_err(|e| format!("{} : {e}", action.label()))?;
         if let Some((_, other)) = used.iter().find(|(k, _)| *k == key) {
-            return Err(format!(
+            return Err(trf(
                 "{} et {} utilisent tous deux {}",
-                other,
-                action.label(),
-                format_hotkey(&key)
+                &[&other, &(action.label()), &(format_hotkey(&key))],
             ));
         }
         used.push((key, action.label()));

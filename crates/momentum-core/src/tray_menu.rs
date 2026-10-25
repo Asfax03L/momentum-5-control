@@ -9,6 +9,7 @@
 
 use crate::device::SoundProfileStatus;
 use crate::device::{AUTO_OFF_CHOICES, AudioMode, HeadsetState, NoiseModeRequest, PromptMode};
+use crate::i18n::{tr, trf};
 use crate::protocol::messages::M5NoiseMode;
 use crate::ui::{LEVEL_PRESETS, audio_summary};
 
@@ -113,9 +114,9 @@ fn toggle(label: &str, action: MenuAction, value: Option<bool>, writable: bool) 
 /// Libellé d'une durée d'extinction automatique.
 fn auto_off_label(seconds: u16) -> String {
     if seconds == 0 {
-        "Jamais".to_string()
+        tr("Jamais").to_string()
     } else {
-        format!("{} min", seconds / 60)
+        trf("{} min", &[&(seconds / 60)])
     }
 }
 
@@ -125,13 +126,17 @@ pub fn tray_menu(state: Option<&HeadsetState>, ctx: &MenuContext) -> Vec<MenuEnt
     let s = state.copied().unwrap_or_default();
     let mode = state.map(|s| s.noise.mode());
     let status = match (ctx.name, state) {
-        (Some(n), Some(s)) => format!("{n} — batterie {} %", s.battery),
-        (Some(n), None) => format!("{n} — connexion…"),
-        _ => "Casque déconnecté — recherche…".to_string(),
+        (Some(n), Some(s)) => trf("{} — batterie {} %", &[&n, &s.battery]),
+        (Some(n), None) => trf("{} — connexion…", &[&n]),
+        _ => tr("Casque déconnecté — recherche…").to_string(),
     };
 
     let mut menu = vec![
-        item("Ouvrir OpenHeadset Control", MenuAction::OpenWindow, true),
+        item(
+            tr("Ouvrir OpenHeadset Control"),
+            MenuAction::OpenWindow,
+            true,
+        ),
         MenuEntry::Info(status),
     ];
     if let Some(problem) = ctx.problem {
@@ -139,7 +144,7 @@ pub fn tray_menu(state: Option<&HeadsetState>, ctx: &MenuContext) -> Vec<MenuEnt
     }
     if state.is_none() {
         menu.push(item(
-            "Reconnecter le casque",
+            tr("Reconnecter le casque"),
             MenuAction::ReconnectHeadset,
             ctx.can_reconnect,
         ));
@@ -147,25 +152,25 @@ pub fn tray_menu(state: Option<&HeadsetState>, ctx: &MenuContext) -> Vec<MenuEnt
     menu.push(MenuEntry::Separator);
     menu.extend([
         check(
-            "ANC adaptatif",
+            tr("ANC adaptatif"),
             MenuAction::Mode(NoiseModeRequest::Adaptive),
             matches!(mode, Some(M5NoiseMode::Adaptive)),
             writable,
         ),
         check(
-            "Personnalisé",
+            tr("Personnalisé"),
             MenuAction::Mode(NoiseModeRequest::Custom),
             matches!(mode, Some(M5NoiseMode::Custom { .. })),
             writable,
         ),
         check(
-            "Désactivé",
+            tr("Désactivé"),
             MenuAction::Mode(NoiseModeRequest::Off),
             matches!(mode, Some(M5NoiseMode::Off)),
             writable,
         ),
         MenuEntry::Submenu {
-            label: "Curseur ANC ↔ transparence".to_string(),
+            label: tr("Curseur ANC ↔ transparence").to_string(),
             enabled: writable,
             entries: LEVEL_PRESETS
                 .iter()
@@ -181,7 +186,7 @@ pub fn tray_menu(state: Option<&HeadsetState>, ctx: &MenuContext) -> Vec<MenuEnt
         },
         MenuEntry::Separator,
         check(
-            "Anti-vent",
+            tr("Anti-vent"),
             MenuAction::AntiWind,
             state.is_some_and(|s| s.noise.anti_wind),
             writable,
@@ -191,7 +196,7 @@ pub fn tray_menu(state: Option<&HeadsetState>, ctx: &MenuContext) -> Vec<MenuEnt
     // Comme l'app : Dolby Atmos et profil personnalisé s'excluent ; on ne
     // propose d'activer l'audio spatial qu'hors du profil.
     let mut spatial = toggle(
-        "Audio spatial",
+        tr("Audio spatial"),
         MenuAction::Spatial,
         s.spatial_audio,
         writable,
@@ -204,14 +209,14 @@ pub fn tray_menu(state: Option<&HeadsetState>, ctx: &MenuContext) -> Vec<MenuEnt
     }
     menu.push(spatial);
     menu.push(toggle(
-        "Speech Clarity (voix)",
+        tr("Speech Clarity (voix)"),
         MenuAction::SpeechClarity,
         s.audio_mode.map(|m| m == AudioMode::SpeechClarity),
         writable,
     ));
     // Profil sélectionnable seulement s'il existe sur le casque.
     menu.push(toggle(
-        "Personnalisation du son",
+        tr("Personnalisation du son"),
         MenuAction::SoundProfile,
         s.audio_mode
             .filter(|_| s.sound_profile == Some(SoundProfileStatus::Received))
@@ -220,34 +225,34 @@ pub fn tray_menu(state: Option<&HeadsetState>, ctx: &MenuContext) -> Vec<MenuEnt
     ));
     menu.push(MenuEntry::Info(match state {
         Some(s) => audio_summary(s),
-        None => "Mode audio : —".to_string(),
+        None => tr("Mode audio : —").to_string(),
     }));
-    menu.push(item("Égaliseur…", MenuAction::OpenEqualizer, true));
+    menu.push(item(tr("Égaliseur…"), MenuAction::OpenEqualizer, true));
 
     menu.push(MenuEntry::Submenu {
-        label: "Réglages du casque".to_string(),
+        label: tr("Réglages du casque").to_string(),
         enabled: state.is_some(),
         entries: vec![
             toggle(
-                "Smart Pause",
+                tr("Smart Pause"),
                 MenuAction::SmartPause,
                 s.smart_pause,
                 writable,
             ),
             toggle(
-                "Réponse automatique aux appels",
+                tr("Réponse automatique aux appels"),
                 MenuAction::AutoAnswer,
                 s.auto_answer,
                 writable,
             ),
             toggle(
-                "Appels confortables",
+                tr("Appels confortables"),
                 MenuAction::ComfortCall,
                 s.comfort_call,
                 writable,
             ),
             MenuEntry::Submenu {
-                label: "Extinction automatique".to_string(),
+                label: tr("Extinction automatique").to_string(),
                 enabled: writable && s.auto_off_seconds.is_some(),
                 entries: AUTO_OFF_CHOICES
                     .iter()
@@ -262,17 +267,17 @@ pub fn tray_menu(state: Option<&HeadsetState>, ctx: &MenuContext) -> Vec<MenuEnt
                     .collect(),
             },
             MenuEntry::Submenu {
-                label: "Invites".to_string(),
+                label: tr("Invites").to_string(),
                 enabled: writable && s.prompt_mode.is_some(),
                 entries: vec![
                     toggle(
-                        "Tonalités seules",
+                        tr("Tonalités seules"),
                         MenuAction::Prompts(PromptMode::TonesOnly),
                         s.prompt_mode.map(|m| m == PromptMode::TonesOnly),
                         writable,
                     ),
                     toggle(
-                        "Tonalités et voix",
+                        tr("Tonalités et voix"),
                         MenuAction::Prompts(PromptMode::TonesAndVoice),
                         s.prompt_mode.map(|m| m == PromptMode::TonesAndVoice),
                         writable,
@@ -281,13 +286,13 @@ pub fn tray_menu(state: Option<&HeadsetState>, ctx: &MenuContext) -> Vec<MenuEnt
             },
             MenuEntry::Separator,
             toggle(
-                "Commandes tactiles",
+                tr("Commandes tactiles"),
                 MenuAction::TouchControls,
                 s.touch_controls,
                 writable,
             ),
             toggle(
-                "Protection de la batterie",
+                tr("Protection de la batterie"),
                 MenuAction::BatteryProtection,
                 s.battery_protection,
                 writable,
@@ -304,12 +309,12 @@ pub fn tray_menu(state: Option<&HeadsetState>, ctx: &MenuContext) -> Vec<MenuEnt
         scenes.push(MenuEntry::Separator);
     }
     scenes.push(item(
-        "Recharger le fichier des scènes",
+        tr("Recharger le fichier des scènes"),
         MenuAction::ReloadScenes,
         true,
     ));
     menu.push(MenuEntry::Submenu {
-        label: "Scènes".to_string(),
+        label: tr("Scènes").to_string(),
         enabled: true,
         entries: scenes,
     });
@@ -322,7 +327,7 @@ pub fn tray_menu(state: Option<&HeadsetState>, ctx: &MenuContext) -> Vec<MenuEnt
             ctx.autostart,
             true,
         ),
-        item("Quitter", MenuAction::Quit, true),
+        item(tr("Quitter"), MenuAction::Quit, true),
     ]);
     menu
 }

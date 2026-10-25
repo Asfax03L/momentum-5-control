@@ -1,0 +1,4 @@
+# Essais et lancements depuis le dépôt : textes en français (langue de
+# référence), quelle que soit la langue du poste.
+[env]
+OPENHEADSET_LANG = "fr"

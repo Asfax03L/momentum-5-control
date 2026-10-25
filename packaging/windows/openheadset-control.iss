@@ -1,4 +1,4 @@
-; Installateur Windows d'OpenHeadset Control (Inno Setup 6), par
+﻿; Installateur Windows d'OpenHeadset Control (Inno Setup 6), par
 ; utilisateur, sans droits administrateur. Même dossier, même raccourci et
 ; même entrée de démarrage que scripts/installer.ps1 : une installation par
 ; le script est mise à jour par cet installateur, et inversement.
@@ -31,7 +31,7 @@ AppPublisher=Asfax03L
 AppPublisherURL=https://github.com/Asfax03L/openheadset-control
 AppSupportURL=https://github.com/Asfax03L/openheadset-control/issues
 AppUpdatesURL=https://github.com/Asfax03L/openheadset-control/releases
-AppComments=Réglages du casque Sennheiser MOMENTUM 5 (non officiel, sans lien avec Sennheiser ni Sonova)
+AppComments={cm:AppComments}
 VersionInfoVersion={#Version}
 DefaultDirName={localappdata}\Programs\momentum-ctl-win
 DisableDirPage=yes
@@ -53,10 +53,24 @@ CloseApplications=no
 RestartApplications=no
 
 [Languages]
+; Langue de Windows : français si c'est la sienne, anglais sinon.
 Name: "fr"; MessagesFile: "compiler:Languages\French.isl"
+Name: "en"; MessagesFile: "compiler:Default.isl"
+
+[CustomMessages]
+fr.AppComments=Réglages du casque Sennheiser MOMENTUM 5 (non officiel, sans lien avec Sennheiser ni Sonova)
+en.AppComments=Sennheiser MOMENTUM 5 headphone settings (unofficial, not affiliated with Sennheiser or Sonova)
+fr.TaskAutostart=Lancer OpenHeadset Control au démarrage de Windows
+en.TaskAutostart=Start OpenHeadset Control with Windows
+fr.ShortcutComment=OpenHeadset Control : réglages du MOMENTUM 5 (non officiel)
+en.ShortcutComment=OpenHeadset Control: MOMENTUM 5 settings (unofficial)
+fr.RunApp=Lancer OpenHeadset Control
+en.RunApp=Start OpenHeadset Control
+fr.RuntimeAbsent=Windows App Runtime 2 introuvable : l'interface WinUI ne démarrerait pas, rien n'a été installé. Installer le runtime depuis https://aka.ms/windowsappsdk/2.0/latest/windowsappruntimeinstall-x64.exe (ou winget install Microsoft.WindowsAppRuntime.2), puis relancer.
+en.RuntimeAbsent=Windows App Runtime 2 not found: the WinUI interface would not start, nothing was installed. Install the runtime from https://aka.ms/windowsappsdk/2.0/latest/windowsappruntimeinstall-x64.exe (or winget install Microsoft.WindowsAppRuntime.2), then run this installer again.
 
 [Tasks]
-Name: "demarrage"; Description: "Lancer OpenHeadset Control au démarrage de Windows"
+Name: "demarrage"; Description: "{cm:TaskAutostart}"
 
 [Files]
 Source: "{#Bin}\momentum-winui.exe"; DestDir: "{app}"; Flags: ignoreversion
@@ -68,7 +82,7 @@ Source: "{#Racine}\LICENSE-APACHE"; DestDir: "{app}"; Flags: ignoreversion
 [Icons]
 ; Même nom que installer.ps1 : relancer l'exécutable montre la fenêtre de
 ; l'instance en cours.
-Name: "{userprograms}\OpenHeadset Control"; Filename: "{app}\momentum-winui.exe"; WorkingDir: "{app}"; Comment: "OpenHeadset Control : réglages du MOMENTUM 5 (non officiel)"
+Name: "{userprograms}\OpenHeadset Control"; Filename: "{app}\momentum-winui.exe"; WorkingDir: "{app}"; Comment: "{cm:ShortcutComment}"
 
 [Registry]
 ; Même entrée que l'interface et installer.ps1 (réglable dans l'interface).
@@ -83,12 +97,9 @@ Type: filesandordirs; Name: "{localappdata}\Programs\momentum-ctl-win.ancien"
 Type: filesandordirs; Name: "{localappdata}\Programs\momentum-ctl-win.nouveau"
 
 [Run]
-Filename: "{app}\momentum-winui.exe"; Description: "Lancer OpenHeadset Control"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\momentum-winui.exe"; Description: "{cm:RunApp}"; Flags: nowait postinstall skipifsilent
 
 [Code]
-const
-  RuntimeAbsent = 'Windows App Runtime 2 introuvable : l''interface WinUI ne démarrerait pas, rien n''a été installé. Installer le runtime depuis https://aka.ms/windowsappsdk/2.0/latest/windowsappruntimeinstall-x64.exe (ou winget install Microsoft.WindowsAppRuntime.2), puis relancer.';
-
 function PowerShell(Script: String): Integer;
 var
   Code: Integer;
@@ -122,7 +133,7 @@ begin
   Result := True;
   if (Pos('/SANSRUNTIME', UpperCase(GetCmdTail)) = 0) and not RuntimePresent() then
   begin
-    SuppressibleMsgBox(RuntimeAbsent, mbCriticalError, MB_OK, IDOK);
+    SuppressibleMsgBox(ExpandConstant('{cm:RuntimeAbsent}'), mbCriticalError, MB_OK, IDOK);
     Result := False;
   end;
 end;

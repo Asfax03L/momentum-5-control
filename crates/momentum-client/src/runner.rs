@@ -5,6 +5,7 @@
 //! (casque absent, lecture seule, scène inconnue).
 
 use momentum_core::device::NoiseModeRequest;
+use momentum_core::i18n::{tr, trf};
 
 use crate::Command;
 
@@ -26,32 +27,67 @@ const ACTIONS: &[(&str, &str, &[&str])] = &[
     (
         "mode:off",
         "Réduction de bruit désactivée",
-        &["anc off", "sans anc", "bruit off", "reduction de bruit off"],
+        &[
+            "anc off",
+            "sans anc",
+            "bruit off",
+            "reduction de bruit off",
+            "noise cancelling off",
+        ],
     ),
     (
         "mode:adaptive",
         "Réduction de bruit adaptative",
-        &["anc adaptatif", "adaptatif", "anc auto"],
+        &[
+            "anc adaptatif",
+            "adaptatif",
+            "anc auto",
+            "anc adaptive",
+            "adaptive",
+        ],
     ),
     (
         "level:0",
         "Réduction de bruit maximale",
-        &["anc", "anc on", "anc max", "reduction de bruit"],
+        &[
+            "anc",
+            "anc on",
+            "anc max",
+            "reduction de bruit",
+            "noise cancelling",
+        ],
     ),
     (
         "level:100",
         "Transparence maximale",
-        &["transparence", "transparent", "anc transparence"],
+        &[
+            "transparence",
+            "transparent",
+            "anc transparence",
+            "transparency",
+        ],
     ),
     (
         "antivent:1",
         "Anti-vent activé",
-        &["anti-vent on", "antivent on", "vent on"],
+        &[
+            "anti-vent on",
+            "antivent on",
+            "vent on",
+            "wind on",
+            "anti-wind on",
+        ],
     ),
     (
         "antivent:0",
         "Anti-vent désactivé",
-        &["anti-vent off", "antivent off", "vent off"],
+        &[
+            "anti-vent off",
+            "antivent off",
+            "vent off",
+            "wind off",
+            "anti-wind off",
+        ],
     ),
     (
         "spatial:1",
@@ -66,6 +102,8 @@ const ACTIONS: &[(&str, &str, &[&str])] = &[
 ];
 
 const SCENE_WORDS: &[&str] = &["scene", "scenes"];
+/// Mots de l'information batterie (français et anglais).
+const BATTERY_WORDS: &[&str] = &["batterie", "casque", "battery", "headset", "headphones"];
 const SUBTEXT: &str = "Casque MOMENTUM 5 (OpenHeadset Control)";
 
 /// Minuscules sans accents ni espaces superflus, pour comparer les saisies.
@@ -99,8 +137,8 @@ pub fn matches(query: &str, scenes: &[String], battery: Option<u8>) -> Vec<Runne
         if let Some(exact) = keyword_match(&q, keywords) {
             out.push(RunnerMatch {
                 id: (*id).to_string(),
-                text: (*text).to_string(),
-                subtext: SUBTEXT.to_string(),
+                text: tr(text).to_string(),
+                subtext: tr(SUBTEXT).to_string(),
                 exact,
                 relevance: if exact { 1.0 } else { 0.6 },
             });
@@ -118,22 +156,22 @@ pub fn matches(query: &str, scenes: &[String], battery: Option<u8>) -> Vec<Runne
         if exact || (n.starts_with(&scene_query) && (prefixed || scene_query.len() >= 3)) {
             out.push(RunnerMatch {
                 id: format!("scene:{name}"),
-                text: format!("Scène « {name} »"),
-                subtext: SUBTEXT.to_string(),
+                text: trf("Scène « {} »", &[name]),
+                subtext: tr(SUBTEXT).to_string(),
                 exact: exact && (prefixed || !scene_query.is_empty()),
                 relevance: if exact { 0.95 } else { 0.55 },
             });
         }
     }
-    if ["batterie", "casque"].iter().any(|w| w.starts_with(&q)) {
+    if BATTERY_WORDS.iter().any(|w| w.starts_with(&q)) {
         let text = match battery {
-            Some(level) => format!("Batterie du casque : {level} %"),
-            None => "Casque non connecté".to_string(),
+            Some(level) => trf("Batterie du casque : {} %", &[&level]),
+            None => tr("Casque non connecté").to_string(),
         };
         out.push(RunnerMatch {
             id: "info:battery".to_string(),
             text,
-            subtext: SUBTEXT.to_string(),
+            subtext: tr(SUBTEXT).to_string(),
             exact: false,
             relevance: 0.5,
         });

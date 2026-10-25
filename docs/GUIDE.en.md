@@ -1,0 +1,146 @@
+# User guide
+
+*[Version française](GUIDE.md) · [FAQ](FAQ.en.md)*
+
+OpenHeadset Control adjusts the Sennheiser **MOMENTUM 5** headphones from a
+Windows 11 or Linux (KDE Plasma) PC, without the mobile app. **Unofficial**
+project, not affiliated with Sennheiser or Sonova. Only settings validated
+on the headphones are changed; everything else is read-only. No firmware
+update, no factory reset.
+
+## 1. Install
+
+### Windows 10/11
+
+1. Download the installer
+   `openheadset-control-vX.Y.Z-windows-x86_64-installateur.exe` from the
+   [Releases](https://github.com/Asfax03L/openheadset-control/releases) page.
+2. Run it: per-user installation, no administrator rights. The executables
+   are not signed: SmartScreen may ask for confirmation (“More info” > “Run
+   anyway”).
+3. The interface needs **Windows App Runtime 2**. If it is missing, the
+   installer stops without changing anything and gives the runtime's
+   address (or `winget install Microsoft.WindowsAppRuntime.2`).
+
+Uninstall: Settings > Apps. Checking a download's authenticity:
+[VERIFIER.md](VERIFIER.md) (French).
+
+### Linux (KDE Plasma, Bazzite)
+
+- **Flatpak** (recommended on Bazzite and read-only systems):
+  `flatpak install --user openheadset-control-vX.Y.Z-x86_64.flatpak`.
+- **Debian, Ubuntu**: `sudo apt install ./openheadset-control_X.Y.Z-1_amd64.deb`.
+- **Fedora**: `sudo dnf install ./openheadset-control-X.Y.Z-1.x86_64.rpm`.
+- **Arch**: `PKGBUILD` attached to the releases.
+- **Script**: `./installer-linux.sh` from the `.tar.gz` archive, no `sudo`.
+
+Do not install the Flatpak and a package at the same time: only one service
+can run. Details, Plasma widget and game mode: [LINUX.md](LINUX.md)
+(French).
+
+## 2. First launch
+
+On first launch, an **assistant** goes through:
+
+1. **Bluetooth**: it must be on (“Open Bluetooth settings” button).
+2. **Pairing**: done in the system Bluetooth settings (pairing mode: see the
+   headphones' manual). The application pairs nothing itself; it shows when
+   the headphones are detected.
+3. **Windows App Runtime** (Windows): present, since the window is showing.
+4. **Multipoint**: the headphones can stay connected to two devices at once
+   (two PCs, or a PC and a phone).
+
+The assistant can be reopened from **About** > “First-launch assistant”.
+
+## 3. Pages
+
+- **Home**: battery, noise cancelling modes (ANC, adaptive, transparency,
+  off), ANC ↔ transparency slider, anti-wind, spatial audio and head
+  tracking, devices paired with the headphones (Connect / Disconnect),
+  Multipoint (turning it off asks for confirmation: the other device is
+  disconnected).
+- **Equalizer**: audio mode (equalizer, Speech Clarity, custom profile),
+  8 bands from −6 to +6 dB, bass boost, presets, curve export and import,
+  A/B comparison.
+- **Scenes**: several settings at once (“Transport”: maximum ANC and
+  anti-wind, for example). Built-in editor, or “Save the current state as a
+  scene”.
+- **Battery**: curve over 24 h, 7 or 30 days, measured on this PC (CSV
+  export, confirmed clearing).
+- **Connection and audio**: link state and system audio output, read-only.
+- **Settings**: Smart Pause, auto-answer, comfort calls, auto-off, battery
+  protection, prompts, headphones name, touch controls; light or dark
+  theme; **language**; quick panel content; keyboard shortcuts; settings
+  backup and restore.
+- **About**: model, firmware, diagnostic, bug report, this guide.
+
+Nothing is shown as applied before the headphones answer: every setting is
+read back, and a refusal shows in a banner. A setting the headphones did not
+report appears unavailable.
+
+## 4. Icon and shortcuts
+
+- **Left click** on the icon near the clock: quick panel (battery, noise
+  modes, slider, scenes).
+- **Right click**: full menu (modes, scenes, equalizer, Quit).
+- **Global shortcuts**: Ctrl+Alt+N next noise mode, Ctrl+Alt+P custom
+  profile or equalizer, Ctrl+Alt+M open the window; a scene can have its
+  own. On KDE, they can be changed in System Settings > Shortcuts.
+- Closing the window only hides it; “Quit” is in the icon menu.
+
+On KDE, there are also the Plasma widget and KRunner search (“anc off”,
+“scene Transport”); on Windows, the taskbar jump list (scenes); in game
+mode, the Decky extension.
+
+## 5. Language
+
+Settings > **Language**: system language, Français or English, applied the
+next time the interface starts. Without a choice, the interface follows the
+system language (French if it is French, English otherwise). The `ctl`
+command line and the diagnostic text stay in French.
+
+## 6. Accessibility
+
+- Everything works with the **keyboard**: Tab and Shift+Tab move between
+  controls, Space or Enter activates, arrows adjust sliders and lists.
+- Every control has a **name read by screen readers** (Narrator, NVDA on
+  Windows; Orca on Linux); page and section titles are announced as
+  headings.
+- Colours follow the system theme (light, dark, high contrast on Windows);
+  secondary texts keep a contrast of at least 4.5:1.
+
+An accessibility problem is a bug: please report it (section 8).
+
+## 7. Back up your settings
+
+Settings > backup: export scenes, presets, shortcuts, panel and appearance
+to a JSON file, then review it before importing it on another PC. The
+battery history is only included on request. No hearing profile and no
+device identifier is exported.
+
+## 8. Report a problem
+
+**About** > “Report a problem…”:
+
+1. the **redacted diagnostic** is shown (versions, model, firmware, which
+   settings were read, recent incidents; no name, no Bluetooth address, no
+   serial number, no personal folder, no hearing profile);
+2. “Open the form on GitHub” opens the “Bug” form in your browser, already
+   filled in with this text;
+3. review it, describe the steps, then submit on GitHub (GitHub account
+   required). Nothing is sent before that.
+
+The form is in French; answers in English are welcome. A question rather
+than a bug:
+[Discussions](https://github.com/Asfax03L/openheadset-control/discussions).
+
+## 9. Where your data lives
+
+Everything stays on the PC, in the data folder:
+
+- Windows: `%LOCALAPPDATA%\momentum-ctl-win`;
+- Linux: `~/.local/share/momentum-ctl-win`;
+- Flatpak: `~/.var/app/io.github.asfax03l.openheadset-control/`.
+
+It holds `scenes.txt`, `prereglages.txt`, `raccourcis.txt`, `panneau.txt`,
+`apparence.txt`, `langue.txt`, `batterie.csv` and the service log.

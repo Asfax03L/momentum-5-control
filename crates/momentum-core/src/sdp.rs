@@ -4,6 +4,7 @@
 //! On en extrait seulement ce qui sert au diagnostic : le nom du service
 //! (attribut 0x0100) et le canal RFCOMM (attribut 0x0004).
 
+use crate::i18n::{tr, trf};
 use thiserror::Error;
 
 /// Attribut « ServiceName » (base de langue primaire 0x0100 + offset 0).
@@ -17,13 +18,13 @@ const MAX_DEPTH: usize = 16;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum SdpError {
-    #[error("data element tronqué")]
+    #[error("{}", tr("data element tronqué"))]
     Truncated,
-    #[error("taille invalide pour le type {0}")]
+    #[error("{}", trf("taille invalide pour le type {}", &[&.0]))]
     BadSize(u8),
-    #[error("type de data element réservé : {0}")]
+    #[error("{}", trf("type de data element réservé : {}", &[&.0]))]
     ReservedType(u8),
-    #[error("imbrication trop profonde")]
+    #[error("{}", tr("imbrication trop profonde"))]
     TooDeep,
 }
 

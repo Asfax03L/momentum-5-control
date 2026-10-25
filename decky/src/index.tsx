@@ -34,14 +34,51 @@ const appliquer = callable<[action: string, valeur: string | number], Resultat>(
 // Relecture pendant que le panneau est ouvert.
 const RELECTURE_MS = 5000;
 
+// Langue de Steam : français si elle commence par « fr », anglais sinon.
+const FRANCAIS = (navigator.language || "").toLowerCase().startsWith("fr");
+const ANGLAIS: Record<string, string> = {
+  "inconnu": "unknown",
+  "désactivée": "off",
+  "adaptative": "adaptive",
+  "maximale": "maximum",
+  "transparence maximale": "maximum transparency",
+  "personnalisée (curseur {} %)": "custom (slider {} %)",
+  "refusé": "refused",
+  "Lecture du casque…": "Reading the headphones…",
+  "Casque non connecté": "Headphones not connected",
+  "Casque": "Headphones",
+  "Batterie : {} %": "Battery: {} %",
+  "Réduction de bruit : {}": "Noise cancelling: {}",
+  "Réduction de bruit": "Noise cancelling",
+  "ANC maximale": "Maximum ANC",
+  "Adaptative": "Adaptive",
+  "Transparence": "Transparency",
+  "Désactivée": "Off",
+  "Anti-vent": "Anti-wind",
+  "Scènes": "Scenes",
+  "Scène « {} »": "Scene “{}”",
+  // Messages du backend (main.py).
+  "OpenHeadset Control n'est pas installé (ctl introuvable)": "OpenHeadset Control is not installed (ctl not found)",
+  "pas de réponse du service": "no answer from the service",
+  "réponse illisible de ctl": "unreadable reply from ctl",
+  "action refusée par l'extension": "action refused by the extension",
+};
+
+// Texte dans la langue de Steam ; chaque « {} » reçoit la valeur suivante.
+function t(texte: string, ...valeurs: (string | number)[]): string {
+  let modele = FRANCAIS ? texte : (ANGLAIS[texte] ?? texte);
+  for (const v of valeurs) modele = modele.replace("{}", String(v));
+  return modele;
+}
+
 function modeTexte(etat: Etat): string {
   const bruit = etat.bruit;
-  if (!bruit) return "inconnu";
-  if (bruit.mode === "arret") return "désactivée";
-  if (bruit.mode === "adaptatif") return "adaptative";
-  if (bruit.niveau === 0) return "maximale";
-  if (bruit.niveau === 100) return "transparence maximale";
-  return `personnalisée (curseur ${bruit.niveau} %)`;
+  if (!bruit) return t("inconnu");
+  if (bruit.mode === "arret") return t("désactivée");
+  if (bruit.mode === "adaptatif") return t("adaptative");
+  if (bruit.niveau === 0) return t("maximale");
+  if (bruit.niveau === 100) return t("transparence maximale");
+  return t("personnalisée (curseur {} %)", bruit.niveau ?? 0);
 }
 
 function Contenu() {
@@ -65,7 +102,8 @@ function Contenu() {
     try {
       const r = await appliquer(action, valeur);
       if (!r.ok) {
-        toaster.toast({ title: libelle, body: r.erreur ?? r.resultat ?? "refusé" });
+        // Refus du service (via ctl) : transmis tel quel.
+        toaster.toast({ title: libelle, body: t(r.erreur ?? r.resultat ?? "refusé") });
       }
     } finally {
       setEnvoi(false);
@@ -76,58 +114,58 @@ function Contenu() {
   if (etat === null) {
     return (
       <PanelSection>
-        <PanelSectionRow>Lecture du casque…</PanelSectionRow>
+        <PanelSectionRow>{t("Lecture du casque…")}</PanelSectionRow>
       </PanelSection>
     );
   }
   if (!etat.connecte) {
     return (
       <PanelSection>
-        <PanelSectionRow>{etat.erreur ?? "Casque non connecté"}</PanelSectionRow>
+        <PanelSectionRow>{t(etat.erreur ?? "Casque non connecté")}</PanelSectionRow>
       </PanelSection>
     );
   }
   return (
     <>
-      <PanelSection title="Casque">
-        <PanelSectionRow>Batterie : {etat.batterie} %</PanelSectionRow>
-        <PanelSectionRow>Réduction de bruit : {modeTexte(etat)}</PanelSectionRow>
+      <PanelSection title={t("Casque")}>
+        <PanelSectionRow>{t("Batterie : {} %", etat.batterie ?? "?")}</PanelSectionRow>
+        <PanelSectionRow>{t("Réduction de bruit : {}", modeTexte(etat))}</PanelSectionRow>
       </PanelSection>
-      <PanelSection title="Réduction de bruit">
+      <PanelSection title={t("Réduction de bruit")}>
         <PanelSectionRow>
-          <ButtonItem layout="below" disabled={envoi} onClick={() => envoyer("niveau", 0, "ANC maximale")}>
-            ANC maximale
+          <ButtonItem layout="below" disabled={envoi} onClick={() => envoyer("niveau", 0, t("ANC maximale"))}>
+            {t("ANC maximale")}
           </ButtonItem>
         </PanelSectionRow>
         <PanelSectionRow>
-          <ButtonItem layout="below" disabled={envoi} onClick={() => envoyer("mode", "adaptatif", "Adaptative")}>
-            Adaptative
+          <ButtonItem layout="below" disabled={envoi} onClick={() => envoyer("mode", "adaptatif", t("Adaptative"))}>
+            {t("Adaptative")}
           </ButtonItem>
         </PanelSectionRow>
         <PanelSectionRow>
-          <ButtonItem layout="below" disabled={envoi} onClick={() => envoyer("niveau", 100, "Transparence")}>
-            Transparence
+          <ButtonItem layout="below" disabled={envoi} onClick={() => envoyer("niveau", 100, t("Transparence"))}>
+            {t("Transparence")}
           </ButtonItem>
         </PanelSectionRow>
         <PanelSectionRow>
-          <ButtonItem layout="below" disabled={envoi} onClick={() => envoyer("mode", "arret", "Désactivée")}>
-            Désactivée
+          <ButtonItem layout="below" disabled={envoi} onClick={() => envoyer("mode", "arret", t("Désactivée"))}>
+            {t("Désactivée")}
           </ButtonItem>
         </PanelSectionRow>
         <PanelSectionRow>
           <ToggleField
-            label="Anti-vent"
+            label={t("Anti-vent")}
             checked={etat.bruit?.anti_vent ?? false}
             disabled={envoi}
-            onChange={(on: boolean) => envoyer("anti-vent", on ? "on" : "off", "Anti-vent")}
+            onChange={(on: boolean) => envoyer("anti-vent", on ? "on" : "off", t("Anti-vent"))}
           />
         </PanelSectionRow>
       </PanelSection>
       {scenes.length > 0 && (
-        <PanelSection title="Scènes">
+        <PanelSection title={t("Scènes")}>
           {scenes.map((nom) => (
             <PanelSectionRow key={nom}>
-              <ButtonItem layout="below" disabled={envoi} onClick={() => envoyer("scene", nom, `Scène « ${nom} »`)}>
+              <ButtonItem layout="below" disabled={envoi} onClick={() => envoyer("scene", nom, t("Scène « {} »", nom))}>
                 {nom}
               </ButtonItem>
             </PanelSectionRow>

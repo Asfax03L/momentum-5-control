@@ -15,7 +15,7 @@ import org.openheadset.control
 
 Kirigami.ApplicationWindow {
     id: root
-    title: "OpenHeadset Control"
+    title: headset.tr("OpenHeadset Control")
     width: Kirigami.Units.gridUnit * 48
     height: Kirigami.Units.gridUnit * 40
     minimumWidth: Kirigami.Units.gridUnit * 20
@@ -32,6 +32,9 @@ Kirigami.ApplicationWindow {
             root.pageStack.replace(pages[headset.startPage])
         if (!(headset.startHidden && headset.trayAvailable)) {
             root.show()
+            // Assistant de premier lancement, sur la fenêtre montrée.
+            if (headset.assistantOpen)
+                assistantDialog.open()
         }
     }
 
@@ -75,7 +78,7 @@ Kirigami.ApplicationWindow {
     Window {
         id: quickPanel
         objectName: "panneau-rapide"
-        title: "OpenHeadset Control"
+        title: headset.tr("OpenHeadset Control")
         flags: Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
         width: Kirigami.Units.gridUnit * 22
         height: panelContent.implicitHeight + Kirigami.Units.largeSpacing * 2
@@ -110,7 +113,7 @@ Kirigami.ApplicationWindow {
             }
             QQC2.Label {
                 Layout.fillWidth: true
-                text: headset.busy ? "Demande en cours…" : headset.connected ? headset.batteryText : headset.connection
+                text: headset.busy ? headset.tr("Demande en cours…") : headset.connected ? headset.batteryText : headset.connection
                 wrapMode: Text.Wrap
                 opacity: 0.8
             }
@@ -150,8 +153,9 @@ Kirigami.ApplicationWindow {
             RowLayout {
                 visible: headset.panelLevel && headset.connected
                 Layout.fillWidth: true
-                QQC2.Label { text: "ANC ↔ transparence" }
+                QQC2.Label { text: headset.tr("ANC ↔ transparence") }
                 QQC2.Slider {
+                    Accessible.name: headset.tr("ANC ↔ transparence")
                     id: panelLevel
                     Layout.fillWidth: true
                     from: 0
@@ -174,8 +178,9 @@ Kirigami.ApplicationWindow {
             RowLayout {
                 visible: headset.connected
                 Layout.fillWidth: true
-                QQC2.Label { text: "Anti-vent"; Layout.fillWidth: true }
+                QQC2.Label { text: headset.tr("Anti-vent"); Layout.fillWidth: true }
                 QQC2.Switch {
+                    Accessible.name: headset.tr("Anti-vent")
                     id: panelAntiWind
                     checked: headset.antiWind
                     enabled: headset.writable
@@ -188,8 +193,9 @@ Kirigami.ApplicationWindow {
             RowLayout {
                 visible: headset.panelProfile && headset.connected
                 Layout.fillWidth: true
-                QQC2.Label { text: "Profil personnalisé"; Layout.fillWidth: true }
+                QQC2.Label { text: headset.tr("Profil personnalisé"); Layout.fillWidth: true }
                 QQC2.Switch {
+                    Accessible.name: headset.tr("Profil personnalisé")
                     id: panelProfile
                     checked: headset.profileOn
                     enabled: headset.profileToggleEnabled
@@ -216,7 +222,7 @@ Kirigami.ApplicationWindow {
             }
             QQC2.Button {
                 Layout.alignment: Qt.AlignRight
-                text: "Ouvrir OpenHeadset Control"
+                text: headset.tr("Ouvrir OpenHeadset Control")
                 icon.name: "window"
                 flat: true
                 onClicked: {
@@ -300,6 +306,113 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // Assistant de premier lancement : une étape à la fois (textes communs
+    // avec WinUI, momentum-core/src/assistant.rs). Fermé = noté vu.
+    Kirigami.Dialog {
+        id: assistantDialog
+        property int step: 0
+        readonly property int count: headset.assistantCount()
+        readonly property bool last: step === count - 1
+        title: headset.assistantTitle(step)
+        preferredWidth: Kirigami.Units.gridUnit * 30
+        padding: Kirigami.Units.largeSpacing
+        standardButtons: Kirigami.Dialog.NoButton
+        onRejected: headset.finishAssistant()
+        ColumnLayout {
+            spacing: Kirigami.Units.largeSpacing
+            QQC2.Label {
+                Layout.fillWidth: true
+                text: headset.tr("Premier lancement — étape {} sur {}")
+                    .replace("{}", assistantDialog.step + 1).replace("{}", assistantDialog.count)
+                font: Kirigami.Theme.smallFont
+                opacity: 0.7
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                text: headset.assistantText(assistantDialog.step)
+                wrapMode: Text.WordWrap
+            }
+            QQC2.Button {
+                visible: headset.assistantBluetooth(assistantDialog.step)
+                text: headset.tr("Ouvrir les paramètres Bluetooth")
+                icon.name: "preferences-system-bluetooth"
+                onClicked: headset.openBluetoothSettings()
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                visible: headset.assistantShowsConnection(assistantDialog.step)
+                text: headset.assistantConnectionText(headset.connected)
+                font.bold: true
+                wrapMode: Text.WordWrap
+            }
+        }
+        customFooterActions: [
+            Kirigami.Action {
+                text: headset.tr("Précédent")
+                icon.name: "go-previous"
+                enabled: assistantDialog.step > 0
+                onTriggered: assistantDialog.step -= 1
+            },
+            Kirigami.Action {
+                text: assistantDialog.last ? headset.tr("Terminer") : headset.tr("Suivant")
+                icon.name: assistantDialog.last ? "dialog-ok" : "go-next"
+                onTriggered: {
+                    if (assistantDialog.last) {
+                        assistantDialog.close()
+                        headset.finishAssistant()
+                    } else {
+                        assistantDialog.step += 1
+                    }
+                }
+            },
+            Kirigami.Action {
+                text: headset.tr("Passer l'assistant")
+                icon.name: "dialog-cancel"
+                onTriggered: {
+                    assistantDialog.close()
+                    headset.finishAssistant()
+                }
+            }
+        ]
+    }
+    Connections {
+        target: headset
+        function onAssistantOpenChanged() {
+            if (headset.assistantOpen) {
+                assistantDialog.step = 0
+                assistantDialog.open()
+            }
+        }
+    }
+
+    // Essai de l'assistant (CI, `--demo --essai-assistant`) : chaque étape a
+    // un titre et un texte, « Terminer » ferme. Fin par « ESSAI ASSISTANT
+    // RÉUSSI » (code 0) ou un échec (code 1).
+    property var essaiTitres: []
+    Timer {
+        running: headset.assistantTest
+        interval: 800
+        repeat: true
+        onTriggered: {
+            if (!assistantDialog.visible) {
+                if (root.essaiTitres.length === assistantDialog.count && !headset.assistantOpen) {
+                    console.info("ESSAI ASSISTANT RÉUSSI : " + root.essaiTitres.join(" | "))
+                    return Qt.exit(0)
+                }
+                console.error("ESSAI ASSISTANT ÉCHEC : fenêtre fermée trop tôt")
+                return Qt.exit(1)
+            }
+            const titre = headset.assistantTitle(assistantDialog.step)
+            if (!titre || !headset.assistantText(assistantDialog.step)) {
+                console.error("ESSAI ASSISTANT ÉCHEC : étape " + assistantDialog.step + " vide")
+                return Qt.exit(1)
+            }
+            root.essaiTitres = root.essaiTitres.concat([titre])
+            console.info("essai assistant : étape " + (assistantDialog.step + 1) + " : " + titre)
+            assistantDialog.customFooterActions[1].trigger()
+        }
+    }
+
     // Remet un interrupteur sur la valeur confirmée par le casque après un
     // clic : la nouvelle valeur n'apparaîtra qu'une fois relue.
     function confirmed(control, getter) {
@@ -312,7 +425,7 @@ Kirigami.ApplicationWindow {
         collapsible: true
         collapsed: !root.wideScreen
         showHeaderWhenCollapsed: true
-        title: "OpenHeadset Control"
+        title: headset.tr("OpenHeadset Control")
         // Logo installé par scripts/installer-linux.sh (thème d'icônes).
         titleIcon: "org.openheadset.control"
         // Bouton « Close Sidebar » non traduit : le tiroir se replie déjà
@@ -320,37 +433,37 @@ Kirigami.ApplicationWindow {
         collapseButtonVisible: false
         actions: [
             Kirigami.Action {
-                text: "Accueil"
+                text: headset.tr("Accueil")
                 icon.name: "go-home"
                 onTriggered: root.pageStack.replace(homePage)
             },
             Kirigami.Action {
-                text: "Égaliseur"
+                text: headset.tr("Égaliseur")
                 icon.name: "view-media-equalizer"
                 onTriggered: root.pageStack.replace(soundPage)
             },
             Kirigami.Action {
-                text: "Scènes"
+                text: headset.tr("Scènes")
                 icon.name: "view-list-details"
                 onTriggered: root.pageStack.replace(scenesPage)
             },
             Kirigami.Action {
-                text: "Batterie"
+                text: headset.tr("Batterie")
                 icon.name: "battery-good"
                 onTriggered: root.pageStack.replace(batteryPage)
             },
             Kirigami.Action {
-                text: "Paramètres"
+                text: headset.tr("Paramètres")
                 icon.name: "configure"
                 onTriggered: root.pageStack.replace(settingsPage)
             },
             Kirigami.Action {
-                text: "Connexion et audio"
+                text: headset.tr("Connexion et audio")
                 icon.name: "audio-card"
                 onTriggered: root.pageStack.replace(audioPage)
             },
             Kirigami.Action {
-                text: "À propos"
+                text: headset.tr("À propos")
                 icon.name: "help-about"
                 onTriggered: root.pageStack.replace(aboutPage)
             }
@@ -385,7 +498,7 @@ Kirigami.ApplicationWindow {
             }
             QQC2.Label {
                 Layout.fillWidth: true
-                text: headset.busy ? "Demande en cours…" : headset.connection
+                text: headset.busy ? headset.tr("Demande en cours…") : headset.connection
                 elide: Text.ElideRight
             }
         }
@@ -396,7 +509,7 @@ Kirigami.ApplicationWindow {
         id: homePage
         Kirigami.ScrollablePage {
             objectName: "page-accueil"
-            title: "Accueil"
+            title: headset.tr("Accueil")
             actions: [
                 Kirigami.Action {
                     displayComponent: QQC2.BusyIndicator {
@@ -430,7 +543,7 @@ Kirigami.ApplicationWindow {
                             }
                             QQC2.Label {
                                 visible: headset.battery >= 0
-                                text: "Batterie : " + headset.battery + " %"
+                                text: headset.tr("Batterie : ") + headset.battery + " %"
                             }
                             // Jauge de batterie aux couleurs du thème Plasma.
                             Rectangle {
@@ -448,7 +561,7 @@ Kirigami.ApplicationWindow {
                             }
                             QQC2.Label {
                                 visible: headset.firmware !== ""
-                                text: "Micrologiciel " + headset.firmware + (headset.model !== "" ? " — " + headset.model : "")
+                                text: headset.tr("Micrologiciel ") + headset.firmware + (headset.model !== "" ? " — " + headset.model : "")
                                 opacity: 0.7
                             }
                             QQC2.Label {
@@ -464,10 +577,10 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     visible: !headset.connected
                     icon.name: "network-bluetooth"
-                    text: "En attente du casque"
+                    text: headset.tr("En attente du casque")
                     explanation: headset.waiting
                     helpfulAction: Kirigami.Action {
-                        text: "Reconnecter le casque"
+                        text: headset.tr("Reconnecter le casque")
                         icon.name: "network-bluetooth"
                         enabled: headset.canReconnect
                         onTriggered: headset.reconnectHeadset()
@@ -478,7 +591,7 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     visible: headset.connected
                     header: Kirigami.Heading {
-                        text: "Réduction de bruit"
+                        text: headset.tr("Réduction de bruit")
                         level: 3
                     }
                     contentItem: ColumnLayout {
@@ -505,8 +618,9 @@ Kirigami.ApplicationWindow {
                         Kirigami.FormLayout {
                             Layout.fillWidth: true
                             RowLayout {
-                                Kirigami.FormData.label: "ANC ↔ transparence :"
+                                Kirigami.FormData.label: headset.tr("ANC ↔ transparence :")
                                 QQC2.Slider {
+                                    Accessible.name: headset.tr("ANC ↔ transparence")
                                     id: levelSlider
                                     Layout.fillWidth: true
                                     from: 0
@@ -527,9 +641,10 @@ Kirigami.ApplicationWindow {
                                 }
                             }
                             QQC2.Switch {
+                                Accessible.name: headset.tr("Anti-vent")
                                 id: antiWind
                                 objectName: "accueil-anti-vent"
-                                Kirigami.FormData.label: "Anti-vent :"
+                                Kirigami.FormData.label: headset.tr("Anti-vent :")
                                 checked: headset.antiWind
                                 enabled: headset.writable
                                 onToggled: {
@@ -545,14 +660,14 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     visible: headset.connected
                     header: Kirigami.Heading {
-                        text: "Fonctionnalités rapides"
+                        text: headset.tr("Fonctionnalités rapides")
                         level: 3
                     }
                     contentItem: Kirigami.FormLayout {
                         QQC2.Switch {
                             id: multipoint
-                            Kirigami.FormData.label: "Multipoint :"
-                            text: "Deux appareils à la fois"
+                            Kirigami.FormData.label: headset.tr("Multipoint :")
+                            text: headset.tr("Deux appareils à la fois")
                             checked: headset.multipoint
                             enabled: headset.multipointEnabled
                             onToggled: {
@@ -566,8 +681,8 @@ Kirigami.ApplicationWindow {
                         }
                         QQC2.Switch {
                             id: spatial
-                            Kirigami.FormData.label: "Audio spatial :"
-                            text: "Dolby Atmos"
+                            Kirigami.FormData.label: headset.tr("Audio spatial :")
+                            text: headset.tr("Dolby Atmos")
                             checked: headset.spatial
                             enabled: headset.spatialEnabled
                             onToggled: {
@@ -577,8 +692,8 @@ Kirigami.ApplicationWindow {
                         }
                         QQC2.Switch {
                             id: headTracking
-                            Kirigami.FormData.label: "Suivi de tête :"
-                            text: "Avec l'audio spatial"
+                            Kirigami.FormData.label: headset.tr("Suivi de tête :")
+                            text: headset.tr("Avec l'audio spatial")
                             checked: headset.headTracking
                             enabled: headset.headTrackingEnabled
                             onToggled: {
@@ -587,8 +702,9 @@ Kirigami.ApplicationWindow {
                             }
                         }
                         QQC2.Switch {
+                            Accessible.name: headset.tr("Commandes tactiles")
                             id: touch
-                            Kirigami.FormData.label: "Commandes tactiles :"
+                            Kirigami.FormData.label: headset.tr("Commandes tactiles :")
                             checked: headset.touch
                             enabled: headset.touchEnabled
                             onToggled: {
@@ -598,8 +714,8 @@ Kirigami.ApplicationWindow {
                         }
                         QQC2.Switch {
                             id: smartPause
-                            Kirigami.FormData.label: "Smart Pause :"
-                            text: "Pause au retrait du casque"
+                            Kirigami.FormData.label: headset.tr("Smart Pause :")
+                            text: headset.tr("Pause au retrait du casque")
                             checked: headset.smartPause
                             enabled: headset.smartPauseEnabled
                             onToggled: {
@@ -614,7 +730,7 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     visible: headset.connected && headset.connectionCount > 0
                     header: Kirigami.Heading {
-                        text: "Appareils appairés au casque"
+                        text: headset.tr("Appareils appairés au casque")
                         level: 3
                     }
                     contentItem: ColumnLayout {
@@ -649,7 +765,7 @@ Kirigami.ApplicationWindow {
                                     text: (device.revision, headset.connectionAction(device.index))
                                     visible: (device.revision, headset.connectionCanAct(device.index))
                                     onClicked: {
-                                        if (text === "Déconnecter") {
+                                        if (text === headset.tr("Déconnecter")) {
                                             disconnectDialog.deviceIndex = device.index
                                             disconnectDialog.deviceName = headset.connectionName(device.index)
                                             disconnectDialog.open()
@@ -668,12 +784,12 @@ Kirigami.ApplicationWindow {
                 id: disconnectDialog
                 property int deviceIndex: -1
                 property string deviceName: ""
-                title: "Déconnecter « " + deviceName + " » ?"
-                subtitle: "Le casque coupe sa liaison avec cet appareil. Il reste appairé : « Connecter » le rétablit."
+                title: headset.tr("Déconnecter « ") + deviceName + " » ?"
+                subtitle: headset.tr("Le casque coupe sa liaison avec cet appareil. Il reste appairé : « Connecter » le rétablit.")
                 standardButtons: Kirigami.Dialog.NoButton
                 customFooterActions: [
                     Kirigami.Action {
-                        text: "Déconnecter"
+                        text: headset.tr("Déconnecter")
                         icon.name: "network-disconnect"
                         onTriggered: {
                             headset.toggleConnection(disconnectDialog.deviceIndex)
@@ -681,7 +797,7 @@ Kirigami.ApplicationWindow {
                         }
                     },
                     Kirigami.Action {
-                        text: "Annuler"
+                        text: headset.tr("Annuler")
                         icon.name: "dialog-cancel"
                         onTriggered: disconnectDialog.close()
                     }
@@ -690,12 +806,12 @@ Kirigami.ApplicationWindow {
 
             Kirigami.PromptDialog {
                 id: multipointDialog
-                title: "Couper le Multipoint ?"
-                subtitle: "Sans Multipoint, le casque ne garde qu'un appareil : l'autre est déconnecté."
+                title: headset.tr("Couper le Multipoint ?")
+                subtitle: headset.tr("Sans Multipoint, le casque ne garde qu'un appareil : l'autre est déconnecté.")
                 standardButtons: Kirigami.Dialog.NoButton
                 customFooterActions: [
                     Kirigami.Action {
-                        text: "Couper le Multipoint"
+                        text: headset.tr("Couper le Multipoint")
                         icon.name: "dialog-ok"
                         onTriggered: {
                             headset.sendMultipoint(false)
@@ -703,7 +819,7 @@ Kirigami.ApplicationWindow {
                         }
                     },
                     Kirigami.Action {
-                        text: "Annuler"
+                        text: headset.tr("Annuler")
                         icon.name: "dialog-cancel"
                         onTriggered: multipointDialog.close()
                     }
@@ -717,7 +833,7 @@ Kirigami.ApplicationWindow {
         id: soundPage
         Kirigami.ScrollablePage {
             objectName: "page-egaliseur"
-            title: "Égaliseur"
+            title: headset.tr("Égaliseur")
             ColumnLayout {
                 spacing: Kirigami.Units.largeSpacing
 
@@ -727,7 +843,7 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     visible: !headset.connected
                     icon.name: "view-media-equalizer"
-                    text: "Égaliseur indisponible"
+                    text: headset.tr("Égaliseur indisponible")
                     explanation: headset.waiting
                 }
 
@@ -735,7 +851,7 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     visible: headset.connected
                     header: Kirigami.Heading {
-                        text: "Mode audio"
+                        text: headset.tr("Mode audio")
                         level: 3
                     }
                     contentItem: RowLayout {
@@ -764,11 +880,11 @@ Kirigami.ApplicationWindow {
                     header: RowLayout {
                         Kirigami.Heading {
                             Layout.fillWidth: true
-                            text: "Égaliseur graphique — " + headset.bandCount + " bandes"
+                            text: headset.tr("Égaliseur graphique — ") + headset.bandCount + headset.tr(" bandes")
                             level: 3
                         }
                         QQC2.Button {
-                            text: "Réinitialiser"
+                            text: headset.tr("Réinitialiser")
                             icon.name: "edit-reset"
                             enabled: headset.writable
                             onClicked: headset.sendFlat()
@@ -791,6 +907,7 @@ Kirigami.ApplicationWindow {
                                         font: Kirigami.Theme.smallFont
                                     }
                                     QQC2.Slider {
+                                        Accessible.name: headset.tr("Bande {}").replace("{}", headset.bandLabel(band.index))
                                         id: bandSlider
                                         Layout.alignment: Qt.AlignHCenter
                                         Layout.fillHeight: true
@@ -830,7 +947,7 @@ Kirigami.ApplicationWindow {
                         }
                         QQC2.Switch {
                             id: bass
-                            text: "Amplification des basses"
+                            text: headset.tr("Amplification des basses")
                             checked: headset.bassBoost
                             enabled: headset.writable
                             onToggled: {
@@ -845,7 +962,7 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     visible: headset.connected
                     header: Kirigami.Heading {
-                        text: "Préréglages"
+                        text: headset.tr("Préréglages")
                         level: 3
                     }
                     contentItem: Flow {
@@ -872,7 +989,7 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     visible: headset.connected
                     header: Kirigami.Heading {
-                        text: "Préréglages et courbes"
+                        text: headset.tr("Préréglages et courbes")
                         level: 3
                     }
                     contentItem: ColumnLayout {
@@ -881,11 +998,11 @@ Kirigami.ApplicationWindow {
                             QQC2.TextField {
                                 id: presetName
                                 Layout.fillWidth: true
-                                placeholderText: "Nom du préréglage"
+                                placeholderText: headset.tr("Nom du préréglage")
                                 enabled: headset.writable
                             }
                             QQC2.Button {
-                                text: "Enregistrer la courbe"
+                                text: headset.tr("Enregistrer la courbe")
                                 enabled: headset.writable && presetName.text.trim() !== ""
                                 onClicked: {
                                     if (headset.savePreset(presetName.text))
@@ -895,8 +1012,8 @@ Kirigami.ApplicationWindow {
                         }
                         QQC2.Button {
                             text: headset.userPreset === ""
-                                ? "Supprimer le préréglage (choisir un préréglage personnel)"
-                                : "Supprimer « " + headset.userPreset + " »"
+                                ? headset.tr("Supprimer le préréglage (choisir un préréglage personnel)")
+                                : headset.tr("Supprimer « ") + headset.userPreset + " »"
                             enabled: headset.userPreset !== ""
                             onClicked: headset.deleteUserPreset()
                         }
@@ -904,11 +1021,11 @@ Kirigami.ApplicationWindow {
                             QQC2.TextField {
                                 id: gainsText
                                 Layout.fillWidth: true
-                                placeholderText: "Gains en dB : -3,5 ; -1 ; 0 ; …"
+                                placeholderText: headset.tr("Gains en dB : -3,5 ; -1 ; 0 ; …")
                                 enabled: headset.writable
                             }
                             QQC2.Button {
-                                text: "Appliquer"
+                                text: headset.tr("Appliquer")
                                 enabled: headset.writable && gainsText.text.trim() !== ""
                                 onClicked: {
                                     if (headset.applyGainsText(gainsText.text))
@@ -918,18 +1035,18 @@ Kirigami.ApplicationWindow {
                         }
                         RowLayout {
                             QQC2.Button {
-                                text: "Exporter la courbe"
+                                text: headset.tr("Exporter la courbe")
                                 onClicked: headset.exportCurve()
                             }
                             QQC2.Button {
-                                text: "Importer une courbe…"
+                                text: headset.tr("Importer une courbe…")
                                 enabled: headset.writable
                                 onClicked: curveDialog.open()
                             }
                         }
                         RowLayout {
                             QQC2.Button {
-                                text: "Mémoriser A"
+                                text: headset.tr("Mémoriser A")
                                 enabled: headset.writable
                                 onClicked: headset.rememberA()
                             }
@@ -940,7 +1057,7 @@ Kirigami.ApplicationWindow {
                             }
                         }
                         QQC2.Button {
-                            text: "Exporter le profil auditif"
+                            text: headset.tr("Exporter le profil auditif")
                             enabled: headset.profileAvailable
                             onClicked: headset.exportProfile()
                         }
@@ -949,12 +1066,12 @@ Kirigami.ApplicationWindow {
                             wrapMode: Text.WordWrap
                             opacity: 0.7
                             text: headset.eqNotice !== "" ? headset.eqNotice
-                                : "Préréglages enregistrés sur ce PC (prereglages.txt). Courbe exportée dans Documents ; une courbe d'un autre modèle ou d'un autre nombre de bandes est refusée. Le profil auditif (lecture seule, aucune restauration) est une donnée personnelle : ne pas le publier."
+                                : headset.tr("Préréglages enregistrés sur ce PC (prereglages.txt). Courbe exportée dans Documents ; une courbe d'un autre modèle ou d'un autre nombre de bandes est refusée. Le profil auditif (lecture seule, aucune restauration) est une donnée personnelle : ne pas le publier.")
                         }
                         FileDialog {
                             id: curveDialog
-                            title: "Importer une courbe d'égaliseur"
-                            nameFilters: ["Courbes d'égaliseur (*.txt)"]
+                            title: headset.tr("Importer une courbe d'égaliseur")
+                            nameFilters: [headset.tr("Courbes d'égaliseur (*.txt)")]
                             onAccepted: headset.importCurve(selectedFile.toString())
                         }
                     }
@@ -968,32 +1085,32 @@ Kirigami.ApplicationWindow {
         id: settingsPage
         Kirigami.ScrollablePage {
             objectName: "page-parametres"
-            title: "Paramètres"
+            title: headset.tr("Paramètres")
             ColumnLayout {
                 StatusHeader {}
                 Kirigami.AbstractCard {
                     Layout.fillWidth: true
                     contentItem: ColumnLayout {
                         QQC2.Label {
-                            text: "Sauvegarder et retrouver mes réglages"
+                            text: headset.tr("Sauvegarder et retrouver mes réglages")
                             font.bold: true
                         }
                         QQC2.Label {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
-                            text: "Scènes, préréglages, raccourcis, panneau et apparence. Aucun profil auditif. Relancer l'interface après import ; un brouillon non enregistré n'est pas inclus."
+                            text: headset.tr("Scènes, préréglages, raccourcis, panneau et apparence. Aucun profil auditif. Relancer l'interface après import ; un brouillon non enregistré n'est pas inclus.")
                         }
                         QQC2.CheckBox {
                             id: settingsBattery
-                            text: "Inclure aussi l'historique de batterie (export et import)"
+                            text: headset.tr("Inclure aussi l'historique de batterie (export et import)")
                             onToggled: headset.cancelSettings()
                         }
                         QQC2.Button {
-                            text: "Exporter les réglages…"
+                            text: headset.tr("Exporter les réglages…")
                             onClicked: { headset.cancelSettings(); settingsSave.open() }
                         }
                         QQC2.Button {
-                            text: "Choisir un fichier à importer…"
+                            text: headset.tr("Choisir un fichier à importer…")
                             onClicked: { headset.cancelSettings(); settingsOpen.open() }
                         }
                         QQC2.Label {
@@ -1003,12 +1120,12 @@ Kirigami.ApplicationWindow {
                             textFormat: Text.PlainText
                         }
                         QQC2.Button {
-                            text: "Confirmer cet import"
+                            text: headset.tr("Confirmer cet import")
                             enabled: headset.settingsReady
                             onClicked: headset.confirmSettings()
                         }
                         QQC2.Button {
-                            text: "Annuler l'import"
+                            text: headset.tr("Annuler l'import")
                             enabled: headset.settingsReady
                             onClicked: headset.cancelSettings()
                         }
@@ -1016,29 +1133,29 @@ Kirigami.ApplicationWindow {
                 }
                 FileDialog {
                     id: settingsSave
-                    title: "Exporter vers un nouveau fichier"
+                    title: headset.tr("Exporter vers un nouveau fichier")
                     fileMode: FileDialog.SaveFile
-                    nameFilters: ["Réglages JSON (*.json)"]
+                    nameFilters: [headset.tr("Réglages JSON (*.json)")]
                     defaultSuffix: "json"
                     onAccepted: headset.exportSettings(selectedFile.toString(), settingsBattery.checked)
                 }
                 FileDialog {
                     id: settingsOpen
-                    title: "Choisir les réglages à examiner"
+                    title: headset.tr("Choisir les réglages à examiner")
                     fileMode: FileDialog.OpenFile
-                    nameFilters: ["Réglages JSON (*.json)"]
+                    nameFilters: [headset.tr("Réglages JSON (*.json)")]
                     onAccepted: headset.previewSettings(selectedFile.toString(), settingsBattery.checked)
                 }
                 Kirigami.FormLayout {
                     Layout.fillWidth: true
                     Kirigami.Separator {
                         Kirigami.FormData.isSection: true
-                        Kirigami.FormData.label: "Application"
+                        Kirigami.FormData.label: headset.tr("Application")
                     }
                     QQC2.Switch {
                         id: autostartSwitch
-                        Kirigami.FormData.label: "Ouverture de session :"
-                        text: "Lancer OpenHeadset Control (icône seule)"
+                        Kirigami.FormData.label: headset.tr("Ouverture de session :")
+                        text: headset.tr("Lancer OpenHeadset Control (icône seule)")
                         checked: headset.autostart
                         onToggled: {
                             headset.setAutostartEnabled(checked)
@@ -1046,26 +1163,46 @@ Kirigami.ApplicationWindow {
                         }
                     }
                     RowLayout {
-                        Kirigami.FormData.label: "Thème :"
+                        Kirigami.FormData.label: headset.tr("Langue :")
+                        Repeater {
+                            // Chaque langue dans sa propre langue.
+                            model: [headset.tr("Langue du système"), "Français", "English"]
+                            QQC2.RadioButton {
+                                required property int index
+                                required property string modelData
+                                text: modelData
+                                checked: headset.languageChoice === index
+                                onClicked: headset.chooseLanguage(index)
+                            }
+                        }
+                    }
+                    QQC2.Label {
+                        visible: headset.languageNotice !== ""
+                        text: headset.languageNotice
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
+                    }
+                    RowLayout {
+                        Kirigami.FormData.label: headset.tr("Thème :")
                         QQC2.RadioButton {
-                            text: "Clair"
+                            text: headset.tr("Clair")
                             checked: headset.themeChoice === 0
                             onClicked: headset.chooseTheme(0)
                         }
                         QQC2.RadioButton {
-                            text: "Sombre"
+                            text: headset.tr("Sombre")
                             checked: headset.themeChoice === 1
                             onClicked: headset.chooseTheme(1)
                         }
                         QQC2.Label {
                             visible: headset.themeChoice < 0
-                            text: "(pour l'instant celui de Plasma)"
+                            text: headset.tr("(pour l'instant celui de Plasma)")
                             opacity: 0.7
                         }
                     }
                     QQC2.Button {
-                        Kirigami.FormData.label: "Raccourcis clavier :"
-                        text: "Modifier dans KDE…"
+                        Kirigami.FormData.label: headset.tr("Raccourcis clavier :")
+                        text: headset.tr("Modifier dans KDE…")
                         icon.name: "preferences-desktop-keyboard-shortcut"
                         // Flatpak : Configuration du système > Raccourcis.
                         visible: !headset.sandboxed
@@ -1075,14 +1212,14 @@ Kirigami.ApplicationWindow {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         opacity: 0.7
-                        text: "Rubrique « OpenHeadset Control » : mode de bruit suivant (Ctrl+Alt+N), profil personnalisé (Ctrl+Alt+P), fenêtre (Ctrl+Alt+M), et une action par scène, sans raccourci au départ."
+                        text: headset.tr("Rubrique « OpenHeadset Control » : mode de bruit suivant (Ctrl+Alt+N), profil personnalisé (Ctrl+Alt+P), fenêtre (Ctrl+Alt+M), et une action par scène, sans raccourci au départ.")
                     }
                 }
                 Kirigami.PlaceholderMessage {
                     Layout.fillWidth: true
                     visible: !headset.connected
                     icon.name: "configure"
-                    text: "Réglages indisponibles"
+                    text: headset.tr("Réglages indisponibles")
                     explanation: headset.waiting
                 }
                 Kirigami.FormLayout {
@@ -1091,11 +1228,12 @@ Kirigami.ApplicationWindow {
 
                     Kirigami.Separator {
                         Kirigami.FormData.isSection: true
-                        Kirigami.FormData.label: "Appels"
+                        Kirigami.FormData.label: headset.tr("Appels")
                     }
                     QQC2.Switch {
+                        Accessible.name: headset.tr("Réponse automatique")
                         id: autoAnswer
-                        Kirigami.FormData.label: "Réponse automatique :"
+                        Kirigami.FormData.label: headset.tr("Réponse automatique :")
                         checked: headset.autoAnswer
                         enabled: headset.autoAnswerEnabled
                         onToggled: {
@@ -1104,8 +1242,9 @@ Kirigami.ApplicationWindow {
                         }
                     }
                     QQC2.Switch {
+                        Accessible.name: headset.tr("Appels confortables")
                         id: comfort
-                        Kirigami.FormData.label: "Appels confortables :"
+                        Kirigami.FormData.label: headset.tr("Appels confortables :")
                         checked: headset.comfort
                         enabled: headset.comfortEnabled
                         onToggled: {
@@ -1116,10 +1255,11 @@ Kirigami.ApplicationWindow {
 
                     Kirigami.Separator {
                         Kirigami.FormData.isSection: true
-                        Kirigami.FormData.label: "Alimentation"
+                        Kirigami.FormData.label: headset.tr("Alimentation")
                     }
                     QQC2.ComboBox {
-                        Kirigami.FormData.label: "Extinction automatique :"
+                        Accessible.name: headset.tr("Extinction automatique")
+                        Kirigami.FormData.label: headset.tr("Extinction automatique :")
                         model: headset.autoOffLabels
                         currentIndex: headset.autoOff
                         enabled: headset.autoOffEnabled
@@ -1129,8 +1269,9 @@ Kirigami.ApplicationWindow {
                         }
                     }
                     QQC2.Switch {
+                        Accessible.name: headset.tr("Protection de la batterie")
                         id: protection
-                        Kirigami.FormData.label: "Protection de la batterie :"
+                        Kirigami.FormData.label: headset.tr("Protection de la batterie :")
                         checked: headset.batteryProtection
                         enabled: headset.batteryProtectionEnabled
                         onToggled: {
@@ -1141,10 +1282,11 @@ Kirigami.ApplicationWindow {
 
                     Kirigami.Separator {
                         Kirigami.FormData.isSection: true
-                        Kirigami.FormData.label: "Invites"
+                        Kirigami.FormData.label: headset.tr("Invites")
                     }
                     QQC2.ComboBox {
-                        Kirigami.FormData.label: "Invites :"
+                        Accessible.name: headset.tr("Invites")
+                        Kirigami.FormData.label: headset.tr("Invites :")
                         model: headset.promptModes
                         currentIndex: headset.promptMode
                         enabled: headset.promptsEnabled
@@ -1154,8 +1296,9 @@ Kirigami.ApplicationWindow {
                         }
                     }
                     RowLayout {
-                        Kirigami.FormData.label: "Volume des invites :"
+                        Kirigami.FormData.label: headset.tr("Volume des invites :")
                         QQC2.Slider {
+                            Accessible.name: headset.tr("Volume des invites")
                             id: promptVolume
                             Layout.fillWidth: true
                             from: 0
@@ -1171,27 +1314,27 @@ Kirigami.ApplicationWindow {
                             }
                         }
                         QQC2.Label {
-                            text: headset.promptVolume < 0 ? "non lu" : Math.round(promptVolume.value) + " %"
+                            text: headset.promptVolume < 0 ? headset.tr("non lu") : Math.round(promptVolume.value) + " %"
                             Layout.minimumWidth: Kirigami.Units.gridUnit * 3
                         }
                     }
 
                     Kirigami.Separator {
                         Kirigami.FormData.isSection: true
-                        Kirigami.FormData.label: "Nom du casque"
+                        Kirigami.FormData.label: headset.tr("Nom du casque")
                     }
                     RowLayout {
-                        Kirigami.FormData.label: "Nouveau nom :"
+                        Kirigami.FormData.label: headset.tr("Nouveau nom :")
                         QQC2.TextField {
                             id: newName
                             Layout.fillWidth: true
-                            placeholderText: headset.headsetName === "" ? "non lu" : headset.headsetName
+                            placeholderText: headset.headsetName === "" ? headset.tr("non lu") : headset.headsetName
                             enabled: headset.renameEnabled
                             maximumLength: 32
                             onTextEdited: nameProblem.text = ""
                         }
                         QQC2.Button {
-                            text: "Renommer"
+                            text: headset.tr("Renommer")
                             enabled: headset.renameEnabled && newName.text.trim() !== ""
                             onClicked: {
                                 const problem = headset.rename(newName.text)
@@ -1212,7 +1355,7 @@ Kirigami.ApplicationWindow {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         opacity: 0.7
-                        text: "Lettres sans accent, chiffres et espaces, 32 caractères au plus. Le système et le téléphone peuvent garder l'ancien nom jusqu'à la prochaine connexion."
+                        text: headset.tr("Lettres sans accent, chiffres et espaces, 32 caractères au plus. Le système et le téléphone peuvent garder l'ancien nom jusqu'à la prochaine connexion.")
                     }
                 }
             }
@@ -1224,16 +1367,16 @@ Kirigami.ApplicationWindow {
         id: scenesPage
         Kirigami.ScrollablePage {
             objectName: "page-scenes"
-            title: "Scènes"
+            title: headset.tr("Scènes")
             Component.onCompleted: headset.reloadScenes()
             actions: [
                 Kirigami.Action {
-                    text: "Modifier scenes.txt"
+                    text: headset.tr("Modifier scenes.txt")
                     icon.name: "document-edit"
                     onTriggered: Qt.openUrlExternally(headset.scenesUrl)
                 },
                 Kirigami.Action {
-                    text: "Relire"
+                    text: headset.tr("Relire")
                     icon.name: "view-refresh"
                     onTriggered: headset.reloadScenes()
                 }
@@ -1257,7 +1400,7 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
                     opacity: 0.7
-                    text: "Chaque réglage d'une scène est appliqué puis relu sur le casque, un par un. Une étape refusée arrête la scène et l'affiche ici."
+                    text: headset.tr("Chaque réglage d'une scène est appliqué puis relu sur le casque, un par un. Une étape refusée arrête la scène et l'affiche ici.")
                 }
                 Kirigami.AbstractCard {
                     Layout.fillWidth: true
@@ -1265,21 +1408,21 @@ Kirigami.ApplicationWindow {
                         QQC2.Label {
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
-                            text: "Enregistrer les réglages déjà lus. Les valeurs non lues restent absentes ; aucun réglage du casque ne change."
+                            text: headset.tr("Enregistrer les réglages déjà lus. Les valeurs non lues restent absentes ; aucun réglage du casque ne change.")
                         }
                         QQC2.TextField {
                             id: captureSceneName
                             Layout.fillWidth: true
-                            placeholderText: "Nom de la scène"
-                            Accessible.name: "Nom de la scène à enregistrer"
+                            placeholderText: headset.tr("Nom de la scène")
+                            Accessible.name: headset.tr("Nom de la scène à enregistrer")
                             maximumLength: 32
                         }
                         QQC2.CheckBox {
                             id: captureSceneReplace
-                            text: "Remplacer la scène et son préréglage existants"
+                            text: headset.tr("Remplacer la scène et son préréglage existants")
                         }
                         QQC2.Button {
-                            text: "Enregistrer l'état actuel comme scène"
+                            text: headset.tr("Enregistrer l'état actuel comme scène")
                             icon.name: "document-save"
                             enabled: headset.connected && !headset.busy && captureSceneName.text.trim() !== ""
                             onClicked: headset.saveCurrentScene(captureSceneName.text, captureSceneReplace.checked)
@@ -1307,7 +1450,7 @@ Kirigami.ApplicationWindow {
                                 }
                             }
                             QQC2.Button {
-                                text: "Appliquer"
+                                text: headset.tr("Appliquer")
                                 icon.name: "media-playback-start"
                                 enabled: headset.writable && !headset.busy
                                 onClicked: headset.applyScene(index)
@@ -1320,7 +1463,7 @@ Kirigami.ApplicationWindow {
                 Kirigami.AbstractCard {
                     Layout.fillWidth: true
                     header: Kirigami.Heading {
-                        text: "Panneau rapide"
+                        text: headset.tr("Panneau rapide")
                         level: 3
                     }
                     contentItem: ColumnLayout {
@@ -1328,14 +1471,14 @@ Kirigami.ApplicationWindow {
                             Layout.fillWidth: true
                             wrapMode: Text.Wrap
                             opacity: 0.7
-                            text: "Ouvert par un clic sur l'icône de la zone de notification : batterie et anti-vent, plus ce qui est coché ici (quatre scènes au plus)."
+                            text: headset.tr("Ouvert par un clic sur l'icône de la zone de notification : batterie et anti-vent, plus ce qui est coché ici (quatre scènes au plus).")
                         }
                         Flow {
                             Layout.fillWidth: true
                             spacing: Kirigami.Units.largeSpacing
                             QQC2.CheckBox {
                                 id: panelNoiseBox
-                                text: "Contrôle du bruit"
+                                text: headset.tr("Contrôle du bruit")
                                 checked: headset.panelNoise
                                 onToggled: {
                                     headset.setPanelOption("bruit", checked)
@@ -1344,7 +1487,7 @@ Kirigami.ApplicationWindow {
                             }
                             QQC2.CheckBox {
                                 id: panelLevelBox
-                                text: "Curseur ANC ↔ transparence"
+                                text: headset.tr("Curseur ANC ↔ transparence")
                                 checked: headset.panelLevel
                                 onToggled: {
                                     headset.setPanelOption("niveau", checked)
@@ -1353,7 +1496,7 @@ Kirigami.ApplicationWindow {
                             }
                             QQC2.CheckBox {
                                 id: panelProfileBox
-                                text: "Profil personnalisé"
+                                text: headset.tr("Profil personnalisé")
                                 checked: headset.panelProfile
                                 onToggled: {
                                     headset.setPanelOption("profil", checked)
@@ -1365,7 +1508,7 @@ Kirigami.ApplicationWindow {
                             Layout.fillWidth: true
                             visible: headset.sceneNames.length > 0
                             spacing: Kirigami.Units.largeSpacing
-                            QQC2.Label { text: "Scènes :" }
+                            QQC2.Label { text: headset.tr("Scènes :") }
                             Repeater {
                                 model: headset.sceneNames
                                 QQC2.CheckBox {
@@ -1401,7 +1544,7 @@ Kirigami.ApplicationWindow {
                             sceneEq.currentIndex, sceneBass.currentIndex].join(","))
                     }
                     header: Kirigami.Heading {
-                        text: "Modifier les scènes"
+                        text: headset.tr("Modifier les scènes")
                         level: 3
                     }
                     contentItem: ColumnLayout {
@@ -1425,73 +1568,81 @@ Kirigami.ApplicationWindow {
                             }
                         }
                         RowLayout {
-                            QQC2.Button { text: "Nouvelle"; icon.name: "list-add"; onClicked: headset.sceneEditAction("nouvelle") }
-                            QQC2.Button { text: "Dupliquer"; icon.name: "edit-copy"; enabled: headset.sceneEditNames.length > 0; onClicked: headset.sceneEditAction("dupliquer") }
-                            QQC2.Button { text: "Supprimer"; icon.name: "edit-delete"; enabled: headset.sceneEditNames.length > 0; onClicked: headset.sceneEditAction("supprimer") }
-                            QQC2.Button { text: "Monter"; icon.name: "go-up"; enabled: headset.sceneEditSelected > 0; onClicked: headset.sceneEditAction("monter") }
-                            QQC2.Button { text: "Descendre"; icon.name: "go-down"; enabled: headset.sceneEditSelected + 1 < headset.sceneEditNames.length; onClicked: headset.sceneEditAction("descendre") }
+                            QQC2.Button { text: headset.tr("Nouvelle"); icon.name: "list-add"; onClicked: headset.sceneEditAction("nouvelle") }
+                            QQC2.Button { text: headset.tr("Dupliquer"); icon.name: "edit-copy"; enabled: headset.sceneEditNames.length > 0; onClicked: headset.sceneEditAction("dupliquer") }
+                            QQC2.Button { text: headset.tr("Supprimer"); icon.name: "edit-delete"; enabled: headset.sceneEditNames.length > 0; onClicked: headset.sceneEditAction("supprimer") }
+                            QQC2.Button { text: headset.tr("Monter"); icon.name: "go-up"; enabled: headset.sceneEditSelected > 0; onClicked: headset.sceneEditAction("monter") }
+                            QQC2.Button { text: headset.tr("Descendre"); icon.name: "go-down"; enabled: headset.sceneEditSelected + 1 < headset.sceneEditNames.length; onClicked: headset.sceneEditAction("descendre") }
                         }
                         Kirigami.FormLayout {
                             Layout.fillWidth: true
                             visible: headset.sceneEditNames.length > 0
                             QQC2.TextField {
+                                Accessible.name: headset.tr("Nom de la scène")
                                 id: sceneName
-                                Kirigami.FormData.label: "Nom :"
+                                Kirigami.FormData.label: headset.tr("Nom :")
                                 text: headset.sceneFormName
                                 onTextEdited: sceneEditor.send()
                             }
                             QQC2.ComboBox {
+                                Accessible.name: headset.tr("Mode audio")
                                 id: sceneSound
-                                Kirigami.FormData.label: "Mode audio :"
+                                Kirigami.FormData.label: headset.tr("Mode audio :")
                                 model: headset.sceneSoundChoices
                                 currentIndex: headset.sceneFormSound
                                 onActivated: sceneEditor.send()
                             }
                             QQC2.ComboBox {
+                                Accessible.name: headset.tr("Audio spatial")
                                 id: sceneSpatial
-                                Kirigami.FormData.label: "Audio spatial :"
+                                Kirigami.FormData.label: headset.tr("Audio spatial :")
                                 model: headset.sceneSwitchChoices
                                 currentIndex: headset.sceneFormSpatial
                                 onActivated: sceneEditor.send()
                             }
                             QQC2.ComboBox {
+                                Accessible.name: headset.tr("Contrôle du bruit")
                                 id: sceneNoise
-                                Kirigami.FormData.label: "Contrôle du bruit :"
+                                Kirigami.FormData.label: headset.tr("Contrôle du bruit :")
                                 model: headset.sceneNoiseChoices
                                 currentIndex: headset.sceneFormNoise
                                 onActivated: sceneEditor.send()
                             }
                             QQC2.TextField {
                                 id: sceneLevel
-                                Kirigami.FormData.label: "Niveau (0 à 100) :"
-                                placeholderText: "vide = inchangé"
+                                Kirigami.FormData.label: headset.tr("Niveau (0 à 100) :")
+                                placeholderText: headset.tr("vide = inchangé")
                                 text: headset.sceneFormLevel
                                 onTextEdited: sceneEditor.send()
                             }
                             QQC2.ComboBox {
+                                Accessible.name: headset.tr("Anti-vent")
                                 id: sceneAntiWind
-                                Kirigami.FormData.label: "Anti-vent :"
+                                Kirigami.FormData.label: headset.tr("Anti-vent :")
                                 model: headset.sceneSwitchChoices
                                 currentIndex: headset.sceneFormAntiWind
                                 onActivated: sceneEditor.send()
                             }
                             QQC2.ComboBox {
+                                Accessible.name: headset.tr("Commandes tactiles")
                                 id: sceneTouch
-                                Kirigami.FormData.label: "Commandes tactiles :"
+                                Kirigami.FormData.label: headset.tr("Commandes tactiles :")
                                 model: headset.sceneSwitchChoices
                                 currentIndex: headset.sceneFormTouch
                                 onActivated: sceneEditor.send()
                             }
                             QQC2.ComboBox {
+                                Accessible.name: headset.tr("Préréglage d'égaliseur")
                                 id: sceneEq
-                                Kirigami.FormData.label: "Préréglage d'égaliseur :"
+                                Kirigami.FormData.label: headset.tr("Préréglage d'égaliseur :")
                                 model: headset.sceneEqChoices
                                 currentIndex: headset.sceneFormEqualizer
                                 onActivated: sceneEditor.send()
                             }
                             QQC2.ComboBox {
+                                Accessible.name: headset.tr("Amplification des basses")
                                 id: sceneBass
-                                Kirigami.FormData.label: "Amplification des basses :"
+                                Kirigami.FormData.label: headset.tr("Amplification des basses :")
                                 model: headset.sceneSwitchChoices
                                 currentIndex: headset.sceneFormBass
                                 onActivated: sceneEditor.send()
@@ -1505,13 +1656,13 @@ Kirigami.ApplicationWindow {
                         }
                         RowLayout {
                             QQC2.Button {
-                                text: "Enregistrer"
+                                text: headset.tr("Enregistrer")
                                 icon.name: "document-save"
                                 enabled: headset.sceneEditCanSave
                                 onClicked: headset.sceneEditAction("enregistrer")
                             }
                             QQC2.Button {
-                                text: "Annuler les modifications"
+                                text: headset.tr("Annuler les modifications")
                                 icon.name: "edit-undo"
                                 enabled: headset.sceneEditDirty
                                 onClicked: headset.sceneEditAction("annuler")
@@ -1558,7 +1709,7 @@ Kirigami.ApplicationWindow {
                     wrapMode: Text.WordWrap
                     visible: modelData.indexOf("\t") >= 0
                     text: modelData.split("\t")[1] || ""
-                    opacity: 0.6
+                    opacity: 0.7
                     font: Kirigami.Theme.smallFont
                 }
             }
@@ -1569,10 +1720,10 @@ Kirigami.ApplicationWindow {
         Kirigami.ScrollablePage {
             objectName: "page-audio"
             id: audioScroll
-            title: "Connexion et audio"
+            title: headset.tr("Connexion et audio")
             Component.onCompleted: headset.reloadAudio()
             actions: [Kirigami.Action {
-                text: headset.audioReading ? "Lecture PipeWire…" : "Relire PipeWire"
+                text: headset.audioReading ? headset.tr("Lecture PipeWire…") : headset.tr("Relire PipeWire")
                 icon.name: "view-refresh"
                 enabled: !headset.audioReading
                 onTriggered: headset.reloadAudio()
@@ -1586,10 +1737,10 @@ Kirigami.ApplicationWindow {
             ColumnLayout {
                 spacing: Kirigami.Units.largeSpacing
                 StatusHeader {}
-                AudioSection { title: "Constats"; section: "constats" }
-                AudioSection { title: "Pilotage du casque"; section: "pilotage" }
-                AudioSection { title: "Sortie audio du système"; section: "systeme" }
-                AudioSection { title: "Flux Bluetooth"; section: "flux" }
+                AudioSection { title: headset.tr("Constats"); section: "constats" }
+                AudioSection { title: headset.tr("Pilotage du casque"); section: "pilotage" }
+                AudioSection { title: headset.tr("Sortie audio du système"); section: "systeme" }
+                AudioSection { title: headset.tr("Flux Bluetooth"); section: "flux" }
             }
         }
     }
@@ -1600,25 +1751,25 @@ Kirigami.ApplicationWindow {
         Kirigami.ScrollablePage {
             objectName: "page-batterie"
             id: batteryScroll
-            title: "Batterie"
+            title: headset.tr("Batterie")
             property string notice: ""
             Component.onCompleted: headset.reloadBattery(headset.batterySpan)
             actions: [
                 Kirigami.Action {
-                    text: "Exporter (CSV)"
+                    text: headset.tr("Exporter (CSV)")
                     icon.name: "document-export"
                     onTriggered: batteryScroll.notice = headset.exportBattery()
                 },
                 Kirigami.Action {
-                    text: "Effacer l'historique…"
+                    text: headset.tr("Effacer l'historique…")
                     icon.name: "edit-clear-history"
                     onTriggered: clearBatteryDialog.open()
                 }
             ]
             Kirigami.PromptDialog {
                 id: clearBatteryDialog
-                title: "Effacer l'historique de la batterie ?"
-                subtitle: "Toutes les mesures enregistrées sur ce PC sont supprimées. Exporter d'abord pour les garder."
+                title: headset.tr("Effacer l'historique de la batterie ?")
+                subtitle: headset.tr("Toutes les mesures enregistrées sur ce PC sont supprimées. Exporter d'abord pour les garder.")
                 standardButtons: Kirigami.Dialog.Ok | Kirigami.Dialog.Cancel
                 onAccepted: batteryScroll.notice = headset.clearBattery()
             }
@@ -1641,10 +1792,11 @@ Kirigami.ApplicationWindow {
                 RowLayout {
                     Kirigami.Heading {
                         Layout.fillWidth: true
-                        text: "Batterie : " + headset.batteryCurrent
+                        text: headset.tr("Batterie : ") + headset.batteryCurrent
                         level: 2
                     }
                     QQC2.ComboBox {
+                        Accessible.name: headset.tr("Période de l'historique")
                         model: headset.batterySpans
                         currentIndex: headset.batterySpan
                         onActivated: index => headset.reloadBattery(index)
@@ -1675,7 +1827,7 @@ Kirigami.ApplicationWindow {
                     QQC2.Label {
                         anchors.centerIn: parent
                         visible: headset.batteryChart(1000, 100) === ""
-                        text: "Aucune mesure sur la période"
+                        text: headset.tr("Aucune mesure sur la période")
                         opacity: 0.7
                     }
                 }
@@ -1688,7 +1840,7 @@ Kirigami.ApplicationWindow {
                         opacity: 0.7
                     }
                     QQC2.Label {
-                        text: "maintenant"
+                        text: headset.tr("maintenant")
                         font: Kirigami.Theme.smallFont
                         opacity: 0.7
                     }
@@ -1717,20 +1869,69 @@ Kirigami.ApplicationWindow {
         id: aboutPage
         Kirigami.ScrollablePage {
             objectName: "page-apropos"
-            title: "À propos"
+            title: headset.tr("À propos")
             actions: [
                 Kirigami.Action {
-                    text: "Copier le diagnostic"
+                    text: headset.tr("Copier le diagnostic")
                     icon.name: "edit-copy"
-                    tooltip: "Texte expurgé (ni adresse, ni numéro de série, ni noms) à joindre à un rapport"
+                    tooltip: headset.tr("Texte expurgé (ni adresse, ni numéro de série, ni noms) à joindre à un rapport")
                     onTriggered: {
                         clipboard.text = headset.diagnostic()
                         clipboard.selectAll()
                         clipboard.copy()
                         copied.visible = true
                     }
+                },
+                Kirigami.Action {
+                    text: headset.tr("Assistant de premier lancement")
+                    icon.name: "help-hint"
+                    onTriggered: headset.showAssistant()
+                },
+                Kirigami.Action {
+                    text: headset.tr("Guide d'utilisation")
+                    icon.name: "help-contents"
+                    onTriggered: Qt.openUrlExternally("https://asfax03l.github.io/openheadset-control/")
+                },
+                Kirigami.Action {
+                    text: headset.tr("Signaler un problème…")
+                    icon.name: "tools-report-bug"
+                    onTriggered: {
+                        reportDialog.diagnostic = headset.diagnostic()
+                        reportDialog.open()
+                    }
                 }
             ]
+            // Rapport de bogue : le diagnostic exact est relu avant d'ouvrir
+            // le formulaire GitHub prérempli (rien n'est envoyé ici).
+            Kirigami.PromptDialog {
+                id: reportDialog
+                property string diagnostic: ""
+                title: headset.tr("Signaler un problème")
+                subtitle: headset.tr("Ce texte sera prérempli dans le formulaire « Bogue » de GitHub, ouvert dans le navigateur. Relisez-le : rien n'est envoyé tant que vous ne validez pas le formulaire sur GitHub (compte GitHub nécessaire).")
+                standardButtons: Kirigami.Dialog.NoButton
+                QQC2.TextArea {
+                    Accessible.name: headset.tr("Diagnostic à envoyer")
+                    text: reportDialog.diagnostic
+                    readOnly: true
+                    wrapMode: TextEdit.Wrap
+                    font: Kirigami.Theme.smallFont
+                }
+                customFooterActions: [
+                    Kirigami.Action {
+                        text: headset.tr("Ouvrir le formulaire sur GitHub")
+                        icon.name: "internet-web-browser"
+                        onTriggered: {
+                            Qt.openUrlExternally(headset.issueUrl(reportDialog.diagnostic))
+                            reportDialog.close()
+                        }
+                    },
+                    Kirigami.Action {
+                        text: headset.tr("Annuler")
+                        icon.name: "dialog-cancel"
+                        onTriggered: reportDialog.close()
+                    }
+                ]
+            }
             // Presse-papiers : QML n'en a pas d'accès direct.
             TextEdit {
                 id: clipboard
@@ -1742,30 +1943,30 @@ Kirigami.ApplicationWindow {
                 Layout.fillWidth: true
                 visible: false
                 type: Kirigami.MessageType.Positive
-                text: "Diagnostic copié dans le presse-papiers."
+                text: headset.tr("Diagnostic copié dans le presse-papiers.")
                 showCloseButton: true
             }
             Kirigami.FormLayout {
                 QQC2.Label {
-                    Kirigami.FormData.label: "Application :"
-                    text: "OpenHeadset Control (client Kirigami)"
+                    Kirigami.FormData.label: headset.tr("Application :")
+                    text: headset.tr("OpenHeadset Control (client Kirigami)")
                 }
                 QQC2.Label {
-                    Kirigami.FormData.label: "Casque :"
+                    Kirigami.FormData.label: headset.tr("Casque :")
                     text: headset.title
                 }
                 QQC2.Label {
-                    Kirigami.FormData.label: "Micrologiciel :"
-                    text: headset.firmware !== "" ? headset.firmware : "non lu"
+                    Kirigami.FormData.label: headset.tr("Micrologiciel :")
+                    text: headset.firmware !== "" ? headset.firmware : headset.tr("non lu")
                 }
                 QQC2.Label {
-                    Kirigami.FormData.label: "Statut :"
-                    text: "Projet non officiel, sans lien avec Sennheiser ni Sonova"
+                    Kirigami.FormData.label: headset.tr("Statut :")
+                    text: headset.tr("Projet non officiel, sans lien avec Sennheiser ni Sonova")
                     wrapMode: Text.Wrap
                 }
                 QQC2.Label {
-                    Kirigami.FormData.label: "Licence :"
-                    text: "MIT OU Apache-2.0"
+                    Kirigami.FormData.label: headset.tr("Licence :")
+                    text: headset.tr("MIT OU Apache-2.0")
                 }
             }
             }

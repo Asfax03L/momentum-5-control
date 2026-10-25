@@ -6,6 +6,7 @@
 //! l'interface), attend son résultat, montre une notification s'il échoue,
 //! puis se ferme sans ouvrir de fenêtre.
 
+use momentum_core::i18n::{tr, trf};
 use std::sync::mpsc;
 use std::time::Duration;
 
@@ -56,7 +57,7 @@ pub fn apply_scene(name: &str, start_daemon: impl Fn()) -> i32 {
     match result {
         Ok(()) => 0,
         Err(reason) => {
-            momentum_service::desktop::show_toast(&format!("Scène « {name} »"), &reason);
+            momentum_service::desktop::show_toast(&trf("Scène « {} »", &[&name]), &reason);
             1
         }
     }
@@ -76,7 +77,7 @@ fn submit_scene(name: &str, start_daemon: impl Fn()) -> Result<(), String> {
     });
     let id = client
         .submit(&Command::ApplyScene(name.to_string()), 0)
-        .map_err(|e| format!("refusée : {e}"))?;
+        .map_err(|e| trf("refusée : {}", &[&e]))?;
     let deadline = std::time::Instant::now() + RESULT_TIMEOUT;
     loop {
         let left = deadline.saturating_duration_since(std::time::Instant::now());
@@ -91,7 +92,7 @@ fn submit_scene(name: &str, start_daemon: impl Fn()) -> Result<(), String> {
                 };
             }
             Ok(_) => {}
-            Err(_) => return Err("pas de réponse du service".to_string()),
+            Err(_) => return Err(tr("pas de réponse du service").to_string()),
         }
     }
 }
@@ -108,7 +109,7 @@ fn connect(start_daemon: impl Fn()) -> Result<Client, String> {
         match Client::connect() {
             Ok(client) => return Ok(client),
             Err(e) if std::time::Instant::now() >= deadline => {
-                return Err(format!("service injoignable : {e}"));
+                return Err(trf("service injoignable : {}", &[&e]));
             }
             Err(_) => {}
         }
@@ -146,13 +147,14 @@ pub fn update_jump_list(scenes: &[String]) -> windows::core::Result<()> {
             link.SetPath(&exe)?;
             link.SetArguments(&HSTRING::from(format!("{SCENE_FLAG} \"{name}\"")))?;
             link.SetIconLocation(&exe, 0)?;
-            link.SetDescription(&HSTRING::from(format!(
-                "Appliquer la scène « {name} » au casque"
+            link.SetDescription(&HSTRING::from(trf(
+                "Appliquer la scène « {} » au casque",
+                &[&name],
             )))?;
             let store: IPropertyStore = link.cast()?;
             store.SetValue(
                 &PKEY_Title,
-                &PROPVARIANT::from(format!("Scène « {name} »").as_str()),
+                &PROPVARIANT::from(trf("Scène « {} »", &[&name]).as_str()),
             )?;
             store.Commit()?;
             tasks.AddObject(&link)?;
@@ -174,7 +176,7 @@ pub fn set_battery_badge(hwnd: HWND, level: Option<u8>) -> windows::core::Result
             None => taskbar.SetOverlayIcon(hwnd, HICON::default(), None),
             Some(level) => {
                 let icon = badge_icon(level)?;
-                let text = HSTRING::from(format!("Batterie du casque : {level} %"));
+                let text = HSTRING::from(trf("Batterie du casque : {} %", &[&level]));
                 let result = taskbar.SetOverlayIcon(hwnd, icon, &text);
                 let _ = DestroyIcon(icon);
                 result

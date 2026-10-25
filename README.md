@@ -44,8 +44,14 @@ au casque, et deux outils en ligne de commande.
 | T | Distribution : Flatpak construit sans réseau (sources figées), identifiant `io.github.asfax03l.openheadset-control`, permissions revues, migration des réglages ; soumission à Flathub préparée | 🟡 installation, mise à jour, migration et désinstallation essayées sur Bazzite (v0.13.0) ; Flathub non soumis |
 | U | Paquets natifs : installateur Windows (Inno Setup, par utilisateur), `.deb` et `.rpm` mis à jour par-dessus la version précédente, `PKGBUILD` (AUR), widget `.plasmoid` ; winget, AUR et KDE Store préparés | 🟡 installateur essayé sur Windows 11 avec le M5 (v0.14.0) ; paquets Linux essayés en conteneurs ; catalogues non soumis |
 | V | Intégration au bureau : recherche KRunner (« anc off », « scène Transport »), liste de raccourcis Windows (scènes) et pastille de batterie, extension Decky Loader pour le mode jeu ; tout par l'API du service | 🟡 KRunner essayé sur le M5 (Bazzite) et scènes de la liste de raccourcis sur le M5 (Windows 11), v0.15.0 ; extension Decky essayée hors du mode jeu |
+| W | Langues et accueil : interfaces en anglais (choix de la langue), accessibilité (noms lus par les lecteurs d'écran, parcours clavier, contrastes), assistant de premier lancement, rapport de bogue prérempli, guide et FAQ, site GitHub Pages | 🟡 vérifié en CI (UI Automation, KDE hors écran) dans les deux langues (v0.16.0) ; écoute au Narrateur et à Orca à faire |
 
-Dernière publication : **v0.15.1** (page Releases du dépôt). Le détail des
+Dernière publication : **v0.16.0** (page Releases du dépôt). **Guide
+d'utilisation et FAQ** : [`docs/GUIDE.md`](docs/GUIDE.md),
+[`docs/FAQ.md`](docs/FAQ.md) (en anglais : [`GUIDE.en.md`](docs/GUIDE.en.md),
+[`FAQ.en.md`](docs/FAQ.en.md)), aussi sur le site
+<https://asfax03l.github.io/openheadset-control/>. Questions :
+[Discussions](https://github.com/Asfax03L/openheadset-control/discussions). Le détail des
 étapes est dans [`docs/ROADMAP.md`](docs/ROADMAP.md), les nouveautés de chaque
 version dans [`CHANGELOG.md`](CHANGELOG.md).
 
@@ -206,7 +212,16 @@ fictives).
 - **À propos** : modèle, micrologiciel, révision matérielle, et
   **diagnostic expurgé** à copier dans un rapport de bogue (ni nom, ni
   adresse Bluetooth, ni numéro de série, ni chemin personnel, ni profil
-  auditif ; affiché avant toute copie, rien n'est envoyé).
+  auditif ; affiché avant toute copie, rien n'est envoyé). « Signaler un
+  problème… » ouvre le formulaire de bogue GitHub prérempli avec ce
+  diagnostic, après relecture ; l'envoi se fait sur GitHub. Le guide et
+  l'assistant de premier lancement s'y rouvrent.
+- **Langue** : français ou anglais selon le système, ou au choix dans les
+  Paramètres (au prochain lancement) ; `ctl` et le diagnostic restent en
+  français.
+- **Accessibilité** : noms lus par les lecteurs d'écran, parcours complet
+  au clavier, titres annoncés ; vérifiés en CI
+  (`scripts/audit-accessibilite-winui.ps1`, test `accessibilite_qml`).
 - **Mode démonstration** : `--demo` montre l'interface avec un casque
   simulé, sans service ni Bluetooth (bandeau « Démonstration : données
   simulées » permanent ; aucun fichier de l'utilisateur n'est modifié).

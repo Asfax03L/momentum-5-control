@@ -4,6 +4,8 @@
 //! leurs valeurs personnelles), incidents récents. Jamais : nom du casque ou
 //! des appareils, adresse Bluetooth, numéro de série, chemin personnel, profil
 //! auditif. Le texte est montré avant toute copie ; rien n'est envoyé.
+//! Le rapport de bogue en un clic ouvre le formulaire GitHub prérempli dans
+//! le navigateur : l'utilisateur relit et envoie lui-même.
 
 use crate::device::{DeviceInfo, HeadsetState};
 
@@ -229,9 +231,120 @@ pub fn build(input: &DiagnosticInput) -> String {
     redact(&lines.join("\n"), input.secrets)
 }
 
+/// Formulaire « Bogue » du dépôt (`.github/ISSUE_TEMPLATE/bogue.yml`).
+pub const ISSUE_FORM: &str =
+    "https://github.com/Asfax03L/openheadset-control/issues/new?template=bogue.yml";
+/// Choix « Interface » du formulaire, au mot près.
+pub const ISSUE_INTERFACE_WINUI: &str = "WinUI 3 (Windows)";
+pub const ISSUE_INTERFACE_KDE: &str = "Client KDE (Linux)";
+/// Longueur d'adresse sûre pour les navigateurs et GitHub.
+const MAX_ISSUE_URL: usize = 7000;
+/// Fin d'un diagnostic raccourci pour tenir dans l'adresse.
+const TRUNCATED: &str =
+    "\n[… diagnostic raccourci : « Copier le diagnostic » donne le texte complet]";
+
+/// Encodage d'un paramètre d'adresse (RFC 3986 : seuls les caractères non
+/// réservés restent tels quels).
+fn percent_encode(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() * 3);
+    for b in text.bytes() {
+        if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b'~') {
+            out.push(b as char);
+        } else {
+            out.push_str(&format!("%{b:02X}"));
+        }
+    }
+    out
+}
+
+/// Adresse du formulaire « Bogue » prérempli : version, interface,
+/// système, diagnostic (déjà expurgé). Diagnostic raccourci si l'adresse
+/// dépasse la longueur sûre. Rien n'est envoyé : la page s'ouvre dans le
+/// navigateur, l'utilisateur relit et envoie.
+pub fn issue_url(version: &str, interface: &str, system: Option<&str>, diagnostic: &str) -> String {
+    let head = format!(
+        "{ISSUE_FORM}&version={}&interface={}&systeme={}&diagnostic=",
+        percent_encode(version),
+        percent_encode(interface),
+        percent_encode(system.unwrap_or_default()),
+    );
+    let full = percent_encode(diagnostic);
+    if head.len() + full.len() <= MAX_ISSUE_URL {
+        return head + &full;
+    }
+    let room = MAX_ISSUE_URL.saturating_sub(head.len() + percent_encode(TRUNCATED).len());
+    // Coupe sur une fin de ligne, sinon sur un caractère entier.
+    let mut cut = String::new();
+    for line in diagnostic.split_inclusive('\n') {
+        if percent_encode(&cut).len() + percent_encode(line).len() > room {
+            break;
+        }
+        cut.push_str(line);
+    }
+    if cut.is_empty() {
+        for c in diagnostic.chars() {
+            if percent_encode(&cut).len() + c.len_utf8() * 3 > room {
+                break;
+            }
+            cut.push(c);
+        }
+    }
+    head + &percent_encode(cut.trim_end()) + &percent_encode(TRUNCATED)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn issue_url_prefills_the_bug_form() {
+        let url = issue_url(
+            "0.16.0",
+            ISSUE_INTERFACE_WINUI,
+            Some("Windows 11"),
+            "Casque : connecté\nA&B",
+        );
+        assert!(url.starts_with(ISSUE_FORM));
+        assert!(url.contains("&version=0.16.0&"));
+        assert!(url.contains("&interface=WinUI%203%20%28Windows%29&"));
+        assert!(url.contains("&systeme=Windows%2011&"));
+        assert!(url.ends_with("&diagnostic=Casque%20%3A%20connect%C3%A9%0AA%26B"));
+    }
+
+    #[test]
+    fn long_diagnostic_is_cut_on_a_line() {
+        let long: String = (0..2000).map(|i| format!("ligne {i} é\n")).collect();
+        let url = issue_url("0.16.0", ISSUE_INTERFACE_KDE, None, &long);
+        assert!(url.len() <= MAX_ISSUE_URL, "{}", url.len());
+        assert!(url.ends_with(&percent_encode(TRUNCATED)));
+        assert!(url.contains(&percent_encode("ligne 0 é\nligne 1 é")));
+        // Aucune ligne coupée en deux.
+        let shown = url.trim_end_matches(&percent_encode(TRUNCATED));
+        assert!(shown.ends_with("%C3%A9"), "{}", &shown[shown.len() - 30..]);
+    }
+
+    #[test]
+    fn interfaces_match_the_bug_form() {
+        let form = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../.github/ISSUE_TEMPLATE/bogue.yml"),
+        )
+        .unwrap();
+        for id in [
+            "id: version",
+            "id: interface",
+            "id: systeme",
+            "id: diagnostic",
+        ] {
+            assert!(form.contains(id), "{id} absent du formulaire");
+        }
+        for choice in [ISSUE_INTERFACE_WINUI, ISSUE_INTERFACE_KDE] {
+            assert!(
+                form.contains(&format!("- {choice}\n")),
+                "{choice} absent du formulaire"
+            );
+        }
+    }
 
     #[test]
     fn os_release_pretty_name() {

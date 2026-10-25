@@ -4,6 +4,7 @@
 //! Sources : docs.pipewire.org/page_man_pw-dump_1.html et group__spa__keys.html
 //! (api.bluez5.address/profile/codec), page_module_metadata.html (default.audio.sink).
 
+use crate::i18n::tr;
 use serde_json::Value;
 
 use crate::transport::choice::fingerprint;
@@ -13,19 +14,28 @@ pub const MAX_DUMP_BYTES: usize = 16 * 1024 * 1024;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum AudioReadError {
     #[error(
-        "pw-dump est absent : installer les outils PipeWire de la distribution ; dans un Flatpak, vérifier le contenu du paquet"
+        "{}",
+        tr(
+            "pw-dump est absent : installer les outils PipeWire de la distribution ; dans un Flatpak, vérifier le contenu du paquet"
+        )
     )]
     Missing,
-    #[error("PipeWire n'a pas répondu dans le délai prévu")]
+    #[error("{}", tr("PipeWire n'a pas répondu dans le délai prévu"))]
     Timeout,
-    #[error("PipeWire est inaccessible : vérifier la session audio et les permissions du paquet")]
+    #[error(
+        "{}",
+        tr("PipeWire est inaccessible : vérifier la session audio et les permissions du paquet")
+    )]
     Unavailable,
-    #[error("le résultat de pw-dump n'est pas un graphe JSON valide")]
+    #[error("{}", tr("le résultat de pw-dump n'est pas un graphe JSON valide"))]
     Invalid,
-    #[error("le graphe PipeWire dépasse la limite de 16 Mio")]
+    #[error("{}", tr("le graphe PipeWire dépasse la limite de 16 Mio"))]
     TooLarge,
     #[error(
-        "l'identité du casque connecté n'est pas disponible : un service récent et un casque piloté sont nécessaires"
+        "{}",
+        tr(
+            "l'identité du casque connecté n'est pas disponible : un service récent et un casque piloté sont nécessaires"
+        )
     )]
     NoIdentity,
 }

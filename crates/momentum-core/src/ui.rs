@@ -2,22 +2,26 @@
 //! libellés en français, infobulle et pixels de l'icône de la barre système.
 
 use crate::device::{AudioMode, HeadsetState, NoiseState, PromptMode, SoundProfileStatus};
+use crate::i18n::{tr, trf};
 use crate::protocol::messages::M5NoiseMode;
 
 /// Contrôle du bruit en deux lignes (mode, anti-vent).
 pub fn describe_noise(state: &NoiseState) -> String {
     let mode = match state.mode() {
-        M5NoiseMode::Off => "ARRÊT".to_string(),
-        M5NoiseMode::Adaptive => "Adaptatif".to_string(),
-        M5NoiseMode::Custom { level } => format!("Personnalisé, curseur {level} %"),
+        M5NoiseMode::Off => tr("ARRÊT").to_string(),
+        M5NoiseMode::Adaptive => tr("Adaptatif").to_string(),
+        M5NoiseMode::Custom { level } => trf("Personnalisé, curseur {} %", &[&level]),
     };
-    format!(
-        "Contrôle du bruit : {mode}\nAnti-vent : {}",
-        if state.anti_wind {
-            "activé"
-        } else {
-            "désactivé"
-        }
+    trf(
+        "Contrôle du bruit : {}\nAnti-vent : {}",
+        &[
+            &mode,
+            &(if state.anti_wind {
+                "activé"
+            } else {
+                "désactivé"
+            }),
+        ],
     )
 }
 
@@ -27,63 +31,86 @@ pub fn describe_state(state: &HeadsetState) -> String {
     fn show<T>(lines: &mut Vec<String>, label: &str, value: Option<T>, text: impl Fn(T) -> String) {
         lines.push(format!(
             "{label} : {}",
-            value.map_or("non lu".to_string(), text)
+            value.map_or(tr("non lu").to_string(), text)
         ));
     }
-    let on_off = |on: bool| if on { "activé" } else { "désactivé" }.to_string();
-    let on_off_f = |on: bool| if on { "activée" } else { "désactivée" }.to_string();
+    let on_off = |on: bool| if on { tr("activé") } else { tr("désactivé") }.to_string();
+    let on_off_f = |on: bool| {
+        if on {
+            tr("activée")
+        } else {
+            tr("désactivée")
+        }
+        .to_string()
+    };
     let mut lines = vec![
-        format!("Batterie : {} %", state.battery),
+        trf("Batterie : {} %", &[&state.battery]),
         describe_noise(&state.noise),
     ];
-    show(&mut lines, "Audio spatial", state.spatial_audio, on_off);
-    show(&mut lines, "Suivi de tête", state.head_tracking, on_off);
-    show(&mut lines, "Mode audio", state.audio_mode, |m| m.label());
+    show(&mut lines, tr("Audio spatial"), state.spatial_audio, on_off);
+    show(&mut lines, tr("Suivi de tête"), state.head_tracking, on_off);
+    show(&mut lines, tr("Mode audio"), state.audio_mode, |m| {
+        m.label()
+    });
     show(
         &mut lines,
-        "Personnalisation du son",
+        tr("Personnalisation du son"),
         state.sound_profile,
         |s| s.label(),
     );
     show(
         &mut lines,
-        "Commandes tactiles",
+        tr("Commandes tactiles"),
         state.touch_controls,
-        |on| if on { "actives" } else { "désactivées" }.to_string(),
+        |on| {
+            if on {
+                tr("actives")
+            } else {
+                tr("désactivées")
+            }
+            .to_string()
+        },
     );
     show(
         &mut lines,
-        "Protection de la batterie",
+        tr("Protection de la batterie"),
         state.battery_protection,
         on_off_f,
     );
-    show(&mut lines, "Smart Pause", state.smart_pause, on_off_f);
+    show(&mut lines, tr("Smart Pause"), state.smart_pause, on_off_f);
     show(
         &mut lines,
-        "Réponse automatique",
+        tr("Réponse automatique"),
         state.auto_answer,
         on_off_f,
     );
     show(
         &mut lines,
-        "Appels confortables",
+        tr("Appels confortables"),
         state.comfort_call,
-        |on| if on { "activés" } else { "désactivés" }.to_string(),
+        |on| {
+            if on {
+                tr("activés")
+            } else {
+                tr("désactivés")
+            }
+            .to_string()
+        },
     );
     show(
         &mut lines,
-        "Extinction automatique",
+        tr("Extinction automatique"),
         state.auto_off_seconds,
         |s| match s {
-            0 => "jamais".to_string(),
-            s => format!("{} min", s / 60),
+            0 => tr("jamais").to_string(),
+            s => trf("{} min", &[&(s / 60)]),
         },
     );
-    show(&mut lines, "Invites", state.prompt_mode, |m| {
+    show(&mut lines, tr("Invites"), state.prompt_mode, |m| {
         match m {
-            PromptMode::TonesOnly => "tonalités",
-            PromptMode::TonesAndVoice => "tonalités et voix",
-            PromptMode::Unknown => "autre",
+            PromptMode::TonesOnly => tr("tonalités"),
+            PromptMode::TonesAndVoice => tr("tonalités et voix"),
+            PromptMode::Unknown => tr("autre"),
         }
         .to_string()
     });
@@ -120,7 +147,7 @@ pub fn format_db(tenths: i8) -> String {
     } else {
         format!(",{}", abs % 10)
     };
-    format!("{sign}{}{decimal} dB", abs / 10)
+    trf("{}{}{} dB", &[&sign, &(abs / 10), &decimal])
 }
 
 /// Libellé d'une bande : sa fréquence si l'égaliseur a la forme connue du
@@ -136,22 +163,22 @@ pub fn band_label(index: usize, band_count: usize) -> String {
                 } else {
                     format!("{khz:.1}").replace('.', ",")
                 };
-                format!("{text} kHz")
+                trf("{} kHz", &[&text])
             } else {
-                format!("{hz} Hz")
+                trf("{} Hz", &[&hz])
             }
         }
-        _ => format!("Bande {}", index + 1),
+        _ => trf("Bande {}", &[&(index + 1)]),
     }
 }
 
 pub fn mode_label(mode: M5NoiseMode) -> String {
     match mode {
-        M5NoiseMode::Off => "Contrôle du bruit désactivé".to_string(),
-        M5NoiseMode::Adaptive => "ANC adaptatif".to_string(),
+        M5NoiseMode::Off => tr("Contrôle du bruit désactivé").to_string(),
+        M5NoiseMode::Adaptive => tr("ANC adaptatif").to_string(),
         M5NoiseMode::Custom { level } => match LEVEL_PRESETS.iter().find(|(l, _)| *l == level) {
-            Some((_, name)) => format!("Personnalisé : {name} ({level} %)"),
-            None => format!("Personnalisé : {level} %"),
+            Some((_, name)) => trf("Personnalisé : {} ({} %)", &[&name, &level]),
+            None => trf("Personnalisé : {} %", &[&level]),
         },
     }
 }
@@ -167,10 +194,9 @@ pub fn tooltip(
 ) -> String {
     let mut text = match (device_name, state) {
         (Some(name), Some(s)) => {
-            let mut t = format!(
-                "{name}\nBatterie {} %\n{}",
-                s.battery,
-                mode_label(s.noise.mode())
+            let mut t = trf(
+                "{}\nBatterie {} %\n{}",
+                &[&name, &s.battery, &(mode_label(s.noise.mode()))],
             );
             // Le mode audio n'est rappelé que s'il sort de l'ordinaire.
             if let Some(mode) = s.audio_mode
@@ -180,8 +206,8 @@ pub fn tooltip(
             }
             t
         }
-        (Some(name), None) => format!("{name}\nConnexion…"),
-        _ => "Casque Sennheiser\nDéconnecté, recherche en cours…".to_string(),
+        (Some(name), None) => trf("{}\nConnexion…", &[&name]),
+        _ => tr("Casque Sennheiser\nDéconnecté, recherche en cours…").to_string(),
     };
     if let Some(problem) = problem {
         text.push_str(&format!("\n⚠ {problem}"));
@@ -192,10 +218,10 @@ pub fn tooltip(
 /// Mode audio en clair (valeur brute affichée si inconnue).
 pub fn audio_mode_label(mode: AudioMode) -> String {
     match mode {
-        AudioMode::Equalizer => "Mode audio : égaliseur".to_string(),
-        AudioMode::SpeechClarity => "Mode audio : Speech Clarity".to_string(),
-        AudioMode::Personalization => "Mode audio : profil personnalisé".to_string(),
-        AudioMode::Unknown(b) => format!("Mode audio : inconnu ({b})"),
+        AudioMode::Equalizer => tr("Mode audio : égaliseur").to_string(),
+        AudioMode::SpeechClarity => tr("Mode audio : Speech Clarity").to_string(),
+        AudioMode::Personalization => tr("Mode audio : profil personnalisé").to_string(),
+        AudioMode::Unknown(b) => trf("Mode audio : inconnu ({})", &[&b]),
     }
 }
 
@@ -203,16 +229,16 @@ pub fn audio_mode_label(mode: AudioMode) -> String {
 /// déduire de l'un pour l'autre.
 pub fn audio_summary(state: &HeadsetState) -> String {
     let profile = match state.sound_profile {
-        None => "non lu",
-        Some(SoundProfileStatus::NoProfile) => "aucun",
-        Some(SoundProfileStatus::TestRunning) => "test en cours",
-        Some(SoundProfileStatus::Received) => "reçu",
-        Some(SoundProfileStatus::Unknown(_)) => "état inconnu",
+        None => tr("non lu"),
+        Some(SoundProfileStatus::NoProfile) => tr("aucun"),
+        Some(SoundProfileStatus::TestRunning) => tr("test en cours"),
+        Some(SoundProfileStatus::Received) => tr("reçu"),
+        Some(SoundProfileStatus::Unknown(_)) => tr("état inconnu"),
     };
     let mode = state
         .audio_mode
-        .map_or("Mode audio : non lu".to_string(), audio_mode_label);
-    format!("{mode} · profil personnalisé : {profile}")
+        .map_or(tr("Mode audio : non lu").to_string(), audio_mode_label);
+    trf("{} · profil personnalisé : {}", &[&mode, &profile])
 }
 
 /// Avertissement de la fenêtre d'égaliseur quand le mode audio du casque
@@ -221,15 +247,13 @@ pub fn eq_mode_note(mode: AudioMode) -> Option<String> {
     match mode {
         AudioMode::Equalizer => None,
         AudioMode::SpeechClarity => {
-            Some("Mode audio actif : Speech Clarity, et non l'égaliseur graphique.".to_string())
+            Some(tr("Mode audio actif : Speech Clarity, et non l'égaliseur graphique.").to_string())
         }
         AudioMode::Personalization => Some(
-            "Mode audio actif : profil personnalisé (personnalisation du son), et non l'égaliseur graphique."
+            tr("Mode audio actif : profil personnalisé (personnalisation du son), et non l'égaliseur graphique.")
                 .to_string(),
         ),
-        AudioMode::Unknown(b) => Some(format!(
-            "Mode audio actif inconnu (valeur {b}) : l'égaliseur graphique n'est peut-être pas appliqué."
-        )),
+        AudioMode::Unknown(b) => Some(trf("Mode audio actif inconnu (valeur {}) : l'égaliseur graphique n'est peut-être pas appliqué.", &[&b])),
     }
 }
 

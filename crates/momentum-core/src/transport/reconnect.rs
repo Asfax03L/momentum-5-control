@@ -2,22 +2,32 @@
 //! Aucun nom, balayage radio ou choix de secours ; aucune trame GAIA.
 
 use super::choice::fingerprint;
+use crate::i18n::tr;
 use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ReconnectError {
     #[error(
-        "aucun casque mémorisé : le connecter une première fois depuis les paramètres Bluetooth"
+        "{}",
+        tr(
+            "aucun casque mémorisé : le connecter une première fois depuis les paramètres Bluetooth"
+        )
     )]
     NotRemembered,
-    #[error("casque mémorisé absent des appareils appairés ; vérifier les paramètres Bluetooth")]
+    #[error(
+        "{}",
+        tr("casque mémorisé absent des appareils appairés ; vérifier les paramètres Bluetooth")
+    )]
     Missing,
-    #[error("identité mémorisée ambiguë : reconnexion refusée")]
+    #[error("{}", tr("identité mémorisée ambiguë : reconnexion refusée"))]
     Ambiguous,
-    #[error("Bluetooth système indisponible ou accès refusé")]
+    #[error("{}", tr("Bluetooth système indisponible ou accès refusé"))]
     Unavailable,
     #[error(
-        "la demande Bluetooth a échoué ou dépassé le délai ; vérifier les paramètres Bluetooth avant de réessayer"
+        "{}",
+        tr(
+            "la demande Bluetooth a échoué ou dépassé le délai ; vérifier les paramètres Bluetooth avant de réessayer"
+        )
     )]
     Failed,
 }

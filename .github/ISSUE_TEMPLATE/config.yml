@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Questions et aide (Discussions)
+    url: https://github.com/Asfax03L/openheadset-control/discussions
+    about: Une question, un retour d'usage, une idée à débattre — questions in English welcome.
   - name: Guide de contribution
     url: https://github.com/Asfax03L/openheadset-control/blob/main/CONTRIBUTING.md
     about: Règles du projet (lecture seule par défaut, rien d'inventé) et vérifications avant une PR.

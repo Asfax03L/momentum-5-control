@@ -24,6 +24,50 @@ PlasmoidItem {
     readonly property string objectPath: "/org/openheadset/Control"
     readonly property string iface: "org.openheadset.Control1"
 
+    // Langue : celle de Plasma (français si elle commence par « fr »,
+    // anglais sinon). Le widget, en QML seul, a son propre dictionnaire.
+    readonly property bool francais: Qt.locale().name.startsWith("fr")
+    readonly property var anglais: ({
+        "ANC ↔ transparence": "ANC ↔ transparency",
+        "Service arrêté": "Service stopped",
+        "Connexion au casque…": "Connecting to the headphones…",
+        "Recherche du casque…": "Searching for the headphones…",
+        "réduction désactivée": "noise cancelling off",
+        "ANC adaptatif": "adaptive ANC",
+        "ANC personnalisé": "custom ANC",
+        "Batterie : ": "Battery: ",
+        "service injoignable": "service unreachable",
+        "réponse illisible du service": "unreadable reply from the service",
+        "appliqué et relu": "applied and read back",
+        "déjà dans cet état": "already in this state",
+        "accepté par le casque": "accepted by the headphones",
+        "refusé": "refused",
+        "non appliqué": "not applied",
+        "annulé sans envoi": "cancelled without sending",
+        "résultat inconnu": "unknown result",
+        "refusé : ": "refused: ",
+        "Ouvrir": "Open",
+        "Ouvrir OpenHeadset Control": "Open OpenHeadset Control",
+        "Service OpenHeadset Control arrêté": "OpenHeadset Control service stopped",
+        "Reconnecter le casque": "Reconnect the headphones",
+        "Démarrer le service": "Start the service",
+        "Lecture seule : ": "Read-only: ",
+        "Réduction de bruit": "Noise cancelling",
+        "Adaptatif": "Adaptive",
+        "Personnalisé": "Custom",
+        "Arrêt": "Off",
+        "Transparence": "Transparency",
+        "Anti-vent": "Anti-wind",
+        "Audio spatial": "Spatial audio",
+        "Suivi de tête": "Head tracking",
+        "Profil personnalisé": "Custom profile",
+        "Scènes": "Scenes",
+        "Envoi au casque…": "Sending to the headphones…"
+    })
+    function t(texte) {
+        return francais ? texte : (anglais[texte] || texte);
+    }
+
     // Snapshot du service (JSON de momentum_client::Snapshot), ou null.
     property var snapshot: null
     property string error: ""
@@ -60,11 +104,11 @@ PlasmoidItem {
     toolTipMainText: headsetName || "OpenHeadset Control"
     toolTipSubText: {
         if (!running)
-            return "Service arrêté";
+            return root.t("Service arrêté");
         if (!headset)
-            return snapshot && snapshot.device_name ? "Connexion au casque…" : "Recherche du casque…";
-        const modes = { "Off": "réduction désactivée", "Adaptive": "ANC adaptatif", "Custom": "ANC personnalisé" };
-        return "Batterie : " + battery + " %\n" + modes[mode];
+            return snapshot && snapshot.device_name ? root.t("Connexion au casque…") : root.t("Recherche du casque…");
+        const modes = { "Off": root.t("réduction désactivée"), "Adaptive": root.t("ANC adaptatif"), "Custom": root.t("ANC personnalisé") };
+        return root.t("Batterie : ") + battery + " %\n" + modes[mode];
     }
 
     // Le service apparaît ou disparaît (activation D-Bus, arrêt).
@@ -120,7 +164,7 @@ PlasmoidItem {
             if (onReply)
                 onReply(reply);
         }, function (failure) {
-            const message = failure && failure.message ? failure.message : "service injoignable";
+            const message = failure && failure.message ? failure.message : root.t("service injoignable");
             if (onFailure)
                 onFailure(message);
             else
@@ -138,7 +182,7 @@ PlasmoidItem {
             try {
                 root.snapshot = JSON.parse(reply.value);
             } catch (e) {
-                root.error = "réponse illisible du service";
+                root.error = root.t("réponse illisible du service");
             }
         });
         // Service plus ancien sans `Scenes` : pas de boutons de scènes.
@@ -156,13 +200,13 @@ PlasmoidItem {
     // Texte d'un résultat (même formulation que Outcome::describe).
     function describe(outcome) {
         if (typeof outcome === "string") {
-            return { "Applied": "appliqué et relu", "AlreadySatisfied": "déjà dans cet état",
-                     "Acknowledged": "accepté par le casque" }[outcome] || outcome;
+            return { "Applied": root.t("appliqué et relu"), "AlreadySatisfied": root.t("déjà dans cet état"),
+                     "Acknowledged": root.t("accepté par le casque") }[outcome] || outcome;
         }
         if (outcome.SystemRequested) return outcome.SystemRequested;
         const kind = Object.keys(outcome)[0];
-        const labels = { "Refused": "refusé", "NotApplied": "non appliqué",
-                         "Cancelled": "annulé sans envoi", "Unknown": "résultat inconnu" };
+        const labels = { "Refused": root.t("refusé"), "NotApplied": root.t("non appliqué"),
+                         "Cancelled": root.t("annulé sans envoi"), "Unknown": root.t("résultat inconnu") };
         return (labels[kind] || kind) + " : " + outcome[kind];
     }
 
@@ -206,7 +250,7 @@ PlasmoidItem {
                 }
             }, function (message) {
                 root.resultOk = false;
-                root.result = "refusé : " + message;
+                root.result = root.t("refusé : ") + message;
                 resultTimer.restart();
             });
     }
@@ -297,9 +341,9 @@ PlasmoidItem {
                 }
                 PlasmaComponents.ToolButton {
                     icon.name: "configure"
-                    text: "Ouvrir"
+                    text: root.t("Ouvrir")
                     display: PlasmaComponents.AbstractButton.IconOnly
-                    PlasmaComponents.ToolTip.text: "Ouvrir OpenHeadset Control"
+                    PlasmaComponents.ToolTip.text: root.t("Ouvrir OpenHeadset Control")
                     PlasmaComponents.ToolTip.visible: hovered
                     onClicked: root.openWindow()
                 }
@@ -312,13 +356,13 @@ PlasmoidItem {
             width: parent.width - Kirigami.Units.gridUnit * 2
             visible: !root.headset
             iconName: "audio-headphones"
-            text: !root.running ? "Service OpenHeadset Control arrêté"
-                : root.snapshot && root.snapshot.device_name ? "Connexion au casque…" : "Recherche du casque…"
+            text: !root.running ? root.t("Service OpenHeadset Control arrêté")
+                : root.snapshot && root.snapshot.device_name ? root.t("Connexion au casque…") : root.t("Recherche du casque…")
             explanation: root.result || root.error || (root.snapshot && root.snapshot.problem) || ""
             helpfulAction: !root.running ? startAction : reconnectAction
             Kirigami.Action {
                 id: reconnectAction
-                text: "Reconnecter le casque"
+                text: root.t("Reconnecter le casque")
                 icon.name: "network-bluetooth"
                 enabled: root.running && !root.busy
                 onTriggered: root.send("ReconnectHeadset")
@@ -326,7 +370,7 @@ PlasmoidItem {
             Kirigami.Action {
                 id: startAction
                 icon.name: "media-playback-start"
-                text: "Démarrer le service"
+                text: root.t("Démarrer le service")
                 onTriggered: root.startService()
             }
         }
@@ -342,7 +386,7 @@ PlasmoidItem {
                 Layout.fillWidth: true
                 visible: !!(root.snapshot && (root.snapshot.read_only || root.snapshot.problem))
                 text: root.snapshot
-                    ? (root.snapshot.read_only ? "Lecture seule : " + root.snapshot.read_only : (root.snapshot.problem || ""))
+                    ? (root.snapshot.read_only ? root.t("Lecture seule : ") + root.snapshot.read_only : (root.snapshot.problem || ""))
                     : ""
                 color: Kirigami.Theme.negativeTextColor
                 wrapMode: Text.WordWrap
@@ -351,7 +395,7 @@ PlasmoidItem {
             RowLayout {
                 Layout.fillWidth: true
                 PlasmaComponents.Label {
-                    text: "Batterie : " + root.battery + " %"
+                    text: root.t("Batterie : ") + root.battery + " %"
                 }
                 PlasmaComponents.ProgressBar {
                     Layout.fillWidth: true
@@ -363,15 +407,15 @@ PlasmoidItem {
 
             PlasmaExtras.Heading {
                 level: 5
-                text: "Réduction de bruit"
+                text: root.t("Réduction de bruit")
             }
             RowLayout {
                 Layout.fillWidth: true
                 Repeater {
                     model: [
-                        { "mode": "Adaptive", "label": "Adaptatif" },
-                        { "mode": "Custom", "label": "Personnalisé" },
-                        { "mode": "Off", "label": "Arrêt" }
+                        { "mode": "Adaptive", "label": root.t("Adaptatif") },
+                        { "mode": "Custom", "label": root.t("Personnalisé") },
+                        { "mode": "Off", "label": root.t("Arrêt") }
                     ]
                     PlasmaComponents.Button {
                         Layout.fillWidth: true
@@ -397,6 +441,7 @@ PlasmoidItem {
                 }
                 PlasmaComponents.Slider {
                     id: level
+                    Accessible.name: root.t("ANC ↔ transparence")
                     Layout.fillWidth: true
                     from: 0
                     to: 100
@@ -412,12 +457,12 @@ PlasmoidItem {
                     }
                 }
                 PlasmaComponents.Label {
-                    text: "Transparence"
+                    text: root.t("Transparence")
                 }
             }
 
             PlasmaComponents.Switch {
-                text: "Anti-vent"
+                text: root.t("Anti-vent")
                 enabled: root.writable
                 checked: root.headset ? root.headset.noise.anti_wind : false
                 onToggled: {
@@ -428,7 +473,7 @@ PlasmoidItem {
             }
 
             PlasmaComponents.Switch {
-                text: "Audio spatial"
+                text: root.t("Audio spatial")
                 visible: root.headset && root.headset.spatial_audio !== null
                 enabled: root.writable
                 checked: root.headset ? !!root.headset.spatial_audio : false
@@ -441,7 +486,7 @@ PlasmoidItem {
 
             // Le suivi de tête exige l'audio spatial (règle du casque).
             PlasmaComponents.Switch {
-                text: "Suivi de tête"
+                text: root.t("Suivi de tête")
                 visible: root.headset && root.headset.head_tracking !== null
                 enabled: root.writable && root.headset && !!root.headset.spatial_audio
                 checked: root.headset ? !!root.headset.head_tracking : false
@@ -453,7 +498,7 @@ PlasmoidItem {
             }
 
             PlasmaComponents.Switch {
-                text: "Profil personnalisé"
+                text: root.t("Profil personnalisé")
                 visible: root.profileAvailable
                 enabled: root.writable
                 checked: root.profileOn
@@ -467,7 +512,7 @@ PlasmoidItem {
 
             PlasmaExtras.Heading {
                 level: 5
-                text: "Scènes"
+                text: root.t("Scènes")
                 visible: root.scenes.length > 0
             }
             Flow {

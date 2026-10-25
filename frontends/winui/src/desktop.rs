@@ -3,6 +3,7 @@
 //! du fil de l'interface et on la sous-classe : fermer la cache (l'icône de
 //! la zone de notification reste), sauf après « Quitter ».
 
+use momentum_core::i18n::tr;
 use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
@@ -49,16 +50,18 @@ pub fn settings_file(save: bool) -> windows::core::Result<Option<std::path::Path
             d.cast()?
         };
         dialog.SetOptions(dialog.GetOptions()? | FOS_FORCEFILESYSTEM)?;
+        // Textes traduits : chaînes vivantes pendant les appels.
+        let filter_name = windows::core::HSTRING::from(tr("Réglages JSON"));
         dialog.SetFileTypes(&[COMDLG_FILTERSPEC {
-            pszName: w!("Réglages JSON"),
+            pszName: windows::core::PCWSTR(filter_name.as_ptr()),
             pszSpec: w!("*.json"),
         }])?;
         dialog.SetDefaultExtension(w!("json"))?;
-        dialog.SetTitle(if save {
-            w!("Exporter les réglages vers un nouveau fichier")
+        dialog.SetTitle(&windows::core::HSTRING::from(if save {
+            tr("Exporter les réglages vers un nouveau fichier")
         } else {
-            w!("Choisir les réglages à examiner")
-        })?;
+            tr("Choisir les réglages à examiner")
+        }))?;
         if save {
             dialog.SetFileName(w!("openheadset-reglages.json"))?;
         }
@@ -228,6 +231,28 @@ pub fn copy_text(text: &str) -> bool {
     }
 }
 
+/// Ouvre une adresse web dans le navigateur par défaut ; `false` si le
+/// Shell refuse.
+pub fn open_url(url: &str) -> bool {
+    use windows::Win32::UI::Shell::ShellExecuteW;
+    use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    use windows::core::{HSTRING, PCWSTR, w};
+    let url = HSTRING::from(url);
+    // SAFETY: fil de l'interface (COM déjà initialisé par WinUI) ; chaînes
+    // UTF-16 terminées, vivantes pendant l'appel.
+    let result = unsafe {
+        ShellExecuteW(
+            None,
+            w!("open"),
+            PCWSTR(url.as_ptr()),
+            None,
+            None,
+            SW_SHOWNORMAL,
+        )
+    };
+    result.0 as isize > 32
+}
+
 /// Choisit un fichier de courbe d'égaliseur (`*.txt`) ; `None` si
 /// l'utilisateur annule. Boîte de dialogue modale sur la fenêtre.
 pub fn pick_curve_file() -> Option<std::path::PathBuf> {
@@ -244,13 +269,16 @@ pub fn pick_curve_file() -> Option<std::path::PathBuf> {
         let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
         let dialog: IFileOpenDialog =
             CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER).ok()?;
+        let filter_name = windows::core::HSTRING::from(tr("Courbes d'égaliseur (*.txt)"));
         let filters = [COMDLG_FILTERSPEC {
-            pszName: w!("Courbes d'égaliseur (*.txt)"),
+            pszName: windows::core::PCWSTR(filter_name.as_ptr()),
             pszSpec: w!("*.txt"),
         }];
         dialog.SetFileTypes(&filters).ok()?;
         dialog
-            .SetTitle(w!("Importer une courbe d'égaliseur"))
+            .SetTitle(&windows::core::HSTRING::from(tr(
+                "Importer une courbe d'égaliseur",
+            )))
             .ok()?;
         // Annulation : erreur, donc `None`.
         dialog.Show(window()).ok()?;

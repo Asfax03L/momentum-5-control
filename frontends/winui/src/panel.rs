@@ -6,6 +6,7 @@
 //! envoyé si la valeur est déjà celle du casque, le curseur attend 350 ms
 //! sans mouvement. Il se ferme quand il perd le focus.
 
+use momentum_core::i18n::{tr, trf};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -57,7 +58,7 @@ impl Panel {
                 .lock()
                 .ok()
                 .and_then(|rx| rx.recv().ok())
-                .unwrap_or_else(|| Incoming::Error("écoute du service arrêtée".into()));
+                .unwrap_or_else(|| Incoming::Error(tr("écoute du service arrêtée").into()));
             PanelMsg::Service(Arc::new(Mutex::new(Some(next))))
         });
     }
@@ -69,7 +70,11 @@ impl Panel {
             .as_ref()
             .and_then(|i| i.name.clone())
             .or_else(|| self.snapshot.device_name.clone());
-        let read_only = self.snapshot.read_only.as_ref().map(|_| "lecture seule");
+        let read_only = self
+            .snapshot
+            .read_only
+            .as_ref()
+            .map(|_| tr("lecture seule"));
         viewmodel::main_view(
             name.as_deref(),
             self.snapshot.state.as_ref(),
@@ -224,7 +229,7 @@ impl Component for Panel {
         let c = &v.controls;
         let battery = self.snapshot.state.map_or(0.0, |s| f64::from(s.battery));
         let status = if self.busy {
-            "Envoi au casque…".to_string()
+            tr("Envoi au casque…").to_string()
         } else if v.connected {
             v.battery_text.clone()
         } else {
@@ -262,7 +267,7 @@ impl Component for Panel {
         if p.noise {
             items.push(
                 RadioButtons::new()
-                    .items_source(viewmodel::NOISE_MODES)
+                    .items_source(viewmodel::NOISE_MODES.map(tr))
                     .max_columns(3)
                     .selected_index(usize::try_from(c.noise_mode).ok())
                     .on_selection_changed(context.callback(PanelMsg::NoiseMode))
@@ -272,7 +277,7 @@ impl Component for Panel {
         if p.level {
             items.push(
                 TextBlock::new()
-                    .text(format!("ANC ↔ transparence : {} %", c.level))
+                    .text(trf("ANC ↔ transparence : {} %", &[&c.level]))
                     .into(),
             );
             items.push(
@@ -299,7 +304,7 @@ impl Component for Panel {
         ));
         if p.profile {
             items.push(switch(
-                "Profil personnalisé",
+                tr("Profil personnalisé"),
                 profile_on,
                 profile_enabled,
                 ToggleSwitch::new()
@@ -330,7 +335,7 @@ impl Component for Panel {
         items.push(
             Button::new()
                 .on_click(context.message(PanelMsg::OpenWindow))
-                .content("Ouvrir OpenHeadset Control"),
+                .content(tr("Ouvrir OpenHeadset Control")),
         );
         StackPanel::new().spacing(10.0).margin(16.0).keyed_children(
             items

@@ -7,6 +7,7 @@
 //! WinUI). Les choix du menu sont traités par l'objet `Headset` ; la coche
 //! ne change qu'une fois le nouvel état relu sur le casque.
 
+use momentum_core::i18n::{tr, trf};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -62,7 +63,7 @@ impl Tray {
         let shared = Arc::new(Mutex::new(Shared {
             view: TrayView {
                 kind: IconKind::Disconnected,
-                tooltip: "OpenHeadset Control\nRecherche du casque…".into(),
+                tooltip: tr("OpenHeadset Control\nRecherche du casque…").into(),
                 entries: Vec::new(),
             },
             revision: 1,
@@ -213,7 +214,7 @@ impl Item {
 
     #[zbus(property)]
     fn title(&self) -> &str {
-        "OpenHeadset Control"
+        tr("OpenHeadset Control")
     }
 
     #[zbus(property)]
@@ -466,8 +467,9 @@ impl Menu {
     ) -> zbus::fdo::Result<(u32, Layout)> {
         let (revision, nodes) = self.nodes();
         if usize::try_from(parent_id).map_or(true, |i| i >= nodes.len()) {
-            return Err(zbus::fdo::Error::InvalidArgs(format!(
-                "élément de menu inconnu : {parent_id}"
+            return Err(zbus::fdo::Error::InvalidArgs(trf(
+                "élément de menu inconnu : {}",
+                &[&parent_id],
             )));
         }
         Ok((
@@ -498,7 +500,7 @@ impl Menu {
             .and_then(|i| nodes.get(i))
             .and_then(|node| node.props.get(&name))
             .map(|v| v.try_clone().expect("valeur D-Bus copiable"))
-            .ok_or_else(|| zbus::fdo::Error::InvalidArgs(format!("propriété inconnue : {name}")))
+            .ok_or_else(|| zbus::fdo::Error::InvalidArgs(trf("propriété inconnue : {}", &[&name])))
     }
 
     fn event(&self, id: i32, event_id: String, _data: OwnedVariant, _timestamp: u32) {

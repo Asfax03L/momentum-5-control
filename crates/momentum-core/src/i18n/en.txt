@@ -1,0 +1,2088 @@
+# Catalogue anglais d'OpenHeadset Control : un paragraphe par texte,
+# ligne 1 : texte français du code (exact), ligne 2 : traduction.
+# Les « {} » sont les valeurs, dans le même ordre.
+
+service OpenHeadset Control absent (momentum-daemon lancé ?)
+OpenHeadset Control service not running (is momentum-daemon started?)
+
+service : {}
+service: {}
+
+message illisible : {}
+unreadable message: {}
+
+Casque non connecté
+Headphones not connected
+
+Scène « {} »
+Scene “{}”
+
+Batterie du casque : {} %
+Headphone battery: {} %
+
+Casque reconnecté
+Headphones reconnected
+
+Casque déconnecté
+Headphones disconnected
+
+La connexion au casque est perdue ; nouvel essai toutes les 5 s.
+The connection to the headphones was lost; retrying every 5 s.
+
+Batterie faible
+Low battery
+
+« {} » est de nouveau connecté.
+“{}” is connected again.
+
+Il reste {} % de batterie au casque.
+The headphones have {} % battery left.
+
+1 canal (mono)
+1 channel (mono)
+
+autre liaison
+other link
+
+mains libres (qualité téléphone)
+hands-free (phone quality)
+
+mono
+mono
+
+stéréo
+stereo
+
+non connecté (1)
+not connected (1)
+
+connecté (2)
+connected (2)
+
+connecté, audio actif (3, observé pendant une lecture)
+connected, audio active (3, seen during playback)
+
+Le casque n'est pas piloté par ce PC : les informations du casque ne sont pas disponibles. Le son peut fonctionner sans pilotage.
+The headphones are not controlled by this PC: headphone information is not available. Sound can work without control.
+
+La sortie choisie est le profil mains libres : son mono de qualité téléphone. Choisissez la sortie stéréo du casque (sans « Hands-Free »), sauf pendant un appel.
+The selected output is the hands-free profile: mono, phone-quality sound. Choose the headphones' stereo output (without “Hands-Free”), except during a call.
+
+Le casque est piloté, mais Windows n'a aucune sortie audio active vers lui : le profil audio Bluetooth n'est pas connecté (ou le câble USB est débranché).
+The headphones are controlled, but Windows has no active audio output to them: the Bluetooth audio profile is not connected (or the USB cable is unplugged).
+
+Un autre appareil est connecté au casque (Multipoint) : le casque joue le son d'un appareil à la fois, et une lecture sur l'autre peut prendre la main. L'appareil qui envoie le flux n'est pas connu.
+Another device is connected to the headphones (Multipoint): the headphones play sound from one device at a time, and playback on the other one can take over. The device sending the stream is not known.
+
+Aucune cause évidente côté PC : la sortie par défaut est le casque, sans muet. Vérifiez le volume de l'application et le volume du casque.
+No obvious cause on the PC side: the default output is the headphones, not muted. Check the app volume and the headphone volume.
+
+{} kHz
+{} kHz
+
+{} canaux
+{} channels
+
+valeur {} non caractérisée
+value {} not characterised
+
+Le son de Windows part vers « {} », pas vers le casque. Choisissez le casque dans les paramètres de son de Windows.
+Windows sound goes to “{}”, not to the headphones. Choose the headphones in the Windows sound settings.
+
+le casque a répondu par une erreur à {} (payload {})
+the headphones answered {} with an error (payload {})
+
+session désynchronisée après un échange interrompu sur {} : une réponse tardive serait ambiguë, il faut rouvrir la connexion
+session out of sync after an interrupted exchange on {}: a late reply would be ambiguous, the connection must be reopened
+
+égaliseur graphique
+graphic equalizer
+
+Speech Clarity
+Speech Clarity
+
+profil personnalisé (personnalisation du son)
+custom profile (sound personalisation)
+
+aucun profil
+no profile
+
+test en cours
+test in progress
+
+profil reçu par le casque
+profile received by the headphones
+
+mode déjà sélectionné
+mode already selected
+
+mode non configuré
+mode not configured
+
+mode non pris en charge
+mode not supported
+
+erreur générique
+generic error
+
+sans code
+no code
+
+le casque n'a pas répondu les paires attendues pour le contrôle du bruit
+the headphones did not return the expected pairs for noise control
+
+mode d'invites non validé sur le matériel
+prompt mode not validated on the hardware
+
+impossible de déconnecter l'appareil qui pilote le casque
+cannot disconnect the device that controls the headphones
+
+le suivi de tête n'est réglable qu'avec l'audio spatial activé
+head tracking can only be set with spatial audio on
+
+inconnu (valeur {})
+unknown (value {})
+
+code {} inconnu
+unknown code {}
+
+niveau {} hors limites (0 à {})
+level {} out of range (0 to {})
+
+bande {} inexistante (l'égaliseur en a {})
+band {} does not exist (the equalizer has {})
+
+gain {} hors limites ({} à {} dixièmes de dB)
+gain {} out of range ({} to {} tenths of dB)
+
+durée d'extinction {} s non proposée par l'app (0, 900, 1800 ou 3600)
+auto-off delay {} s not offered by the app (0, 900, 1800 or 3600)
+
+volume des invites {} hors de l'échelle de l'app (−20 à +6)
+prompt volume {} outside the app scale (−20 to +6)
+
+nom refusé : {}
+name refused: {}
+
+aucun profil de personnalisation du son reçu par le casque (état {})
+no sound personalisation profile received by the headphones (state {})
+
+sélection du mode audio refusée par le casque (0983, {})
+audio mode selection refused by the headphones (0983, {})
+
+{} : lecture seule (les écritures n'ont été vérifiées que sur le MOMENTUM 5, micrologiciel {})
+{}: read-only (writes have only been verified on the MOMENTUM 5, firmware {})
+
+plusieurs touches dans « {} »
+several keys in “{}”
+
+touche inconnue « {} »
+unknown key “{}”
+
+aucune touche dans « {} »
+no key in “{}”
+
+« {} » : Ctrl, Alt ou Win obligatoire
+“{}”: Ctrl, Alt or Win required
+
+action inconnue : « {} »
+unknown action: “{}”
+
+dossier des données introuvable
+data folder not found
+
+{} non créé : {}
+{} not created: {}
+
+PipeWire n'a pas répondu dans le délai prévu
+PipeWire did not answer in time
+
+PipeWire est inaccessible : vérifier la session audio et les permissions du paquet
+PipeWire is unreachable: check the audio session and the package permissions
+
+le résultat de pw-dump n'est pas un graphe JSON valide
+pw-dump output is not a valid JSON graph
+
+le graphe PipeWire dépasse la limite de 16 Mio
+the PipeWire graph exceeds the 16 MiB limit
+
+nom vide
+empty name
+
+nom trop long (32 caractères au plus)
+name too long (32 characters at most)
+
+caractères = et # interdits
+characters = and # are not allowed
+
+nom réservé à un préréglage de l'app
+name reserved for a preset of the app
+
+basses : on ou off
+bass: on or off
+
+ligne « gains = … » manquante
+missing “gains = …” line
+
+ligne illisible : « {} »
+unreadable line: “{}”
+
+réglage inconnu « {} »
+unknown setting “{}”
+
+scène vide
+empty scene
+
+valeur attendue : on ou off
+expected value: on or off
+
+nom de scène vide
+empty scene name
+
+nom de scène trop long (32 caractères au plus)
+scene name too long (32 characters at most)
+
+caractères [ ] = # interdits dans un nom de scène
+characters [ ] = # are not allowed in a scene name
+
+son : egaliseur, voix ou profil
+son: egaliseur, voix or profil
+
+bruit : adaptatif, personnalise ou arret
+bruit: adaptatif, personnalise or arret
+
+niveau : nombre entier de 0 à 100
+niveau: whole number from 0 to 100
+
+egaliseur : nom de préréglage attendu
+egaliseur: preset name expected
+
+titre de scène attendu sous la forme [Nom]
+scene title expected as [Name]
+
+ligne attendue : réglage = valeur
+expected line: setting = value
+
+espaces en trop au début ou à la fin du nom
+extra spaces at the start or end of the name
+
+le profil personnalisé est sélectionné ; ajouter « son = egaliseur » ou « son = voix »
+the custom profile is selected; add “son = egaliseur” or “son = voix”
+
+état non enregistrable : {}
+state cannot be saved: {}
+
+{} existe déjà ; choisir un autre nom ou autoriser le remplacement
+{} already exists; choose another name or allow replacing it
+
+enregistrement impossible : {}
+cannot save: {}
+
+« {} » apparaît deux fois
+“{}” appears twice
+
+ligne {} : {}
+line {}: {}
+
+scène « {} » : {}
+scene “{}”: {}
+
+deux scènes s'appellent « {} »
+two scenes are named “{}”
+
+préréglage « {} » introuvable
+preset “{}” not found
+
+prereglages.txt a changé entre-temps
+prereglages.txt changed in the meantime
+
+scenes.txt a été modifié ailleurs depuis l'ouverture de l'éditeur ; « Recharger » le relit.
+scenes.txt was changed elsewhere since the editor opened; “Reload” reads it again.
+
+data element tronqué
+truncated data element
+
+imbrication trop profonde
+nesting too deep
+
+taille invalide pour le type {}
+invalid size for type {}
+
+type de data element réservé : {}
+reserved data element type: {}
+
+un fichier ordinaire est requis
+a regular file is required
+
+fichier trop volumineux
+file too large
+
+fichier non autorisé dans la sauvegarde
+file not allowed in the backup
+
+sauvegarde trop volumineuse
+backup too large
+
+sauvegarde introuvable
+backup not found
+
+fichier JSON invalide : {}
+invalid JSON file: {}
+
+version de sauvegarde inconnue : {}
+unknown backup version: {}
+
+réglages refusés : {}
+settings refused: {}
+
+opération impossible : {}
+operation failed: {}
+
+{} contient une ligne invalide
+{} contains an invalid line
+
+Jamais
+Never
+
+Casque déconnecté — recherche…
+Headphones disconnected — searching…
+
+Ouvrir OpenHeadset Control
+Open OpenHeadset Control
+
+Reconnecter le casque
+Reconnect the headphones
+
+ANC adaptatif
+Adaptive ANC
+
+Personnalisé
+Custom
+
+Désactivé
+Off
+
+Curseur ANC ↔ transparence
+ANC ↔ transparency slider
+
+Anti-vent
+Anti-wind
+
+Audio spatial
+Spatial audio
+
+Speech Clarity (voix)
+Speech Clarity (voice)
+
+Personnalisation du son
+Sound personalisation
+
+Mode audio : —
+Audio mode: —
+
+Égaliseur…
+Equalizer…
+
+Réglages du casque
+Headphone settings
+
+Smart Pause
+Smart Pause
+
+Réponse automatique aux appels
+Auto-answer calls
+
+Appels confortables
+Comfort calls
+
+Extinction automatique
+Auto-off
+
+Invites
+Prompts
+
+Tonalités seules
+Tones only
+
+Tonalités et voix
+Tones and voice
+
+Commandes tactiles
+Touch controls
+
+Protection de la batterie
+Battery protection
+
+Recharger le fichier des scènes
+Reload the scenes file
+
+Scènes
+Scenes
+
+Quitter
+Quit
+
+{} min
+{} min
+
+{} — batterie {} %
+{} — battery {} %
+
+{} — connexion…
+{} — connecting…
+
+ARRÊT
+OFF
+
+Adaptatif
+Adaptive
+
+non lu
+not read
+
+activé
+on
+
+désactivé
+off
+
+activée
+on
+
+désactivée
+off
+
+Suivi de tête
+Head tracking
+
+Mode audio
+Audio mode
+
+actives
+active
+
+désactivées
+off
+
+Réponse automatique
+Auto-answer
+
+activés
+on
+
+désactivés
+off
+
+jamais
+never
+
+tonalités
+tones
+
+tonalités et voix
+tones and voice
+
+autre
+other
+
+Contrôle du bruit désactivé
+Noise control off
+
+Casque Sennheiser\nDéconnecté, recherche en cours…
+Sennheiser headphones\nDisconnected, searching…
+
+Mode audio : égaliseur
+Audio mode: equalizer
+
+Mode audio : Speech Clarity
+Audio mode: Speech Clarity
+
+Mode audio : profil personnalisé
+Audio mode: custom profile
+
+aucun
+none
+
+reçu
+received
+
+état inconnu
+unknown state
+
+Mode audio : non lu
+Audio mode: not read
+
+Mode audio actif : Speech Clarity, et non l'égaliseur graphique.
+Active audio mode: Speech Clarity, not the graphic equalizer.
+
+Mode audio actif : profil personnalisé (personnalisation du son), et non l'égaliseur graphique.
+Active audio mode: custom profile (sound personalisation), not the graphic equalizer.
+
+Personnalisé, curseur {} %
+Custom, slider {} %
+
+Batterie : {} %
+Battery: {} %
+
+{}{}{} dB
+{}{}{} dB
+
+{} Hz
+{} Hz
+
+Bande {}
+Band {}
+
+Personnalisé : {} ({} %)
+Custom: {} ({} %)
+
+Personnalisé : {} %
+Custom: {} %
+
+{}\nConnexion…
+{}\nConnecting…
+
+Mode audio : inconnu ({})
+Audio mode: unknown ({})
+
+{} · profil personnalisé : {}
+{} · custom profile: {}
+
+Mode audio actif inconnu (valeur {}) : l'égaliseur graphique n'est peut-être pas appliqué.
+Unknown active audio mode (value {}): the graphic equalizer may not be applied.
+
+Pas d'estimation : il faut au moins une heure de décharge continue et 5 points perdus.
+No estimate: at least one hour of continuous discharge and 5 points lost are needed.
+
+non connecté
+not connected
+
+Mesures sur la période
+Readings in the period
+
+Dernière mesure
+Last reading
+
+aucune
+none
+
+Conservation
+Retention
+
+30 jours sur ce PC (batterie.csv), rien n'est envoyé
+30 days on this PC (batterie.csv), nothing is sent
+
+Non mesuré
+Not measured
+
+Connecté (ce PC)
+Connected (this PC)
+
+Connecté
+Connected
+
+Non connecté
+Not connected
+
+Déconnecter
+Disconnect
+
+Connecter
+Connect
+
+Courbe personnalisée, non enregistrée
+Custom curve, not saved
+
+Pas de lecture
+No playback
+
+Recherche du casque… Allumez-le et connectez-le à ce PC en Bluetooth.
+Searching for the headphones… Turn them on and connect them to this PC over Bluetooth.
+
+Casque Sennheiser
+Sennheiser headphones
+
+Connexion…
+Connecting…
+
+Recherche du casque…
+Searching for the headphones…
+
+Mode audio : 
+Audio mode: 
+
+Profil personnalisé
+Custom profile
+
+Aucun
+None
+
+Test en cours
+Test in progress
+
+Reçu par le casque, sélectionné
+Received by the headphones, selected
+
+Reçu par le casque, non sélectionné
+Received by the headphones, not selected
+
+Langue des invites
+Prompt language
+
+Français
+French
+
+Priorité du mode audio
+Audio mode priority
+
+Qualité audio avancée
+Advanced audio quality
+
+Haute résolution 24 bits/96 kHz
+High resolution 24-bit/96 kHz
+
+Sans perte 16 bits/44,1 kHz
+Lossless 16-bit/44.1 kHz
+
+Modèle
+Model
+
+Micrologiciel
+Firmware
+
+Révision matérielle
+Hardware revision
+
+Application
+Application
+
+Statut
+Status
+
+Projet non officiel, sans lien avec Sennheiser ni Sonova
+Unofficial project, not affiliated with Sennheiser or Sonova
+
+Licence
+License
+
+MIT OU Apache-2.0
+MIT OR Apache-2.0
+
+Écritures
+Writes
+
+Uniquement celles capturées dans l'app puis validées sur le MOMENTUM 5
+Only those captured in the app and then validated on the MOMENTUM 5
+
+casque (GAIA)
+headphones (GAIA)
+
+Pilotage par ce PC
+Control by this PC
+
+connecté (commande les réglages ; ne prouve pas que le son passe)
+connected (controls the settings; does not prove that sound is playing)
+
+application
+application
+
+Ce PC dans la liste du casque
+This PC in the headphones' list
+
+absent de la liste lue
+missing from the list read
+
+Autres appareils connectés
+Other connected devices
+
+Windows (sortie par défaut)
+Windows (default output)
+
+Sortie audio
+Audio output
+
+pas encore lue
+not read yet
+
+Windows
+Windows
+
+Sortie par défaut
+Default output
+
+C'est le casque
+It is the headphones
+
+oui
+yes
+
+non
+no
+
+Liaison
+Link
+
+Format de mixage (traitement de Windows, pas le codec Bluetooth)
+Mix format (Windows processing, not the Bluetooth codec)
+
+inconnu
+unknown
+
+Volume
+Volume
+
+muet
+muted
+
+Sorties actives du casque
+Active headphone outputs
+
+Codec
+Codec
+
+pas de lecture
+no playback
+
+Fréquence d'échantillonnage
+Sample rate
+
+inconnue (notifiée seulement au début d'une lecture)
+unknown (only reported when playback starts)
+
+PipeWire (pw-dump, lecture seule)
+PipeWire (pw-dump, read-only)
+
+Le casque n'est pas piloté par ce PC ; le son peut fonctionner sans pilotage.
+The headphones are not controlled by this PC; sound can work without control.
+
+Sorties du système
+System outputs
+
+pas encore lues
+not read yet
+
+Le casque est la sortie par défaut
+The headphones are the default output
+
+inconnu (métadonnée ou sortie non identifiée)
+unknown (metadata or output not identified)
+
+Aucune sortie Bluetooth du casque piloté n'est visible dans PipeWire. Vérifier la connexion audio dans les paramètres du système ; le pilotage seul ne prouve pas une sortie audio.
+No Bluetooth output of the controlled headphones is visible in PipeWire. Check the audio connection in the system settings; control alone does not prove an audio output.
+
+Le casque n'est pas la sortie audio par défaut. Le choisir dans les paramètres audio du système si c'est la sortie souhaitée.
+The headphones are not the default audio output. Choose them in the system audio settings if that is the output you want.
+
+Codec de cette sortie PipeWire
+Codec of this PipeWire output
+
+inconnu ou non reconnu
+unknown or not recognised
+
+Cette sortie est celle par défaut
+This output is the default one
+
+Profil appel : qualité réduite (HFP/HSP). Hors appel, choisir le profil musique A2DP dans les paramètres audio si disponible.
+Call profile: reduced quality (HFP/HSP). Outside calls, choose the A2DP music profile in the audio settings if available.
+
+Le codec PipeWire décrit la sortie de ce PC ; il ne prouve ni un son en cours ni une transmission sans perte. Le flux rapporté par le casque peut venir de l'autre appareil en Multipoint.
+The PipeWire codec describes this PC's output; it proves neither that sound is playing nor a lossless transmission. The stream reported by the headphones may come from the other device in Multipoint.
+
+Un autre appareil est connecté (Multipoint) et peut prendre la main sur l'audio.
+Another device is connected (Multipoint) and can take over the audio.
+
+inchangé
+unchanged
+
+niveau : nombre entier de 0 à 100, ou vide
+niveau: whole number from 0 to 100, or empty
+
+Aucun réglage : la scène est vide.
+No setting: the scene is empty.
+
+il y a {} min
+{} min ago
+
+il y a {} h
+{} h ago
+
+il y a {} j
+{} d ago
+
+Estimation : environ {} h restantes, d'après les {} dernières heures de décharge. Le rythme dépend de l'ANC, du volume et du codec.
+Estimate: about {} h left, based on the last {} hours of discharge. The rate depends on ANC, volume and codec.
+
+il y a {}
+{} ago
+
+Préréglage : {}
+Preset: {}
+
+codec {}
+codec {}
+
+{} · {} kHz
+{} · {} kHz
+
+Connexion à « {} »…
+Connecting to “{}”…
+
+État inconnu ({})
+Unknown state ({})
+
+Valeur {}
+Value {}
+
+Combinaison non observée ({}, {})
+Combination not observed ({}, {})
+
+momentum-ctl-win {}
+momentum-ctl-win {}
+
+{}, heure inconnue
+{}, time unknown
+
+{}, lu à {}
+{}, read at {}
+
+application, depuis {}
+application, since {}
+
+illisible : {}
+unreadable: {}
+
+{}, valeur depuis {}
+{}, value since {}
+
+{} (notification), valeur depuis {}
+{} (notification), value since {}
+
+{} (notification)
+{} (notification)
+
+Sortie Bluetooth {} : profil
+Bluetooth output {}: profile
+
+Étapes prévues : {}.
+Planned steps: {}.
+
+trame incomplète : {} octet(s) manquant(s)
+incomplete frame: {} byte(s) missing
+
+octet de début invalide : {} (attendu 0xFF)
+invalid start byte: {} (expected 0xFF)
+
+version de trame non prise en charge : {} (03 et 04 sont connues)
+unsupported frame version: {} (03 and 04 are known)
+
+flags de trame non pris en charge : {} (seul 0x00 est connu)
+unsupported frame flags: {} (only 0x00 is known)
+
+payload trop long : {} octets (max {})
+payload too long: {} bytes (max {})
+
+{} octet(s) parasite(s) ignoré(s) avant une trame
+{} stray byte(s) ignored before a frame
+
+payload inattendu pour {} : {}
+unexpected payload for {}: {}
+
+connexion fermée par le casque
+connection closed by the headphones
+
+délai dépassé ({}) sans données du casque
+timeout ({}) with no data from the headphones
+
+{} : pas de réponse de Windows après {}
+{}: no answer from Windows after {}
+
+{} : HRESULT {} — {}
+{}: HRESULT {} — {}
+
+trame inattendue envoyée au mock : {}
+unexpected frame sent to the mock: {}
+
+casque mémorisé absent des appareils appairés ; vérifier les paramètres Bluetooth
+remembered headphones missing from paired devices; check the Bluetooth settings
+
+identité mémorisée ambiguë : reconnexion refusée
+remembered identity is ambiguous: reconnection refused
+
+Bluetooth système indisponible ou accès refusé
+system Bluetooth unavailable or access denied
+
+état du service inaccessible
+service state unavailable
+
+demande faite pour une connexion précédente : état à relire
+request made for a previous connection: state must be read again
+
+le worker s'est arrêté
+the worker stopped
+
+service pas encore prêt
+service not ready yet
+
+une reconnexion est déjà en cours
+a reconnection is already in progress
+
+impossible de lancer la demande système
+cannot start the system request
+
+casque absent ou en lecture seule
+headphones absent or read-only
+
+historique non effacé : écriture impossible ({})
+history not cleared: cannot write ({})
+
+scène « {} » introuvable dans le fichier
+scene “{}” not found in the file
+
+énumération des sorties : {}
+listing outputs: {}
+
+liste des sorties : {}
+output list: {}
+
+casque non connecté
+headphones not connected
+
+aucun casque connecté avec service GAIA
+no connected headphones with a GAIA service
+
+demande faite pour une connexion précédente
+request made for a previous connection
+
+remplacée par une demande plus récente
+replaced by a more recent request
+
+connexion perdue avant la relecture
+connection lost before reading back
+
+connexion perdue avant l'envoi
+connection lost before sending
+
+échange interrompu pendant la scène
+exchange interrupted during the scene
+
+scène appliquée en partie
+scene partly applied
+
+la relecture ne montre pas la valeur demandée (changée ailleurs ?)
+reading back does not show the requested value (changed elsewhere?)
+
+En attente du casque
+Waiting for the headphones
+
+ANC ↔ transparence
+ANC ↔ transparency
+
+0 = ANC maximal, 100 = transparence maximale
+0 = maximum ANC, 100 = maximum transparency
+
+Réduit le bruit du vent sur les micros
+Reduces wind noise on the microphones
+
+Réduction de bruit
+Noise cancelling
+
+Fonctionnalités
+Features
+
+OpenHeadset Control
+OpenHeadset Control
+
+événements du service interrompus
+service events interrupted
+
+page Accueil non affichée
+Home page not displayed
+
+anti-vent simulé non relu à l'affichage
+simulated anti-wind not shown after reading back
+
+Lecture seule : {}
+Read-only: {}
+
+Service OpenHeadset Control injoignable : {}
+OpenHeadset Control service unreachable: {}
+
+Demande en cours…
+Request in progress…
+
+Accueil
+Home
+
+Égaliseur
+Equalizer
+
+Batterie
+Battery
+
+Paramètres
+Settings
+
+Connexion et audio
+Connection and audio
+
+À propos
+About
+
+Batterie : 
+Battery: 
+
+Micrologiciel 
+Firmware 
+
+ANC ↔ transparence :
+ANC ↔ transparency:
+
+Anti-vent :
+Anti-wind:
+
+Fonctionnalités rapides
+Quick features
+
+Multipoint :
+Multipoint:
+
+Deux appareils à la fois
+Two devices at once
+
+Audio spatial :
+Spatial audio:
+
+Dolby Atmos
+Dolby Atmos
+
+Suivi de tête :
+Head tracking:
+
+Avec l'audio spatial
+With spatial audio
+
+Commandes tactiles :
+Touch controls:
+
+Smart Pause :
+Smart Pause:
+
+Pause au retrait du casque
+Pause when the headphones are taken off
+
+Appareils appairés au casque
+Devices paired with the headphones
+
+Déconnecter « 
+Disconnect “
+
+Le casque coupe sa liaison avec cet appareil. Il reste appairé : « Connecter » le rétablit.
+The headphones drop their link with this device. It stays paired: “Connect” restores it.
+
+Annuler
+Cancel
+
+Couper le Multipoint ?
+Turn off Multipoint?
+
+Sans Multipoint, le casque ne garde qu'un appareil : l'autre est déconnecté.
+Without Multipoint, the headphones keep only one device: the other one is disconnected.
+
+Couper le Multipoint
+Turn off Multipoint
+
+Égaliseur indisponible
+Equalizer unavailable
+
+Égaliseur graphique — 
+Graphic equalizer — 
+
+ bandes
+ bands
+
+Réinitialiser
+Reset
+
+Amplification des basses
+Bass boost
+
+Préréglages
+Presets
+
+Préréglages et courbes
+Presets and curves
+
+Nom du préréglage
+Preset name
+
+Enregistrer la courbe
+Save the curve
+
+Supprimer le préréglage (choisir un préréglage personnel)
+Delete the preset (choose a personal preset)
+
+Supprimer « 
+Delete “
+
+Gains en dB : -3,5 ; -1 ; 0 ; …
+Gains in dB: -3.5; -1; 0; …
+
+Appliquer
+Apply
+
+Exporter la courbe
+Export the curve
+
+Importer une courbe…
+Import a curve…
+
+Mémoriser A
+Remember A
+
+Exporter le profil auditif
+Export the hearing profile
+
+Préréglages enregistrés sur ce PC (prereglages.txt). Courbe exportée dans Documents ; une courbe d'un autre modèle ou d'un autre nombre de bandes est refusée. Le profil auditif (lecture seule, aucune restauration) est une donnée personnelle : ne pas le publier.
+Presets saved on this PC (prereglages.txt). Curves are exported to Documents; a curve for another model or another number of bands is refused. The hearing profile (read-only, no restore) is personal data: do not publish it.
+
+Importer une courbe d'égaliseur
+Import an equalizer curve
+
+Courbes d'égaliseur (*.txt)
+Equalizer curves (*.txt)
+
+Sauvegarder et retrouver mes réglages
+Back up and restore my settings
+
+Scènes, préréglages, raccourcis, panneau et apparence. Aucun profil auditif. Relancer l'interface après import ; un brouillon non enregistré n'est pas inclus.
+Scenes, presets, shortcuts, panel and appearance. No hearing profile. Restart the interface after importing; an unsaved draft is not included.
+
+Inclure aussi l'historique de batterie (export et import)
+Also include the battery history (export and import)
+
+Exporter les réglages…
+Export settings…
+
+Choisir un fichier à importer…
+Choose a file to import…
+
+Confirmer cet import
+Confirm this import
+
+Annuler l'import
+Cancel the import
+
+Exporter vers un nouveau fichier
+Export to a new file
+
+Réglages JSON (*.json)
+JSON settings (*.json)
+
+Choisir les réglages à examiner
+Choose the settings to review
+
+Ouverture de session :
+Session start:
+
+Lancer OpenHeadset Control (icône seule)
+Start OpenHeadset Control (icon only)
+
+Thème :
+Theme:
+
+Clair
+Light
+
+Sombre
+Dark
+
+(pour l'instant celui de Plasma)
+(Plasma's theme for now)
+
+Raccourcis clavier :
+Keyboard shortcuts:
+
+Modifier dans KDE…
+Edit in KDE…
+
+Rubrique « OpenHeadset Control » : mode de bruit suivant (Ctrl+Alt+N), profil personnalisé (Ctrl+Alt+P), fenêtre (Ctrl+Alt+M), et une action par scène, sans raccourci au départ.
+“OpenHeadset Control” section: next noise mode (Ctrl+Alt+N), custom profile (Ctrl+Alt+P), window (Ctrl+Alt+M), and one action per scene, with no shortcut at first.
+
+Réglages indisponibles
+Settings unavailable
+
+Appels
+Calls
+
+Réponse automatique :
+Auto-answer:
+
+Appels confortables :
+Comfort calls:
+
+Alimentation
+Power
+
+Extinction automatique :
+Auto-off:
+
+Protection de la batterie :
+Battery protection:
+
+Invites :
+Prompts:
+
+Volume des invites :
+Prompt volume:
+
+Nom du casque
+Headphone name
+
+Nouveau nom :
+New name:
+
+Renommer
+Rename
+
+Lettres sans accent, chiffres et espaces, 32 caractères au plus. Le système et le téléphone peuvent garder l'ancien nom jusqu'à la prochaine connexion.
+Letters without accents, digits and spaces, 32 characters at most. The system and the phone may keep the old name until the next connection.
+
+Modifier scenes.txt
+Edit scenes.txt
+
+Relire
+Read again
+
+Chaque réglage d'une scène est appliqué puis relu sur le casque, un par un. Une étape refusée arrête la scène et l'affiche ici.
+Each setting of a scene is applied and then read back on the headphones, one by one. A refused step stops the scene and is shown here.
+
+Enregistrer les réglages déjà lus. Les valeurs non lues restent absentes ; aucun réglage du casque ne change.
+Save the settings already read. Values not read stay out; no headphone setting changes.
+
+Nom de la scène
+Scene name
+
+Nom de la scène à enregistrer
+Name of the scene to save
+
+Remplacer la scène et son préréglage existants
+Replace the existing scene and its preset
+
+Enregistrer l'état actuel comme scène
+Save the current state as a scene
+
+Panneau rapide
+Quick panel
+
+Ouvert par un clic sur l'icône de la zone de notification : batterie et anti-vent, plus ce qui est coché ici (quatre scènes au plus).
+Opened by clicking the notification area icon: battery and anti-wind, plus what is checked here (four scenes at most).
+
+Contrôle du bruit
+Noise control
+
+Scènes :
+Scenes:
+
+Modifier les scènes
+Edit scenes
+
+Nouvelle
+New
+
+Dupliquer
+Duplicate
+
+Supprimer
+Delete
+
+Monter
+Move up
+
+Descendre
+Move down
+
+Nom :
+Name:
+
+Mode audio :
+Audio mode:
+
+Contrôle du bruit :
+Noise control:
+
+Niveau (0 à 100) :
+Level (0 to 100):
+
+vide = inchangé
+empty = unchanged
+
+Préréglage d'égaliseur :
+Equalizer preset:
+
+Amplification des basses :
+Bass boost:
+
+Enregistrer
+Save
+
+Annuler les modifications
+Discard changes
+
+Lecture PipeWire…
+Reading PipeWire…
+
+Relire PipeWire
+Read PipeWire again
+
+Constats
+Findings
+
+Pilotage du casque
+Headphone control
+
+Sortie audio du système
+System audio output
+
+Flux Bluetooth
+Bluetooth stream
+
+Exporter (CSV)
+Export (CSV)
+
+Effacer l'historique…
+Clear the history…
+
+Effacer l'historique de la batterie ?
+Clear the battery history?
+
+Toutes les mesures enregistrées sur ce PC sont supprimées. Exporter d'abord pour les garder.
+All readings saved on this PC are deleted. Export first to keep them.
+
+Aucune mesure sur la période
+No readings in the period
+
+maintenant
+now
+
+Copier le diagnostic
+Copy the diagnostic
+
+Texte expurgé (ni adresse, ni numéro de série, ni noms) à joindre à un rapport
+Redacted text (no address, serial number or names) to attach to a report
+
+Diagnostic copié dans le presse-papiers.
+Diagnostic copied to the clipboard.
+
+Application :
+Application:
+
+OpenHeadset Control (client Kirigami)
+OpenHeadset Control (Kirigami client)
+
+Casque :
+Headphones:
+
+Micrologiciel :
+Firmware:
+
+Statut :
+Status:
+
+Licence :
+License:
+
+ni XDG_CONFIG_HOME ni HOME
+neither XDG_CONFIG_HOME nor HOME
+
+portail Background : {}
+Background portal: {}
+
+Un fichier local est requis.
+A local file is required.
+
+Export impossible : dossier des données introuvable.
+Export failed: data folder not found.
+
+Export impossible : dossier Documents introuvable.
+Export failed: Documents folder not found.
+
+Aucun historique à exporter pour l'instant.
+No history to export yet.
+
+MOMENTUM 5
+MOMENTUM 5
+
+Écouter A
+Listen to A
+
+Démonstration : reconnexion simulée, aucun accès Bluetooth.
+Demo: simulated reconnection, no Bluetooth access.
+
+Le brouillon n'est écrit qu'avec « Enregistrer » ; rien n'est envoyé au casque. Le panneau et les raccourcis suivent les renommages.
+The draft is only written with “Save”; nothing is sent to the headphones. The panel and shortcuts follow renames.
+
+Lancer à l'ouverture de session
+Start at session start
+
+nom refusé : c'est déjà le nom du casque
+name refused: it is already the headphones' name
+
+Modifications abandonnées.
+Changes discarded.
+
+Aucun état connu à enregistrer.
+No known state to save.
+
+Panneau enregistré.
+Panel saved.
+
+Effacement impossible : service injoignable.
+Cannot clear: service unreachable.
+
+Effacement de l'historique demandé au service.
+History clearing requested from the service.
+
+Dossier des données introuvable.
+Data folder not found.
+
+Import annulé.
+Import cancelled.
+
+Ce sont déjà les gains du casque.
+These are already the headphones' gains.
+
+Export impossible : dossier personnel introuvable.
+Export failed: home folder not found.
+
+Courbe A mémorisée : modifiez l'égaliseur (B), puis comparez.
+Curve A remembered: change the equalizer (B), then compare.
+
+Historique exporté dans {}.
+History exported to {}.
+
+Export de l'historique impossible : {}.
+History export failed: {}.
+
+connexion perdue : {}
+connection lost: {}
+
+réglage refusé : {}
+setting refused: {}
+
+Export du profil impossible : {}.
+Profile export failed: {}.
+
+service injoignable : {}
+service unreachable: {}
+
+Non enregistré : {}
+Not saved: {}
+
+Panneau non enregistré : {}.
+Panel not saved: {}.
+
+Scène « {} » en cours…
+Scene “{}” in progress…
+
+Export refusé : {}
+Export refused: {}
+
+Import refusé : {}
+Import refused: {}
+
+Préréglage « {} » enregistré sur ce PC.
+Preset “{}” saved on this PC.
+
+Préréglage non enregistré : {}.
+Preset not saved: {}.
+
+Préréglage « {} » supprimé.
+Preset “{}” deleted.
+
+Suppression non enregistrée : {}.
+Deletion not saved: {}.
+
+Gains non appliqués : {}.
+Gains not applied: {}.
+
+Courbe exportée dans {}.
+Curve exported to {}.
+
+Export de la courbe impossible : {}.
+Curve export failed: {}.
+
+Courbe importée depuis {}.
+Curve imported from {}.
+
+Courbe non importée : {}.
+Curve not imported: {}.
+
+OpenHeadset Control\nRecherche du casque…
+OpenHeadset Control\nSearching for the headphones…
+
+propriété inconnue : {}
+unknown property: {}
+
+démarrage du service…
+starting the service…
+
+Panneau enregistré : pris en compte à sa prochaine ouverture.
+Panel saved: used the next time it opens.
+
+Raccourcis enregistrés et actifs.
+Shortcuts saved and active.
+
+Lancer au démarrage de Windows
+Start with Windows
+
+écoute du service arrêtée
+listening to the service stopped
+
+Sélection annulée.
+Selection cancelled.
+
+Effacer
+Clear
+
+Déconnecter cet appareil ?
+Disconnect this device?
+
+Casque
+Headphones
+
+Multipoint
+Multipoint
+
+Gestes sur l'écouteur droit
+Gestures on the right earcup
+
+Préréglage
+Preset
+
+Scènes, préréglages, raccourcis, panneau et apparence. Aucun profil auditif. Relancer l'interface après import pour recharger les réglages ; un brouillon non enregistré n'est pas inclus.
+Scenes, presets, shortcuts, panel and appearance. No hearing profile. Restart the interface after importing to reload the settings; an unsaved draft is not included.
+
+Thème (pour l'instant celui de Windows) :
+Theme (Windows' theme for now):
+
+L'icône apparaît près de l'horloge, la fenêtre reste fermée
+The icon appears near the clock, the window stays closed
+
+Panneau rapide (clic sur l'icône)
+Quick panel (click on the icon)
+
+Anti-vent, batterie et « Ouvrir » sont toujours affichés.
+Anti-wind, battery and “Open” are always shown.
+
+Raccourcis clavier
+Keyboard shortcuts
+
+Enregistrer les raccourcis
+Save shortcuts
+
+Ctrl, Alt, Shift ou Win, plus une lettre, un chiffre ou F1 à F24 (« Ctrl+Alt+N »). Laisser vide pour désactiver. Une combinaison déjà prise par une autre application est signalée.
+Ctrl, Alt, Shift or Win, plus a letter, a digit or F1 to F24 (“Ctrl+Alt+N”). Leave empty to disable. A combination already used by another application is reported.
+
+Décrocher en mettant le casque
+Answer by putting the headphones on
+
+Votre voix dans le casque pendant un appel
+Your voice in the headphones during a call
+
+Limite la charge pour ménager la batterie
+Limits charging to spare the battery
+
+Volume des invites : non lu
+Prompt volume: not read
+
+Chaque réglage d'une scène est appliqué puis relu sur le casque, un par un ; une étape refusée arrête la scène.
+Each setting of a scene is applied and then read back on the headphones, one by one; a refused step stops the scene.
+
+Ouvrir scenes.txt
+Open scenes.txt
+
+Les valeurs non lues restent absentes ; aucun réglage du casque ne change.
+Values not read stay out; no headphone setting changes.
+
+Aucune scène : « Nouvelle » en crée une.
+No scene: “New” creates one.
+
+Niveau ANC ↔ transparence, 0 à 100 (vide = inchangé)
+ANC ↔ transparency level, 0 to 100 (empty = unchanged)
+
+Préréglage d'égaliseur
+Equalizer preset
+
+Le brouillon n'est écrit qu'avec « Enregistrer » ; rien n'est envoyé au casque. Les raccourcis et le panneau suivent les renommages.
+The draft is only written with “Save”; nothing is sent to the headphones. Shortcuts and the panel follow renames.
+
+Lecture de l'historique…
+Reading the history…
+
+Aucune mesure sur la période.
+No readings in the period.
+
+Détails
+Details
+
+Historique
+History
+
+Mesures gardées sur ce PC (batterie.csv, 30 jours) ; l'export va dans Documents.
+Readings kept on this PC (batterie.csv, 30 days); exports go to Documents.
+
+Sortie audio de Windows
+Windows audio output
+
+Relire les sorties de Windows
+Read Windows outputs again
+
+Copie impossible (presse-papiers occupé) : réessayer.
+Copy failed (clipboard busy): try again.
+
+Projet non officiel, sans lien avec Sennheiser ni Sonova.
+Unofficial project, not affiliated with Sennheiser or Sonova.
+
+Licence : MIT OU Apache-2.0
+License: MIT OR Apache-2.0
+
+Diagnostic
+Diagnostic
+
+Texte à joindre à un rapport : ni adresse Bluetooth, ni numéro de série, ni noms d'appareils, ni dossier personnel.
+Text to attach to a report: no Bluetooth address, serial number, device names or home folder.
+
+Raccourcis non enregistrés : {}.
+Shortcuts not saved: {}.
+
+Raccourcis clavier : {}
+Keyboard shortcuts: {}
+
+Opération refusée : {}
+Operation refused: {}
+
+Le casque coupe sa liaison avec « {} ». Il reste appairé : « Connecter » la rétablit.
+The headphones drop their link with “{}”. It stays paired: “Connect” restores it.
+
+ANC ↔ transparence : {} %
+ANC ↔ transparency: {} %
+
+Égaliseur graphique — {} bandes
+Graphic equalizer — {} bands
+
+Supprimer « {} »
+Delete “{}”
+
+Volume des invites : {} %
+Prompt volume: {} %
+
+Batterie : {}
+Battery: {}
+
+De {} (à gauche) à maintenant (à droite) ; repères à 100, 50 et 0 %.
+From {} (left) to now (right); marks at 100, 50 and 0 %.
+
+Client WinUI 3, version {}
+WinUI 3 client, version {}
+
+Micrologiciel du casque : {} {}
+Headphone firmware: {} {}
+
+Réglages JSON
+JSON settings
+
+Exporter les réglages vers un nouveau fichier
+Export settings to a new file
+
+lecture seule
+read-only
+
+Envoi au casque…
+Sending to the headphones…
+
+pas de réponse du service
+no answer from the service
+
+refusée : {}
+refused: {}
+
+Arrêt
+Off
+
+Après 15 min
+After 15 min
+
+Après 30 min
+After 30 min
+
+Après 60 min
+After 60 min
+
+Égaliseur graphique
+Graphic equalizer
+
+égaliseur
+equalizer
+
+voix (Speech Clarity)
+voice (Speech Clarity)
+
+profil personnalisé
+custom profile
+
+adaptatif
+adaptive
+
+personnalisé
+custom
+
+arrêt
+off
+
+24 heures
+24 hours
+
+7 jours
+7 days
+
+30 jours
+30 days
+
+Réduction de bruit désactivée
+Noise cancelling off
+
+Réduction de bruit adaptative
+Adaptive noise cancelling
+
+Réduction de bruit maximale
+Maximum noise cancelling
+
+Transparence maximale
+Maximum transparency
+
+Anti-vent activé
+Anti-wind on
+
+Anti-vent désactivé
+Anti-wind off
+
+Audio spatial activé
+Spatial audio on
+
+Audio spatial désactivé
+Spatial audio off
+
+Casque MOMENTUM 5 (OpenHeadset Control)
+MOMENTUM 5 headphones (OpenHeadset Control)
+
+MOMENTUM 5 (démo)
+MOMENTUM 5 (demo)
+
+Simulé
+Simulated
+
+Ce PC
+This PC
+
+Téléphone
+Phone
+
+Tablette
+Tablet
+
+mode démonstration : aucun profil réel à exporter
+demo mode: no real profile to export
+
+mode démonstration : les scènes ne sont pas simulées
+demo mode: scenes are not simulated
+
+ virgule flottante
+ floating point
+
+Les sorties audio de Windows n'ont pas pu être lues.
+Windows audio outputs could not be read.
+
+Windows n'a aucune sortie audio par défaut : le son ne part nulle part.
+Windows has no default audio output: sound goes nowhere.
+
+La sortie du casque est coupée (muet) dans Windows.
+The headphone output is muted in Windows.
+
+Le volume de Windows est à 0 sur la sortie du casque.
+The Windows volume is at 0 on the headphone output.
+
+Le casque indique qu'aucun flux audio n'est en cours (dernière valeur reçue).
+The headphones report that no audio stream is playing (last value received).
+
+{}, {}, {} bits{}
+{}, {}, {} bits{}
+
+code {} : {}, d'après l'app officielle
+code {}: {}, according to the official app
+
+Mode de bruit suivant
+Next noise mode
+
+Profil personnalisé / égaliseur
+Custom profile / equalizer
+
+Ouvrir la fenêtre
+Open the window
+
+{} et {} utilisent tous deux {}
+{} and {} both use {}
+
+{} a été modifié ailleurs depuis son ouverture : relu, à refaire
+{} was changed elsewhere since it was opened: read again, try again
+
+pw-dump est absent : installer les outils PipeWire de la distribution ; dans un Flatpak, vérifier le contenu du paquet
+pw-dump is missing: install the distribution's PipeWire tools; in a Flatpak, check the package contents
+
+l'identité du casque connecté n'est pas disponible : un service récent et un casque piloté sont nécessaires
+the identity of the connected headphones is not available: a recent service and controlled headphones are required
+
+Écouter B
+Listen to B
+
+{} valeurs saisies pour {} bandes (séparer les gains par « ; »)
+{} values entered for {} bands (separate the gains with “;”)
+
+bande {} : {} dB hors de la plage du casque ({} à {} dB)
+band {}: {} dB outside the headphone range ({} to {} dB)
+
+version de fichier « {} » non prise en charge (attendue : {})
+file version “{}” not supported (expected: {})
+
+courbe prévue pour le modèle « {} », pas pour « {} »
+curve made for model “{}”, not for “{}”
+
+courbe à {} bandes, l'égaliseur du casque en a {}
+curve with {} bands, the headphone equalizer has {}
+
+le panneau montre au plus {} scènes : retirez-en une d'abord
+the panel shows {} scenes at most: remove one first
+
+mode audio : égaliseur
+audio mode: equalizer
+
+mode audio : Speech Clarity
+audio mode: Speech Clarity
+
+mode audio : profil personnalisé
+audio mode: custom profile
+
+bruit : adaptatif
+noise: adaptive
+
+bruit : personnalisé
+noise: custom
+
+bruit : arrêt
+noise: off
+
+« niveau » exige « bruit = personnalise » (ou pas de « bruit »)
+“niveau” requires “bruit = personnalise” (or no “bruit”)
+
+« egaliseur » et « basses » exigent « son = egaliseur » dans la scène
+“egaliseur” and “basses” require “son = egaliseur” in the scene
+
+« spatial = on » est incompatible avec « son = profil »
+“spatial = on” is incompatible with “son = profil”
+
+audio spatial {}
+spatial audio {}
+
+niveau ANC ↔ transparence : {}
+ANC ↔ transparency level: {}
+
+anti-vent {}
+anti-wind {}
+
+commandes tactiles {}
+touch controls {}
+
+égaliseur : « {} »
+equalizer: “{}”
+
+amplification des basses {}
+bass boost {}
+
+réglage inconnu « {} » (possibles : {})
+unknown setting “{}” (possible: {})
+
+ligne {} : scène « {} » : {}
+line {}: scene “{}”: {}
+
+ligne {} : scène « {} » déjà définie plus haut
+line {}: scene “{}” already defined above
+
+ligne {} : réglage hors d'une scène (ajouter un titre [Nom] avant)
+line {}: setting outside a scene (add a [Name] title before it)
+
+ligne {} : {} (scène « {} » ignorée)
+line {}: {} (scene “{}” ignored)
+
+la liste des cinq fichiers de réglages est incomplète
+the list of the five settings files is incomplete
+
+ce fichier existe déjà ; choisir un autre nom (rien n'est écrasé)
+this file already exists; choose another name (nothing is overwritten)
+
+fichier modifié ailleurs pendant la restauration
+file changed elsewhere during the restore
+
+{} a changé depuis l'aperçu : refaire la simulation
+{} changed since the preview: run the simulation again
+
+{}.ancien existe déjà : le conserver ailleurs avant de recommencer
+{}.ancien already exists: keep it elsewhere before starting again
+
+Contrôle du bruit : {}\nAnti-vent : {}
+Noise control: {}\nAnti-wind: {}
+
+{}\nBatterie {} %\n{}
+{}\nBattery {} %\n{}
+
+état de charge, santé et cycles de la batterie : le casque ne les donne pas au projet
+charge state, health and cycles of the battery: the headphones do not give them to the project
+
+aucun casque mémorisé : le connecter une première fois depuis les paramètres Bluetooth
+no remembered headphones: connect them once from the Bluetooth settings
+
+la demande Bluetooth a échoué ou dépassé le délai ; vérifier les paramètres Bluetooth avant de réessayer
+the Bluetooth request failed or timed out; check the Bluetooth settings before trying again
+
+plusieurs appareils s'appellent « {} » : interface à mettre à jour
+several devices are named “{}”: the interface must be updated
+
+{} appareils GAIA connectés et aucun casque mémorisé : en garder un seul connecté
+{} GAIA devices connected and no remembered headphones: keep only one connected
+
+Démonstration : données simulées (aucun casque, aucun service)
+Demo: simulated data (no headphones, no service)
+
+Lancer OpenHeadset Control à l'ouverture de session (icône seule)
+Start OpenHeadset Control at session start (icon only)
+
+Profil exporté dans {} (données auditives personnelles : ne pas le publier).
+Profile exported to {} (personal hearing data: do not publish it).
+
+Scène « {} » enregistrée (rien n'a été envoyé au casque).
+Scene “{}” saved (nothing was sent to the headphones).
+
+élément de menu inconnu : {}
+unknown menu item: {}
+
+Raccourcis enregistrés ; refusés : {}.
+Shortcuts saved; refused: {}.
+
+Scènes montrées ({} au plus) :
+Scenes shown ({} at most):
+
+Appliquer la scène « {} » au casque
+Apply the scene “{}” to the headphones
+
+{} : {}
+{}: {}
+
+Langue :
+Language:
+
+Langue du système
+System language
+
+Langue enregistrée : appliquée au prochain lancement de l'interface.
+Language saved: applied the next time the interface starts.
+
+Langue non enregistrée : {}.
+Language not saved: {}.
+
+Volume des invites
+Prompt volume
+
+Période de l'historique
+History period
+
+Signaler un problème…
+Report a problem…
+
+Signaler un problème
+Report a problem
+
+Navigateur introuvable : copier le diagnostic et ouvrir github.com/Asfax03L/openheadset-control/issues.
+No browser found: copy the diagnostic and open github.com/Asfax03L/openheadset-control/issues.
+
+Ce texte sera prérempli dans le formulaire « Bogue » de GitHub, ouvert dans le navigateur. Relisez-le : rien n'est envoyé tant que vous ne validez pas le formulaire sur GitHub (compte GitHub nécessaire).
+This text will be prefilled in the GitHub “Bug” form, opened in your browser. Review it: nothing is sent until you submit the form on GitHub (GitHub account required).
+
+Diagnostic à envoyer
+Diagnostic to send
+
+Ouvrir le formulaire sur GitHub
+Open the form on GitHub
+
+Bienvenue
+Welcome
+
+OpenHeadset Control règle le Sennheiser MOMENTUM 5 depuis ce PC : réduction de bruit, égaliseur, scènes, batterie. Projet non officiel, sans lien avec Sennheiser ni Sonova. Seuls les réglages documentés sont modifiés ; le reste est en lecture seule.
+OpenHeadset Control adjusts the Sennheiser MOMENTUM 5 from this PC: noise cancelling, equalizer, scenes, battery. Unofficial project, not affiliated with Sennheiser or Sonova. Only documented settings are changed; everything else is read-only.
+
+Bluetooth
+Bluetooth
+
+Le Bluetooth du PC doit être activé : Paramètres > Bluetooth et appareils.
+Bluetooth must be on: Settings > Bluetooth & devices.
+
+Le Bluetooth du PC doit être activé : Configuration du système > Bluetooth.
+Bluetooth must be on: System Settings > Bluetooth.
+
+Appairage
+Pairing
+
+Appairez le casque avec ce PC dans les paramètres Bluetooth du système (mode appairage : voir la notice du casque). OpenHeadset Control n'appaire rien lui-même : il trouve ensuite le casque tout seul.
+Pair the headphones with this PC in the system Bluetooth settings (pairing mode: see the headphones' manual). OpenHeadset Control does not pair anything itself: it then finds the headphones on its own.
+
+Windows App Runtime
+Windows App Runtime
+
+Cette interface utilise Windows App Runtime 2 : il est installé, puisque cette fenêtre s'affiche. L'installateur le vérifie ; après une réinstallation de Windows : winget install Microsoft.WindowsAppRuntime.2.
+This interface uses Windows App Runtime 2: it is installed, since this window is showing. The installer checks it; after reinstalling Windows: winget install Microsoft.WindowsAppRuntime.2.
+
+Avec le Multipoint, le casque reste connecté à deux appareils à la fois, par exemple deux PC ou un PC et un téléphone. OpenHeadset Control peut tourner sur chaque PC. Couper le Multipoint déconnecte l'autre appareil.
+With Multipoint, the headphones stay connected to two devices at once, for example two PCs or a PC and a phone. OpenHeadset Control can run on each PC. Turning Multipoint off disconnects the other device.
+
+C'est prêt
+All set
+
+Cet assistant reste accessible depuis « À propos ». Guide d'utilisation et questions fréquentes : asfax03l.github.io/openheadset-control.
+This assistant stays available from “About”. User guide and FAQ: asfax03l.github.io/openheadset-control.
+
+Casque connecté : tout est prêt.
+Headphones connected: all set.
+
+Casque pas encore détecté : l'appairer, l'allumer, puis patienter quelques secondes.
+Headphones not detected yet: pair them, turn them on, then wait a few seconds.
+
+Guide d'utilisation
+User guide
+
+Assistant de premier lancement
+First-launch assistant
+
+Ouvrir les paramètres Bluetooth
+Open Bluetooth settings
+
+Précédent
+Previous
+
+Suivant
+Next
+
+Terminer
+Finish
+
+Passer l'assistant
+Skip the assistant
+
+Premier lancement — étape {} sur {}
+First launch — step {} of {}

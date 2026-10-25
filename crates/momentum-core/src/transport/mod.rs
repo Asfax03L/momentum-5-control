@@ -14,24 +14,25 @@ pub mod windows_rfcomm;
 
 pub use mock::MockTransport;
 
+use crate::i18n::{tr, trf};
 use std::time::Duration;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum TransportError {
-    #[error("délai dépassé ({0:?}) sans données du casque")]
+    #[error("{}", trf("délai dépassé ({}) sans données du casque", &[&format!("{:?}", .0)]))]
     Timeout(Duration),
-    #[error("connexion fermée par le casque")]
+    #[error("{}", tr("connexion fermée par le casque"))]
     Closed,
     /// Une opération Windows (recherche, connexion, envoi) n'a pas abouti à
     /// temps : on abandonne plutôt que de bloquer le programme.
-    #[error("{context} : pas de réponse de Windows après {timeout:?}")]
+    #[error("{}", trf("{} : pas de réponse de Windows après {}", &[&.context, &format!("{:?}", .timeout)]))]
     Deadline {
         context: &'static str,
         timeout: Duration,
     },
     /// Erreur Windows avec son HRESULT, pour le diagnostic.
-    #[error("{context} : HRESULT {hresult:#010X} — {message}")]
+    #[error("{}", trf("{} : HRESULT {} — {}", &[&.context, &format!("{:#010X}", .hresult), &.message]))]
     Os {
         context: &'static str,
         hresult: u32,
@@ -43,7 +44,7 @@ pub enum TransportError {
         context: &'static str,
         message: String,
     },
-    #[error("trame inattendue envoyée au mock : {0}")]
+    #[error("{}", trf("trame inattendue envoyée au mock : {}", &[&.0]))]
     UnexpectedRequest(String),
 }
 

@@ -1,4 +1,4 @@
-# Construit l'installateur Windows (Inno Setup 6) à partir des exécutables
+﻿# Construit l'installateur Windows (Inno Setup 6) à partir des exécutables
 # déjà compilés : openheadset-control-vX.Y.Z-windows-x86_64-installateur.exe
 # dans -Sortie. Inno Setup est pris s'il est installé, sinon installé par
 # Chocolatey (runners GitHub).

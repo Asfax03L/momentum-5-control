@@ -5,6 +5,7 @@
 //! - connexion perdue : seulement si le casque était connecté ;
 //! - casque retrouvé : seulement après une perte (pas au démarrage).
 
+use crate::i18n::{tr, trf};
 /// Seuil d'alerte de batterie, en %.
 pub const LOW_BATTERY: u8 = 15;
 /// Seuil de réarmement de l'alerte, en %.
@@ -33,8 +34,8 @@ impl AlertTracker {
     pub fn on_connected(&mut self, name: &str) -> Option<Alert> {
         self.connected = true;
         std::mem::take(&mut self.lost).then(|| Alert {
-            title: "Casque reconnecté".to_string(),
-            body: format!("« {name} » est de nouveau connecté."),
+            title: tr("Casque reconnecté").to_string(),
+            body: trf("« {} » est de nouveau connecté.", &[&name]),
         })
     }
 
@@ -45,8 +46,9 @@ impl AlertTracker {
         }
         self.lost = true;
         Some(Alert {
-            title: "Casque déconnecté".to_string(),
-            body: "La connexion au casque est perdue ; nouvel essai toutes les 5 s.".to_string(),
+            title: tr("Casque déconnecté").to_string(),
+            body: tr("La connexion au casque est perdue ; nouvel essai toutes les 5 s.")
+                .to_string(),
         })
     }
 
@@ -61,8 +63,8 @@ impl AlertTracker {
         }
         self.battery_warned = true;
         Some(Alert {
-            title: "Batterie faible".to_string(),
-            body: format!("Il reste {percent} % de batterie au casque."),
+            title: tr("Batterie faible").to_string(),
+            body: trf("Il reste {} % de batterie au casque.", &[&percent]),
         })
     }
 }
