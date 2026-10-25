@@ -397,15 +397,15 @@ Kirigami.ApplicationWindow {
             if (!assistantDialog.visible) {
                 if (root.essaiTitres.length === assistantDialog.count && !headset.assistantOpen) {
                     console.info("ESSAI ASSISTANT RÉUSSI : " + root.essaiTitres.join(" | "))
-                    Qt.exit(0)
+                    return Qt.exit(0)
                 }
                 console.error("ESSAI ASSISTANT ÉCHEC : fenêtre fermée trop tôt")
-                Qt.exit(1)
+                return Qt.exit(1)
             }
             const titre = headset.assistantTitle(assistantDialog.step)
             if (!titre || !headset.assistantText(assistantDialog.step)) {
                 console.error("ESSAI ASSISTANT ÉCHEC : étape " + assistantDialog.step + " vide")
-                Qt.exit(1)
+                return Qt.exit(1)
             }
             root.essaiTitres = root.essaiTitres.concat([titre])
             console.info("essai assistant : étape " + (assistantDialog.step + 1) + " : " + titre)

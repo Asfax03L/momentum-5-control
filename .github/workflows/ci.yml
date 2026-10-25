@@ -246,6 +246,20 @@ jobs:
           cat essai-interface.log
           test "$code" -eq 0
           grep -q "ESSAI INTERFACE RÉUSSI" essai-interface.log
+      # Assistant de premier lancement, dans les deux langues : chaque étape
+      # a un titre et un texte, « Terminer » le ferme.
+      - name: Essai de l'assistant KDE
+        run: |
+          for langue in fr en; do
+            set +e
+            OPENHEADSET_LANG=$langue QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen timeout 90 dbus-run-session -- \
+              target/debug/momentum-kirigami --demo --essai-assistant > "essai-assistant-$langue.log" 2>&1
+            code=$?
+            set -e
+            cat "essai-assistant-$langue.log"
+            test "$code" -eq 0
+            grep -q "ESSAI ASSISTANT RÉUSSI" "essai-assistant-$langue.log"
+          done
 
   # Service durci (assets/linux/momentum-daemon.service, docs/SECURITE.md) :
   # score d'exposition de systemd, puis démarrage réel du service compilé,
