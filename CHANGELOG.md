@@ -12,6 +12,84 @@ refuse de publier sans elles) :
 - « À faire après la mise à jour » : les actions concrètes par système,
   ou « Rien de particulier » avec la raison.
 
+## v0.15.1 — 25/10/2026
+
+### En bref
+Version de fiabilisation, sans nouvelle fonction. Elle corrige les douze
+constats (A01 à A12) de l'audit du projet du 24/10/2026 :
+- **Vos réglages ne peuvent plus être écrasés en silence.**
+  - Deux enregistrements simultanés (deux interfaces, ou une interface et
+    `ctl`) ne perdent plus l'une des modifications.
+  - L'effacement de l'historique de la batterie n'est plus annoncé réussi
+    quand l'écriture sur le disque a échoué.
+  - Un fichier de raccourcis dans un autre encodage n'est plus remplacé par
+    les valeurs par défaut.
+- **Linux : le service ne peut plus lire le reste de votre dossier
+  personnel.** Jusqu'ici, il ne pouvait pas y écrire mais pouvait le lire,
+  contrairement à ce que disaient les notes de la v0.11.0.
+- **Tests sans danger pour vos données** : la suite de tests n'écrit plus
+  dans l'historique réel de la batterie (c'est arrivé une fois sur le PC
+  d'essai ; l'historique a été reconstitué).
+- **Windows** : une attente du service qui dépasse son délai libère
+  maintenant le canal, au lieu de laisser une lecture bloquée.
+- **Installateur Linux** : une panne en cours de route est annoncée comme
+  installation partielle, avec la marche à suivre ; le client GNOME est
+  sauvegardé et remis comme les autres programmes.
+
+### À faire après la mise à jour
+- **Linux (archive, `.deb`, `.rpm`, AUR)** : installer comme d'habitude.
+  L'unité du service change (`ProtectHome=tmpfs`) ; l'installateur et les
+  paquets la remplacent et redémarrent le service. Si vous avez déplacé
+  le dossier des données avec `XDG_DATA_HOME`, le service ne le voit plus :
+  garder `~/.local/share/momentum-ctl-win`.
+- **Windows, Flatpak, mode jeu** : rien de particulier.
+
+### Fiabilisation (audit du 24/10/2026)
+- **A01** : le service reçoit le chemin de l'historique au démarrage
+  (`Shared::battery_file`) au lieu de le relire dans l'environnement ; les
+  essais utilisent un dossier temporaire. La CI lance toute la suite avec un
+  dossier de données témoin et échoue si un fichier témoin change
+  (`scripts/essai-temoin.sh`, Windows et Linux).
+- **A02** : unité systemd `ProtectHome=tmpfs`, avec en écriture le dossier
+  des données et Documents, le socket du bus et, en lecture seule, le
+  binaire (`BindPaths`, `BindReadOnlyPaths`). `docs/SECURITE.md` corrigé.
+  Essayé sur Bazzite avec le M5 (6.21.5) : service démarré par l'unité,
+  état lu, anti-vent coupé, relu, puis remis et relu ; fichier personnel
+  illisible, données et Documents inscriptibles, bus joignables.
+- **A03** : verrou commun à tous les auteurs d'un dossier de données
+  (`paths::lock_dir`, `File::lock`), qui couvre la lecture, la
+  vérification et le remplacement (`update_user_file`). Il est utilisé
+  par les préréglages, les scènes, les raccourcis, le panneau et l'import
+  des réglages. Essais : 200 courses, un seul succès par course ; 50
+  ajouts simultanés de préréglages, les deux gardés.
+- **A04** : l'effacement de l'historique écrit d'abord l'historique vide ;
+  un échec est un refus (« historique non effacé ») et garde les mesures.
+  Les écritures de l'historique remplacent le fichier d'un bloc.
+- **A05** : `raccourcis.txt` n'est créé que s'il est absent (création
+  exclusive). Illisible : gardé tel quel, valeurs par défaut en mémoire,
+  et l'éditeur de scènes ne le réécrit pas.
+- **A06** : la tâche CI `service-durci` lance le service par son unité
+  sous `systemd --user` et vérifie les accès à l'exécution
+  (`scripts/essai-confinement.sh`), en plus du score statique.
+- **A07** : la publication attend une CI verte sur la même révision. Le
+  workflow est en lecture seule, sauf le job qui publie. Les actions sont
+  épinglées sur une révision. Reste la protection de `main`, un réglage du
+  dépôt qui demande l'accord du mainteneur.
+- **A08** : installateur Linux. Le client GTK est sauvegardé et remis avec
+  les autres binaires ; une panne après leur remplacement est annoncée
+  « installation partielle » ; un redémarrage raté du service est
+  signalé. Essai en CI avec panne injectée
+  (`scripts/essai-installateur-linux.sh`).
+- **A09** : client du canal nommé Windows en E/S asynchrones, avec une
+  échéance unique. Délai dépassé : l'opération est annulée (`CancelIoEx`)
+  et le canal fermé. Essai avec un faux serveur muet.
+- **A10** : `cargo deny` vérifie aussi les interdictions (`bans`) ; les
+  exceptions zbus 5, devenues inutiles, sont retirées.
+- **A11** : vérification de `momentum-gtk` avec Rust 1.92 dans la matrice
+  MSRV.
+- **A12** : documentation alignée : règles du CHANGELOG, trois
+  interfaces, contenu de l'archive Linux, F14 requalifié.
+
 ## v0.15.0 — 25/10/2026
 
 ### En bref

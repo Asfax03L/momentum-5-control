@@ -1,6 +1,6 @@
 {
   "name": "openheadset-control-decky",
-  "version": "0.15.0",
+  "version": "0.15.1",
   "description": "Extension Decky Loader d'OpenHeadset Control (mode jeu de Bazzite et du Steam Deck)",
   "type": "module",
   "private": true,
