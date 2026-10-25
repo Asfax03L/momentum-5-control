@@ -82,7 +82,10 @@ jobs:
       # par la navigation, puis un réglage simulé relu à l'affichage.
       - name: Essai de l'interface WinUI (UI Automation)
         shell: pwsh
-        run: ./scripts/essai-interface-winui.ps1 -Exe target/debug/momentum-winui.exe
+        run: ./scripts/essai-interface-winui.ps1 -Exe target/debug/momentum-winui.exe -Langue fr
+      - name: Essai de l'interface WinUI en anglais (UI Automation)
+        shell: pwsh
+        run: ./scripts/essai-interface-winui.ps1 -Exe target/debug/momentum-winui.exe -Langue en -Capture essai-interface-winui-en.png
       # Installateur Windows (Inno Setup) : mise à jour par-dessus la
       # version publiée précédente (installer.ps1), réinstallation, puis
       # désinstallation propre.
@@ -106,7 +109,7 @@ jobs:
         if: failure()
         with:
           name: capture-essai-interface-winui
-          path: essai-interface-winui.png
+          path: essai-interface-winui*.png
           if-no-files-found: ignore
 
   # Extension Decky Loader (mode jeu) : dépendances figées, types, archive,
