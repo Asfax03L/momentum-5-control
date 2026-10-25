@@ -11,7 +11,7 @@ use momentum_client::{BUS_NAME, Command, OBJECT_PATH, runner};
 use momentum_core::paths;
 use momentum_service::worker::Job;
 use zbus::object_server::SignalEmitter;
-use zbus::zvariant::{OwnedValue, Value};
+use zbus::{OwnedVariant, Variant};
 
 use crate::service::{self, Shared};
 
@@ -110,7 +110,7 @@ type RemoteMatch = (
     String,
     u32,
     f64,
-    HashMap<String, OwnedValue>,
+    HashMap<String, OwnedVariant>,
 );
 
 /// Pertinence de catégorie de KRunner (`KRunner::QueryMatch`).
@@ -145,7 +145,7 @@ impl Runner {
             .into_iter()
             .map(|m| {
                 let mut properties = HashMap::new();
-                if let Ok(subtext) = Value::from(m.subtext).try_into_owned() {
+                if let Ok(subtext) = OwnedVariant::try_from(Variant::from(m.subtext)) {
                     properties.insert("subtext".to_string(), subtext);
                 }
                 let category = if m.exact {
