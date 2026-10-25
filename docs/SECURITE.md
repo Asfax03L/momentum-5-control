@@ -70,6 +70,35 @@ sous les mêmes options :
 - `/etc` non inscriptible ;
 - bus de session et bus système joignables.
 
+### Ubuntu 24.04 et suivants (AppArmor)
+
+Ubuntu restreint les espaces de noms utilisateur
+(`kernel.apparmor_restrict_unprivileged_userns=1`). Pour un service
+utilisateur, cela a deux effets, mesurés en CI le 25/10/2026 (Ubuntu
+24.04, systemd 255) :
+
+- cinq options empêchent le démarrage : `CapabilityBoundingSet=` vide,
+  `PrivateDevices`, `ProtectKernelModules`, `ProtectKernelLogs` et
+  `ProtectClock`. **De la v0.11.0 à la v0.15.0, le service ne démarrait donc
+  pas sous Ubuntu** (le bus le lance par systemd), ni par l'archive ni par
+  le paquet `.deb`. Aucun essai ne lançait l'unité elle-même (A06).
+- systemd n'applique pas le masquage des fichiers (`ProtectSystem`,
+  `ProtectHome`, `PrivateTmp`…) : il l'ignore sans erreur.
+
+Depuis la v0.15.1, le complément `momentum-daemon-apparmor.conf` lève ces
+cinq options. `installer-linux.sh` le pose quand la restriction est
+active ; le paquet `.deb` l'inclut toujours (Debian et Ubuntu partagent le
+paquet). Le service démarre, avec les restrictions qui ne demandent pas
+d'espace de noms :
+- `NoNewPrivileges` ;
+- familles d'adresses limitées à D-Bus et Bluetooth ;
+- filtre d'appels système ;
+- `RestrictNamespaces`, `MemoryDenyWriteExecute`, `LockPersonality`.
+
+Sous Ubuntu, il garde en revanche l'accès en lecture au dossier personnel,
+comme tout programme de l'utilisateur. Sous Fedora, Bazzite, Arch et
+Debian (sans cette restriction par défaut), l'unité complète s'applique.
+
 Conséquences pour l'utilisateur :
 
 - l'export du profil auditif (`ctl exporter-profil`, bouton des interfaces)

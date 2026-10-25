@@ -27,6 +27,11 @@ constats (A01 à A12) de l'audit du projet du 24/10/2026 :
 - **Linux : le service ne peut plus lire le reste de votre dossier
   personnel.** Jusqu'ici, il ne pouvait pas y écrire mais pouvait le lire,
   contrairement à ce que disaient les notes de la v0.11.0.
+- **Ubuntu 24.04 et suivants : le service démarre enfin.** Depuis la
+  v0.11.0, le durcissement l'empêchait d'y démarrer, à cause de la
+  restriction d'AppArmor sur les espaces de noms. Un complément lève les
+  options en cause. Sous Ubuntu, le masquage du dossier personnel ne peut
+  pas s'appliquer (voir `docs/SECURITE.md`).
 - **Tests sans danger pour vos données** : la suite de tests n'écrit plus
   dans l'historique réel de la batterie (c'est arrivé une fois sur le PC
   d'essai ; l'historique a été reconstitué).
@@ -37,6 +42,8 @@ constats (A01 à A12) de l'audit du projet du 24/10/2026 :
   sauvegardé et remis comme les autres programmes.
 
 ### À faire après la mise à jour
+- **Ubuntu (archive ou `.deb`)** : installer la v0.15.1. Le service démarre
+  maintenant ; rien d'autre à faire.
 - **Linux (archive, `.deb`, `.rpm`, AUR)** : installer comme d'habitude.
   L'unité du service change (`ProtectHome=tmpfs`) ; l'installateur et les
   paquets la remplacent et redémarrent le service. Si vous avez déplacé
@@ -70,7 +77,12 @@ constats (A01 à A12) de l'audit du projet du 24/10/2026 :
   et l'éditeur de scènes ne le réécrit pas.
 - **A06** : la tâche CI `service-durci` lance le service par son unité
   sous `systemd --user` et vérifie les accès à l'exécution
-  (`scripts/essai-confinement.sh`), en plus du score statique.
+  (`scripts/essai-confinement.sh`), en plus du score statique. Ce premier
+  vrai lancement a révélé que le service ne démarrait pas sous Ubuntu 24.04
+  et suivants (AppArmor). D'où le complément `momentum-daemon-apparmor.conf`,
+  posé par `installer-linux.sh` quand la restriction est active et inclus
+  dans le `.deb`. L'essai se fait en deux phases : Ubuntu restreint avec le
+  complément, puis unité complète, masquage du dossier personnel exigé.
 - **A07** : la publication attend une CI verte sur la même révision. Le
   workflow est en lecture seule, sauf le job qui publie. Les actions sont
   épinglées sur une révision. Reste la protection de `main`, un réglage du
