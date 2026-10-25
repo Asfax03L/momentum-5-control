@@ -80,8 +80,10 @@ sh scripts/verifier-confidentialite.sh
   en Rust pur, testable sans casque grâce à `MockTransport`.
 - Toute écriture nouvelle ou modifiée : trames exactes, source (capture),
   essai sur le casque avec relecture et retour à la valeur d'origine.
-- Documentation à jour : README, `CHANGELOG.md` (section « Non publié »),
-  `docs/MOMENTUM5.md` pour le protocole.
+- Documentation à jour : README et `docs/MOMENTUM5.md` pour le protocole.
+  `CHANGELOG.md` est écrit par le mainteneur à la publication : décrire les
+  changements dans la PR, avec les paragraphes « En bref » et « À faire
+  après la mise à jour » (`AGENTS.md`).
 
 ## Couverture des tests
 

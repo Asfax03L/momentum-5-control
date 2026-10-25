@@ -349,8 +349,8 @@ jobs:
           PY
 
   # Version minimale de Rust annoncée (rust-version) : 1.89 pour l'ensemble,
-  # 1.95 pour l'interface WinUI, 1.92 pour le client GTK (gtk-rs ; tâche
-  # gnome, sur Fedora). RUSTUP_TOOLCHAIN passe outre
+  # 1.95 pour l'interface WinUI, 1.92 pour le client GTK (gtk-rs, vérifié
+  # ici depuis la v0.15.1). RUSTUP_TOOLCHAIN passe outre
   # rust-toolchain.toml (version de travail).
   msrv:
     strategy:
@@ -358,8 +358,8 @@ jobs:
         include:
           - os: ubuntu-24.04
             rust: "1.89"
-            # WinUI (1.95) ne se compile pas sous Linux ; Kirigami et GTK :
-            # tâches à part (bibliothèques du système).
+            # WinUI (1.95) ne se compile pas sous Linux ; Kirigami : tâche à
+            # part (Qt du système) ; GTK : entrée 1.92 ci-dessous.
             args: --workspace --exclude momentum-winui --exclude momentum-kirigami --exclude momentum-gtk
           - os: windows-latest
             rust: "1.95"

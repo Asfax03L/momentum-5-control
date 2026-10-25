@@ -137,12 +137,18 @@ casque en même temps : le M5 accepte le PC en multipoint.
 
 ## Interfaces OpenHeadset Control
 
-Deux interfaces natives, clientes du service `momentum-daemon` qui tient
+Trois interfaces natives, clientes du service `momentum-daemon` qui tient
 seul la connexion au casque :
 
 - **Windows** : `momentum-winui`, en WinUI 3 (fond Mica, contrôles Fluent) ;
 - **KDE Plasma** : `momentum-kirigami`, en Qt 6 / Kirigami (couleurs du
-  thème Plasma, Wayland natif).
+  thème Plasma, Wayland natif) ;
+- **GNOME** : `momentum-gtk`, en GTK 4 / libadwaita, encore partielle (page
+  Accueil ; rattrapage prévu dans [`docs/PARITE.md`](docs/PARITE.md)).
+
+S'y ajoutent `ctl`, le widget Plasma, la recherche KRunner, la liste de
+raccourcis Windows et l'extension Decky du mode jeu, tous clients du même
+service.
 
 Elles offrent les mêmes fonctions et partagent les mêmes fichiers de
 réglages (`scenes.txt`, `raccourcis.txt`, `prereglages.txt`,
