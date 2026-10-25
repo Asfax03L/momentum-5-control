@@ -446,17 +446,6 @@ pub fn pump(
                         &mut sh,
                         journal::Event::Noise(NoiseKind::from_mode(s.noise.mode())),
                     );
-                    // Scène « à la connexion » : une fois l'état connu, et
-                    // seulement si le casque accepte les réglages.
-                    if std::mem::take(&mut sh.connection_scene_pending)
-                        && sh.snapshot.read_only.is_none()
-                    {
-                        let (scene_list, _) = paths::load_scenes();
-                        if let Some(scene) = scenes::scene_on_connection(&scene_list) {
-                            let name = scene.name.clone();
-                            apply_automatic(&mut sh, &name);
-                        }
-                    }
                 }
             }
             WorkerEvent::Lost(reason) => {
@@ -521,6 +510,19 @@ pub fn pump(
             let Ok(mut s) = shared.lock() else { break };
             let api_event = to_api(event, &mut s);
             s.snapshot.apply(&api_event);
+            // Scène « à la connexion » : une fois le premier état enregistré
+            // (sinon le service la refuserait), et seulement si le casque
+            // accepte les réglages.
+            if matches!(api_event, Event::State(_))
+                && std::mem::take(&mut s.connection_scene_pending)
+                && s.snapshot.read_only.is_none()
+            {
+                let (scene_list, _) = paths::load_scenes();
+                if let Some(scene) = scenes::scene_on_connection(&scene_list) {
+                    let name = scene.name.clone();
+                    apply_automatic(&mut s, &name);
+                }
+            }
             api_event
         };
         publish(&api_event);
