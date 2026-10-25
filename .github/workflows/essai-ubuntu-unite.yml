@@ -41,7 +41,14 @@ jobs:
           essai "base + ProtectHome=tmpfs" "$base -p ProtectHome=tmpfs -p BindPaths=$D -p BindPaths=$XDG_RUNTIME_DIR/bus"
           essai "base + PrivateTmp" "$base -p PrivateTmp=yes"
           essai "base + PrivateDevices" "$base -p PrivateDevices=yes"
-          essai "base + noyau" "$base -p ProtectKernelTunables=yes -p ProtectKernelModules=yes -p ProtectKernelLogs=yes -p ProtectControlGroups=yes -p ProtectClock=yes"
+          for o in ProtectKernelTunables ProtectKernelModules ProtectKernelLogs ProtectControlGroups ProtectClock ProtectHostname; do
+            essai "base + $o" "$base -p $o=yes"
+          done
+          essai "proposée pour Ubuntu" "$base -p ProtectSystem=strict -p ProtectHome=tmpfs -p BindPaths=$D -p BindPaths=$XDG_RUNTIME_DIR/bus -p PrivateTmp=yes -p ProtectProc=invisible -p ProcSubset=pid -p RestrictNamespaces=yes -p ProtectHostname=yes -p SystemCallFilter=~@privileged\ @resources -p SystemCallErrorNumber=EPERM"
+          echo "== restriction AppArmor levée (runner seulement)"
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          essai "proposée, sans restriction" "$base -p ProtectSystem=strict -p ProtectHome=tmpfs -p BindPaths=$D -p BindPaths=$XDG_RUNTIME_DIR/bus -p PrivateTmp=yes -p ProtectProc=invisible -p ProcSubset=pid -p RestrictNamespaces=yes -p ProtectHostname=yes"
+          essai "complète 0.15.1, sans restriction" "$base -p ProtectSystem=strict -p ProtectHome=tmpfs -p BindPaths=$D -p BindPaths=$XDG_RUNTIME_DIR/bus -p PrivateTmp=yes -p PrivateDevices=yes -p ProtectKernelTunables=yes -p ProtectKernelModules=yes -p ProtectKernelLogs=yes -p ProtectControlGroups=yes -p ProtectClock=yes -p CapabilityBoundingSet="
           essai "base + ProtectProc" "$base -p ProtectProc=invisible -p ProcSubset=pid"
           essai "base + RestrictNamespaces" "$base -p RestrictNamespaces=yes"
           essai "unité 0.15.1 sans les 3 groupes refusés" "$base -p ProtectSystem=strict -p ProtectHome=tmpfs -p BindPaths=$D -p BindPaths=$XDG_RUNTIME_DIR/bus -p PrivateTmp=yes -p ProtectProc=invisible -p ProcSubset=pid -p RestrictNamespaces=yes -p ProtectHostname=yes"
