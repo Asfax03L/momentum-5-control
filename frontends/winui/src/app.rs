@@ -327,6 +327,10 @@ enum Msg {
     ClearBattery,
     ReloadBattery,
     CopyDiagnostic,
+    /// Rapport de bogue : aperçu du diagnostic, puis formulaire GitHub.
+    ReportPreview,
+    ReportOpen,
+    ReportCancel,
 }
 
 // Le contenu de `Incoming` ne passe qu'une fois d'un thread à l'autre.
@@ -430,6 +434,10 @@ struct Root {
     /// Incidents récents : (heure Unix, message).
     incidents: Vec<(u64, String)>,
     diagnostic_copied: Option<bool>,
+    /// Diagnostic montré avant d'ouvrir le formulaire de bogue : c'est ce
+    /// texte-là, et lui seul, qui part dans l'adresse.
+    report: Option<String>,
+    report_failed: bool,
 }
 
 /// Suit le service dans un fil dédié (reconnexion toutes les 3 s) ; avec
@@ -575,7 +583,11 @@ impl Root {
             Page::Scenes => self.reload_scenes(),
             Page::Battery => self.reload_battery(),
             Page::Audio => self.read_windows_audio(),
-            Page::About => self.diagnostic_copied = None,
+            Page::About => {
+                self.diagnostic_copied = None;
+                self.report = None;
+                self.report_failed = false;
+            }
             _ => {}
         }
     }
@@ -1135,6 +1147,8 @@ impl Component for Root {
             windows_at: None,
             incidents: Vec::new(),
             diagnostic_copied: None,
+            report: None,
+            report_failed: false,
         };
         let mut root = root;
         // Scènes du menu de l'icône.
@@ -1407,6 +1421,23 @@ impl Component for Root {
             Msg::CopyDiagnostic => {
                 self.diagnostic_copied = Some(desktop::copy_text(&self.diagnostic()));
             }
+            Msg::ReportPreview => {
+                self.report = Some(self.diagnostic());
+                self.report_failed = false;
+            }
+            Msg::ReportOpen => {
+                if let Some(text) = self.report.take() {
+                    let system = momentum_service::system::os_version();
+                    let url = diagnostic::issue_url(
+                        env!("CARGO_PKG_VERSION"),
+                        diagnostic::ISSUE_INTERFACE_WINUI,
+                        system.as_deref(),
+                        &text,
+                    );
+                    self.report_failed = !desktop::open_url(&url);
+                }
+            }
+            Msg::ReportCancel => self.report = None,
             Msg::NoiseMode(Some(i)) => {
                 let current = viewmodel::main_view(None, state.as_ref(), &[], None, None)
                     .controls
@@ -3217,12 +3248,66 @@ impl Root {
                         .font_size(12.0)
                         .opacity(0.7)
                         .text_wrapping(TextWrapping::Wrap),
-                    Button::new()
-                        .on_click(context.message(Msg::CopyDiagnostic))
-                        .content(tr("Copier le diagnostic")),
+                    StackPanel::new()
+                        .orientation(Orientation::Horizontal)
+                        .spacing(8.0)
+                        .children((
+                            Button::new()
+                                .on_click(context.message(Msg::CopyDiagnostic))
+                                .content(tr("Copier le diagnostic")),
+                            Button::new()
+                                .on_click(context.message(Msg::ReportPreview))
+                                .content(tr("Signaler un problème…")),
+                        )),
                     TextBlock::new().text(copied),
+                    TextBlock::new().text(if self.report_failed {
+                        tr("Navigateur introuvable : copier le diagnostic et ouvrir github.com/Asfax03L/openheadset-control/issues.")
+                    } else {
+                        ""
+                    })
+                    .text_wrapping(TextWrapping::Wrap),
                 )),
             ),
+            self.report_card(context),
         ))
+    }
+
+    /// Aperçu du rapport de bogue : le diagnostic exact qui sera prérempli,
+    /// relu avant d'ouvrir le formulaire GitHub (rien n'est envoyé ici).
+    fn report_card(&self, context: &mut ViewContext<Self>) -> View {
+        let Some(text) = &self.report else {
+            return StackPanel::new().into();
+        };
+        card(
+            tr("Signaler un problème"),
+            StackPanel::new().spacing(8.0).children((
+                TextBlock::new()
+                    .text(tr("Ce texte sera prérempli dans le formulaire « Bogue » de GitHub, ouvert dans le navigateur. Relisez-le : rien n'est envoyé tant que vous ne validez pas le formulaire sur GitHub (compte GitHub nécessaire)."))
+                    .text_wrapping(TextWrapping::Wrap),
+                Border::new()
+                    .background(ThemeBrush::SolidBackground)
+                    .corner_radius(4.0)
+                    .padding(8.0)
+                    .content(
+                        TextBlock::new()
+                            .text(text.clone())
+                            .font_size(12.0)
+                            .is_text_selection_enabled(true)
+                            .text_wrapping(TextWrapping::Wrap)
+                            .automation_name(tr("Diagnostic à envoyer")),
+                    ),
+                StackPanel::new()
+                    .orientation(Orientation::Horizontal)
+                    .spacing(8.0)
+                    .children((
+                        Button::new()
+                            .on_click(context.message(Msg::ReportOpen))
+                            .content(tr("Ouvrir le formulaire sur GitHub")),
+                        Button::new()
+                            .on_click(context.message(Msg::ReportCancel))
+                            .content(tr("Annuler")),
+                    )),
+            )),
+        )
     }
 }

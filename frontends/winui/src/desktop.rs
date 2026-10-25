@@ -231,6 +231,28 @@ pub fn copy_text(text: &str) -> bool {
     }
 }
 
+/// Ouvre une adresse web dans le navigateur par défaut ; `false` si le
+/// Shell refuse.
+pub fn open_url(url: &str) -> bool {
+    use windows::Win32::UI::Shell::ShellExecuteW;
+    use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    use windows::core::{HSTRING, PCWSTR, w};
+    let url = HSTRING::from(url);
+    // SAFETY: fil de l'interface (COM déjà initialisé par WinUI) ; chaînes
+    // UTF-16 terminées, vivantes pendant l'appel.
+    let result = unsafe {
+        ShellExecuteW(
+            None,
+            w!("open"),
+            PCWSTR(url.as_ptr()),
+            None,
+            None,
+            SW_SHOWNORMAL,
+        )
+    };
+    result.0 as isize > 32
+}
+
 /// Choisit un fichier de courbe d'égaliseur (`*.txt`) ; `None` si
 /// l'utilisateur annule. Boîte de dialogue modale sur la fenêtre.
 pub fn pick_curve_file() -> Option<std::path::PathBuf> {

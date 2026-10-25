@@ -1771,8 +1771,47 @@ Kirigami.ApplicationWindow {
                         clipboard.copy()
                         copied.visible = true
                     }
+                },
+                Kirigami.Action {
+                    text: headset.tr("Signaler un problème…")
+                    icon.name: "tools-report-bug"
+                    onTriggered: {
+                        reportDialog.diagnostic = headset.diagnostic()
+                        reportDialog.open()
+                    }
                 }
             ]
+            // Rapport de bogue : le diagnostic exact est relu avant d'ouvrir
+            // le formulaire GitHub prérempli (rien n'est envoyé ici).
+            Kirigami.PromptDialog {
+                id: reportDialog
+                property string diagnostic: ""
+                title: headset.tr("Signaler un problème")
+                subtitle: headset.tr("Ce texte sera prérempli dans le formulaire « Bogue » de GitHub, ouvert dans le navigateur. Relisez-le : rien n'est envoyé tant que vous ne validez pas le formulaire sur GitHub (compte GitHub nécessaire).")
+                standardButtons: Kirigami.Dialog.NoButton
+                QQC2.TextArea {
+                    Accessible.name: headset.tr("Diagnostic à envoyer")
+                    text: reportDialog.diagnostic
+                    readOnly: true
+                    wrapMode: TextEdit.Wrap
+                    font: Kirigami.Theme.smallFont
+                }
+                customFooterActions: [
+                    Kirigami.Action {
+                        text: headset.tr("Ouvrir le formulaire sur GitHub")
+                        icon.name: "internet-web-browser"
+                        onTriggered: {
+                            Qt.openUrlExternally(headset.issueUrl(reportDialog.diagnostic))
+                            reportDialog.close()
+                        }
+                    },
+                    Kirigami.Action {
+                        text: headset.tr("Annuler")
+                        icon.name: "dialog-cancel"
+                        onTriggered: reportDialog.close()
+                    }
+                ]
+            }
             // Presse-papiers : QML n'en a pas d'accès direct.
             TextEdit {
                 id: clipboard

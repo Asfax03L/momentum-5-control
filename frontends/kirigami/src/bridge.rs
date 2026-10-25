@@ -343,6 +343,10 @@ pub mod qobject {
         /// Diagnostic expurgé à copier dans un rapport.
         #[qinvokable]
         fn diagnostic(self: &Headset) -> QString;
+        /// Adresse du formulaire de bogue GitHub prérempli avec ce
+        /// diagnostic (déjà montré à l'utilisateur).
+        #[qinvokable]
+        fn issue_url(self: &Headset, diagnostic: &QString) -> QString;
         /// Panneau rapide : montre ou cache « bruit », « niveau » ou
         /// « profil ».
         #[qinvokable]
@@ -2106,6 +2110,19 @@ impl qobject::Headset {
             secrets: &secrets,
         });
         QString::from(text.as_str())
+    }
+
+    fn issue_url(&self, diagnostic: &QString) -> QString {
+        let system = std::fs::read_to_string("/etc/os-release")
+            .ok()
+            .and_then(|text| diagnostic::os_release_name(&text));
+        let url = diagnostic::issue_url(
+            env!("CARGO_PKG_VERSION"),
+            diagnostic::ISSUE_INTERFACE_KDE,
+            system.as_deref(),
+            &diagnostic.to_string(),
+        );
+        QString::from(url.as_str())
     }
 
     fn notice(mut self: Pin<&mut Self>, text: String) {

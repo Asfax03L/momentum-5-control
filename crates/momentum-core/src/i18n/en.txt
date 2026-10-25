@@ -2002,3 +2002,21 @@ Prompt volume
 
 Période de l'historique
 History period
+
+Signaler un problème…
+Report a problem…
+
+Signaler un problème
+Report a problem
+
+Navigateur introuvable : copier le diagnostic et ouvrir github.com/Asfax03L/openheadset-control/issues.
+No browser found: copy the diagnostic and open github.com/Asfax03L/openheadset-control/issues.
+
+Ce texte sera prérempli dans le formulaire « Bogue » de GitHub, ouvert dans le navigateur. Relisez-le : rien n'est envoyé tant que vous ne validez pas le formulaire sur GitHub (compte GitHub nécessaire).
+This text will be prefilled in the GitHub “Bug” form, opened in your browser. Review it: nothing is sent until you submit the form on GitHub (GitHub account required).
+
+Diagnostic à envoyer
+Diagnostic to send
+
+Ouvrir le formulaire sur GitHub
+Open the form on GitHub
