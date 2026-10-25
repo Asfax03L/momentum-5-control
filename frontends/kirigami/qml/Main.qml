@@ -32,6 +32,9 @@ Kirigami.ApplicationWindow {
             root.pageStack.replace(pages[headset.startPage])
         if (!(headset.startHidden && headset.trayAvailable)) {
             root.show()
+            // Assistant de premier lancement, sur la fenêtre montrée.
+            if (headset.assistantOpen)
+                assistantDialog.open()
         }
     }
 
@@ -380,10 +383,6 @@ Kirigami.ApplicationWindow {
                 assistantDialog.open()
             }
         }
-    }
-    Component.onCompleted: {
-        if (headset.assistantOpen)
-            assistantDialog.open()
     }
 
     // Essai de l'assistant (CI, `--demo --essai-assistant`) : chaque étape a
