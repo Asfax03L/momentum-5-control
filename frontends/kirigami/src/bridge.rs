@@ -594,6 +594,8 @@ pub struct HeadsetRust {
     theme_choice: i32,
     language_choice: i32,
     language_notice: QString,
+    assistant_open: bool,
+    assistant_test: bool,
     settings_notice: QString,
     settings_ready: bool,
     settings_plan: Option<momentum_core::settings_transfer::ImportPlan>,
