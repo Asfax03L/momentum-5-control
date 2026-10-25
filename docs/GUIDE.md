@@ -162,4 +162,31 @@ Tout reste sur le PC, dans le dossier des données :
 
 On y trouve `scenes.txt`, `prereglages.txt`, `raccourcis.txt`,
 `panneau.txt`, `apparence.txt`, `langue.txt`, `mises-a-jour.txt`,
-`batterie.csv` et le journal du service.
+`notifications.txt`, `batterie.csv`, `journal.csv` et le journal technique
+du service.
+
+## 11. Autonomie, journal, notifications, scènes automatiques
+
+- **Autonomie mesurée** (page Batterie) : d'après les mesures de ce PC,
+  points de batterie perdus par heure et durée d'une charge complète à ce
+  rythme, puis la même chose selon le mode de réduction de bruit. Il faut
+  au moins une heure de décharge continue ; ce sont des mesures, jamais
+  une « santé » de batterie.
+- **Journal des événements** (page Batterie) : connexions, pertes, modes de
+  réduction de bruit, refus du casque et scènes appliquées, gardés 30 jours
+  sur ce PC (`journal.csv`), sans nom d'appareil ni adresse. Exportable,
+  effaçable, jamais envoyé.
+- **Notifications au choix** (Paramètres) : batterie faible, connexion
+  perdue et retrouvée, et nouveau **casque allumé sans son** (aucune
+  lecture signalée depuis 30 minutes, désactivé par défaut).
+- **Scènes automatiques** (éditeur de la page Scènes, liste
+  « Automatique ») : à la connexion du casque, ou chaque jour à une heure
+  donnée (le casque doit alors être connecté). Une seule scène par
+  déclenchement ; seules les commandes validées sont envoyées, et chaque
+  application est notée au journal. Dans `scenes.txt` :
+  `auto = connexion` ou `auto = 08:30`.
+- **Export pour Equalizer APO** (page Égaliseur) : la courbe du casque au
+  format GraphicEQ d'Equalizer APO (Windows), dans Documents, pour la
+  reproduire côté PC. Correspondance approchée : la forme des filtres du
+  casque n'est pas documentée ; l'amplification des basses n'est pas
+  reproduite.

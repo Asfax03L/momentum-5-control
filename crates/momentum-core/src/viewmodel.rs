@@ -17,7 +17,7 @@ use crate::device::{
 use crate::i18n::{tr, trf};
 use crate::presets::{Preset, matching};
 use crate::protocol::messages::{Codec, M5NoiseMode};
-use crate::scenes::{Scene, SceneSound, check_scene};
+use crate::scenes::{Scene, SceneSound, Trigger, check_scene};
 use crate::ui::{audio_mode_label, eq_mode_note};
 
 /// Pages de la navigation latérale (même ordre que dans la fenêtre).
@@ -898,6 +898,8 @@ pub const SCENE_SOUND_CHOICES: [&str; 4] = [
 ];
 /// Choix du contrôle du bruit d'une scène.
 pub const SCENE_NOISE_CHOICES: [&str; 4] = ["inchangé", "adaptatif", "personnalisé", "arrêt"];
+/// Application automatique d'une scène : jamais, à la connexion, à une heure.
+pub const SCENE_AUTO_CHOICES: [&str; 3] = ["jamais", "à la connexion", "chaque jour à l'heure"];
 
 /// Formulaire de l'éditeur de scènes : indices dans les listes de choix
 /// (0 = inchangé) ; niveau saisi en texte (vide = inchangé).
@@ -913,6 +915,9 @@ pub struct SceneForm {
     /// Indice dans `equalizer_choices` (0 = inchangé).
     pub equalizer: i32,
     pub bass_boost: i32,
+    /// Indice dans [`SCENE_AUTO_CHOICES`], et heure `HH:MM` si 2.
+    pub auto: i32,
+    pub auto_time: String,
 }
 
 /// Préréglages proposés à une scène : « inchangé », ceux de l'app et les
@@ -975,6 +980,15 @@ pub fn scene_form(scene: &Scene, equalizers: &[String]) -> SceneForm {
             })
             .map_or(0, |i| i32::try_from(i + 1).unwrap_or(0)),
         bass_boost: switch_index(scene.bass_boost),
+        auto: match scene.auto {
+            None => 0,
+            Some(Trigger::Connection) => 1,
+            Some(Trigger::At { .. }) => 2,
+        },
+        auto_time: match scene.auto {
+            Some(t @ Trigger::At { .. }) => t.code(),
+            _ => String::new(),
+        },
     }
 }
 
@@ -1010,6 +1024,11 @@ pub fn scene_from_form(form: &SceneForm, equalizers: &[String]) -> Result<Scene,
             .filter(|&i| i > 0)
             .and_then(|i| equalizers.get(i).cloned()),
         bass_boost: switch_value(form.bass_boost),
+        auto: match form.auto {
+            1 => Some(Trigger::Connection),
+            2 => Some(Trigger::parse(&form.auto_time)?),
+            _ => None,
+        },
     };
     check_scene(&scene)?;
     Ok(scene)

@@ -46,9 +46,10 @@ au casque, et deux outils en ligne de commande.
 | V | Intégration au bureau : recherche KRunner (« anc off », « scène Transport »), liste de raccourcis Windows (scènes) et pastille de batterie, extension Decky Loader pour le mode jeu ; tout par l'API du service | 🟡 KRunner essayé sur le M5 (Bazzite) et scènes de la liste de raccourcis sur le M5 (Windows 11), v0.15.0 ; extension Decky essayée hors du mode jeu |
 | W | Langues et accueil : interfaces en anglais (choix de la langue), accessibilité (noms lus par les lecteurs d'écran, parcours clavier, contrastes), assistant de premier lancement, rapport de bogue prérempli, guide et FAQ, site GitHub Pages | 🟡 vérifié en CI (UI Automation, KDE hors écran) dans les deux langues (v0.16.0) ; écoute au Narrateur et à Orca à faire |
 | X | Version stable : politique de versions (`docs/VERSIONS.md`), politique de sécurité (`SECURITY.md`), avis de nouvelle version désactivé par défaut, décisions écrites sur les points ouverts | ✅ v1.0.0 |
+| Y | Fonctions avancées : autonomie mesurée (aussi par mode de réduction de bruit), journal local des événements, notifications au choix (dont « casque allumé sans son »), scènes automatiques (connexion, heure fixe), export pour Equalizer APO | ✅ v1.1.0 ; scènes automatiques essayées sur le M5 (Bazzite) |
 
-Dernière publication : **v1.0.0**, version stable (page Releases du
-dépôt). Ce qui reste compatible en 1.x : [`docs/VERSIONS.md`](docs/VERSIONS.md) ;
+Dernière publication : **v1.1.0** (page Releases du dépôt), série
+stable 1.x. Ce qui reste compatible en 1.x : [`docs/VERSIONS.md`](docs/VERSIONS.md) ;
 signaler une faille : [`SECURITY.md`](SECURITY.md). **Guide
 d'utilisation et FAQ** : [`docs/GUIDE.md`](docs/GUIDE.md),
 [`docs/FAQ.md`](docs/FAQ.md) (en anglais : [`GUIDE.en.md`](docs/GUIDE.en.md),
@@ -310,6 +311,12 @@ de ligne. Les réglages partent un par un dans un ordre fixe ; ce n'est pas
 une transaction : à la première erreur, l'application s'arrête et le rapport
 dit ce qui a été appliqué. Accès : page Scènes, sous-menu « Scènes » de
 l'icône, raccourcis, `ctl scene <nom>`.
+
+Depuis la 1.1, une scène peut s'appliquer seule : `auto = connexion` (à
+chaque connexion du casque) ou `auto = 08:30` (chaque jour à cette heure,
+si le casque est connecté), une scène par déclenchement ; liste
+« Automatique » de l'éditeur. Le service note chaque application dans le
+journal des événements, et signale une scène automatique incomplète.
 
 Pour mémoriser les réglages déjà lus, saisir un nom puis cliquer sur
 « Enregistrer l'état actuel comme scène » dans la page Scènes (WinUI ou

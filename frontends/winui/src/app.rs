@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use momentum_client::demo::{self, Demo};
 use momentum_client::tracker::Tracker;
 use momentum_client::{Client, ClientError, Command, Event, Outcome, Snapshot};
+use momentum_core::alerts::NotificationPrefs;
 use momentum_core::assistant::{self, Platform, StepAction};
 use momentum_core::audio_check::WindowsAudio;
 use momentum_core::battery_log::{self, BatteryLog};
@@ -16,6 +17,7 @@ use momentum_core::device::{
 };
 use momentum_core::diagnostic::{self, DiagnosticInput};
 use momentum_core::hotkeys::{self, HotkeyAction};
+use momentum_core::journal;
 use momentum_core::paths;
 use momentum_core::presets::{self, AbCompare, Preset};
 use momentum_core::quick_panel::PanelPrefs;
@@ -72,6 +74,10 @@ fn load_battery_log(now: u64) -> BatteryLog {
 struct BatteryPage {
     view: viewmodel::BatteryView,
     lines: Vec<Vec<(f64, f64)>>,
+    /// Autonomie mesurée (bilan, puis une ligne par mode de bruit).
+    autonomy: Vec<String>,
+    /// Derniers événements du journal, du plus récent au plus ancien.
+    journal: Vec<String>,
 }
 
 /// Demandes venues du bureau (icône, menu, raccourcis), relayées au fil de
@@ -228,6 +234,7 @@ enum SceneField {
     Touch,
     Equalizer,
     Bass,
+    Auto,
 }
 
 /// Action à confirmer avant l'envoi.
@@ -235,6 +242,7 @@ enum SceneField {
 enum Confirm {
     MultipointOff,
     ClearBattery,
+    ClearJournal,
     Disconnect {
         index: usize,
         name: String,
@@ -314,6 +322,7 @@ enum Msg {
     SceneMove(isize),
     SceneName(String),
     SceneLevel(String),
+    SceneAutoTime(String),
     /// Liste déroulante du formulaire (champ, choix).
     SceneChoice(SceneField, Option<usize>),
     SceneSave,
@@ -342,6 +351,11 @@ enum Msg {
     OpenGuide,
     /// Avis de nouvelle version (désactivé par défaut).
     UpdateNotice(bool),
+    /// Notifications au choix (batterie faible, connexion, sans son).
+    Notification(NotificationKind, bool),
+    ExportJournal,
+    ClearJournal,
+    ExportApo,
     UpdateCheck,
     UpdateResult(update_check::Outcome),
     OpenRelease,
@@ -458,6 +472,15 @@ struct Root {
     update_enabled: bool,
     update: Option<update_check::Outcome>,
     update_busy: bool,
+    notifications: NotificationPrefs,
+}
+
+/// Interrupteur de notification.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum NotificationKind {
+    LowBattery,
+    Connection,
+    Idle,
 }
 
 /// Suit le service dans un fil dédié (reconnexion toutes les 3 s) ; avec
@@ -768,6 +791,7 @@ impl Root {
         let log = load_battery_log(now);
         let span =
             viewmodel::BATTERY_SPANS[self.battery_span.min(viewmodel::BATTERY_SPANS.len() - 1)].1;
+        let events = journal::load(now);
         self.battery = Some(BatteryPage {
             view: viewmodel::battery_view(
                 &log,
@@ -776,6 +800,8 @@ impl Root {
                 self.snapshot.state.map(|s| s.battery),
             ),
             lines: battery_log::chart_polylines(&log, now, span, CHART_POINTS),
+            autonomy: battery_log::autonomy_lines(&log, &events),
+            journal: journal::lines(&events, now, 30),
         });
     }
 
@@ -1176,6 +1202,7 @@ impl Component for Root {
             update_enabled: update_check::load_enabled(),
             update: None,
             update_busy: false,
+            notifications: NotificationPrefs::load(),
         };
         let mut root = root;
         // Avis de nouvelle version : une lecture au lancement, si activé.
@@ -1382,6 +1409,12 @@ impl Component for Root {
                     self.scene_form_changed();
                 }
             }
+            Msg::SceneAutoTime(text) => {
+                if text != self.scene_form.auto_time {
+                    self.scene_form.auto_time = text;
+                    self.scene_form_changed();
+                }
+            }
             Msg::SceneChoice(field, Some(i)) => {
                 let value = i32::try_from(i).unwrap_or(0);
                 let f = &mut self.scene_form;
@@ -1393,6 +1426,7 @@ impl Component for Root {
                     SceneField::Touch => &mut f.touch,
                     SceneField::Equalizer => &mut f.equalizer,
                     SceneField::Bass => &mut f.bass_boost,
+                    SceneField::Auto => &mut f.auto,
                 };
                 if *slot != value {
                     *slot = value;
@@ -1449,6 +1483,40 @@ impl Component for Root {
             Msg::Language(_) => {}
             Msg::ExportBattery => self.battery_notice = Some(export_battery_history()),
             Msg::ClearBattery => self.confirm = Some(Confirm::ClearBattery),
+            Msg::ClearJournal => self.confirm = Some(Confirm::ClearJournal),
+            Msg::ExportJournal => self.battery_notice = Some(journal::export(unix_now())),
+            Msg::ExportApo => {
+                if let Some(eq) = self.snapshot.equalizer.as_ref() {
+                    self.eq_notice = Some(match presets::format_graphic_eq(&eq.gains) {
+                        Err(e) => e,
+                        Ok(text) => {
+                            match paths::export_file("momentum-egaliseur-apo", "txt", unix_now()) {
+                                Some(path) => match std::fs::write(&path, text) {
+                                    Ok(()) => trf(
+                                        "Courbe exportée pour Equalizer APO dans {}.",
+                                        &[&(path.display())],
+                                    ),
+                                    Err(e) => trf("Export de la courbe impossible : {}.", &[&e]),
+                                },
+                                None => tr("Export impossible : dossier Documents introuvable.")
+                                    .to_string(),
+                            }
+                        }
+                    });
+                }
+            }
+            Msg::Notification(kind, on) => {
+                let mut prefs = self.notifications;
+                match kind {
+                    NotificationKind::LowBattery => prefs.low_battery = on,
+                    NotificationKind::Connection => prefs.connection = on,
+                    NotificationKind::Idle => prefs.idle = on,
+                }
+                match prefs.store() {
+                    Ok(()) => self.notifications = prefs,
+                    Err(e) => eprintln!("notifications : {e}"),
+                }
+            }
             Msg::ReloadBattery => self.reload_battery(),
             Msg::CopyDiagnostic => {
                 self.diagnostic_copied = Some(desktop::copy_text(&self.diagnostic()));
@@ -1890,6 +1958,24 @@ impl Component for Root {
             }
             Msg::Confirmed => match self.confirm.take() {
                 Some(Confirm::MultipointOff) => self.send(Command::SetMultipoint(false)),
+                Some(Confirm::ClearJournal) => {
+                    // Le service tient le journal : il l'efface, puis la
+                    // page le relit.
+                    let sent = self.commands.send((Command::ClearJournal, 0)).is_ok();
+                    if sent {
+                        self.requests.sent();
+                        self.busy = true;
+                    }
+                    self.battery_notice = Some(if sent {
+                        tr("Effacement du journal demandé au service.").to_string()
+                    } else {
+                        tr("Effacement impossible : service injoignable.").to_string()
+                    });
+                    context.spawn_background(|_| {
+                        std::thread::sleep(Duration::from_millis(600));
+                        Msg::ReloadBattery
+                    });
+                }
                 Some(Confirm::ClearBattery) => {
                     // Le service tient l'historique : il l'efface et
                     // réécrit le fichier, relu ensuite par la page.
@@ -2229,6 +2315,12 @@ impl Root {
                     tr("Sans Multipoint, le casque ne garde qu'un appareil : l'autre est déconnecté.")
                         .to_string(),
                     tr("Couper le Multipoint"),
+                ),
+                Confirm::ClearJournal => (
+                    tr("Effacer le journal des événements ?"),
+                    tr("Tous les événements notés sur ce PC sont supprimés. Exporter d'abord pour les garder.")
+                        .to_string(),
+                    tr("Effacer"),
                 ),
                 Confirm::ClearBattery => (
                     tr("Effacer l'historique de la batterie ?"),
@@ -2641,6 +2733,9 @@ impl Root {
                             .on_click(context.message(Msg::ExportCurve))
                             .content(tr("Exporter la courbe")),
                         Button::new()
+                            .on_click(context.message(Msg::ExportApo))
+                            .content(tr("Exporter pour Equalizer APO")),
+                        Button::new()
                             .is_enabled(writable)
                             .on_click(context.message(Msg::ImportCurve))
                             .content(tr("Importer une courbe…")),
@@ -2718,6 +2813,30 @@ impl Root {
                     context.callback(Msg::UpdateNotice),
                 ),
                 self.update_row(context),
+                TextBlock::new()
+                    .text(tr("Notifications"))
+                    .font_weight(FontWeight::SEMI_BOLD),
+                switch_row(
+                    tr("Batterie faible"),
+                    tr("Une fois sous 15 %"),
+                    self.notifications.low_battery,
+                    true,
+                    context.callback(|on| Msg::Notification(NotificationKind::LowBattery, on)),
+                ),
+                switch_row(
+                    tr("Connexion perdue et retrouvée"),
+                    tr("Casque déconnecté, puis reconnecté"),
+                    self.notifications.connection,
+                    true,
+                    context.callback(|on| Msg::Notification(NotificationKind::Connection, on)),
+                ),
+                switch_row(
+                    tr("Casque allumé sans son"),
+                    tr("Aucune lecture signalée depuis 30 minutes (désactivé par défaut)"),
+                    self.notifications.idle,
+                    true,
+                    context.callback(|on| Msg::Notification(NotificationKind::Idle, on)),
+                ),
             )),
         );
         let hotkey_rows = self
@@ -3111,6 +3230,18 @@ impl Root {
                     f.bass_boost,
                     SceneField::Bass,
                 ),
+                choice(
+                    tr("Automatique"),
+                    strings(&viewmodel::SCENE_AUTO_CHOICES.map(tr)),
+                    f.auto,
+                    SceneField::Auto,
+                ),
+                TextBox::new()
+                    .text(f.auto_time.clone())
+                    .placeholder_text(tr("Heure (HH:MM)"))
+                    .automation_name(tr("Heure (HH:MM)"))
+                    .is_enabled(f.auto == 2)
+                    .on_text_changed(context.callback(Msg::SceneAutoTime)),
                 TextBlock::new()
                     .text(e.preview())
                     .font_size(12.0)
@@ -3279,6 +3410,58 @@ impl Root {
                             tr("Mesures gardées sur ce PC (batterie.csv, 30 jours) ; l'export va dans Documents.")
                                 .to_string()
                         }))
+                        .font_size(12.0)
+                        .opacity(0.7)
+                        .text_wrapping(TextWrapping::Wrap),
+                )),
+            ),
+            card(
+                tr("Autonomie mesurée"),
+                StackPanel::new().spacing(4.0).keyed_children(
+                    page.autonomy.iter().enumerate().map(|(i, line)| {
+                        KeyedView::new(
+                            i as u64,
+                            TextBlock::new()
+                                .text(line.clone())
+                                .text_wrapping(TextWrapping::Wrap),
+                        )
+                    }),
+                ),
+            ),
+            card(
+                tr("Journal des événements"),
+                StackPanel::new().spacing(8.0).children((
+                    StackPanel::new().spacing(2.0).keyed_children(
+                        page.journal.iter().enumerate().map(|(i, line)| {
+                            KeyedView::new(
+                                i as u64,
+                                TextBlock::new()
+                                    .text(line.clone())
+                                    .font_size(12.0)
+                                    .text_wrapping(TextWrapping::Wrap),
+                            )
+                        }),
+                    ),
+                    TextBlock::new()
+                        .text(if page.journal.is_empty() {
+                            tr("Aucun événement noté pour l'instant.")
+                        } else {
+                            ""
+                        })
+                        .opacity(0.7),
+                    StackPanel::new()
+                        .orientation(Orientation::Horizontal)
+                        .spacing(8.0)
+                        .children((
+                            Button::new()
+                                .on_click(context.message(Msg::ExportJournal))
+                                .content(tr("Exporter le journal (CSV)")),
+                            Button::new()
+                                .on_click(context.message(Msg::ClearJournal))
+                                .content(tr("Effacer le journal…")),
+                        )),
+                    TextBlock::new()
+                        .text(tr("Connexions, modes de réduction de bruit, refus et scènes, notés par le service sur ce PC (journal.csv, 30 jours). Jamais envoyé."))
                         .font_size(12.0)
                         .opacity(0.7)
                         .text_wrapping(TextWrapping::Wrap),

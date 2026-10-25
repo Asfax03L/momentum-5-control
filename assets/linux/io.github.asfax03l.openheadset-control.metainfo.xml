@@ -75,6 +75,11 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="1.1.0" date="2026-10-25">
+      <description>
+        <p>Measured battery life (also per noise cancelling mode), local event log, notifications of your choice including "headphones on without sound", automatic scenes on connection or at a set time, and curve export for Equalizer APO.</p>
+      </description>
+    </release>
     <release version="1.0.0" date="2026-10-25">
       <description>
         <p>First stable release: written version policy (settings files, JSON backup, command line and D-Bus API stay compatible across 1.x), security policy, and an optional new version notice, off by default.</p>

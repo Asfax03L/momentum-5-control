@@ -86,6 +86,11 @@ pub fn battery_file() -> Option<PathBuf> {
     Some(data_dir()?.join("batterie.csv"))
 }
 
+/// `journal.csv` : journal local des événements (service).
+pub fn journal_file() -> Option<PathBuf> {
+    Some(data_dir()?.join("journal.csv"))
+}
+
 /// `casque.txt` : empreinte du casque utilisé (sans son adresse), pour le
 /// retrouver même renommé ou à côté d'un autre casque.
 pub fn headset_file() -> Option<PathBuf> {

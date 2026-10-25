@@ -211,7 +211,7 @@ impl Demo {
             Command::ApplyScene(_) => events.push(Event::Refused(
                 tr("mode démonstration : les scènes ne sont pas simulées").to_string(),
             )),
-            Command::ClearBatteryHistory | Command::ReconnectHeadset => {}
+            Command::ClearBatteryHistory | Command::ClearJournal | Command::ReconnectHeadset => {}
         }
         events.push(Event::State(self.state));
         events

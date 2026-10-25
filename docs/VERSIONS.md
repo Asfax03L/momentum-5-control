@@ -26,14 +26,19 @@
 
 1. **Fichiers du dossier des données** : `scenes.txt`, `prereglages.txt`,
    `raccourcis.txt`, `panneau.txt`, `apparence.txt`, `langue.txt`,
-   `mises-a-jour.txt`, `assistant.txt`, `batterie.csv`, `casque.txt`.
+   `mises-a-jour.txt`, `assistant.txt`, `notifications.txt` (1.1),
+   `batterie.csv`, `journal.csv` (1.1), `casque.txt`.
    Une version 1.y lit les fichiers écrits par toute version 1.x
    antérieure ou égale. Une version mineure peut ajouter des clés ou des
    réglages ; revenir à une version plus ancienne n'est pas garanti. Les
    fichiers d'une installation 0.16 sont lus tels quels par la 1.0.
-2. **Sauvegarde des réglages** (JSON `version: 1`) : toute 1.x importe une
-   sauvegarde `version: 1`. Un format incompatible prendrait le numéro 2,
-   refusé clairement par les versions qui ne le connaissent pas.
+2. **Sauvegarde des réglages** (JSON `version: 1`) : une version 1.y
+   importe toute sauvegarde `version: 1` faite par une 1.x antérieure ou
+   égale (comme pour les fichiers, une sauvegarde plus récente qui utilise
+   un réglage ajouté depuis, une scène automatique par exemple, peut être
+   refusée par une version plus ancienne). Un format incompatible
+   prendrait le numéro 2, refusé clairement par les versions qui ne le
+   connaissent pas.
 3. **`ctl`** : noms des commandes et des options, sortie `--json` en
    version `1` (une clé existante garde son nom et son sens ; des clés
    peuvent s'ajouter), codes de sortie `0` succès, `1` refus ou

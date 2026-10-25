@@ -88,6 +88,8 @@ pub enum Command {
     /// Efface l'historique de la batterie (`batterie.csv`), tenu par le
     /// service ; ne touche pas au casque.
     ClearBatteryHistory,
+    /// Efface le journal des événements (`journal.csv`), sans casque.
+    ClearJournal,
 }
 
 /// Appareil appairé au casque (sans son adresse Bluetooth, qui reste dans

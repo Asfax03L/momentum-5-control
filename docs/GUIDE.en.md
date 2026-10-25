@@ -152,5 +152,29 @@ Everything stays on the PC, in the data folder:
 - Flatpak: `~/.var/app/io.github.asfax03l.openheadset-control/`.
 
 It holds `scenes.txt`, `prereglages.txt`, `raccourcis.txt`, `panneau.txt`,
-`apparence.txt`, `langue.txt`, `mises-a-jour.txt`, `batterie.csv` and the
-service log.
+`apparence.txt`, `langue.txt`, `mises-a-jour.txt`, `notifications.txt`,
+`batterie.csv`, `journal.csv` and the service's technical log.
+
+## 11. Battery life, event log, notifications, automatic scenes
+
+- **Measured battery life** (Battery page): from this PC's measurements,
+  battery points lost per hour and how long a full charge lasts at that
+  rate, then the same per noise cancelling mode. At least one hour of
+  continuous discharge is needed; these are measurements, never a battery
+  “health”.
+- **Event log** (Battery page): connections, losses, noise cancelling
+  modes, refusals from the headphones and applied scenes, kept 30 days on
+  this PC (`journal.csv`), without device names or addresses. Can be
+  exported and cleared, never sent.
+- **Notifications of your choice** (Settings): low battery, connection lost
+  and restored, and the new **headphones on without sound** (no playback
+  reported for 30 minutes, off by default).
+- **Automatic scenes** (scene editor, “Automatic” list): when the
+  headphones connect, or every day at a given time (the headphones must
+  then be connected). One scene per trigger; only validated commands are
+  sent, and each application is logged. In `scenes.txt`:
+  `auto = connexion` or `auto = 08:30`.
+- **Export for Equalizer APO** (Equalizer page): the headphones' curve in
+  Equalizer APO's GraphicEQ format (Windows), in Documents, to reproduce it
+  on the PC. Approximate match: the headphones' filter shapes are not
+  documented; bass boost is not reproduced.

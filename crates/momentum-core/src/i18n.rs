@@ -278,7 +278,7 @@ mod tests {
         use crate::viewmodel as v;
         let known: std::collections::HashSet<String> =
             catalogue_entries().into_iter().map(|(fr, _)| fr).collect();
-        let lists: [&[&str]; 7] = [
+        let lists: [&[&str]; 8] = [
             &v::NOISE_MODES,
             &v::AUTO_OFF_LABELS,
             &v::PROMPT_MODES,
@@ -286,6 +286,7 @@ mod tests {
             &v::SCENE_SWITCH_CHOICES,
             &v::SCENE_SOUND_CHOICES,
             &v::SCENE_NOISE_CHOICES,
+            &v::SCENE_AUTO_CHOICES,
         ];
         let mut missing: Vec<&str> = lists.iter().flat_map(|l| l.iter().copied()).collect();
         missing.extend(v::BATTERY_SPANS.iter().map(|(label, _)| *label));

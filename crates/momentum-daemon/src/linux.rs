@@ -184,11 +184,13 @@ impl Runner {
 }
 
 pub fn run() -> anyhow::Result<()> {
+    let (commands, commands_rx) = mpsc::channel::<Job>();
     let shared = Arc::new(Mutex::new(Shared {
         battery_file: momentum_core::paths::battery_file(),
+        journal_file: momentum_core::paths::journal_file(),
+        commands: Some(commands.clone()),
         ..Shared::default()
     }));
-    let (commands, commands_rx) = mpsc::channel::<Job>();
     // zbus 6 n'a plus d'API bloquante : la connexion est construite dans
     // `block_on`, puis servie par zbus entre deux appels.
     let runner = Runner {
@@ -224,6 +226,7 @@ pub fn run() -> anyhow::Result<()> {
     tracing::info!(nom = BUS_NAME, "service OpenHeadset Control prêt");
 
     let events = service::spawn_worker(commands_rx, &shared)?;
+    service::spawn_scheduler(Arc::clone(&shared))?;
     service::pump(events, &shared, |api_event| {
         let json = serde_json::to_string(api_event);
         zbus::block_on(async {

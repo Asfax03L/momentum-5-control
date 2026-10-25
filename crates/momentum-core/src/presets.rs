@@ -271,6 +271,33 @@ pub fn format_curve(model: Option<&str>, gains: &[i8], bass_boost: bool) -> Stri
     out
 }
 
+/// Courbe au format GraphicEQ d'Equalizer APO (Windows) : une paire
+/// « fréquence gain » par bande du MOMENTUM 5, pour reproduire la courbe
+/// côté PC. Equalizer APO interpole entre les points ; la forme exacte des
+/// filtres du casque n'est pas documentée, la correspondance est donc
+/// approchée. L'amplification des basses n'est pas reproduite. Refusée si
+/// l'égaliseur n'a pas les 8 bandes connues.
+pub fn format_graphic_eq(gains: &[i8]) -> Result<String, String> {
+    let freqs = crate::ui::M5_EQ_FREQUENCIES_HZ;
+    if gains.len() != freqs.len() {
+        return Err(trf(
+            "export Equalizer APO : {} bandes, {} attendues",
+            &[&gains.len(), &freqs.len()],
+        ));
+    }
+    let points: Vec<String> = freqs
+        .iter()
+        .zip(gains)
+        .map(|(hz, &g)| format!("{hz} {:.1}", f32::from(g) / 10.0))
+        .collect();
+    Ok(format!(
+        "# Courbe du MOMENTUM 5 exportée par OpenHeadset Control (format GraphicEQ d'Equalizer APO).\n\
+         # Correspondance approchée : filtres du casque non documentés ; amplification des basses non reproduite.\n\
+         GraphicEQ: {}\n",
+        points.join("; ")
+    ))
+}
+
 /// Lit un fichier de courbe pour un égaliseur de `bands` bandes. Une courbe
 /// d'un autre modèle (six premiers caractères du nom de modèle) est refusée.
 pub fn parse_curve(
@@ -346,6 +373,17 @@ pub fn matching<'a>(presets: &'a [Preset], gains: &[i8]) -> Option<&'a Preset> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn graphic_eq_export() {
+        let text = format_graphic_eq(&[15, 0, -10, 0, 5, 0, 0, -60]).unwrap();
+        assert!(
+            text.ends_with("GraphicEQ: 90 1.5; 325 0.0; 1500 -1.0; 2500 0.0; 4500 0.5; 8000 0.0; 13000 0.0; 16000 -6.0\n"),
+            "{text}"
+        );
+        assert!(text.lines().filter(|l| !l.starts_with('#')).count() == 1);
+        assert!(format_graphic_eq(&[0; 5]).is_err());
+    }
 
     #[test]
     fn ab_compare_switches_between_both_curves() {

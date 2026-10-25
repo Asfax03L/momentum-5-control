@@ -1061,6 +1061,10 @@ Kirigami.ApplicationWindow {
                                 onClicked: headset.exportCurve()
                             }
                             QQC2.Button {
+                                text: headset.tr("Exporter pour Equalizer APO")
+                                onClicked: headset.exportApo()
+                            }
+                            QQC2.Button {
                                 text: headset.tr("Importer une courbe…")
                                 enabled: headset.writable
                                 onClicked: curveDialog.open()
@@ -1215,6 +1219,25 @@ Kirigami.ApplicationWindow {
                             headset.setUpdateNotice(checked)
                             root.checkUpdates()
                         }
+                    }
+                    QQC2.Switch {
+                        Kirigami.FormData.label: headset.tr("Notifications")
+                        Accessible.name: headset.tr("Batterie faible")
+                        text: headset.tr("Batterie faible")
+                        checked: headset.notifyLowBattery
+                        onToggled: headset.setNotification(0, checked)
+                    }
+                    QQC2.Switch {
+                        Accessible.name: headset.tr("Connexion perdue et retrouvée")
+                        text: headset.tr("Connexion perdue et retrouvée")
+                        checked: headset.notifyConnection
+                        onToggled: headset.setNotification(1, checked)
+                    }
+                    QQC2.Switch {
+                        Accessible.name: headset.tr("Casque allumé sans son")
+                        text: headset.tr("Casque allumé sans son")
+                        checked: headset.notifyIdle
+                        onToggled: headset.setNotification(2, checked)
                     }
                     RowLayout {
                         visible: headset.updatePossible && headset.updateEnabled
@@ -1587,7 +1610,8 @@ Kirigami.ApplicationWindow {
                         headset.setSceneForm(sceneName.text, sceneLevel.text, [sceneSound.currentIndex,
                             sceneSpatial.currentIndex, sceneNoise.currentIndex,
                             sceneAntiWind.currentIndex, sceneTouch.currentIndex,
-                            sceneEq.currentIndex, sceneBass.currentIndex].join(","))
+                            sceneEq.currentIndex, sceneBass.currentIndex,
+                            sceneAuto.currentIndex].join(","), sceneAutoTime.text)
                     }
                     header: Kirigami.Heading {
                         text: headset.tr("Modifier les scènes")
@@ -1692,6 +1716,22 @@ Kirigami.ApplicationWindow {
                                 model: headset.sceneSwitchChoices
                                 currentIndex: headset.sceneFormBass
                                 onActivated: sceneEditor.send()
+                            }
+                            QQC2.ComboBox {
+                                Accessible.name: headset.tr("Automatique")
+                                id: sceneAuto
+                                Kirigami.FormData.label: headset.tr("Automatique :")
+                                model: headset.sceneAutoChoices
+                                currentIndex: headset.sceneFormAuto
+                                onActivated: sceneEditor.send()
+                            }
+                            QQC2.TextField {
+                                id: sceneAutoTime
+                                Kirigami.FormData.label: headset.tr("Heure (HH:MM) :")
+                                placeholderText: headset.tr("Heure (HH:MM)")
+                                enabled: sceneAuto.currentIndex === 2
+                                text: headset.sceneFormAutoTime
+                                onTextEdited: sceneEditor.send()
                             }
                         }
                         QQC2.Label {
@@ -1810,8 +1850,25 @@ Kirigami.ApplicationWindow {
                     text: headset.tr("Effacer l'historique…")
                     icon.name: "edit-clear-history"
                     onTriggered: clearBatteryDialog.open()
+                },
+                Kirigami.Action {
+                    text: headset.tr("Exporter le journal (CSV)")
+                    icon.name: "document-export"
+                    onTriggered: batteryScroll.notice = headset.exportJournal()
+                },
+                Kirigami.Action {
+                    text: headset.tr("Effacer le journal…")
+                    icon.name: "edit-clear-history"
+                    onTriggered: clearJournalDialog.open()
                 }
             ]
+            Kirigami.PromptDialog {
+                id: clearJournalDialog
+                title: headset.tr("Effacer le journal des événements ?")
+                subtitle: headset.tr("Tous les événements notés sur ce PC sont supprimés. Exporter d'abord pour les garder.")
+                standardButtons: Kirigami.Dialog.Ok | Kirigami.Dialog.Cancel
+                onAccepted: batteryScroll.notice = headset.clearJournal()
+            }
             Kirigami.PromptDialog {
                 id: clearBatteryDialog
                 title: headset.tr("Effacer l'historique de la batterie ?")
@@ -1905,6 +1962,46 @@ Kirigami.ApplicationWindow {
                         wrapMode: Text.Wrap
                         opacity: 0.7
                     }
+                }
+                Kirigami.Heading {
+                    text: headset.tr("Autonomie mesurée")
+                    level: 2
+                }
+                Repeater {
+                    model: headset.batteryAutonomy
+                    QQC2.Label {
+                        required property string modelData
+                        Layout.fillWidth: true
+                        text: modelData
+                        wrapMode: Text.Wrap
+                    }
+                }
+                Kirigami.Heading {
+                    text: headset.tr("Journal des événements")
+                    level: 2
+                }
+                QQC2.Label {
+                    Layout.fillWidth: true
+                    visible: headset.journalLines.length === 0
+                    text: headset.tr("Aucun événement noté pour l'instant.")
+                    opacity: 0.7
+                }
+                Repeater {
+                    model: headset.journalLines
+                    QQC2.Label {
+                        required property string modelData
+                        Layout.fillWidth: true
+                        text: modelData
+                        wrapMode: Text.Wrap
+                        font: Kirigami.Theme.smallFont
+                    }
+                }
+                QQC2.Label {
+                    Layout.fillWidth: true
+                    text: headset.tr("Connexions, modes de réduction de bruit, refus et scènes, notés par le service sur ce PC (journal.csv, 30 jours). Jamais envoyé.")
+                    wrapMode: Text.Wrap
+                    font: Kirigami.Theme.smallFont
+                    opacity: 0.7
                 }
             }
         }
