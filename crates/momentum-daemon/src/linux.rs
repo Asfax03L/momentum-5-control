@@ -5,10 +5,13 @@ use std::sync::mpsc::{self, Sender};
 use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
-use momentum_client::{BUS_NAME, Command, OBJECT_PATH};
+use std::collections::HashMap;
+
+use momentum_client::{BUS_NAME, Command, OBJECT_PATH, runner};
 use momentum_core::paths;
 use momentum_service::worker::Job;
 use zbus::object_server::SignalEmitter;
+use zbus::zvariant::{OwnedValue, Value};
 
 use crate::service::{self, Shared};
 
@@ -95,11 +98,101 @@ impl Control {
     }
 }
 
+/// Objet de la recherche du bureau (KRunner, `org.kde.krunner1`), déclaré
+/// par `assets/linux/openheadset-control-krunner.desktop`.
+const RUNNER_PATH: &str = "/runner";
+
+/// Résultat KRunner : identifiant, texte, icône, catégorie, pertinence,
+/// propriétés.
+type RemoteMatch = (
+    String,
+    String,
+    String,
+    u32,
+    f64,
+    HashMap<String, OwnedValue>,
+);
+
+/// Pertinence de catégorie de KRunner (`KRunner::QueryMatch`).
+const CATEGORY_HIGHEST: u32 = 100;
+const CATEGORY_MODERATE: u32 = 50;
+
+/// Recherche du bureau : les résultats viennent de `momentum_client::runner`
+/// et chaque choix part par [`service::submit`], comme une commande d'une
+/// interface (mêmes refus).
+struct Runner {
+    commands: Sender<Job>,
+    shared: Arc<Mutex<Shared>>,
+}
+
+#[zbus::interface(name = "org.kde.krunner1")]
+impl Runner {
+    /// Aucune action secondaire.
+    fn actions(&self) -> Vec<(String, String, String)> {
+        Vec::new()
+    }
+
+    #[zbus(name = "Match")]
+    fn find(&self, query: String) -> Vec<RemoteMatch> {
+        let (list, _) = paths::load_scenes();
+        let names: Vec<String> = list.into_iter().map(|s| s.name).collect();
+        let battery = self
+            .shared
+            .lock()
+            .ok()
+            .and_then(|s| s.snapshot.state.map(|st| st.battery));
+        runner::matches(&query, &names, battery)
+            .into_iter()
+            .map(|m| {
+                let mut properties = HashMap::new();
+                if let Ok(subtext) = Value::from(m.subtext).try_into_owned() {
+                    properties.insert("subtext".to_string(), subtext);
+                }
+                let category = if m.exact {
+                    CATEGORY_HIGHEST
+                } else {
+                    CATEGORY_MODERATE
+                };
+                (
+                    m.id,
+                    m.text,
+                    "org.openheadset.control".to_string(),
+                    category,
+                    m.relevance,
+                    properties,
+                )
+            })
+            .collect()
+    }
+
+    fn run(&self, match_id: String, _action_id: String) {
+        let Some(command) = runner::command_for(&match_id) else {
+            return;
+        };
+        let result = match self.shared.lock() {
+            Ok(mut shared) => service::submit(command, 0, &mut shared, &self.commands).map(|id| {
+                shared.runner_requests.push(id);
+            }),
+            Err(_) => Err("état du service inaccessible".to_string()),
+        };
+        if let Err(reason) = result {
+            momentum_service::desktop::show_toast(
+                "OpenHeadset Control",
+                &format!("refusé : {reason}"),
+            );
+        }
+    }
+}
+
 pub fn run() -> anyhow::Result<()> {
     let shared = Arc::new(Mutex::new(Shared::default()));
     let (commands, commands_rx) = mpsc::channel::<Job>();
     // zbus 6 n'a plus d'API bloquante : la connexion est construite dans
     // `block_on`, puis servie par zbus entre deux appels.
+    let runner = Runner {
+        commands: commands.clone(),
+        shared: Arc::clone(&shared),
+    };
     let control = Control {
         commands,
         shared: Arc::clone(&shared),
@@ -115,6 +208,7 @@ pub fn run() -> anyhow::Result<()> {
         }
         let connection = builder
             .serve_at(OBJECT_PATH, control)
+            .serve_at(RUNNER_PATH, runner)
             .build()
             .await
             .context("service déjà lancé, ou bus de session indisponible")?;

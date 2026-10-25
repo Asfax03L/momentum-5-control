@@ -47,6 +47,7 @@ if [ "${1:-}" = "--desinstaller" ]; then
         "$bin/momentum-gtk" "$data/applications/momentum-gtk.desktop" \
         "$bin/momentum-daemon.ancien" "$bin/momentum-kirigami.ancien" "$bin/ctl.ancien" \
         "$data/applications/momentum-kirigami.desktop" \
+        "$data/krunner/dbusplugins/openheadset-control-krunner.desktop" \
         "$config/autostart/momentum-kirigami.desktop" \
         "$config/systemd/user/momentum-daemon.service" \
         "$data/dbus-1/services/org.openheadset.Control.service" \
@@ -160,6 +161,15 @@ for size in 16 22 24 32 48 64 128 256; do
 done
 install -m 644 "$assets/linux/momentum-kirigami.desktop" "$data/applications/momentum-kirigami.desktop"
 echo "logo et entrée de menu installés"
+
+# Recherche de Plasma (KRunner) : « anc off », « scène Transport », servie
+# par le service (objet /runner). Facultatif : absent d'une archive ancienne.
+if [ -f "$assets/linux/openheadset-control-krunner.desktop" ]; then
+    mkdir -p "$data/krunner/dbusplugins"
+    install -m 644 "$assets/linux/openheadset-control-krunner.desktop" \
+        "$data/krunner/dbusplugins/openheadset-control-krunner.desktop"
+    echo "recherche KRunner installée"
+fi
 
 # Client GNOME (GTK 4, libadwaita), facultatif : installé s'il est fourni
 # (archive publiée, ou cargo build --release -p momentum-gtk).

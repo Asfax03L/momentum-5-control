@@ -52,6 +52,8 @@ package() {
         target/release/momentum-daemon target/release/ctl
     install -Dm644 assets/linux/momentum-kirigami.desktop \
         "$pkgdir/usr/share/applications/momentum-kirigami.desktop"
+    install -Dm644 assets/linux/openheadset-control-krunner.desktop \
+        "$pkgdir/usr/share/krunner/dbusplugins/openheadset-control-krunner.desktop"
     sed 's|ExecStart=%h/.local/bin/momentum-daemon|ExecStart=/usr/bin/momentum-daemon|' \
         assets/linux/momentum-daemon.service |
         install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/user/momentum-daemon.service"
