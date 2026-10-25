@@ -321,6 +321,8 @@ enum Msg {
     ReadWindowsAudio,
     /// Thème : 0 clair, 1 sombre.
     Theme(Option<usize>),
+    /// Langue choisie : 0 système, 1 français, 2 anglais.
+    Language(Option<usize>),
     ExportBattery,
     ClearBattery,
     ReloadBattery,
@@ -395,6 +397,9 @@ struct Root {
     panel_notice: Option<String>,
     /// Thème choisi (`apparence.txt`) ; `None` : celui du système.
     dark: Option<bool>,
+    /// Langue enregistrée (0 système, 1 français, 2 anglais) et message.
+    language: usize,
+    language_notice: Option<String>,
     /// Raccourcis invalides ou déjà pris par une autre application.
     hotkey_problem: Option<String>,
     start_hidden: bool,
@@ -1101,6 +1106,12 @@ impl Component for Root {
             panel_loaded: paths::read_panel_text(),
             panel_notice: None,
             dark: momentum_core::appearance::load(),
+            language: match momentum_core::i18n::load_pref() {
+                None => 0,
+                Some(momentum_core::i18n::Lang::Fr) => 1,
+                Some(momentum_core::i18n::Lang::En) => 2,
+            },
+            language_notice: None,
             hotkey_problem: (!errors.is_empty())
                 .then(|| trf("Raccourcis clavier : {}", &[&(errors.join(" ; "))])),
             start_hidden,
@@ -1373,6 +1384,23 @@ impl Component for Root {
                 }
             }
             Msg::Theme(None) => {}
+            Msg::Language(Some(i)) if i != self.language => {
+                use momentum_core::i18n::{Lang, store_pref};
+                let choice = match i {
+                    1 => Some(Lang::Fr),
+                    2 => Some(Lang::En),
+                    _ => None,
+                };
+                self.language_notice = Some(match store_pref(choice) {
+                    Ok(()) => {
+                        self.language = i;
+                        tr("Langue enregistrée : appliquée au prochain lancement de l'interface.")
+                            .to_string()
+                    }
+                    Err(e) => trf("Langue non enregistrée : {}.", &[&e]),
+                });
+            }
+            Msg::Language(_) => {}
             Msg::ExportBattery => self.battery_notice = Some(export_battery_history()),
             Msg::ClearBattery => self.confirm = Some(Confirm::ClearBattery),
             Msg::ReloadBattery => self.reload_battery(),
@@ -2497,6 +2525,16 @@ impl Root {
                     .max_columns(2)
                     .selected_index(self.dark.map(usize::from))
                     .on_selection_changed(context.callback(Msg::Theme)),
+                TextBlock::new().text(tr("Langue :")),
+                RadioButtons::new()
+                    // Chaque langue dans sa propre langue.
+                    .items_source([tr("Langue du système"), "Français", "English"])
+                    .max_columns(3)
+                    .selected_index(Some(self.language))
+                    .on_selection_changed(context.callback(Msg::Language)),
+                TextBlock::new()
+                    .text(self.language_notice.clone().unwrap_or_default())
+                    .text_wrapping(TextWrapping::Wrap),
                 switch_row(
                     tr("Lancer à l'ouverture de session"),
                     tr("L'icône apparaît près de l'horloge, la fenêtre reste fermée"),

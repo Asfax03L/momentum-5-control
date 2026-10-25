@@ -149,6 +149,9 @@ pub mod qobject {
         #[qproperty(bool, audio_reading)]
         // Thème choisi : -1 aucun (système), 0 clair, 1 sombre.
         #[qproperty(i32, theme_choice)]
+        /// Langue enregistrée : 0 système, 1 français, 2 anglais.
+        #[qproperty(i32, language_choice)]
+        #[qproperty(QString, language_notice)]
         #[qproperty(QString, settings_notice)]
         #[qproperty(bool, settings_ready)]
         // Lancement à l'ouverture de session.
@@ -324,6 +327,10 @@ pub mod qobject {
         /// Enregistre et applique le thème (0 clair, 1 sombre).
         #[qinvokable]
         fn choose_theme(self: Pin<&mut Headset>, choice: i32);
+        /// Enregistre la langue (0 système, 1 français, 2 anglais), prise en
+        /// compte au prochain lancement.
+        #[qinvokable]
+        fn choose_language(self: Pin<&mut Headset>, choice: i32);
         /// Sauvegarde locale, indépendante de la connexion au casque.
         #[qinvokable]
         fn export_settings(self: Pin<&mut Headset>, url: QString, battery: bool);
@@ -555,6 +562,8 @@ pub struct HeadsetRust {
     pipewire_audio: Option<Result<PipeWireAudio, AudioReadError>>,
     pipewire_at: Option<String>,
     theme_choice: i32,
+    language_choice: i32,
+    language_notice: QString,
     settings_notice: QString,
     settings_ready: bool,
     settings_plan: Option<momentum_core::settings_transfer::ImportPlan>,
@@ -717,6 +726,12 @@ impl Default for HeadsetRust {
             pipewire_audio: None,
             pipewire_at: None,
             theme_choice: momentum_core::appearance::load().map_or(-1, i32::from),
+            language_choice: match momentum_core::i18n::load_pref() {
+                None => 0,
+                Some(momentum_core::i18n::Lang::Fr) => 1,
+                Some(momentum_core::i18n::Lang::En) => 2,
+            },
+            language_notice: QString::default(),
             settings_notice: QString::default(),
             settings_ready: false,
             settings_plan: None,
@@ -1965,6 +1980,25 @@ impl qobject::Headset {
         }
         qobject::openheadset_set_color_scheme(if dark { 2 } else { 1 });
         self.as_mut().set_theme_choice(i32::from(dark));
+    }
+
+    fn choose_language(mut self: Pin<&mut Self>, choice: i32) {
+        use momentum_core::i18n::{Lang, store_pref};
+        let lang = match choice {
+            1 => Some(Lang::Fr),
+            2 => Some(Lang::En),
+            _ => None,
+        };
+        let notice = match store_pref(lang) {
+            Ok(()) => {
+                self.as_mut().set_language_choice(choice);
+                tr("Langue enregistrée : appliquée au prochain lancement de l'interface.")
+                    .to_string()
+            }
+            Err(e) => trf("Langue non enregistrée : {}.", &[&e]),
+        };
+        self.as_mut()
+            .set_language_notice(QString::from(notice.as_str()));
     }
 
     fn open_shortcut_settings(&self) {

@@ -1046,6 +1046,26 @@ Kirigami.ApplicationWindow {
                         }
                     }
                     RowLayout {
+                        Kirigami.FormData.label: headset.tr("Langue :")
+                        Repeater {
+                            // Chaque langue dans sa propre langue.
+                            model: [headset.tr("Langue du système"), "Français", "English"]
+                            QQC2.RadioButton {
+                                required property int index
+                                required property string modelData
+                                text: modelData
+                                checked: headset.languageChoice === index
+                                onClicked: headset.chooseLanguage(index)
+                            }
+                        }
+                    }
+                    QQC2.Label {
+                        visible: headset.languageNotice !== ""
+                        text: headset.languageNotice
+                        wrapMode: Text.WordWrap
+                        Layout.fillWidth: true
+                    }
+                    RowLayout {
                         Kirigami.FormData.label: headset.tr("Thème :")
                         QQC2.RadioButton {
                             text: headset.tr("Clair")

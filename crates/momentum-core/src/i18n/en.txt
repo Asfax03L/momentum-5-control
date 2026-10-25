@@ -1984,3 +1984,15 @@ Apply the scene “{}” to the headphones
 
 {} : {}
 {}: {}
+
+Langue :
+Language:
+
+Langue du système
+System language
+
+Langue enregistrée : appliquée au prochain lancement de l'interface.
+Language saved: applied the next time the interface starts.
+
+Langue non enregistrée : {}.
+Language not saved: {}.
