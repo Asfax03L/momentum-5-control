@@ -6,8 +6,8 @@ After=bluetooth.target
 [Service]
 Type=dbus
 BusName=org.openheadset.Control
-# Dossier des données créé hors du bac à sable (« + ») : sous
-# ProtectHome=read-only, le service ne peut pas le créer lui-même.
+# Dossier des données créé hors du bac à sable (« + ») : il doit exister
+# pour être rendu visible au service (BindPaths ci-dessous).
 ExecStartPre=+/bin/mkdir -p %h/.local/share/momentum-ctl-win
 ExecStart=%h/.local/bin/momentum-daemon
 Restart=on-failure
@@ -16,10 +16,14 @@ RestartSec=5
 # Durcissement (docs/SECURITE.md) : le service n'a besoin que des bus D-Bus
 # (session et système, pour BlueZ), du canal RFCOMM que BlueZ lui transmet,
 # de son dossier de données et du dossier Documents (export du profil).
+# Dossier personnel masqué (ProtectHome=tmpfs : vide, ni lu ni écrit),
+# sauf ces chemins rendus visibles : données et Documents en écriture, bus
+# de session, binaire (installation par script) en lecture seule.
 NoNewPrivileges=yes
 ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=%h/.local/share/momentum-ctl-win -%h/Documents
+ProtectHome=tmpfs
+BindPaths=%h/.local/share/momentum-ctl-win -%h/Documents %t/bus
+BindReadOnlyPaths=-%h/.local/bin/momentum-daemon
 PrivateTmp=yes
 PrivateDevices=yes
 ProtectKernelTunables=yes
