@@ -30,7 +30,7 @@ use tray_icon::menu::{
 use tray_icon::{Icon, MouseButton, MouseButtonState, TrayIcon, TrayIconBuilder, TrayIconEvent};
 use windows_reactor::*;
 
-use crate::desktop;
+use crate::{desktop, taskbar};
 
 /// Pause avant de recontacter un service injoignable.
 const RETRY: Duration = Duration::from_secs(3);
@@ -95,6 +95,11 @@ fn desk() -> &'static DeskChannel {
 }
 
 pub fn run() {
+    // Entrée de la liste de raccourcis : la scène part au service, sans
+    // fenêtre ni deuxième instance.
+    if let Some(name) = taskbar::scene_argument() {
+        std::process::exit(taskbar::apply_scene(&name, start_daemon));
+    }
     // Une seule fenêtre : un deuxième lancement montre la première.
     match acquire_named_instance("openheadset-control-show", "openheadset-control-winui") {
         Ok(Instance::AlreadyRunning) => return,
@@ -366,6 +371,9 @@ struct Root {
     tray: Option<TrayIcon>,
     tray_kind: Option<IconKind>,
     tray_tooltip: String,
+    /// Pastille de la barre des tâches posée (batterie, `None` : aucune) ;
+    /// `None` au départ : pas encore posée.
+    taskbar_badge: Option<Option<u8>>,
     /// Menu affiché (reconstruit seulement s'il change) et action de
     /// chaque entrée cliquable.
     tray_entries: Vec<MenuEntry>,
@@ -569,6 +577,10 @@ impl Root {
         let (scenes, errors) = paths::load_scenes();
         self.scenes = scenes;
         self.scene_problems = errors;
+        let names: Vec<String> = self.scenes.iter().map(|s| s.name.clone()).collect();
+        if let Err(e) = taskbar::update_jump_list(&names) {
+            eprintln!("liste de raccourcis : {e}");
+        }
         self.reload_hotkey_rows();
         // Une modification en cours dans l'éditeur n'est pas perdue.
         if !self.scene_editor.dirty() {
@@ -775,6 +787,16 @@ impl Root {
                 let _ = tray.set_icon(Some(icon));
             }
             self.tray_kind = Some(kind);
+        }
+        // Pastille de la barre des tâches : batterie relue sur le casque.
+        let badge = state.map(|s| s.battery);
+        if self.taskbar_badge != Some(badge)
+            && let Some(hwnd) = desktop::hwnd()
+        {
+            match taskbar::set_battery_badge(hwnd, badge) {
+                Ok(()) => self.taskbar_badge = Some(badge),
+                Err(e) => eprintln!("pastille de la barre des tâches : {e}"),
+            }
         }
         let v = self.main_view();
         let problem = self
@@ -1060,6 +1082,7 @@ impl Component for Root {
             tray,
             tray_kind: None,
             tray_tooltip: String::new(),
+            taskbar_badge: None,
             tray_entries: Vec::new(),
             tray_actions: Vec::new(),
             hotkeys: hotkey_thread,

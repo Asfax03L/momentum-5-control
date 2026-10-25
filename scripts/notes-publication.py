@@ -75,7 +75,8 @@ def main():
     sbom = find(files, r"sbom.*\.tar\.gz$")
     exe = find(files, r"-windows-x86_64-installateur\.exe$")
     plasmoid = find(files, r"\.plasmoid$")
-    known = {zip_, tar, flatpak, deb, rpm, sbom, exe, plasmoid}
+    decky = find(files, r"-decky\.zip$")
+    known = {zip_, tar, flatpak, deb, rpm, sbom, exe, plasmoid, decky}
     others = [f for f in files if f not in known]
     tar_dir = tar[: -len(".tar.gz")] if tar else None
     zip_dir = zip_[: -len(".zip")] if zip_ else None
@@ -126,6 +127,8 @@ def main():
         w(f"| Autre Linux avec KDE Plasma 6 | `{tar}` | client KDE, service, `ctl`{widget}, installateur sans sudo |")
     if plasmoid:
         w(f"| Widget Plasma seul (avec le Flatpak, par exemple) | `{plasmoid}` | widget pour le panneau ou le bureau |")
+    if decky:
+        w(f"| Mode jeu de Bazzite ou du Steam Deck, avec Decky Loader | `{decky}` | extension : batterie, réduction de bruit, scènes (OpenHeadset Control installé à côté) |")
     if sbom:
         w(f"| (vérification) | `{sbom}` | inventaire des dépendances (SBOM CycloneDX) |")
     for f in others:
@@ -244,6 +247,14 @@ def main():
             w(f"kpackagetool6 --type Plasma/Applet --upgrade {tar_dir}/plasma/org.openheadset.control.plasmoid \\")
             w(f"  || kpackagetool6 --type Plasma/Applet --install {tar_dir}/plasma/org.openheadset.control.plasmoid")
             w("```")
+        w("")
+    if decky:
+        w("### Mode jeu (Decky Loader)")
+        w("")
+        w("Avec OpenHeadset Control déjà installé (archive, paquet ou Flatpak) : "
+          "dans les réglages de Decky, mode développeur, puis « Install Plugin "
+          f"from ZIP » et choisir `{decky}`. Même chose pour une mise à jour. "
+          "L'extension passe par le service, jamais directement par le casque.")
         w("")
     if deb or rpm:
         w("### Paquets Debian, Ubuntu et Fedora")

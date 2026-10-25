@@ -305,6 +305,46 @@ fn headphones_distance(x: f32, y: f32) -> f32 {
     band.min(cup_left).min(cup_right)
 }
 
+/// Couleur de la pastille de batterie : rouge à 15 % et moins, orange à
+/// 30 % et moins, vert au-dessus.
+fn battery_color(level: u8) -> [u8; 3] {
+    match level {
+        0..=15 => [239, 68, 68],
+        16..=30 => [245, 158, 11],
+        _ => [34, 197, 94],
+    }
+}
+
+/// Pastille de batterie (superposée à l'icône de la barre des tâches
+/// Windows) : pile horizontale à contour sombre, remplie de `level` %
+/// (0 à 100), en RGBA, `size` × `size`.
+pub fn battery_badge_rgba(level: u8, size: u32) -> Vec<u8> {
+    let level = level.min(100);
+    let [r, g, b] = battery_color(level);
+    let scale = size as f32 / 32.0;
+    // Corps de 2 à 27 en x (centre 14,5), de 7 à 25 en y (centre 16) ;
+    // borne de 27 à 30. Intérieur de 5 à 24 en x.
+    let fill_right = 5.0 + 19.0 * f32::from(level) / 100.0;
+    let mut out = Vec::with_capacity((size * size * 4) as usize);
+    for y in 0..size {
+        for x in 0..size {
+            let px = (x as f32 + 0.5) / scale;
+            let py = (y as f32 + 0.5) / scale;
+            let cover = |d: f32| (0.5 - d * scale).clamp(0.0, 1.0);
+            let body = cover(rounded_box(px - 14.5, py - 16.0, 12.5, 9.0, 3.0));
+            let tip = cover(rounded_box(px - 28.5, py - 16.0, 1.5, 4.0, 1.0));
+            let inner = cover(rounded_box(px - 14.5, py - 16.0, 9.5, 6.0, 1.5));
+            let fill = if px <= fill_right { inner } else { 0.0 };
+            // Contour et vide : gris très sombre ; remplissage : couleur.
+            let shape = body.max(tip);
+            let mix = |c: u8| (30.0 + (f32::from(c) - 30.0) * fill).round() as u8;
+            let alpha = (255.0 * shape).round() as u8;
+            out.extend_from_slice(&[mix(r), mix(g), mix(b), alpha]);
+        }
+    }
+    out
+}
+
 /// Distance signée à un rectangle arrondi centré à l'origine.
 fn rounded_box(x: f32, y: f32, half_w: f32, half_h: f32, radius: f32) -> f32 {
     let qx = x.abs() - half_w + radius;
@@ -340,6 +380,35 @@ pub fn panel_position(
 mod tests {
     use super::*;
     use crate::device::NoiseState;
+
+    fn pixel(rgba: &[u8], size: u32, x: u32, y: u32) -> [u8; 4] {
+        let i = ((y * size + x) * 4) as usize;
+        [rgba[i], rgba[i + 1], rgba[i + 2], rgba[i + 3]]
+    }
+
+    #[test]
+    fn battery_badge_fill_and_colour_follow_the_level() {
+        for size in [16, 32] {
+            assert_eq!(
+                battery_badge_rgba(50, size).len(),
+                (size * size * 4) as usize
+            );
+        }
+        let full = battery_badge_rgba(100, 32);
+        let low = battery_badge_rgba(10, 32);
+        let mid = battery_badge_rgba(25, 32);
+        // Au centre, à droite de l'intérieur : rempli à 100 %, vide à 10 %.
+        assert_eq!(pixel(&full, 32, 22, 16), [34, 197, 94, 255]);
+        assert_eq!(pixel(&low, 32, 22, 16), [30, 30, 30, 255]);
+        // Tout à gauche de l'intérieur : la couleur du niveau.
+        assert_eq!(pixel(&low, 32, 6, 16), [239, 68, 68, 255]);
+        assert_eq!(pixel(&mid, 32, 6, 16), [245, 158, 11, 255]);
+        // Hors de la pile : transparent ; borne : opaque.
+        assert_eq!(pixel(&full, 32, 16, 1)[3], 0);
+        assert_eq!(pixel(&full, 32, 29, 16)[3], 255);
+        // Au-delà de 100 : comme 100.
+        assert_eq!(battery_badge_rgba(250, 16), battery_badge_rgba(100, 16));
+    }
 
     #[test]
     fn panel_sits_next_to_the_tray_icon_inside_the_work_area() {

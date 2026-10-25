@@ -34,6 +34,11 @@ struct Args {
     #[arg(long, global = true, default_value_t = 3000)]
     timeout_ms: u64,
 
+    /// Toujours par le service, jamais de connexion directe au casque
+    /// (intégrations du bureau : mêmes refus que les interfaces).
+    #[arg(long, global = true)]
+    service_requis: bool,
+
     /// Journal détaillé (trames brutes) sur la sortie d'erreur.
     #[arg(long, short, global = true)]
     verbose: bool,
@@ -562,6 +567,11 @@ mod app {
             Ok(c) => c,
             Err(ClientError::NoService) if matches!(command, Command::Reconnecter) => {
                 bail!("service requis pour reconnecter le casque ; aucune connexion directe")
+            }
+            Err(ClientError::NoService) if args.service_requis => {
+                bail!(
+                    "service momentum-daemon introuvable (--service-requis : aucune connexion directe)"
+                )
             }
             Err(ClientError::NoService) => return Ok(false),
             Err(e) => bail!("service momentum-daemon : {e}"),
