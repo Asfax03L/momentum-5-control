@@ -95,7 +95,7 @@ impl Tray {
             let name = connection
                 .unique_name()
                 .map(|name| name.to_string())
-                .ok_or_else(|| zbus::Error::Failure(tr("bus sans nom unique").into()))?;
+                .ok_or_else(|| zbus::Error::Failure("bus sans nom unique".into()))?;
             register(&connection, &name).await?;
             zbus::Result::Ok((connection, name))
         })?;

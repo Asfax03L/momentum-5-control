@@ -49,12 +49,14 @@ impl Lang {
 }
 
 static LANG: OnceLock<Lang> = OnceLock::new();
-static CATALOGUE: OnceLock<HashMap<&'static str, &'static str>> = OnceLock::new();
+static CATALOGUE: OnceLock<HashMap<String, &'static str>> = OnceLock::new();
 
 const EN: &str = include_str!("i18n/en.txt");
 
-/// Entrées du catalogue anglais : (français, anglais).
-pub fn catalogue_entries() -> Vec<(&'static str, &'static str)> {
+/// Entrées du catalogue anglais : (français, anglais). Un retour à la
+/// ligne s'écrit `\n` dans le catalogue.
+pub fn catalogue_entries() -> Vec<(String, String)> {
+    let unescape = |s: &str| s.replace("\\n", "\n");
     EN.split("\n\n")
         .filter_map(|block| {
             let block = block.trim_matches('\n');
@@ -62,13 +64,19 @@ pub fn catalogue_entries() -> Vec<(&'static str, &'static str)> {
                 return None;
             }
             let (fr, en) = block.split_once('\n')?;
-            Some((fr, en))
+            Some((unescape(fr), unescape(en)))
         })
         .collect()
 }
 
-fn catalogue() -> &'static HashMap<&'static str, &'static str> {
-    CATALOGUE.get_or_init(|| catalogue_entries().into_iter().collect())
+fn catalogue() -> &'static HashMap<String, &'static str> {
+    CATALOGUE.get_or_init(|| {
+        catalogue_entries()
+            .into_iter()
+            // Une seule fois par programme : les traductions vivent jusqu'au bout.
+            .map(|(fr, en)| (fr, &*Box::leak(en.into_boxed_str())))
+            .collect()
+    })
 }
 
 /// Fixe la langue (une seule fois, au démarrage) ; sans appel, [`language`]
@@ -213,9 +221,13 @@ mod tests {
         let entries = catalogue_entries();
         let mut seen = std::collections::HashSet::new();
         for (fr, en) in &entries {
-            assert!(seen.insert(*fr), "entrée en double : {fr}");
+            assert!(seen.insert(fr.as_str()), "entrée en double : {fr}");
             assert!(!en.trim().is_empty(), "traduction vide : {fr}");
-            assert!(!en.contains('\n'), "plus de deux lignes : {fr}");
+            assert_eq!(
+                fr.matches('\n').count(),
+                en.matches('\n').count(),
+                "retours à la ligne différents : {fr}"
+            );
             assert_eq!(
                 fr.matches("{}").count(),
                 en.matches("{}").count(),
@@ -258,7 +270,7 @@ mod tests {
     #[test]
     fn every_choice_list_is_translated() {
         use crate::viewmodel as v;
-        let known: std::collections::HashSet<&str> =
+        let known: std::collections::HashSet<String> =
             catalogue_entries().into_iter().map(|(fr, _)| fr).collect();
         let lists: [&[&str]; 7] = [
             &v::NOISE_MODES,
@@ -271,7 +283,7 @@ mod tests {
         ];
         let mut missing: Vec<&str> = lists.iter().flat_map(|l| l.iter().copied()).collect();
         missing.extend(v::BATTERY_SPANS.iter().map(|(label, _)| *label));
-        missing.retain(|t| !known.contains(t));
+        missing.retain(|t| !known.contains(*t));
         assert!(missing.is_empty(), "choix sans traduction : {missing:?}");
     }
 
@@ -280,7 +292,7 @@ mod tests {
         // Tous les fichiers Rust et QML du dépôt (hors target) : chaque texte
         // passé à tr/trf a sa traduction anglaise.
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let known: std::collections::HashSet<&str> =
+        let known: std::collections::HashSet<String> =
             catalogue_entries().into_iter().map(|(fr, _)| fr).collect();
         let mut missing = Vec::new();
         let mut stack = vec![root];

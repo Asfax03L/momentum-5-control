@@ -415,7 +415,7 @@ fn home_rows(s: &HeadsetState) -> Vec<Row> {
         row(
             tr("Mode audio"),
             opt(s.audio_mode, |m| {
-                capitalize(audio_mode_label(m).trim_start_matches("Mode audio : "))
+                capitalize(audio_mode_label(m).trim_start_matches(tr("Mode audio : ")))
             }),
         ),
         row(

@@ -1586,10 +1586,10 @@ Kirigami.ApplicationWindow {
             ColumnLayout {
                 spacing: Kirigami.Units.largeSpacing
                 StatusHeader {}
-                AudioSection { title: headset.tr("Constats"); section: headset.tr("constats") }
-                AudioSection { title: headset.tr("Pilotage du casque"); section: headset.tr("pilotage") }
-                AudioSection { title: headset.tr("Sortie audio du système"); section: headset.tr("systeme") }
-                AudioSection { title: headset.tr("Flux Bluetooth"); section: headset.tr("flux") }
+                AudioSection { title: headset.tr("Constats"); section: "constats" }
+                AudioSection { title: headset.tr("Pilotage du casque"); section: "pilotage" }
+                AudioSection { title: headset.tr("Sortie audio du système"); section: "systeme" }
+                AudioSection { title: headset.tr("Flux Bluetooth"); section: "flux" }
             }
         }
     }

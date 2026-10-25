@@ -68,19 +68,19 @@ pub struct WindowsAudio {
 pub fn classify(texts: &[&str], device_name: Option<&str>) -> (bool, OutputLink, bool) {
     let upper: Vec<String> = texts.iter().map(|t| t.to_uppercase()).collect();
     let any = |needle: &str| upper.iter().any(|t| t.contains(needle));
-    let headset = any(tr("MOMENTUM"))
-        || any(tr("VID_3542"))
+    let headset = any("MOMENTUM")
+        || any("VID_3542")
         || device_name
             .map(|n| n.trim().to_uppercase())
             .is_some_and(|n| n.len() >= 3 && any(&n));
-    let link = if any(tr("BTHENUM")) {
+    let link = if any("BTHENUM") {
         OutputLink::Bluetooth
     } else if upper.iter().any(|t| t == "USB" || t.contains("USB\\")) {
         OutputLink::Usb
     } else {
         OutputLink::Other
     };
-    let hands_free = any("{0000111E-") || any("{0000111F-") || any(tr("HANDS-FREE"));
+    let hands_free = any("{0000111E-") || any("{0000111F-") || any("HANDS-FREE");
     (headset, link, hands_free)
 }
 
@@ -114,8 +114,8 @@ pub fn format_mix(mix: &MixFormat) -> String {
 /// Description courte d'une sortie : « Bluetooth, stéréo ».
 pub fn describe_output(output: &AudioOutput) -> String {
     let link = match output.link {
-        OutputLink::Bluetooth => tr("Bluetooth"),
-        OutputLink::Usb => tr("USB"),
+        OutputLink::Bluetooth => "Bluetooth",
+        OutputLink::Usb => "USB",
         OutputLink::Other => tr("autre liaison"),
     };
     let mode = if output.hands_free {
