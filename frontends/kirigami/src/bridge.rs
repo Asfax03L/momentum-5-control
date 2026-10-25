@@ -146,6 +146,13 @@ pub mod qobject {
         #[qproperty(QString, battery_estimate)]
         #[qproperty(QString, battery_axis)]
         #[qproperty(QStringList, battery_details)]
+        // Autonomie mesurée et derniers événements du journal.
+        #[qproperty(QStringList, battery_autonomy)]
+        #[qproperty(QStringList, journal_lines)]
+        // Notifications au choix (notifications.txt, lu par le service).
+        #[qproperty(bool, notify_low_battery)]
+        #[qproperty(bool, notify_connection)]
+        #[qproperty(bool, notify_idle)]
         #[qproperty(i32, battery_revision)]
         // Page « Connexion et audio » : change à chaque mise à jour.
         #[qproperty(i32, audio_revision)]
@@ -336,6 +343,18 @@ pub mod qobject {
         /// Efface l'historique (fait par le service) puis le relit.
         #[qinvokable]
         fn clear_battery(self: Pin<&mut Headset>) -> QString;
+        /// Copie `journal.csv` dans Documents ; message à afficher.
+        #[qinvokable]
+        fn export_journal(self: &Headset) -> QString;
+        /// Efface le journal (fait par le service) puis le relit.
+        #[qinvokable]
+        fn clear_journal(self: Pin<&mut Headset>) -> QString;
+        /// Notification au choix : 0 batterie faible, 1 connexion, 2 sans son.
+        #[qinvokable]
+        fn set_notification(self: Pin<&mut Headset>, kind: i32, on: bool);
+        /// Exporte la courbe au format GraphicEQ d'Equalizer APO.
+        #[qinvokable]
+        fn export_apo(self: Pin<&mut Headset>);
         /// Courbe de la batterie en tracé SVG, à la taille donnée.
         #[qinvokable]
         fn battery_chart(self: &Headset, width: f64, height: f64) -> QString;
@@ -617,6 +636,11 @@ pub struct HeadsetRust {
     battery_estimate: QString,
     battery_axis: QString,
     battery_details: QStringList,
+    battery_autonomy: QStringList,
+    journal_lines: QStringList,
+    notify_low_battery: bool,
+    notify_connection: bool,
+    notify_idle: bool,
     battery_revision: i32,
     audio_revision: i32,
     audio_reading: bool,
@@ -790,6 +814,11 @@ impl Default for HeadsetRust {
             battery_estimate: QString::default(),
             battery_axis: QString::default(),
             battery_details: QStringList::default(),
+            battery_autonomy: QStringList::default(),
+            journal_lines: QStringList::default(),
+            notify_low_battery: momentum_core::alerts::NotificationPrefs::load().low_battery,
+            notify_connection: momentum_core::alerts::NotificationPrefs::load().connection,
+            notify_idle: momentum_core::alerts::NotificationPrefs::load().idle,
             battery_revision: 0,
             audio_revision: 0,
             audio_reading: false,
@@ -1918,6 +1947,13 @@ impl qobject::Headset {
             .set_battery_axis(QString::from(view.axis_start.as_str()));
         self.as_mut()
             .set_battery_details(string_list(details.iter().map(String::as_str)));
+        let events = momentum_core::journal::load(now);
+        let autonomy = momentum_core::battery_log::autonomy_lines(&log, &events);
+        self.as_mut()
+            .set_battery_autonomy(string_list(autonomy.iter().map(String::as_str)));
+        let journal = momentum_core::journal::lines(&events, now, 30);
+        self.as_mut()
+            .set_journal_lines(string_list(journal.iter().map(String::as_str)));
         self.as_mut().set_battery_revision(revision);
     }
 
@@ -2373,6 +2409,67 @@ impl qobject::Headset {
                 false
             }
         }
+    }
+
+    fn export_journal(&self) -> QString {
+        QString::from(momentum_core::journal::export(unix_now()).as_str())
+    }
+
+    fn clear_journal(mut self: Pin<&mut Self>) -> QString {
+        let Some(tx) = self.rust().commands.clone() else {
+            return QString::from(tr("Effacement impossible : service injoignable."));
+        };
+        if tx.send((Command::ClearJournal, 0)).is_err() {
+            return QString::from(tr("Effacement impossible : service injoignable."));
+        }
+        self.as_mut().rust_mut().requests.sent();
+        self.as_mut().set_busy(true);
+        // Le service réécrit le fichier : relecture un peu plus tard.
+        let qt_thread = self.qt_thread();
+        std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(600));
+            let _ = qt_thread.queue(|mut headset| {
+                let span = *headset.battery_span();
+                headset.as_mut().reload_battery(span);
+            });
+        });
+        QString::from(tr("Effacement du journal demandé au service."))
+    }
+
+    fn set_notification(mut self: Pin<&mut Self>, kind: i32, on: bool) {
+        let mut prefs = momentum_core::alerts::NotificationPrefs::load();
+        match kind {
+            0 => prefs.low_battery = on,
+            1 => prefs.connection = on,
+            _ => prefs.idle = on,
+        }
+        if let Err(e) = prefs.store() {
+            tracing::warn!(%e, "notifications.txt");
+        }
+        let saved = momentum_core::alerts::NotificationPrefs::load();
+        self.as_mut().set_notify_low_battery(saved.low_battery);
+        self.as_mut().set_notify_connection(saved.connection);
+        self.as_mut().set_notify_idle(saved.idle);
+    }
+
+    fn export_apo(self: Pin<&mut Self>) {
+        let Some(eq) = self.rust().snapshot.equalizer.as_ref() else {
+            return;
+        };
+        let notice = match presets::format_graphic_eq(&eq.gains) {
+            Err(e) => e,
+            Ok(text) => match paths::export_file("momentum-egaliseur-apo", "txt", unix_now()) {
+                Some(path) => match std::fs::write(&path, text) {
+                    Ok(()) => trf(
+                        "Courbe exportée pour Equalizer APO dans {}.",
+                        &[&(path.display())],
+                    ),
+                    Err(e) => trf("Export de la courbe impossible : {}.", &[&e]),
+                },
+                None => tr("Export impossible : dossier personnel introuvable.").to_string(),
+            },
+        };
+        self.notice(notice);
     }
 
     fn export_curve(self: Pin<&mut Self>) {

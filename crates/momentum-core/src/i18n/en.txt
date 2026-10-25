@@ -2203,3 +2203,60 @@ just now
 
 export Equalizer APO : {} bandes, {} attendues
 Equalizer APO export: {} bands, {} expected
+
+Aucun événement noté pour l'instant.
+No event logged yet.
+
+Aucun événement à exporter pour l'instant.
+No event to export yet.
+
+Aucune lecture signalée depuis 30 minutes (désactivé par défaut)
+No playback reported for 30 minutes (off by default)
+
+Autonomie mesurée
+Measured battery life
+
+Casque déconnecté, puis reconnecté
+Headphones disconnected, then reconnected
+
+Connexion perdue et retrouvée
+Connection lost and restored
+
+Connexions, modes de réduction de bruit, refus et scènes, notés par le service sur ce PC (journal.csv, 30 jours). Jamais envoyé.
+Connections, noise cancelling modes, refusals and scenes, logged by the service on this PC (journal.csv, 30 days). Never sent.
+
+Courbe exportée pour Equalizer APO dans {}.
+Curve exported for Equalizer APO to {}.
+
+Effacement du journal demandé au service.
+Log clearing requested from the service.
+
+Effacer le journal des événements ?
+Clear the event log?
+
+Effacer le journal…
+Clear the log…
+
+Export du journal impossible : {}.
+Log export failed: {}.
+
+Exporter le journal (CSV)
+Export the log (CSV)
+
+Exporter pour Equalizer APO
+Export for Equalizer APO
+
+Journal des événements
+Event log
+
+Journal exporté dans {}.
+Log exported to {}.
+
+Notifications
+Notifications
+
+Tous les événements notés sur ce PC sont supprimés. Exporter d'abord pour les garder.
+All events logged on this PC are deleted. Export first to keep them.
+
+Une fois sous 15 %
+Once below 15 %

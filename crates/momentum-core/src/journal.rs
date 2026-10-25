@@ -191,6 +191,23 @@ pub fn lines(journal: &Journal, now: u64, count: usize) -> Vec<String> {
         .collect()
 }
 
+/// Copie `journal.csv` dans Documents ; renvoie le message à afficher.
+pub fn export(now: u64) -> String {
+    let Some(source) = crate::paths::journal_file() else {
+        return tr("Export impossible : dossier des données introuvable.").to_string();
+    };
+    let Some(target) = crate::paths::export_file("momentum-journal", "csv", now) else {
+        return tr("Export impossible : dossier Documents introuvable.").to_string();
+    };
+    match std::fs::copy(&source, &target) {
+        Ok(_) => trf("Journal exporté dans {}.", &[&(target.display())]),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            tr("Aucun événement à exporter pour l'instant.").to_string()
+        }
+        Err(e) => trf("Export du journal impossible : {}.", &[&e]),
+    }
+}
+
 /// Journal en mémoire, borné.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Journal {
