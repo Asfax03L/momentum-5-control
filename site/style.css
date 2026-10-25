@@ -1,0 +1,103 @@
+/* Site d'OpenHeadset Control : thème clair et sombre du système, contrastes
+   d'au moins 4,5:1 (texte) et 3:1 (repères de focus). */
+:root {
+  color-scheme: light dark;
+  --fond: #ffffff;
+  --texte: #1b1b1b;
+  --secondaire: #4a4a4a;
+  --lien: #0b57a4;
+  --bord: #d0d0d0;
+  --carte: #f4f6f8;
+  --focus: #0b57a4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fond: #16181b;
+    --texte: #ececec;
+    --secondaire: #b8b8b8;
+    --lien: #7cb8ff;
+    --bord: #3a3d42;
+    --carte: #22252a;
+    --focus: #7cb8ff;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--fond);
+  color: var(--texte);
+  font: 1.0625rem/1.6 system-ui, "Segoe UI", "Noto Sans", sans-serif;
+}
+a { color: var(--lien); text-underline-offset: 0.15em; }
+a:focus-visible, summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+.evitement {
+  position: absolute;
+  left: 1rem;
+  top: -3rem;
+  background: var(--fond);
+  padding: 0.5rem 1rem;
+  z-index: 1;
+}
+.evitement:focus { top: 1rem; }
+header {
+  border-bottom: 1px solid var(--bord);
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  align-items: center;
+  max-width: 60rem;
+  margin: 0 auto;
+}
+.marque {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-weight: 600;
+  color: var(--texte);
+  text-decoration: none;
+}
+nav ul {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  padding: 0;
+}
+main, footer {
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+footer { color: var(--secondaire); border-top: 1px solid var(--bord); font-size: 0.9375rem; }
+h1 { line-height: 1.2; }
+h2 { margin-top: 2.5rem; }
+h3 { margin-top: 1.75rem; }
+code {
+  font-family: ui-monospace, "Cascadia Mono", "Noto Sans Mono", monospace;
+  font-size: 0.9375em;
+  background: var(--carte);
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+pre { background: var(--carte); padding: 0.75rem 1rem; border-radius: 6px; overflow-x: auto; }
+pre code { padding: 0; }
+img { max-width: 100%; height: auto; }
+.captures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1rem;
+}
+.captures figure { margin: 0; }
+.captures figcaption { color: var(--secondaire); font-size: 0.9375rem; }
+.avertissement {
+  border-left: 4px solid var(--lien);
+  background: var(--carte);
+  padding: 0.5rem 1rem;
+}
