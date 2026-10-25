@@ -7,11 +7,6 @@ all-features = false
 # Une faille connue fait échouer la CI ; une exception se documente ici,
 # avec sa raison.
 ignore = [
-    # Crates « plus maintenues » (aucune faille) : fondues dans zbus 6.0.
-    # Migration vers zbus 6 prévue (docs/ROADMAP.md, étape 8).
-    { id = "RUSTSEC-2026-0370", reason = "zvariant : fondu dans zbus 6, migration prévue" },
-    { id = "RUSTSEC-2026-0371", reason = "zbus_names : fondu dans zbus 6, migration prévue" },
-    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive : fondu dans zbus 6, migration prévue" },
     # Arrive par gtk 0.18, dépendance Linux de tray-icon que le projet ne
     # compile pas (tray-icon ne sert qu'à WinUI, sous Windows).
     { id = "RUSTSEC-2024-0370", reason = "proc-macro-error : via gtk (tray-icon Linux), jamais compilé" },

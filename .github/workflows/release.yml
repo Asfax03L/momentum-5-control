@@ -19,31 +19,58 @@ on:
   # publication n'est créée.
   workflow_dispatch:
 
+# Lecture seule par défaut ; seul le job « publication » écrit (A07 de
+# l'audit du 24/10/2026).
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  # L'étiquette doit correspondre à la version de l'espace de travail.
+  # L'étiquette doit correspondre à la version de l'espace de travail, et la
+  # CI complète (workflow CI : confidentialité, dépendances, couverture,
+  # essais d'interface…) doit être verte sur cette même révision.
   version:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Étiquette et version
         if: github.event_name == 'push'
         run: |
           version=$(sed -n 's/^version = "\(.*\)"$/\1/p' Cargo.toml | head -1)
           echo "Cargo.toml : $version ; étiquette : ${GITHUB_REF_NAME}"
           test "v$version" = "${GITHUB_REF_NAME}"
+      - name: CI verte sur cette révision
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          # La CI de main tourne pour ce commit (fusion) ; attendre sa fin
+          # (60 min au plus), puis exiger un succès.
+          for i in $(seq 1 120); do
+            etat=$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --json status,conclusion \
+              --jq 'map(select(.status == "completed")) | if length == 0 then "attente" else (.[0].conclusion) end')
+            echo "CI de $GITHUB_SHA : $etat"
+            case "$etat" in
+              success) exit 0 ;;
+              attente) sleep 30 ;;
+              *) echo "CI en échec sur cette révision : rien n'est publié." >&2; exit 1 ;;
+            esac
+          done
+          echo "CI introuvable ou trop longue pour $GITHUB_SHA : rien n'est publié." >&2
+          exit 1
 
   windows:
     needs: version
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: "1.99.0"
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       - run: cargo test --locked
       - run: cargo build --release --locked --bins
       - name: Archive
@@ -63,7 +90,7 @@ jobs:
           $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.*)"$' | Select-Object -First 1).Matches.Groups[1].Value
           ./packaging/windows/construire-installateur.ps1 -Version $version -Bin target/release -Sortie .
           ./scripts/essai-installateur-windows.ps1 -Installateur "openheadset-control-v$version-windows-x86_64-installateur.exe" -Version $version -SansRuntime
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: windows
           path: |
@@ -77,13 +104,13 @@ jobs:
     env:
       QMAKE: /usr/bin/qmake6
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet
       - run: sudo apt-get update && sudo apt-get install -y dbus-daemon libdbus-1-dev pkg-config qt6-base-dev qt6-declarative-dev qmake6 libgtk-4-dev libadwaita-1-dev
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: "1.99.0"
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       - run: cargo test --locked
       - run: cargo build --release --locked -p momentum-cli -p momentum-daemon -p momentum-kirigami -p momentum-gtk
       - name: Archive
@@ -109,7 +136,7 @@ jobs:
           unzip -l "openheadset-control-${{ github.ref_name }}.plasmoid" | grep -q ' metadata.json$'
           # Extension Decky Loader (mode jeu).
           sh decky/empaqueter.sh "${{ github.ref_name }}"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: linux
           path: |
@@ -136,8 +163,8 @@ jobs:
     needs: version
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: "1.99.0"
       - run: cargo install cargo-cyclonedx --version 0.5.9 --locked
@@ -153,7 +180,7 @@ jobs:
           test "$(ls "$dir" | wc -l)" -ge 6
           ! grep -l "$GITHUB_WORKSPACE" "$dir"/*
           tar -czf "$dir.tar.gz" "$dir"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: sbom
           path: openheadset-control-*-sbom-cyclonedx.tar.gz
@@ -171,8 +198,8 @@ jobs:
       attestations: write
     steps:
       # CHANGELOG.md et le script des notes de publication.
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           path: paquets
           merge-multiple: true
@@ -194,7 +221,7 @@ jobs:
           done
       # Provenance signée par GitHub (Sigstore) : quel dépôt, quel workflow et
       # quelle révision ont produit chaque fichier.
-      - uses: actions/attest-build-provenance@v4
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
         with:
           subject-path: |
             paquets/*.zip

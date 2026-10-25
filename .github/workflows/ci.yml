@@ -10,28 +10,28 @@ jobs:
   confidentialite:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - run: sh scripts/verifier-confidentialite.sh
 
   # Dépendances : failles connues (RustSec), licences, provenance (deny.toml).
   dependances:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
-      - uses: EmbarkStudios/cargo-deny-action@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2
         with:
-          command: check advisories licenses sources
+          command: check advisories licenses sources bans
 
   check:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       # Version de travail (rust-toolchain.toml).
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: "1.99.0"
           components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       # Suite complète avec un dossier de données témoin (A01).
@@ -44,11 +44,11 @@ jobs:
   winui-demarrage:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: "1.99.0"
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       - run: cargo build --locked -p momentum-winui
       - name: Windows App Runtime 2
         shell: pwsh
@@ -97,12 +97,12 @@ jobs:
           gh release download v0.13.0 -p '*-windows-x86_64.zip' -D precedente
           Expand-Archive precedente/*.zip -DestinationPath precedente
           ./scripts/essai-installateur-windows.ps1 -Installateur "installateur/openheadset-control-v$version-windows-x86_64-installateur.exe" -Version $version -Precedente precedente/openheadset-control-v0.13.0-windows-x86_64
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: installateur-windows
           path: installateur/*.exe
           if-no-files-found: error
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: failure()
         with:
           name: capture-essai-interface-winui
@@ -114,7 +114,7 @@ jobs:
   decky:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - run: sh decky/empaqueter.sh essai
       - run: unzip -l openheadset-control-essai-decky.zip
 
@@ -126,15 +126,15 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: 0
       CARGO_PROFILE_TEST_DEBUG: 0
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       # Outils préinstallés inutiles ici (Android, .NET) : environ 10 Go.
       - run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet && df -h /
       - run: sudo apt-get update && sudo apt-get install -y dbus-daemon libdbus-1-dev pkg-config qt6-base-dev qt6-declarative-dev qmake6 libgtk-4-dev libadwaita-1-dev
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: "1.99.0"
           components: clippy
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       - run: cargo clippy --all-targets -- -D warnings
       - run: sh scripts/essai-temoin.sh cargo test
       # Client Kirigami : hors des membres par défaut (Qt 6 requis).
@@ -148,9 +148,12 @@ jobs:
       # 1.5 d'Ubuntu 24.04, comme l'archive publiée).
       - run: cargo clippy -p momentum-gtk --all-targets -- -D warnings
       - run: cargo build --release -p momentum-cli -p momentum-daemon -p momentum-kirigami -p momentum-gtk
+      # Installateur Linux dans un faux dossier personnel : première
+      # installation, panne injectée annoncée, reprise, désinstallation (A08).
+      - run: sh scripts/essai-installateur-linux.sh
         env:
           QMAKE: /usr/bin/qmake6
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: openheadset-linux-x86_64
           path: |
@@ -169,7 +172,7 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: 0
     steps:
       - run: dnf install -y --setopt=install_weak_deps=False git gcc pkgconf-pkg-config dbus-devel gtk4-devel libadwaita-devel rust cargo clippy dbus-daemon
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - run: cargo clippy -p momentum-gtk --all-targets -- -D warnings
       - name: Essai de l'interface GNOME
         run: |
@@ -196,7 +199,7 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: 0
     steps:
       - run: dnf install -y --setopt=install_weak_deps=False git gcc gcc-c++ pkgconf-pkg-config dbus-devel qt6-qtbase-devel qt6-qtdeclarative-devel rust cargo clippy kf6-kirigami kf6-qqc2-desktop-style dbus-daemon
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - run: qmake6 -query QT_VERSION && cargo --version
       - run: cargo clippy -p momentum-kirigami --all-targets -- -D warnings
       # Démarrage réel (F13) : mode démonstration, sans écran, sur un bus de
@@ -236,8 +239,8 @@ jobs:
     needs: linux
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: openheadset-linux-x86_64
           path: bin
@@ -261,6 +264,27 @@ jobs:
           '
           cat daemon.log
           grep -q "service OpenHeadset Control prêt" daemon.log
+      # Contrôle à l'exécution (A06) : le service lancé par son unité durcie,
+      # sous le gestionnaire systemd de l'utilisateur, puis les accès permis
+      # et refusés vérifiés avec les mêmes options (essai-confinement.sh).
+      - name: Service lancé par son unité durcie (systemd --user)
+        run: |
+          sudo apt-get install -y dbus-user-session
+          sudo loginctl enable-linger "$USER"
+          export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+          for i in $(seq 1 30); do [ -S "$XDG_RUNTIME_DIR/bus" ] && break; sleep 1; done
+          install -Dm755 bin/momentum-daemon "$HOME/.local/bin/momentum-daemon"
+          install -Dm644 assets/linux/momentum-daemon.service "$HOME/.config/systemd/user/momentum-daemon.service"
+          test -f "$HOME/.bashrc" || echo "# témoin" > "$HOME/.bashrc"
+          systemctl --user daemon-reload
+          systemctl --user start momentum-daemon
+          sleep 5
+          systemctl --user status momentum-daemon --no-pager
+          systemctl --user show momentum-daemon -p ProtectHome | grep -qx 'ProtectHome=tmpfs'
+          busctl --user call org.openheadset.Control /org/openheadset/Control org.openheadset.Control1 Snapshot
+          sh scripts/essai-confinement.sh
+          systemctl --user stop momentum-daemon
+          echo "Service durci : démarré par son unité, accès vérifiés à l'exécution" >> "$GITHUB_STEP_SUMMARY"
 
   # Budget de ressources (docs/RESSOURCES.md) : service sans casque et
   # client KDE en démonstration, version release, 30 s au repos.
@@ -271,7 +295,7 @@ jobs:
       QMAKE: /usr/bin/qmake6
     steps:
       - run: dnf install -y --setopt=install_weak_deps=False git gcc gcc-c++ pkgconf-pkg-config dbus-devel qt6-qtbase-devel qt6-qtdeclarative-devel rust cargo kf6-kirigami kf6-qqc2-desktop-style dbus-daemon
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - run: cargo build --release --locked -p momentum-daemon -p momentum-kirigami
       - name: Relevé
         # bash : pipefail, un dépassement de seuil fait échouer l'étape.
@@ -288,13 +312,13 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: 0
       CARGO_PROFILE_TEST_DEBUG: 0
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - run: sudo apt-get update && sudo apt-get install -y dbus-daemon libdbus-1-dev pkg-config
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: "1.99.0"
           components: llvm-tools-preview
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       - run: cargo install cargo-llvm-cov --version 0.9.1 --locked
       - run: cargo llvm-cov --locked --json --summary-only --output-path couverture.json
       - name: Résumé et seuil du protocole
@@ -340,14 +364,18 @@ jobs:
           - os: windows-latest
             rust: "1.95"
             args: ""
+          # Client GTK : gtk-rs 0.11 demande 1.92 (A11 de l'audit).
+          - os: ubuntu-24.04
+            rust: "1.92"
+            args: -p momentum-gtk
     runs-on: ${{ matrix.os }}
     env:
       RUSTUP_TOOLCHAIN: ${{ matrix.rust }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y dbus-daemon libdbus-1-dev pkg-config
-      - uses: dtolnay/rust-toolchain@master
+        run: sudo apt-get update && sudo apt-get install -y dbus-daemon libdbus-1-dev pkg-config libgtk-4-dev libadwaita-1-dev
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: ${{ matrix.rust }}
       - run: rustc --version && cargo check --locked ${{ matrix.args }}
