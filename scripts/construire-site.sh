@@ -5,6 +5,8 @@
 #
 # Usage : sh scripts/construire-site.sh [dossier]
 set -eu
+# Arguments accentués : pandoc les lit selon la locale.
+export LC_ALL=C.UTF-8
 sortie=${1:-_site}
 cd "$(dirname "$0")/.."
 mkdir -p "$sortie/en" "$sortie/captures"
