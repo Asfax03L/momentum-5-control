@@ -44,6 +44,9 @@ pub const DEFAULT_SCENES: &str = "\
 #   tactile   = on | off                    (commandes tactiles)
 #   egaliseur = nom d'un préréglage         (exige son = egaliseur)
 #   basses    = on | off                    (exige son = egaliseur)
+#   auto      = connexion | HH:MM           (application automatique, facultative :
+#               à la connexion du casque, ou chaque jour à cette heure ;
+#               une seule scène par déclenchement)
 # Les réglages s'appliquent un par un ; l'application s'arrête à la première erreur.
 
 [Travail]
@@ -124,6 +127,66 @@ pub struct Scene {
     pub touch: Option<bool>,
     pub equalizer: Option<String>,
     pub bass_boost: Option<bool>,
+    /// Application automatique (clé `auto`), facultative.
+    pub auto: Option<Trigger>,
+}
+
+/// Déclenchement automatique d'une scène.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Trigger {
+    /// À chaque connexion du casque.
+    Connection,
+    /// Chaque jour à cette heure locale, si le casque est connecté.
+    At { hour: u8, minute: u8 },
+}
+
+impl Trigger {
+    /// `connexion` ou `HH:MM`.
+    pub fn parse(value: &str) -> Result<Self, String> {
+        let value = value.trim();
+        if value == "connexion" {
+            return Ok(Trigger::Connection);
+        }
+        let bad = || tr("auto : connexion ou une heure HH:MM (00:00 à 23:59)").to_string();
+        let (h, m) = value.split_once(':').ok_or_else(bad)?;
+        if h.len() != 2 || m.len() != 2 {
+            return Err(bad());
+        }
+        match (h.parse::<u8>(), m.parse::<u8>()) {
+            (Ok(hour), Ok(minute)) if hour < 24 && minute < 60 => Ok(Trigger::At { hour, minute }),
+            _ => Err(bad()),
+        }
+    }
+
+    /// Valeur écrite dans `scenes.txt`.
+    pub fn code(&self) -> String {
+        match *self {
+            Trigger::Connection => "connexion".to_string(),
+            Trigger::At { hour, minute } => format!("{hour:02}:{minute:02}"),
+        }
+    }
+
+    /// Libellé affiché.
+    pub fn label(&self) -> String {
+        match *self {
+            Trigger::Connection => tr("à la connexion du casque").to_string(),
+            Trigger::At { hour, minute } => {
+                trf("chaque jour à {}", &[&format!("{hour:02}:{minute:02}")])
+            }
+        }
+    }
+}
+
+/// Scène à appliquer à la connexion du casque.
+pub fn scene_on_connection(scenes: &[Scene]) -> Option<&Scene> {
+    scenes.iter().find(|s| s.auto == Some(Trigger::Connection))
+}
+
+/// Scène prévue à cette heure locale.
+pub fn scene_at(scenes: &[Scene], hour: u8, minute: u8) -> Option<&Scene> {
+    scenes
+        .iter()
+        .find(|s| s.auto == Some(Trigger::At { hour, minute }))
 }
 
 /// Scène construite avec les seules lectures connues ; la courbe reste sur le PC.
@@ -320,6 +383,7 @@ fn set_key(scene: &mut Scene, key: &str, value: &str) -> Result<(), String> {
             once(&mut scene.equalizer, value.to_string(), key)
         }
         "basses" => once(&mut scene.bass_boost, on_off(value)?, key),
+        "auto" => once(&mut scene.auto, Trigger::parse(value)?, key),
         _ => Err(trf(
             "réglage inconnu « {} » (possibles : {})",
             &[&key, &(KEYS.join(", "))],
@@ -356,6 +420,14 @@ pub fn parse_scenes(text: &str) -> (Vec<Scene>, Vec<String>) {
             errors.push(trf(
                 "ligne {} : scène « {} » déjà définie plus haut",
                 &[&line, &scene.name],
+            ));
+        } else if let Some(other) = scene
+            .auto
+            .and_then(|t| scenes.iter().find(|s| s.auto == Some(t)))
+        {
+            errors.push(trf(
+                "ligne {} : scène « {} » : déclenchement déjà utilisé par « {} »",
+                &[&line, &scene.name, &other.name],
             ));
         } else {
             scenes.push(scene);
@@ -437,6 +509,15 @@ pub fn check_scenes(scenes: &[Scene]) -> Result<(), String> {
         {
             return Err(trf("deux scènes s'appellent « {} »", &[&scene.name]));
         }
+        if let Some(other) = scene
+            .auto
+            .and_then(|t| scenes[..i].iter().find(|s| s.auto == Some(t)))
+        {
+            return Err(trf(
+                "« {} » et « {} » ont le même déclenchement automatique",
+                &[&other.name, &scene.name],
+            ));
+        }
     }
     Ok(())
 }
@@ -492,6 +573,9 @@ pub fn format_scenes(scenes: &[Scene]) -> String {
         }
         if let Some(on) = scene.bass_boost {
             line("basses", on_off(on));
+        }
+        if let Some(trigger) = scene.auto {
+            line("auto", &trigger.code());
         }
     }
     out
@@ -639,6 +723,27 @@ pub fn apply_scene<T: Transport>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn automatic_scenes() {
+        let text = "[Matin]\nbruit = adaptatif\nauto = 08:30\n\n[Branché]\nanti-vent = on\nauto = connexion\n\n[Doublon]\nanti-vent = off\nauto = connexion\n\n[Mauvaise]\nanti-vent = off\nauto = 8h30\n";
+        let (scenes, errors) = parse_scenes(text);
+        assert_eq!(scenes.len(), 2, "{errors:?}");
+        assert_eq!(errors.len(), 2, "{errors:?}");
+        assert!(errors[0].contains("Doublon") && errors[0].contains("Branché"));
+        assert_eq!(scene_on_connection(&scenes).unwrap().name, "Branché");
+        assert_eq!(scene_at(&scenes, 8, 30).unwrap().name, "Matin");
+        assert!(scene_at(&scenes, 8, 31).is_none());
+        // Écrit puis relu : mêmes scènes.
+        assert_eq!(parse_scenes(&format_scenes(&scenes)).0, scenes);
+        // Deux fois le même déclenchement : refusé avant l'écriture.
+        let mut twice = scenes.clone();
+        twice[0].auto = Some(Trigger::Connection);
+        assert!(check_scenes(&twice).is_err());
+        for bad in ["24:00", "08:60", "8:30", "connexion2", ""] {
+            assert!(Trigger::parse(bad).is_err(), "{bad}");
+        }
+    }
     use crate::hex::from_hex;
     use crate::presets::builtin_presets;
     use crate::transport::MockTransport;
@@ -826,6 +931,7 @@ tactile = on
             touch: Some(false),
             equalizer: Some("Mon préréglage".into()),
             bass_boost: Some(true),
+            auto: Some(Trigger::At { hour: 7, minute: 5 }),
         });
         let text = format_scenes(&all);
         assert!(text.starts_with("# Scènes de momentum-ctl-win"));

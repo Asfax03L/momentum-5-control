@@ -263,9 +263,211 @@ pub fn chart_path(log: &BatteryLog, now: u64, span_seconds: u64) -> String {
     out.trim_end().to_string()
 }
 
+/// Décharge continue mesurée : le pourcentage ne remonte pas, sans
+/// interruption, pendant au moins une heure et cinq points.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Discharge {
+    pub start: u64,
+    pub end: u64,
+    pub from: u8,
+    pub to: u8,
+}
+
+/// Autonomie mesurée sur une ou plusieurs décharges.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct Autonomy {
+    pub discharges: usize,
+    pub hours: f32,
+    pub points: f32,
+}
+
+impl Autonomy {
+    /// Points de batterie perdus par heure.
+    pub fn rate(&self) -> f32 {
+        if self.hours > 0.0 {
+            self.points / self.hours
+        } else {
+            0.0
+        }
+    }
+
+    /// Durée d'une charge complète (100 points) à ce rythme.
+    pub fn full_charge_hours(&self) -> Option<f32> {
+        let rate = self.rate();
+        (rate > 0.0).then(|| 100.0 / rate)
+    }
+}
+
+impl BatteryLog {
+    /// Décharges continues (au moins une heure et cinq points).
+    pub fn discharges(&self) -> Vec<Discharge> {
+        let mut out = Vec::new();
+        for segment in self.segments(0) {
+            let mut start = 0;
+            for i in 1..=segment.len() {
+                // Fin d'une descente : hausse, ou fin du segment.
+                if i == segment.len() || segment[i].1 > segment[i - 1].1 {
+                    let (t0, l0) = segment[start];
+                    let (t1, l1) = segment[i - 1];
+                    if t1.saturating_sub(t0) >= 3600 && l0.saturating_sub(l1) >= 5 {
+                        out.push(Discharge {
+                            start: t0,
+                            end: t1,
+                            from: l0,
+                            to: l1,
+                        });
+                    }
+                    start = i;
+                }
+            }
+        }
+        out
+    }
+
+    /// Points mesurés à l'intérieur d'une décharge, dans l'ordre.
+    fn points_in(&self, d: &Discharge) -> Vec<(u64, u8)> {
+        self.entries
+            .iter()
+            .filter_map(|e| match *e {
+                Entry::Level { time, percent } if time >= d.start && time <= d.end => {
+                    Some((time, percent))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+}
+
+/// Autonomie mesurée sur toutes les décharges ; `None` sans décharge.
+pub fn autonomy(log: &BatteryLog) -> Option<Autonomy> {
+    let discharges = log.discharges();
+    (!discharges.is_empty()).then(|| Autonomy {
+        discharges: discharges.len(),
+        hours: discharges
+            .iter()
+            .map(|d| d.end.saturating_sub(d.start) as f32 / 3600.0)
+            .sum(),
+        points: discharges
+            .iter()
+            .map(|d| f32::from(d.from.saturating_sub(d.to)))
+            .sum(),
+    })
+}
+
+/// Consommation selon le mode de réduction de bruit noté au journal : chaque
+/// intervalle entre deux mesures d'une décharge compte pour le mode en
+/// vigueur à son début (intervalle ignoré si le mode est inconnu). Seuls les
+/// modes observés au moins une heure sont rendus.
+pub fn consumption_by_mode(
+    log: &BatteryLog,
+    journal: &crate::journal::Journal,
+) -> Vec<(crate::journal::NoiseKind, Autonomy)> {
+    let mut totals: std::collections::BTreeMap<crate::journal::NoiseKind, Autonomy> =
+        std::collections::BTreeMap::new();
+    for d in log.discharges() {
+        let points = log.points_in(&d);
+        for pair in points.windows(2) {
+            let ((t0, l0), (t1, l1)) = (pair[0], pair[1]);
+            let Some(mode) = journal.noise_at(t0) else {
+                continue;
+            };
+            let a = totals.entry(mode).or_default();
+            a.hours += t1.saturating_sub(t0) as f32 / 3600.0;
+            a.points += f32::from(l0.saturating_sub(l1));
+        }
+    }
+    totals.into_iter().filter(|(_, a)| a.hours >= 1.0).collect()
+}
+
+/// Nombre à une décimale, avec la virgule en français.
+fn decimal(value: f32) -> String {
+    let text = format!("{value:.1}");
+    if crate::i18n::language() == crate::i18n::Lang::Fr {
+        text.replace('.', ",")
+    } else {
+        text
+    }
+}
+
+/// Textes de l'autonomie mesurée, prêts à afficher : bilan, puis une ligne
+/// par mode de bruit observé.
+pub fn autonomy_lines(log: &BatteryLog, journal: &crate::journal::Journal) -> Vec<String> {
+    use crate::i18n::{tr, trf};
+    let Some(total) = autonomy(log) else {
+        return vec![
+            tr("Pas encore assez de mesures : il faut au moins une heure de décharge continue, casque connecté à ce PC.")
+                .to_string(),
+        ];
+    };
+    let full = total.full_charge_hours().map_or("?".to_string(), decimal);
+    let mut lines = vec![trf(
+        "Mesuré sur {} h ({} décharges) : {} % par heure, soit environ {} h pour une charge complète.",
+        &[
+            &decimal(total.hours),
+            &total.discharges,
+            &decimal(total.rate()),
+            &full,
+        ],
+    )];
+    for (mode, a) in consumption_by_mode(log, journal) {
+        lines.push(trf(
+            "{} : {} % par heure (environ {} h), sur {} h",
+            &[
+                &mode.label(),
+                &decimal(a.rate()),
+                &a.full_charge_hours().map_or("?".to_string(), decimal),
+                &decimal(a.hours),
+            ],
+        ));
+    }
+    lines
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn measured_autonomy_and_consumption_by_mode() {
+        use crate::journal::{Event, Journal, NoiseKind};
+        let mut log = BatteryLog::default();
+        // Décharge de 90 à 80 % en deux heures (mesure toutes les 12 min),
+        // puis recharge, puis une descente trop courte (ignorée).
+        for i in 0..=10u64 {
+            log.record(i * 720, 90 - i as u8);
+        }
+        log.record(7_300, 95);
+        log.record(7_900, 94);
+        let discharges = log.discharges();
+        assert_eq!(discharges.len(), 1);
+        let total = autonomy(&log).unwrap();
+        assert!((total.rate() - 5.0).abs() < 0.01, "{total:?}");
+        assert!((total.full_charge_hours().unwrap() - 20.0).abs() < 0.1);
+
+        // Première heure en adaptatif, seconde en mode désactivé.
+        let mut journal = Journal::default();
+        journal.record(0, Event::Connected);
+        journal.record(0, Event::Noise(NoiseKind::Adaptive));
+        journal.record(3_600, Event::Noise(NoiseKind::Off));
+        let by_mode = consumption_by_mode(&log, &journal);
+        assert_eq!(by_mode.len(), 2);
+        assert!(by_mode.iter().all(|(_, a)| (a.hours - 1.0).abs() < 0.01));
+        let lines = autonomy_lines(&log, &journal);
+        assert_eq!(lines.len(), 3);
+        assert!(lines[0].contains("20,0"), "{lines:?}");
+    }
+
+    #[test]
+    fn no_autonomy_without_a_long_discharge() {
+        let mut log = BatteryLog::default();
+        log.record(0, 80);
+        log.record(1_800, 70);
+        assert!(autonomy(&log).is_none());
+        assert_eq!(
+            autonomy_lines(&log, &crate::journal::Journal::default()).len(),
+            1
+        );
+    }
 
     #[test]
     fn polylines_are_normalized_and_reduced() {

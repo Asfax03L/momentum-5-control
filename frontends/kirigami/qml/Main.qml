@@ -1587,7 +1587,8 @@ Kirigami.ApplicationWindow {
                         headset.setSceneForm(sceneName.text, sceneLevel.text, [sceneSound.currentIndex,
                             sceneSpatial.currentIndex, sceneNoise.currentIndex,
                             sceneAntiWind.currentIndex, sceneTouch.currentIndex,
-                            sceneEq.currentIndex, sceneBass.currentIndex].join(","))
+                            sceneEq.currentIndex, sceneBass.currentIndex,
+                            sceneAuto.currentIndex].join(","), sceneAutoTime.text)
                     }
                     header: Kirigami.Heading {
                         text: headset.tr("Modifier les scènes")
@@ -1692,6 +1693,22 @@ Kirigami.ApplicationWindow {
                                 model: headset.sceneSwitchChoices
                                 currentIndex: headset.sceneFormBass
                                 onActivated: sceneEditor.send()
+                            }
+                            QQC2.ComboBox {
+                                Accessible.name: headset.tr("Automatique")
+                                id: sceneAuto
+                                Kirigami.FormData.label: headset.tr("Automatique :")
+                                model: headset.sceneAutoChoices
+                                currentIndex: headset.sceneFormAuto
+                                onActivated: sceneEditor.send()
+                            }
+                            QQC2.TextField {
+                                id: sceneAutoTime
+                                Kirigami.FormData.label: headset.tr("Heure (HH:MM) :")
+                                placeholderText: headset.tr("Heure (HH:MM)")
+                                enabled: sceneAuto.currentIndex === 2
+                                text: headset.sceneFormAutoTime
+                                onTextEdited: sceneEditor.send()
                             }
                         }
                         QQC2.Label {

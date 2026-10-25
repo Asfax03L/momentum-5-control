@@ -133,6 +133,9 @@ pub mod qobject {
         #[qproperty(i32, scene_form_touch)]
         #[qproperty(i32, scene_form_equalizer)]
         #[qproperty(i32, scene_form_bass)]
+        #[qproperty(i32, scene_form_auto)]
+        #[qproperty(QString, scene_form_auto_time)]
+        #[qproperty(QStringList, scene_auto_choices)]
         #[qproperty(QString, scene_result)]
         #[qproperty(bool, scene_result_ok)]
         #[qproperty(QString, scenes_url)]
@@ -305,9 +308,16 @@ pub mod qobject {
         fn scene_edit_action(self: Pin<&mut Headset>, action: QString);
         /// Formulaire saisi : nom, niveau, puis les choix des listes
         /// (mode audio, spatial, bruit, anti-vent, tactile, égaliseur,
-        /// basses) séparés par des virgules.
+        /// basses, automatique) séparés par des virgules ; `auto_time` :
+        /// heure `HH:MM` d'une scène quotidienne.
         #[qinvokable]
-        fn set_scene_form(self: Pin<&mut Headset>, name: QString, level: QString, choices: QString);
+        fn set_scene_form(
+            self: Pin<&mut Headset>,
+            name: QString,
+            level: QString,
+            choices: QString,
+            auto_time: QString,
+        );
 
         /// Relit l'historique de la batterie sur la période choisie.
         #[qinvokable]
@@ -592,6 +602,9 @@ pub struct HeadsetRust {
     scene_form_touch: i32,
     scene_form_equalizer: i32,
     scene_form_bass: i32,
+    scene_form_auto: i32,
+    scene_form_auto_time: QString,
+    scene_auto_choices: QStringList,
     scene_editor: SceneEditor,
     /// Formulaire tel que saisi (même invalide).
     scene_form: viewmodel::SceneForm,
@@ -761,6 +774,9 @@ impl Default for HeadsetRust {
             scene_form_touch: 0,
             scene_form_equalizer: 0,
             scene_form_bass: 0,
+            scene_form_auto: 0,
+            scene_form_auto_time: QString::default(),
+            scene_auto_choices: string_list(viewmodel::SCENE_AUTO_CHOICES.map(tr)),
             scene_editor: SceneEditor::default(),
             scene_form: viewmodel::SceneForm::default(),
             scene_result: QString::default(),
@@ -1188,6 +1204,9 @@ impl qobject::Headset {
         self.as_mut().set_scene_form_touch(f.touch);
         self.as_mut().set_scene_form_equalizer(f.equalizer);
         self.as_mut().set_scene_form_bass(f.bass_boost);
+        self.as_mut().set_scene_form_auto(f.auto);
+        self.as_mut()
+            .set_scene_form_auto_time(QString::from(f.auto_time.as_str()));
     }
 
     /// Choix du menu de l'icône (mêmes actions que WinUI).
@@ -1690,7 +1709,13 @@ impl qobject::Headset {
         self.as_mut().push_scene_editor(notice);
     }
 
-    fn set_scene_form(mut self: Pin<&mut Self>, name: QString, level: QString, choices: QString) {
+    fn set_scene_form(
+        mut self: Pin<&mut Self>,
+        name: QString,
+        level: QString,
+        choices: QString,
+        auto_time: QString,
+    ) {
         let c: Vec<i32> = choices
             .to_string()
             .split(',')
@@ -1709,6 +1734,8 @@ impl qobject::Headset {
             touch,
             equalizer,
             bass_boost: bass,
+            auto: get(7),
+            auto_time: auto_time.to_string(),
         };
         if form == self.rust().scene_form {
             return;

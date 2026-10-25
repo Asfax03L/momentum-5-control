@@ -2116,3 +2116,78 @@ At startup, reads the latest release on GitHub. Only your IP address and the app
 
 réseau injoignable
 network unreachable
+
+à la connexion
+on connection
+
+chaque jour à l'heure
+every day at a time
+
+Automatique
+Automatic
+
+Automatique :
+Automatic:
+
+Heure (HH:MM)
+Time (HH:MM)
+
+Heure (HH:MM) :
+Time (HH:MM):
+
+Casque allumé sans son
+Headphones on without sound
+
+Le casque ne signale aucune lecture depuis 30 minutes : penser à l'éteindre pour garder la batterie.
+The headphones have reported no playback for 30 minutes: consider turning them off to save battery.
+
+Pas encore assez de mesures : il faut au moins une heure de décharge continue, casque connecté à ce PC.
+Not enough measurements yet: at least one hour of continuous discharge is needed, with the headphones connected to this PC.
+
+Mesuré sur {} h ({} décharges) : {} % par heure, soit environ {} h pour une charge complète.
+Measured over {} h ({} discharges): {} % per hour, about {} h for a full charge.
+
+{} : {} % par heure (environ {} h), sur {} h
+{}: {} % per hour (about {} h), over {} h
+
+Personnalisé (ANC ↔ transparence)
+Custom (ANC ↔ transparency)
+
+Casque connecté
+Headphones connected
+
+Connexion perdue
+Connection lost
+
+Réduction de bruit : {}
+Noise cancelling: {}
+
+Réglage refusé : {}
+Setting refused: {}
+
+Scène « {} » appliquée automatiquement
+Scene “{}” applied automatically
+
+Scène « {} » appliquée en partie (automatique)
+Scene “{}” partly applied (automatic)
+
+Scène « {} » appliquée
+Scene “{}” applied
+
+Scène « {} » appliquée en partie
+Scene “{}” partly applied
+
+auto : connexion ou une heure HH:MM (00:00 à 23:59)
+auto: connexion or a time HH:MM (00:00 to 23:59)
+
+à la connexion du casque
+when the headphones connect
+
+chaque jour à {}
+every day at {}
+
+ligne {} : scène « {} » : déclenchement déjà utilisé par « {} »
+line {}: scene “{}”: trigger already used by “{}”
+
+« {} » et « {} » ont le même déclenchement automatique
+“{}” and “{}” have the same automatic trigger

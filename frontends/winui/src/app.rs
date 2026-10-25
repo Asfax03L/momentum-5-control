@@ -228,6 +228,7 @@ enum SceneField {
     Touch,
     Equalizer,
     Bass,
+    Auto,
 }
 
 /// Action à confirmer avant l'envoi.
@@ -314,6 +315,7 @@ enum Msg {
     SceneMove(isize),
     SceneName(String),
     SceneLevel(String),
+    SceneAutoTime(String),
     /// Liste déroulante du formulaire (champ, choix).
     SceneChoice(SceneField, Option<usize>),
     SceneSave,
@@ -1382,6 +1384,12 @@ impl Component for Root {
                     self.scene_form_changed();
                 }
             }
+            Msg::SceneAutoTime(text) => {
+                if text != self.scene_form.auto_time {
+                    self.scene_form.auto_time = text;
+                    self.scene_form_changed();
+                }
+            }
             Msg::SceneChoice(field, Some(i)) => {
                 let value = i32::try_from(i).unwrap_or(0);
                 let f = &mut self.scene_form;
@@ -1393,6 +1401,7 @@ impl Component for Root {
                     SceneField::Touch => &mut f.touch,
                     SceneField::Equalizer => &mut f.equalizer,
                     SceneField::Bass => &mut f.bass_boost,
+                    SceneField::Auto => &mut f.auto,
                 };
                 if *slot != value {
                     *slot = value;
@@ -3111,6 +3120,18 @@ impl Root {
                     f.bass_boost,
                     SceneField::Bass,
                 ),
+                choice(
+                    tr("Automatique"),
+                    strings(&viewmodel::SCENE_AUTO_CHOICES.map(tr)),
+                    f.auto,
+                    SceneField::Auto,
+                ),
+                TextBox::new()
+                    .text(f.auto_time.clone())
+                    .placeholder_text(tr("Heure (HH:MM)"))
+                    .automation_name(tr("Heure (HH:MM)"))
+                    .is_enabled(f.auto == 2)
+                    .on_text_changed(context.callback(Msg::SceneAutoTime)),
                 TextBlock::new()
                     .text(e.preview())
                     .font_size(12.0)
