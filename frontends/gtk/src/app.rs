@@ -202,7 +202,7 @@ fn layout(app: &adw::Application) -> Widgets {
     modes.add_css_class("linked");
     modes.set_valign(gtk::Align::Center);
     let mut noise: Vec<gtk::ToggleButton> = Vec::new();
-    for label in NOISE_MODES {
+    for label in NOISE_MODES.map(tr) {
         let button = gtk::ToggleButton::with_label(label);
         if let Some(first) = noise.first() {
             button.set_group(Some(first));

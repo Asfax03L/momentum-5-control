@@ -1,5 +1,6 @@
 //! Composant racine : état du service, messages et vues.
 
+use momentum_core::i18n::{tr, trf};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
@@ -461,7 +462,7 @@ fn spawn_listener(launch_daemon: bool) -> (Sender<Incoming>, IncomingRx) {
                     launched = Some(Instant::now());
                     start_daemon();
                     if in_tx
-                        .send(Incoming::Error("démarrage du service…".into()))
+                        .send(Incoming::Error(tr("démarrage du service…").into()))
                         .is_err()
                     {
                         return;
@@ -503,7 +504,8 @@ fn spawn_sender(feedback: Sender<Incoming>) -> Sender<(Command, u64)> {
                 if let Ok(mut hub) = demo_hub().lock() {
                     let outcome = if command == Command::ReconnectHeadset {
                         Outcome::SystemRequested(
-                            "Démonstration : reconnexion simulée, aucun accès Bluetooth.".into(),
+                            tr("Démonstration : reconnexion simulée, aucun accès Bluetooth.")
+                                .into(),
                         )
                     } else {
                         Outcome::Applied
@@ -628,7 +630,7 @@ impl Root {
                 self.reload_scenes();
                 self.scene_notice = Some(message);
             }
-            Err(reason) => self.scene_notice = Some(format!("Non enregistré : {reason}")),
+            Err(reason) => self.scene_notice = Some(trf("Non enregistré : {}", &[&reason])),
         }
     }
 
@@ -645,18 +647,18 @@ impl Root {
     fn store_panel_prefs(&mut self) {
         let text = self.panel_prefs.to_text();
         let written = paths::panel_file()
-            .ok_or_else(|| "dossier des données introuvable".to_string())
+            .ok_or_else(|| tr("dossier des données introuvable").to_string())
             .and_then(|path| paths::write_if_unchanged(&path, self.panel_loaded.as_deref(), &text));
         self.panel_notice = Some(match written {
             Ok(()) => {
                 self.panel_loaded = Some(text);
-                "Panneau enregistré : pris en compte à sa prochaine ouverture.".to_string()
+                tr("Panneau enregistré : pris en compte à sa prochaine ouverture.").to_string()
             }
             Err(e) => {
                 // Relu : l'écran montre le fichier tel qu'il est.
                 self.panel_prefs = paths::load_panel_prefs();
                 self.panel_loaded = paths::read_panel_text();
-                format!("Panneau non enregistré : {e}.")
+                trf("Panneau non enregistré : {}.", &[&e])
             }
         });
     }
@@ -666,17 +668,17 @@ impl Root {
         let text = match hotkeys::build_config(&self.hotkey_rows) {
             Ok(text) => text,
             Err(reason) => {
-                self.hotkey_notice = Some(format!("Raccourcis non enregistrés : {reason}."));
+                self.hotkey_notice = Some(trf("Raccourcis non enregistrés : {}.", &[&reason]));
                 return;
             }
         };
         let written = paths::hotkeys_file()
-            .ok_or_else(|| "dossier des données introuvable".to_string())
+            .ok_or_else(|| tr("dossier des données introuvable").to_string())
             .and_then(|path| {
                 paths::write_if_unchanged(&path, self.hotkeys_loaded.as_deref(), &text)
             });
         if let Err(e) = written {
-            self.hotkey_notice = Some(format!("Raccourcis non enregistrés : {e}."));
+            self.hotkey_notice = Some(trf("Raccourcis non enregistrés : {}.", &[&e]));
             self.reload_hotkey_rows();
             return;
         }
@@ -686,11 +688,14 @@ impl Root {
         let (thread, errors) = register_hotkeys(&text);
         self.hotkeys = thread;
         self.hotkey_problem =
-            (!errors.is_empty()).then(|| format!("Raccourcis clavier : {}", errors.join(" ; ")));
+            (!errors.is_empty()).then(|| trf("Raccourcis clavier : {}", &[&(errors.join(" ; "))]));
         self.hotkey_notice = Some(if errors.is_empty() {
-            "Raccourcis enregistrés et actifs.".to_string()
+            tr("Raccourcis enregistrés et actifs.").to_string()
         } else {
-            format!("Raccourcis enregistrés ; refusés : {}.", errors.join(" ; "))
+            trf(
+                "Raccourcis enregistrés ; refusés : {}.",
+                &[&(errors.join(" ; "))],
+            )
         });
         self.reload_hotkey_rows();
     }
@@ -819,7 +824,7 @@ impl Root {
                 can_reconnect: self.service_error.is_none() && !self.busy,
                 scenes: &scenes,
                 autostart: self.autostart,
-                autostart_label: "Lancer au démarrage de Windows",
+                autostart_label: tr("Lancer au démarrage de Windows"),
             },
         );
         if entries != self.tray_entries {
@@ -863,7 +868,7 @@ impl Root {
                             momentum_client::menu::command_for(&MenuAction::Scene(name.clone()), &s)
                         })
                 {
-                    self.scene_result = Some((format!("Scène « {name} » en cours…"), true));
+                    self.scene_result = Some((trf("Scène « {} » en cours…", &[&name]), true));
                     self.send(command);
                 }
             }
@@ -925,7 +930,7 @@ impl Root {
                 .lock()
                 .ok()
                 .and_then(|rx| rx.recv().ok())
-                .unwrap_or_else(|| Incoming::Error("écoute du service arrêtée".into()));
+                .unwrap_or_else(|| Incoming::Error(tr("écoute du service arrêtée").into()));
             Msg::Service(Arc::new(Mutex::new(Some(next))))
         });
     }
@@ -1028,7 +1033,7 @@ impl Component for Root {
         let tray = TrayIconBuilder::new()
             .with_menu(Box::new(Menu::new()))
             .with_menu_on_left_click(false)
-            .with_tooltip("OpenHeadset Control")
+            .with_tooltip(tr("OpenHeadset Control"))
             .with_icon(
                 tray_icon_for(IconKind::Disconnected)
                     .unwrap_or_else(|| Icon::from_rgba(vec![0; 4], 1, 1).expect("icône vide")),
@@ -1097,7 +1102,7 @@ impl Component for Root {
             panel_notice: None,
             dark: momentum_core::appearance::load(),
             hotkey_problem: (!errors.is_empty())
-                .then(|| format!("Raccourcis clavier : {}", errors.join(" ; "))),
+                .then(|| trf("Raccourcis clavier : {}", &[&(errors.join(" ; "))])),
             start_hidden,
             autostart: Autostart::named(AUTOSTART_VALUE).is_enabled(),
             scenes: Vec::new(),
@@ -1153,21 +1158,23 @@ impl Component for Root {
                     Some(Incoming::Event(e)) => {
                         self.note_reading_times(&e);
                         match &e {
-                            Event::Lost(r) => self.note_incident(format!("connexion perdue : {r}")),
+                            Event::Lost(r) => {
+                                self.note_incident(trf("connexion perdue : {}", &[&r]))
+                            }
                             Event::Refused(r) => {
-                                self.note_incident(format!("réglage refusé : {r}"))
+                                self.note_incident(trf("réglage refusé : {}", &[&r]))
                             }
                             Event::SceneApplied(report) => {
                                 self.scene_result = Some((report.details(), report.is_complete()));
                             }
                             Event::Exported(result) => {
                                 self.eq_notice = Some(match result {
-                                    Ok(path) => format!(
+                                    Ok(path) => trf(
                                         "Profil exporté dans {} (données auditives personnelles : ne pas le publier).",
-                                        path.display()
+                                        &[&(path.display())],
                                     ),
                                     Err(reason) => {
-                                        format!("Export du profil impossible : {reason}.")
+                                        trf("Export du profil impossible : {}.", &[&reason])
                                     }
                                 });
                             }
@@ -1180,7 +1187,7 @@ impl Component for Root {
                     }
                     Some(Incoming::Error(reason)) => {
                         if self.service_error.as_ref() != Some(&reason) {
-                            self.note_incident(format!("service : {reason}"));
+                            self.note_incident(trf("service : {}", &[&reason]));
                         }
                         self.snapshot = Snapshot::default();
                         self.service_error = Some(reason);
@@ -1197,7 +1204,7 @@ impl Component for Root {
             }
             Msg::ApplyScene(i) => {
                 if let Some(name) = self.scenes.get(i).map(|s| s.name.clone()) {
-                    self.scene_result = Some((format!("Scène « {name} » en cours…"), true));
+                    self.scene_result = Some((trf("Scène « {} » en cours…", &[&name]), true));
                     self.send(Command::ApplyScene(name));
                 }
             }
@@ -1209,7 +1216,7 @@ impl Component for Root {
                     .snapshot
                     .state
                     .as_ref()
-                    .ok_or_else(|| "Aucun état connu à enregistrer.".to_string())
+                    .ok_or_else(|| tr("Aucun état connu à enregistrer.").to_string())
                     .and_then(|state| {
                         momentum_core::scene_capture::save_current(
                             &self.capture_scene_name,
@@ -1224,14 +1231,14 @@ impl Component for Root {
                         self.user_presets = paths::load_user_presets();
                         self.reload_scenes();
                         (
-                            format!(
+                            trf(
                                 "Scène « {} » enregistrée (rien n'a été envoyé au casque).",
-                                scene.name
+                                &[&scene.name],
                             ),
                             true,
                         )
                     }
-                    Err(error) => (format!("Non enregistré : {error}"), false),
+                    Err(error) => (trf("Non enregistré : {}", &[&error]), false),
                 });
             }
             Msg::SettingsBattery(on) => {
@@ -1241,7 +1248,7 @@ impl Component for Root {
             }
             Msg::CancelSettings => {
                 self.settings_plan = None;
-                self.settings_notice = "Import annulé.".into();
+                self.settings_notice = tr("Import annulé.").into();
             }
             Msg::ExportSettings | Msg::PreviewSettings => {
                 let save = matches!(message, Msg::ExportSettings);
@@ -1250,9 +1257,10 @@ impl Component for Root {
                     .map_err(|e| e.to_string())
                     .and_then(|path| {
                         let Some(path) = path else {
-                            return Ok("Sélection annulée.".to_string());
+                            return Ok(tr("Sélection annulée.").to_string());
                         };
-                        let dir = paths::data_dir().ok_or("Dossier des données introuvable.")?;
+                        let dir =
+                            paths::data_dir().ok_or(tr("Dossier des données introuvable."))?;
                         if save {
                             momentum_core::settings_transfer::export(
                                 &dir,
@@ -1273,13 +1281,13 @@ impl Component for Root {
                         }
                     });
                 self.settings_notice =
-                    result.unwrap_or_else(|e| format!("Opération refusée : {e}"));
+                    result.unwrap_or_else(|e| trf("Opération refusée : {}", &[&e]));
             }
             Msg::ImportSettings => {
                 if let Some(plan) = self.settings_plan.take() {
                     self.settings_notice = plan
                         .apply()
-                        .unwrap_or_else(|e| format!("Import refusé : {e}"));
+                        .unwrap_or_else(|e| trf("Import refusé : {}", &[&e]));
                 }
             }
             Msg::SceneSelect(Some(i)) => {
@@ -1338,7 +1346,7 @@ impl Component for Root {
             Msg::SceneSave => self.save_scenes(),
             Msg::SceneDiscard => {
                 self.reload_scene_editor();
-                self.scene_notice = Some("Modifications abandonnées.".to_string());
+                self.scene_notice = Some(tr("Modifications abandonnées.").to_string());
             }
             Msg::EditScenes => {
                 // Éditeur associé aux .txt (fichier créé s'il manque).
@@ -1431,7 +1439,7 @@ impl Component for Root {
                     Err(e) => self.name_problem = Some(e.to_string()),
                     Ok(()) if current.as_deref() == Some(name.as_str()) => {
                         self.name_problem =
-                            Some("nom refusé : c'est déjà le nom du casque".to_string());
+                            Some(tr("nom refusé : c'est déjà le nom du casque").to_string());
                     }
                     Ok(()) => {
                         self.send(Command::SetName(name));
@@ -1575,9 +1583,9 @@ impl Component for Root {
                         Ok(list) => {
                             self.user_presets = list;
                             self.new_preset_name.clear();
-                            format!("Préréglage « {name} » enregistré sur ce PC.")
+                            trf("Préréglage « {} » enregistré sur ce PC.", &[&name])
                         }
-                        Err(reason) => format!("Préréglage non enregistré : {reason}."),
+                        Err(reason) => trf("Préréglage non enregistré : {}.", &[&reason]),
                     });
                 }
             }
@@ -1586,9 +1594,9 @@ impl Component for Root {
                     self.eq_notice = Some(match paths::remove_user_preset(&preset.name) {
                         Ok(list) => {
                             self.user_presets = list;
-                            format!("Préréglage « {} » supprimé.", preset.name)
+                            trf("Préréglage « {} » supprimé.", &[&preset.name])
                         }
-                        Err(e) => format!("Suppression non enregistrée : {e}."),
+                        Err(e) => trf("Suppression non enregistrée : {}.", &[&e]),
                     });
                 }
             }
@@ -1602,7 +1610,8 @@ impl Component for Root {
                         eq.max_gain,
                     ) {
                         Ok(gains) if gains == eq.gains => {
-                            self.eq_notice = Some("Ce sont déjà les gains du casque.".to_string());
+                            self.eq_notice =
+                                Some(tr("Ce sont déjà les gains du casque.").to_string());
                         }
                         Ok(gains) => {
                             self.send(Command::SetEqGains(gains));
@@ -1610,7 +1619,7 @@ impl Component for Root {
                             self.eq_notice = None;
                         }
                         Err(reason) => {
-                            self.eq_notice = Some(format!("Gains non appliqués : {reason}."));
+                            self.eq_notice = Some(trf("Gains non appliqués : {}.", &[&reason]));
                         }
                     }
                 }
@@ -1622,11 +1631,11 @@ impl Component for Root {
                     self.eq_notice = Some(
                         match paths::export_file("momentum-egaliseur", "txt", unix_now()) {
                             Some(path) => match std::fs::write(&path, text) {
-                                Ok(()) => format!("Courbe exportée dans {}.", path.display()),
-                                Err(e) => format!("Export de la courbe impossible : {e}."),
+                                Ok(()) => trf("Courbe exportée dans {}.", &[&(path.display())]),
+                                Err(e) => trf("Export de la courbe impossible : {}.", &[&e]),
                             },
                             None => {
-                                "Export impossible : dossier Documents introuvable.".to_string()
+                                tr("Export impossible : dossier Documents introuvable.").to_string()
                             }
                         },
                     );
@@ -1656,9 +1665,9 @@ impl Component for Root {
                             if let Some(on) = curve.bass_boost.filter(|&on| on != eq.bass_boost) {
                                 self.send(Command::SetBassBoost(on));
                             }
-                            format!("Courbe importée depuis {}.", path.display())
+                            trf("Courbe importée depuis {}.", &[&(path.display())])
                         }
-                        Err(reason) => format!("Courbe non importée : {reason}."),
+                        Err(reason) => trf("Courbe non importée : {}.", &[&reason]),
                     });
                 }
             }
@@ -1691,14 +1700,15 @@ impl Component for Root {
                 Some(path) => self.send(Command::ExportProfile(path)),
                 None => {
                     self.eq_notice =
-                        Some("Export impossible : dossier Documents introuvable.".to_string());
+                        Some(tr("Export impossible : dossier Documents introuvable.").to_string());
                 }
             },
             Msg::RememberA => {
                 if let Some(eq) = self.snapshot.equalizer.as_ref() {
                     self.ab.remember(&eq.gains);
                     self.eq_notice = Some(
-                        "Courbe A mémorisée : modifiez l'égaliseur (B), puis comparez.".to_string(),
+                        tr("Courbe A mémorisée : modifiez l'égaliseur (B), puis comparez.")
+                            .to_string(),
                     );
                 }
             }
@@ -1721,7 +1731,7 @@ impl Component for Root {
                         .get(index)
                         .map(|c| c.id.clone())
                         .filter(|id| !id.is_empty());
-                    if row.action == "Déconnecter" {
+                    if row.action == tr("Déconnecter") {
                         self.confirm = Some(Confirm::Disconnect {
                             index,
                             name: row.name.clone(),
@@ -1754,9 +1764,9 @@ impl Component for Root {
                         self.busy = true;
                     }
                     self.battery_notice = Some(if sent {
-                        "Effacement de l'historique demandé au service.".to_string()
+                        tr("Effacement de l'historique demandé au service.").to_string()
                     } else {
-                        "Effacement impossible : service injoignable.".to_string()
+                        tr("Effacement impossible : service injoignable.").to_string()
                     });
                     context.spawn_background(|_| {
                         std::thread::sleep(Duration::from_millis(600));
@@ -1818,7 +1828,7 @@ impl Component for Root {
     }
 
     fn view(&self, _input: &(), context: &mut ViewContext<Self>) -> View {
-        context.window_title("OpenHeadset Control");
+        context.window_title(tr("OpenHeadset Control"));
         context.window_visuals(
             WindowVisuals::new()
                 .backdrop(WindowBackdrop::Mica)
@@ -1849,13 +1859,13 @@ impl Component for Root {
                     .automation_id(format!("nav-{tag}"))
                     .is_selected(*p == self.page)
                     .slots([
-                        SlotView::new(NavigationViewItemSlot::Content, *label),
+                        SlotView::new(NavigationViewItemSlot::Content, tr(label)),
                         SlotView::new(NavigationViewItemSlot::Icon, FontIcon::new().glyph(*glyph)),
                     ]),
             )
         });
         NavigationView::new()
-            .pane_title("OpenHeadset Control")
+            .pane_title(tr("OpenHeadset Control"))
             // Volet toujours ouvert à gauche (le mode automatique le pose
             // par-dessus le contenu dans une fenêtre moyenne).
             .pane_display_mode(NavigationViewPaneDisplayMode::Left)
@@ -1932,17 +1942,17 @@ fn menu_item(
 /// Copie `batterie.csv` dans Documents ; renvoie le message à afficher.
 fn export_battery_history() -> String {
     let Some(source) = paths::battery_file() else {
-        return "Export impossible : dossier des données introuvable.".to_string();
+        return tr("Export impossible : dossier des données introuvable.").to_string();
     };
     let Some(target) = paths::export_file("momentum-batterie", "csv", unix_now()) else {
-        return "Export impossible : dossier Documents introuvable.".to_string();
+        return tr("Export impossible : dossier Documents introuvable.").to_string();
     };
     match std::fs::copy(&source, &target) {
-        Ok(_) => format!("Historique exporté dans {}.", target.display()),
+        Ok(_) => trf("Historique exporté dans {}.", &[&(target.display())]),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            "Aucun historique à exporter pour l'instant.".to_string()
+            tr("Aucun historique à exporter pour l'instant.").to_string()
         }
-        Err(e) => format!("Export de l'historique impossible : {e}."),
+        Err(e) => trf("Export de l'historique impossible : {}.", &[&e]),
     }
 }
 
@@ -2037,11 +2047,11 @@ impl Root {
             .snapshot
             .read_only
             .as_ref()
-            .map(|reason| format!("Lecture seule : {reason}"));
+            .map(|reason| trf("Lecture seule : {}", &[&reason]));
         let problem = self
             .service_error
             .as_ref()
-            .map(|e| format!("Service OpenHeadset Control injoignable : {e}"))
+            .map(|e| trf("Service OpenHeadset Control injoignable : {}", &[&e]))
             .or_else(|| self.snapshot.problem.clone())
             .or_else(|| self.hotkey_problem.clone());
         viewmodel::main_view(
@@ -2057,31 +2067,28 @@ impl Root {
     fn header(&self, context: &mut ViewContext<Self>) -> View {
         let v = self.main_view();
         let status = if self.busy {
-            "Demande en cours…".to_string()
+            tr("Demande en cours…").to_string()
         } else {
             v.connection.clone()
         };
         let confirm = self.confirm.as_ref().map(|c| {
             let (title, text, action) = match c {
                 Confirm::MultipointOff => (
-                    "Couper le Multipoint ?",
-                    "Sans Multipoint, le casque ne garde qu'un appareil : l'autre est déconnecté."
+                    tr("Couper le Multipoint ?"),
+                    tr("Sans Multipoint, le casque ne garde qu'un appareil : l'autre est déconnecté.")
                         .to_string(),
-                    "Couper le Multipoint",
+                    tr("Couper le Multipoint"),
                 ),
                 Confirm::ClearBattery => (
-                    "Effacer l'historique de la batterie ?",
-                    "Toutes les mesures enregistrées sur ce PC sont supprimées. Exporter \
-                     d'abord pour les garder."
+                    tr("Effacer l'historique de la batterie ?"),
+                    tr("Toutes les mesures enregistrées sur ce PC sont supprimées. Exporter d'abord pour les garder.")
                         .to_string(),
-                    "Effacer",
+                    tr("Effacer"),
                 ),
                 Confirm::Disconnect { name, .. } => (
-                    "Déconnecter cet appareil ?",
-                    format!(
-                        "Le casque coupe sa liaison avec « {name} ». Il reste appairé : « Connecter » la rétablit."
-                    ),
-                    "Déconnecter",
+                    tr("Déconnecter cet appareil ?"),
+                    trf("Le casque coupe sa liaison avec « {} ». Il reste appairé : « Connecter » la rétablit.", &[&name]),
+                    tr("Déconnecter"),
                 ),
             };
             Border::new()
@@ -2104,7 +2111,7 @@ impl Root {
                                     .content(action),
                                 Button::new()
                                     .on_click(context.message(Msg::Cancelled))
-                                    .content("Annuler"),
+                                    .content(tr("Annuler")),
                             )),
                     )),
                 )
@@ -2157,7 +2164,7 @@ impl Root {
                 Button::new()
                     .is_enabled(self.service_error.is_none() && !self.busy)
                     .on_click(context.message(Msg::ReconnectHeadset))
-                    .content("Reconnecter le casque"),
+                    .content(tr("Reconnecter le casque")),
             ));
         }
         let c = &v.controls;
@@ -2191,7 +2198,7 @@ impl Root {
         });
         StackPanel::new().spacing(12.0).children((
             card(
-                "Casque",
+                tr("Casque"),
                 StackPanel::new().spacing(6.0).children((
                     TextBlock::new().text(v.battery_text.clone()),
                     ProgressBar::new()
@@ -2202,14 +2209,14 @@ impl Root {
                 )),
             ),
             card(
-                "Réduction de bruit",
+                tr("Réduction de bruit"),
                 StackPanel::new().spacing(10.0).children((
                     RadioButtons::new()
-                        .items_source(viewmodel::NOISE_MODES)
+                        .items_source(viewmodel::NOISE_MODES.map(tr))
                         .max_columns(3)
                         .selected_index(index(c.noise_mode))
                         .on_selection_changed(context.callback(Msg::NoiseMode)),
-                    TextBlock::new().text(format!("ANC ↔ transparence : {} %", c.level)),
+                    TextBlock::new().text(trf("ANC ↔ transparence : {} %", &[&c.level])),
                     Slider::new()
                         .minimum(0.0)
                         .maximum(100.0)
@@ -2219,8 +2226,8 @@ impl Root {
                         .is_enabled(v.writable)
                         .on_value_changed(context.callback(Msg::Level)),
                     switch_row(
-                        "Anti-vent",
-                        "Réduit le bruit du vent sur les micros",
+                        tr("Anti-vent"),
+                        tr("Réduit le bruit du vent sur les micros"),
                         c.anti_wind,
                         v.writable,
                         context.callback(Msg::AntiWind),
@@ -2228,39 +2235,39 @@ impl Root {
                 )),
             ),
             card(
-                "Fonctionnalités rapides",
+                tr("Fonctionnalités rapides"),
                 StackPanel::new().spacing(8.0).children((
                     switch_row(
-                        "Multipoint",
-                        "Deux appareils à la fois",
+                        tr("Multipoint"),
+                        tr("Deux appareils à la fois"),
                         multipoint == Some(true),
                         v.writable && multipoint.is_some(),
                         context.callback(Msg::Multipoint),
                     ),
                     switch_row(
-                        "Audio spatial",
-                        "Dolby Atmos",
+                        tr("Audio spatial"),
+                        tr("Dolby Atmos"),
                         c.spatial_on,
                         c.spatial_enabled,
                         context.callback(Msg::Spatial),
                     ),
                     switch_row(
-                        "Suivi de tête",
-                        "Avec l'audio spatial",
+                        tr("Suivi de tête"),
+                        tr("Avec l'audio spatial"),
                         c.head_tracking_on,
                         c.head_tracking_enabled,
                         context.callback(Msg::HeadTracking),
                     ),
                     switch_row(
-                        "Commandes tactiles",
-                        "Gestes sur l'écouteur droit",
+                        tr("Commandes tactiles"),
+                        tr("Gestes sur l'écouteur droit"),
                         c.touch_on,
                         c.touch_enabled,
                         context.callback(Msg::Touch),
                     ),
                     switch_row(
-                        "Smart Pause",
-                        "Pause au retrait du casque",
+                        tr("Smart Pause"),
+                        tr("Pause au retrait du casque"),
                         viewmodel::settings_view(
                             self.snapshot.state.as_ref(),
                             self.snapshot.info.as_ref(),
@@ -2274,7 +2281,7 @@ impl Root {
                 )),
             ),
             card(
-                "Appareils appairés au casque",
+                tr("Appareils appairés au casque"),
                 StackPanel::new().spacing(8.0).keyed_children(devices),
             ),
         ))
@@ -2327,21 +2334,21 @@ impl Root {
         });
         StackPanel::new().spacing(12.0).children((
             card(
-                "Mode audio",
+                tr("Mode audio"),
                 RadioButtons::new()
-                    .items_source(viewmodel::AUDIO_MODES)
+                    .items_source(viewmodel::AUDIO_MODES.map(tr))
                     .max_columns(3)
                     .selected_index(index(sv.audio_mode))
                     .on_selection_changed(context.callback(Msg::AudioMode)),
             ),
             card(
-                &format!("Égaliseur graphique — {count} bandes"),
+                &trf("Égaliseur graphique — {} bandes", &[&count]),
                 StackPanel::new().spacing(10.0).children((
                     StackPanel::new()
                         .orientation(Orientation::Horizontal)
                         .keyed_children(bands),
                     switch_row(
-                        "Amplification des basses",
+                        tr("Amplification des basses"),
                         "",
                         eq.bass_boost,
                         v.writable,
@@ -2354,13 +2361,13 @@ impl Root {
                             ComboBox::new()
                                 .items_source(sv.preset_names.clone())
                                 .selected_index(index(sv.current_preset))
-                                .placeholder_text("Préréglage")
+                                .placeholder_text(tr("Préréglage"))
                                 .is_enabled(v.writable)
                                 .on_selection_changed(context.callback(Msg::Preset)),
                             Button::new()
                                 .is_enabled(v.writable)
                                 .on_click(context.message(Msg::Flat))
-                                .content("Réinitialiser"),
+                                .content(tr("Réinitialiser")),
                         )),
                 )),
             ),
@@ -2395,38 +2402,38 @@ impl Root {
                 .children((field, Border::new().grid_column(1).content(button)))
         };
         card(
-            "Préréglages et courbes",
+            tr("Préréglages et courbes"),
             StackPanel::new().spacing(10.0).children((
                 field_row(
                     TextBox::new()
                         .text(self.new_preset_name.clone())
-                        .placeholder_text("Nom du préréglage")
+                        .placeholder_text(tr("Nom du préréglage"))
                         .is_enabled(writable)
                         .on_text_changed(context.callback(Msg::NewPresetName))
                         .into(),
                     Button::new()
                         .is_enabled(writable && !self.new_preset_name.trim().is_empty())
                         .on_click(context.message(Msg::SavePreset))
-                        .content("Enregistrer la courbe"),
+                        .content(tr("Enregistrer la courbe")),
                 ),
                 Button::new()
                     .is_enabled(user.is_some())
                     .on_click(context.message(Msg::DeletePreset))
                     .content(user.map_or_else(
-                        || "Supprimer le préréglage (choisir un préréglage personnel)".to_string(),
-                        |p| format!("Supprimer « {} »", p.name),
+                        || tr("Supprimer le préréglage (choisir un préréglage personnel)").to_string(),
+                        |p| trf("Supprimer « {} »", &[&p.name]),
                     )),
                 field_row(
                     TextBox::new()
                         .text(self.gains_text.clone())
-                        .placeholder_text("Gains en dB : -3,5 ; -1 ; 0 ; …")
+                        .placeholder_text(tr("Gains en dB : -3,5 ; -1 ; 0 ; …"))
                         .is_enabled(writable)
                         .on_text_changed(context.callback(Msg::GainsText))
                         .into(),
                     Button::new()
                         .is_enabled(writable && !self.gains_text.trim().is_empty())
                         .on_click(context.message(Msg::ApplyGainsText))
-                        .content("Appliquer"),
+                        .content(tr("Appliquer")),
                 ),
                 StackPanel::new()
                     .orientation(Orientation::Horizontal)
@@ -2434,11 +2441,11 @@ impl Root {
                     .children((
                         Button::new()
                             .on_click(context.message(Msg::ExportCurve))
-                            .content("Exporter la courbe"),
+                            .content(tr("Exporter la courbe")),
                         Button::new()
                             .is_enabled(writable)
                             .on_click(context.message(Msg::ImportCurve))
-                            .content("Importer une courbe…"),
+                            .content(tr("Importer une courbe…")),
                     )),
                 StackPanel::new()
                     .orientation(Orientation::Horizontal)
@@ -2447,7 +2454,7 @@ impl Root {
                         Button::new()
                             .is_enabled(writable)
                             .on_click(context.message(Msg::RememberA))
-                            .content("Mémoriser A"),
+                            .content(tr("Mémoriser A")),
                         Button::new()
                             .is_enabled(writable && self.ab.ready())
                             .on_click(context.message(Msg::ToggleAb))
@@ -2456,12 +2463,9 @@ impl Root {
                 Button::new()
                     .is_enabled(profile_available)
                     .on_click(context.message(Msg::ExportProfile))
-                    .content("Exporter le profil auditif"),
+                    .content(tr("Exporter le profil auditif")),
                 small(self.eq_notice.clone().unwrap_or_else(|| {
-                    "Préréglages enregistrés sur ce PC (prereglages.txt). Courbe exportée dans \
-                     Documents ; une courbe d'un autre modèle ou d'un autre nombre de bandes \
-                     est refusée. Le profil auditif (lecture seule, aucune restauration) est \
-                     une donnée personnelle : ne pas le publier."
+                    tr("Préréglages enregistrés sur ce PC (prereglages.txt). Courbe exportée dans Documents ; une courbe d'un autre modèle ou d'un autre nombre de bandes est refusée. Le profil auditif (lecture seule, aucune restauration) est une donnée personnelle : ne pas le publier.")
                         .to_string()
                 })),
             )),
@@ -2469,31 +2473,31 @@ impl Root {
     }
 
     fn settings(&self, context: &mut ViewContext<Self>) -> View {
-        let transfer = card("Sauvegarder et retrouver mes réglages", StackPanel::new().spacing(8.0).children((
-            TextBlock::new().text("Scènes, préréglages, raccourcis, panneau et apparence. Aucun profil auditif. Relancer l'interface après import pour recharger les réglages ; un brouillon non enregistré n'est pas inclus.").text_wrapping(TextWrapping::Wrap),
-            CheckBox::new().is_checked(self.settings_battery).on_is_checked_changed(context.callback(Msg::SettingsBattery)).content("Inclure aussi l'historique de batterie (export et import)"),
-            Button::new().on_click(context.message(Msg::ExportSettings)).content("Exporter les réglages…"),
-            Button::new().on_click(context.message(Msg::PreviewSettings)).content("Choisir un fichier à importer…"),
+        let transfer = card(tr("Sauvegarder et retrouver mes réglages"), StackPanel::new().spacing(8.0).children((
+            TextBlock::new().text(tr("Scènes, préréglages, raccourcis, panneau et apparence. Aucun profil auditif. Relancer l'interface après import pour recharger les réglages ; un brouillon non enregistré n'est pas inclus.")).text_wrapping(TextWrapping::Wrap),
+            CheckBox::new().is_checked(self.settings_battery).on_is_checked_changed(context.callback(Msg::SettingsBattery)).content(tr("Inclure aussi l'historique de batterie (export et import)")),
+            Button::new().on_click(context.message(Msg::ExportSettings)).content(tr("Exporter les réglages…")),
+            Button::new().on_click(context.message(Msg::PreviewSettings)).content(tr("Choisir un fichier à importer…")),
             TextBlock::new().text(self.settings_notice.clone()).text_wrapping(TextWrapping::Wrap),
-            Button::new().is_enabled(self.settings_plan.is_some()).on_click(context.message(Msg::ImportSettings)).content("Confirmer cet import"),
-            Button::new().is_enabled(self.settings_plan.is_some()).on_click(context.message(Msg::CancelSettings)).content("Annuler l'import"),
+            Button::new().is_enabled(self.settings_plan.is_some()).on_click(context.message(Msg::ImportSettings)).content(tr("Confirmer cet import")),
+            Button::new().is_enabled(self.settings_plan.is_some()).on_click(context.message(Msg::CancelSettings)).content(tr("Annuler l'import")),
         )));
         let app = card(
-            "Application",
+            tr("Application"),
             StackPanel::new().spacing(8.0).children((
                 TextBlock::new().text(if self.dark.is_none() {
-                    "Thème (pour l'instant celui de Windows) :"
+                    tr("Thème (pour l'instant celui de Windows) :")
                 } else {
-                    "Thème :"
+                    tr("Thème :")
                 }),
                 RadioButtons::new()
-                    .items_source(["Clair", "Sombre"])
+                    .items_source([tr("Clair"), tr("Sombre")])
                     .max_columns(2)
                     .selected_index(self.dark.map(usize::from))
                     .on_selection_changed(context.callback(Msg::Theme)),
                 switch_row(
-                    "Lancer à l'ouverture de session",
-                    "L'icône apparaît près de l'horloge, la fenêtre reste fermée",
+                    tr("Lancer à l'ouverture de session"),
+                    tr("L'icône apparaît près de l'horloge, la fenêtre reste fermée"),
                     self.autostart,
                     true,
                     context.callback(Msg::Autostart),
@@ -2517,7 +2521,7 @@ impl Root {
                             Border::new().grid_column(1).content(
                                 TextBox::new()
                                     .text(spec.clone())
-                                    .placeholder_text("aucun")
+                                    .placeholder_text(tr("aucun"))
                                     .on_text_changed(
                                         context.callback(move |t| Msg::HotkeyText(i, t)),
                                     ),
@@ -2540,37 +2544,37 @@ impl Root {
             )
         });
         let panel = card(
-            "Panneau rapide (clic sur l'icône)",
+            tr("Panneau rapide (clic sur l'icône)"),
             StackPanel::new().spacing(8.0).children((
                 switch_row(
-                    "Contrôle du bruit",
+                    tr("Contrôle du bruit"),
                     "",
                     self.panel_prefs.noise,
                     true,
                     context.callback(Msg::PanelNoise),
                 ),
                 switch_row(
-                    "Curseur ANC ↔ transparence",
+                    tr("Curseur ANC ↔ transparence"),
                     "",
                     self.panel_prefs.level,
                     true,
                     context.callback(Msg::PanelLevel),
                 ),
                 switch_row(
-                    "Profil personnalisé",
+                    tr("Profil personnalisé"),
                     "",
                     self.panel_prefs.profile,
                     true,
                     context.callback(Msg::PanelProfile),
                 ),
-                TextBlock::new().text(format!(
+                TextBlock::new().text(trf(
                     "Scènes montrées ({} au plus) :",
-                    momentum_core::quick_panel::MAX_PANEL_SCENES
+                    &[&(momentum_core::quick_panel::MAX_PANEL_SCENES)],
                 )),
                 StackPanel::new().spacing(4.0).keyed_children(scene_boxes),
                 TextBlock::new()
                     .text(self.panel_notice.clone().unwrap_or_else(|| {
-                        "Anti-vent, batterie et « Ouvrir » sont toujours affichés.".to_string()
+                        tr("Anti-vent, batterie et « Ouvrir » sont toujours affichés.").to_string()
                     }))
                     .font_size(12.0)
                     .opacity(0.7)
@@ -2578,17 +2582,15 @@ impl Root {
             )),
         );
         let shortcuts = card(
-            "Raccourcis clavier",
+            tr("Raccourcis clavier"),
             StackPanel::new().spacing(8.0).children((
                 StackPanel::new().spacing(6.0).keyed_children(hotkey_rows),
                 Button::new()
                     .on_click(context.message(Msg::SaveHotkeys))
-                    .content("Enregistrer les raccourcis"),
+                    .content(tr("Enregistrer les raccourcis")),
                 TextBlock::new()
                     .text(self.hotkey_notice.clone().unwrap_or_else(|| {
-                        "Ctrl, Alt, Shift ou Win, plus une lettre, un chiffre ou F1 à F24 \
-                         (« Ctrl+Alt+N »). Laisser vide pour désactiver. Une combinaison \
-                         déjà prise par une autre application est signalée."
+                        tr("Ctrl, Alt, Shift ou Win, plus une lettre, un chiffre ou F1 à F24 (« Ctrl+Alt+N »). Laisser vide pour désactiver. Une combinaison déjà prise par une autre application est signalée.")
                             .to_string()
                     }))
                     .font_size(12.0)
@@ -2616,18 +2618,18 @@ impl Root {
         );
         StackPanel::new().spacing(12.0).children((
             card(
-                "Appels",
+                tr("Appels"),
                 StackPanel::new().spacing(8.0).children((
                     switch_row(
-                        "Réponse automatique",
-                        "Décrocher en mettant le casque",
+                        tr("Réponse automatique"),
+                        tr("Décrocher en mettant le casque"),
                         st.auto_answer.on,
                         st.auto_answer.enabled,
                         context.callback(Msg::AutoAnswer),
                     ),
                     switch_row(
-                        "Appels confortables",
-                        "Votre voix dans le casque pendant un appel",
+                        tr("Appels confortables"),
+                        tr("Votre voix dans le casque pendant un appel"),
                         st.comfort_call.on,
                         st.comfort_call.enabled,
                         context.callback(Msg::Comfort),
@@ -2635,17 +2637,17 @@ impl Root {
                 )),
             ),
             card(
-                "Alimentation",
+                tr("Alimentation"),
                 StackPanel::new().spacing(8.0).children((
-                    TextBlock::new().text("Extinction automatique"),
+                    TextBlock::new().text(tr("Extinction automatique")),
                     ComboBox::new()
-                        .items_source(viewmodel::AUTO_OFF_LABELS)
+                        .items_source(viewmodel::AUTO_OFF_LABELS.map(tr))
                         .selected_index(index(st.auto_off))
                         .is_enabled(st.auto_off_enabled)
                         .on_selection_changed(context.callback(Msg::AutoOff)),
                     switch_row(
-                        "Protection de la batterie",
-                        "Limite la charge pour ménager la batterie",
+                        tr("Protection de la batterie"),
+                        tr("Limite la charge pour ménager la batterie"),
                         st.battery_protection.on,
                         st.battery_protection.enabled,
                         context.callback(Msg::BatteryProtection),
@@ -2653,17 +2655,17 @@ impl Root {
                 )),
             ),
             card(
-                "Invites",
+                tr("Invites"),
                 StackPanel::new().spacing(8.0).children((
                     ComboBox::new()
-                        .items_source(viewmodel::PROMPT_MODES)
+                        .items_source(viewmodel::PROMPT_MODES.map(tr))
                         .selected_index(index(st.prompt_mode))
                         .is_enabled(st.prompts_enabled)
                         .on_selection_changed(context.callback(Msg::PromptMode)),
                     TextBlock::new().text(if st.prompt_volume < 0 {
-                        "Volume des invites : non lu".to_string()
+                        tr("Volume des invites : non lu").to_string()
                     } else {
-                        format!("Volume des invites : {} %", st.prompt_volume)
+                        trf("Volume des invites : {} %", &[&st.prompt_volume])
                     }),
                     Slider::new()
                         .minimum(0.0)
@@ -2675,7 +2677,7 @@ impl Root {
                 )),
             ),
             card(
-                "Nom du casque",
+                tr("Nom du casque"),
                 StackPanel::new().spacing(8.0).children((
                     Grid::new()
                         .columns([GridLength::Star(1.0), GridLength::Auto])
@@ -2684,7 +2686,7 @@ impl Root {
                             TextBox::new()
                                 .text(self.new_name.clone())
                                 .placeholder_text(if st.name.is_empty() {
-                                    "non lu".to_string()
+                                    tr("non lu").to_string()
                                 } else {
                                     st.name.clone()
                                 })
@@ -2696,14 +2698,12 @@ impl Root {
                                         st.rename_enabled && !self.new_name.trim().is_empty(),
                                     )
                                     .on_click(context.message(Msg::Rename))
-                                    .content("Renommer"),
+                                    .content(tr("Renommer")),
                             ),
                         )),
                     TextBlock::new()
                         .text(self.name_problem.clone().unwrap_or_else(|| {
-                            "Lettres sans accent, chiffres et espaces, 32 caractères au plus. \
-                             Le système et le téléphone peuvent garder l'ancien nom jusqu'à \
-                             la prochaine connexion."
+                            tr("Lettres sans accent, chiffres et espaces, 32 caractères au plus. Le système et le téléphone peuvent garder l'ancien nom jusqu'à la prochaine connexion.")
                                 .to_string()
                         }))
                         .font_size(12.0)
@@ -2741,7 +2741,7 @@ impl Root {
                             Button::new()
                                 .is_enabled(writable)
                                 .on_click(context.message(Msg::ApplyScene(i)))
-                                .content("Appliquer"),
+                                .content(tr("Appliquer")),
                         ),
                     )),
             )
@@ -2764,12 +2764,11 @@ impl Root {
                 .title("scenes.txt")
                 .message(self.scene_problems.join("\n")),
             card(
-                "Scènes",
+                tr("Scènes"),
                 StackPanel::new().spacing(10.0).children((
                     TextBlock::new()
                         .text(
-                            "Chaque réglage d'une scène est appliqué puis relu sur le casque, un \
-                             par un ; une étape refusée arrête la scène.",
+                            tr("Chaque réglage d'une scène est appliqué puis relu sur le casque, un par un ; une étape refusée arrête la scène."),
                         )
                         .font_size(12.0)
                         .opacity(0.7)
@@ -2781,31 +2780,31 @@ impl Root {
                         .children((
                             Button::new()
                                 .on_click(context.message(Msg::EditScenes))
-                                .content("Ouvrir scenes.txt"),
+                                .content(tr("Ouvrir scenes.txt")),
                             Button::new()
                                 .on_click(context.message(Msg::ReloadScenes))
-                                .content("Relire"),
+                                .content(tr("Relire")),
                         )),
                 )),
             ),
             card(
-                "Enregistrer l'état actuel comme scène",
+                tr("Enregistrer l'état actuel comme scène"),
                 StackPanel::new().spacing(8.0).children((
                     TextBlock::new()
-                        .text("Les valeurs non lues restent absentes ; aucun réglage du casque ne change.")
+                        .text(tr("Les valeurs non lues restent absentes ; aucun réglage du casque ne change."))
                         .text_wrapping(TextWrapping::Wrap),
                     TextBox::new()
                         .text(self.capture_scene_name.clone())
-                        .placeholder_text("Nom de la scène")
+                        .placeholder_text(tr("Nom de la scène"))
                         .on_text_changed(context.callback(Msg::CaptureSceneName)),
                     CheckBox::new()
                         .is_checked(self.capture_scene_replace)
                         .on_is_checked_changed(context.callback(Msg::CaptureSceneReplace))
-                        .content("Remplacer la scène et son préréglage existants"),
+                        .content(tr("Remplacer la scène et son préréglage existants")),
                     Button::new()
                         .is_enabled(self.snapshot.state.is_some() && !self.busy && !self.capture_scene_name.trim().is_empty())
                         .on_click(context.message(Msg::CaptureScene))
-                        .content("Enregistrer l'état actuel comme scène"),
+                        .content(tr("Enregistrer l'état actuel comme scène")),
                 )),
             ),
             self.scene_editor_card(context),
@@ -2834,45 +2833,60 @@ impl Root {
                 ))
         };
         let strings = |list: &[&str]| list.iter().map(|s| (*s).to_string()).collect::<Vec<_>>();
-        let switches = || strings(&viewmodel::SCENE_SWITCH_CHOICES);
+        let switches = || strings(&viewmodel::SCENE_SWITCH_CHOICES.map(tr));
         let form: View = if e.is_empty() {
             TextBlock::new()
-                .text("Aucune scène : « Nouvelle » en crée une.")
+                .text(tr("Aucune scène : « Nouvelle » en crée une."))
                 .opacity(0.7)
                 .into()
         } else {
             StackPanel::new().spacing(6.0).children((
                 TextBox::new()
                     .text(f.name.clone())
-                    .placeholder_text("Nom de la scène")
+                    .placeholder_text(tr("Nom de la scène"))
                     .on_text_changed(context.callback(Msg::SceneName)),
                 choice(
-                    "Mode audio",
-                    strings(&viewmodel::SCENE_SOUND_CHOICES),
+                    tr("Mode audio"),
+                    strings(&viewmodel::SCENE_SOUND_CHOICES.map(tr)),
                     f.sound,
                     SceneField::Sound,
                 ),
-                choice("Audio spatial", switches(), f.spatial, SceneField::Spatial),
                 choice(
-                    "Contrôle du bruit",
-                    strings(&viewmodel::SCENE_NOISE_CHOICES),
+                    tr("Audio spatial"),
+                    switches(),
+                    f.spatial,
+                    SceneField::Spatial,
+                ),
+                choice(
+                    tr("Contrôle du bruit"),
+                    strings(&viewmodel::SCENE_NOISE_CHOICES.map(tr)),
                     f.noise,
                     SceneField::Noise,
                 ),
                 TextBox::new()
                     .text(f.level.clone())
-                    .placeholder_text("Niveau ANC ↔ transparence, 0 à 100 (vide = inchangé)")
+                    .placeholder_text(tr("Niveau ANC ↔ transparence, 0 à 100 (vide = inchangé)"))
                     .on_text_changed(context.callback(Msg::SceneLevel)),
-                choice("Anti-vent", switches(), f.anti_wind, SceneField::AntiWind),
-                choice("Commandes tactiles", switches(), f.touch, SceneField::Touch),
                 choice(
-                    "Préréglage d'égaliseur",
+                    tr("Anti-vent"),
+                    switches(),
+                    f.anti_wind,
+                    SceneField::AntiWind,
+                ),
+                choice(
+                    tr("Commandes tactiles"),
+                    switches(),
+                    f.touch,
+                    SceneField::Touch,
+                ),
+                choice(
+                    tr("Préréglage d'égaliseur"),
                     e.eq_choices().to_vec(),
                     f.equalizer,
                     SceneField::Equalizer,
                 ),
                 choice(
-                    "Amplification des basses",
+                    tr("Amplification des basses"),
                     switches(),
                     f.bass_boost,
                     SceneField::Bass,
@@ -2889,12 +2903,11 @@ impl Root {
             .map(|p| format!("⚠ {p}"))
             .or_else(|| self.scene_notice.clone())
             .unwrap_or_else(|| {
-                "Le brouillon n'est écrit qu'avec « Enregistrer » ; rien n'est envoyé au casque. \
-                 Les raccourcis et le panneau suivent les renommages."
+                tr("Le brouillon n'est écrit qu'avec « Enregistrer » ; rien n'est envoyé au casque. Les raccourcis et le panneau suivent les renommages.")
                     .to_string()
             });
         card(
-            "Modifier les scènes",
+            tr("Modifier les scènes"),
             StackPanel::new().spacing(10.0).children((
                 RadioButtons::new()
                     .items_source(e.names())
@@ -2907,23 +2920,23 @@ impl Root {
                     .children((
                         Button::new()
                             .on_click(context.message(Msg::SceneNew))
-                            .content("Nouvelle"),
+                            .content(tr("Nouvelle")),
                         Button::new()
                             .is_enabled(!e.is_empty())
                             .on_click(context.message(Msg::SceneDuplicate))
-                            .content("Dupliquer"),
+                            .content(tr("Dupliquer")),
                         Button::new()
                             .is_enabled(!e.is_empty())
                             .on_click(context.message(Msg::SceneDelete))
-                            .content("Supprimer"),
+                            .content(tr("Supprimer")),
                         Button::new()
                             .is_enabled(e.selected() > 0)
                             .on_click(context.message(Msg::SceneMove(-1)))
-                            .content("Monter"),
+                            .content(tr("Monter")),
                         Button::new()
                             .is_enabled(e.selected() + 1 < e.names().len())
                             .on_click(context.message(Msg::SceneMove(1)))
-                            .content("Descendre"),
+                            .content(tr("Descendre")),
                     )),
                 form,
                 StackPanel::new()
@@ -2934,11 +2947,11 @@ impl Root {
                             .style(ButtonStyle::Accent)
                             .is_enabled(e.can_save())
                             .on_click(context.message(Msg::SceneSave))
-                            .content("Enregistrer"),
+                            .content(tr("Enregistrer")),
                         Button::new()
                             .is_enabled(e.dirty())
                             .on_click(context.message(Msg::SceneDiscard))
-                            .content("Annuler les modifications"),
+                            .content(tr("Annuler les modifications")),
                     )),
                 TextBlock::new()
                     .text(notice)
@@ -2951,7 +2964,7 @@ impl Root {
 
     fn battery_page(&self, context: &mut ViewContext<Self>) -> View {
         let Some(page) = &self.battery else {
-            return TextBlock::new().text("Lecture de l'historique…").into();
+            return TextBlock::new().text(tr("Lecture de l'historique…")).into();
         };
         let (width, height) = CHART;
         let segments = page.lines.iter().enumerate().flat_map(|(n, line)| {
@@ -2996,10 +3009,10 @@ impl Root {
         });
         StackPanel::new().spacing(12.0).children((
             card(
-                &format!("Batterie : {}", page.view.current),
+                &trf("Batterie : {}", &[&page.view.current]),
                 StackPanel::new().spacing(10.0).children((
                     RadioButtons::new()
-                        .items_source(viewmodel::BATTERY_SPANS.iter().map(|(label, _)| *label))
+                        .items_source(viewmodel::BATTERY_SPANS.iter().map(|(label, _)| tr(label)))
                         .max_columns(3)
                         .selected_index(Some(self.battery_span))
                         .on_selection_changed(context.callback(Msg::BatterySpan)),
@@ -3015,12 +3028,9 @@ impl Root {
                         ),
                     TextBlock::new()
                         .text(if empty {
-                            "Aucune mesure sur la période.".to_string()
+                            tr("Aucune mesure sur la période.").to_string()
                         } else {
-                            format!(
-                                "De {} (à gauche) à maintenant (à droite) ; repères à 100, 50 et 0 %.",
-                                page.view.axis_start
-                            )
+                            trf("De {} (à gauche) à maintenant (à droite) ; repères à 100, 50 et 0 %.", &[&page.view.axis_start])
                         })
                         .font_size(12.0)
                         .opacity(0.7),
@@ -3029,9 +3039,9 @@ impl Root {
                         .text_wrapping(TextWrapping::Wrap),
                 )),
             ),
-            card("Détails", StackPanel::new().spacing(4.0).keyed_children(details)),
+            card(tr("Détails"), StackPanel::new().spacing(4.0).keyed_children(details)),
             card(
-                "Historique",
+                tr("Historique"),
                 StackPanel::new().spacing(8.0).children((
                     StackPanel::new()
                         .orientation(Orientation::Horizontal)
@@ -3039,15 +3049,14 @@ impl Root {
                         .children((
                             Button::new()
                                 .on_click(context.message(Msg::ExportBattery))
-                                .content("Exporter (CSV)"),
+                                .content(tr("Exporter (CSV)")),
                             Button::new()
                                 .on_click(context.message(Msg::ClearBattery))
-                                .content("Effacer l'historique…"),
+                                .content(tr("Effacer l'historique…")),
                         )),
                     TextBlock::new()
                         .text(self.battery_notice.clone().unwrap_or_else(|| {
-                            "Mesures gardées sur ce PC (batterie.csv, 30 jours) ; l'export \
-                             va dans Documents."
+                            tr("Mesures gardées sur ce PC (batterie.csv, 30 jours) ; l'export va dans Documents.")
                                 .to_string()
                         }))
                         .font_size(12.0)
@@ -3107,20 +3116,20 @@ impl Root {
             });
         StackPanel::new().spacing(12.0).children((
             card(
-                "Constats",
+                tr("Constats"),
                 StackPanel::new().spacing(6.0).keyed_children(findings),
             ),
-            card("Pilotage du casque", rows("pilotage", v.control)),
+            card(tr("Pilotage du casque"), rows("pilotage", v.control)),
             card(
-                "Sortie audio de Windows",
+                tr("Sortie audio de Windows"),
                 StackPanel::new().spacing(8.0).children((
                     rows("windows", v.windows),
                     Button::new()
                         .on_click(context.message(Msg::ReadWindowsAudio))
-                        .content("Relire les sorties de Windows"),
+                        .content(tr("Relire les sorties de Windows")),
                 )),
             ),
-            card("Flux Bluetooth", rows("flux", v.stream)),
+            card(tr("Flux Bluetooth"), rows("flux", v.stream)),
         ))
     }
 
@@ -3128,44 +3137,40 @@ impl Root {
         let info = self.snapshot.info.as_ref();
         let firmware = info
             .and_then(|i| i.firmware.clone())
-            .unwrap_or_else(|| "non lu".into());
+            .unwrap_or_else(|| tr("non lu").into());
         let model = info.and_then(|i| i.model.clone()).unwrap_or_default();
         let copied = match self.diagnostic_copied {
-            Some(true) => "Diagnostic copié dans le presse-papiers.",
-            Some(false) => "Copie impossible (presse-papiers occupé) : réessayer.",
+            Some(true) => tr("Diagnostic copié dans le presse-papiers."),
+            Some(false) => tr("Copie impossible (presse-papiers occupé) : réessayer."),
             None => "",
         };
         StackPanel::new().spacing(12.0).children((
             card(
-                "OpenHeadset Control",
+                tr("OpenHeadset Control"),
                 StackPanel::new().spacing(6.0).children((
-                    TextBlock::new().text(format!(
-                        "Client WinUI 3, version {}",
-                        env!("CARGO_PKG_VERSION")
-                    )),
-                    TextBlock::new().text(format!("Micrologiciel du casque : {firmware} {model}")),
+                    TextBlock::new().text(trf("Client WinUI 3, version {}", &[&(env!("CARGO_PKG_VERSION"))])),
+                    TextBlock::new().text(trf("Micrologiciel du casque : {} {}", &[&firmware, &model])),
                     TextBlock::new()
-                        .text("Projet non officiel, sans lien avec Sennheiser ni Sonova.")
+                        .text(tr("Projet non officiel, sans lien avec Sennheiser ni Sonova."))
                         .text_wrapping(TextWrapping::Wrap),
                     TextBlock::new()
-                        .text("Licence : MIT OU Apache-2.0")
+                        .text(tr("Licence : MIT OU Apache-2.0"))
                         .opacity(0.7),
                 )),
             ),
             card(
-                "Diagnostic",
+                tr("Diagnostic"),
                 StackPanel::new().spacing(8.0).children((
                     TextBlock::new()
                         .text(
-                            "Texte à joindre à un rapport : ni adresse Bluetooth, ni numéro de \
-                         série, ni noms d'appareils, ni dossier personnel.",
+                            tr("Texte à joindre à un rapport : ni adresse Bluetooth, ni numéro de série, ni noms d'appareils, ni dossier personnel."),
                         )
                         .font_size(12.0)
                         .opacity(0.7)
                         .text_wrapping(TextWrapping::Wrap),
                     Button::new()
                         .on_click(context.message(Msg::CopyDiagnostic))
-                        .content("Copier le diagnostic"),
+                        .content(tr("Copier le diagnostic")),
                     TextBlock::new().text(copied),
                 )),
             ),

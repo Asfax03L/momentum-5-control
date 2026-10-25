@@ -8,6 +8,7 @@
 //! suppressions sont rendus à l'interface, qui fait suivre les raccourcis et
 //! le panneau rapide.
 
+use crate::i18n::tr;
 use crate::presets::Preset;
 use crate::scenes::{self, Scene};
 use crate::viewmodel::{self, SceneForm};
@@ -222,8 +223,7 @@ impl SceneEditor {
         }
         if current_text != self.loaded_text.as_deref() {
             return Err(
-                "scenes.txt a été modifié ailleurs depuis l'ouverture de l'éditeur ; \
-                 « Recharger » le relit."
+                tr("scenes.txt a été modifié ailleurs depuis l'ouverture de l'éditeur ; « Recharger » le relit.")
                     .to_string(),
             );
         }
@@ -256,7 +256,7 @@ impl SceneEditor {
 /// `panneau.txt`. Renvoie le message à afficher et si les raccourcis ont
 /// changé (à réenregistrer). Rien n'est envoyé au casque.
 pub fn save(editor: &SceneEditor) -> Result<(String, bool), String> {
-    let path = paths::scenes_file().ok_or("dossier des données introuvable")?;
+    let path = paths::scenes_file().ok_or(tr("dossier des données introuvable"))?;
     let mut changes = Vec::new();
     // Lecture du fichier actuel et remplacement d'un bloc (A03).
     paths::update_user_file(&path, |current| {
@@ -284,7 +284,7 @@ pub fn save(editor: &SceneEditor) -> Result<(String, bool), String> {
             )),
             Ok(_) => {
                 let updated = paths::hotkeys_file()
-                    .ok_or_else(|| "dossier des données introuvable".to_string())
+                    .ok_or_else(|| tr("dossier des données introuvable").to_string())
                     .and_then(|p| {
                         paths::update_user_file(&p, |current| {
                             let Some(before) = current else {

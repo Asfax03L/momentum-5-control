@@ -14,6 +14,7 @@ use crate::device::{
     AUTO_OFF_CHOICES, AudioMode, Connection, DeviceInfo, HeadsetState, PromptMode,
     SoundProfileStatus, prompt_volume_percent,
 };
+use crate::i18n::{tr, trf};
 use crate::presets::{Preset, matching};
 use crate::protocol::messages::{Codec, M5NoiseMode};
 use crate::scenes::{Scene, SceneSound, check_scene};
@@ -55,9 +56,9 @@ pub struct BatteryView {
 /// « il y a 5 min », « il y a 3 h », « il y a 2 j ».
 fn ago(seconds: u64) -> String {
     match seconds {
-        s if s < 3600 => format!("il y a {} min", s / 60),
-        s if s < 48 * 3600 => format!("il y a {} h", s / 3600),
-        s => format!("il y a {} j", s / 86_400),
+        s if s < 3600 => trf("il y a {} min", &[&(s / 60)]),
+        s if s < 48 * 3600 => trf("il y a {} h", &[&(s / 3600)]),
+        s => trf("il y a {} j", &[&(s / 86_400)]),
     }
 }
 
@@ -68,6 +69,7 @@ pub fn battery_view(
     current: Option<u8>,
 ) -> BatteryView {
     let (label, span) = BATTERY_SPANS[span_index.min(BATTERY_SPANS.len() - 1)];
+    let label = tr(label);
     let since = now.saturating_sub(span);
     let measures = log
         .entries()
@@ -79,33 +81,32 @@ pub fn battery_view(
         Entry::Gap { .. } => None,
     });
     let estimate = match log.estimate(now) {
-        Some((remaining, observed)) => format!(
-            "Estimation : environ {remaining:.0} h restantes, d'après les {} dernières heures de décharge. Le rythme dépend de l'ANC, du volume et du codec.",
-            format!("{observed:.1}").replace('.', ",")
-        ),
+        Some((remaining, observed)) => trf("Estimation : environ {} h restantes, d'après les {} dernières heures de décharge. Le rythme dépend de l'ANC, du volume et du codec.", &[&(format!("{:.0}", remaining)), &(format!("{observed:.1}").replace('.', ","))]),
         None => {
-            "Pas d'estimation : il faut au moins une heure de décharge continue et 5 points perdus."
+            tr("Pas d'estimation : il faut au moins une heure de décharge continue et 5 points perdus.")
                 .to_string()
         }
     };
     BatteryView {
         path: chart_path(log, now, span),
-        current: current.map_or("non connecté".to_string(), |b| format!("{b} %")),
+        current: current.map_or(tr("non connecté").to_string(), |b| format!("{b} %")),
         estimate,
-        axis_start: format!("il y a {label}"),
+        axis_start: trf("il y a {}", &[&label]),
         details: vec![
-            row("Mesures sur la période", measures.to_string()),
+            row(tr("Mesures sur la période"), measures.to_string()),
             row(
-                "Dernière mesure",
-                last.map_or("aucune".to_string(), |t| ago(now.saturating_sub(t))),
+                tr("Dernière mesure"),
+                last.map_or(tr("aucune").to_string(), |t| ago(now.saturating_sub(t))),
             ),
             row(
-                "Conservation",
-                "30 jours sur ce PC (batterie.csv), rien n'est envoyé",
+                tr("Conservation"),
+                tr("30 jours sur ce PC (batterie.csv), rien n'est envoyé"),
             ),
             row(
-                "Non mesuré",
-                "état de charge, santé et cycles de la batterie : le casque ne les donne pas au projet",
+                tr("Non mesuré"),
+                tr(
+                    "état de charge, santé et cycles de la batterie : le casque ne les donne pas au projet",
+                ),
             ),
         ],
     }
@@ -183,15 +184,15 @@ pub fn connection_row(
     ConnectionRow {
         name: name.to_string(),
         status: match (connected, this_device) {
-            (_, true) => "Connecté (ce PC)",
-            (true, false) => "Connecté",
-            (false, _) => "Non connecté",
+            (_, true) => tr("Connecté (ce PC)"),
+            (true, false) => tr("Connecté"),
+            (false, _) => tr("Non connecté"),
         }
         .to_string(),
         action: if connected {
-            "Déconnecter"
+            tr("Déconnecter")
         } else {
-            "Connecter"
+            tr("Connecter")
         }
         .to_string(),
         can_act: writable && !this_device,
@@ -262,8 +263,8 @@ pub fn sound_view(
         removable: presets.iter().map(|p| !p.builtin).collect(),
         preset_status: match (gains, current) {
             (None, _) => String::new(),
-            (Some(_), Some(p)) => format!("Préréglage : {}", p.name),
-            (Some(_), None) => "Courbe personnalisée, non enregistrée".to_string(),
+            (Some(_), Some(p)) => trf("Préréglage : {}", &[&p.name]),
+            (Some(_), None) => tr("Courbe personnalisée, non enregistrée").to_string(),
         },
     }
 }
@@ -320,8 +321,10 @@ fn home_controls(s: &HeadsetState, writable: bool) -> HomeControls {
 pub fn stream_label(codec: Option<u8>, sample_rate_hz: Option<u32>) -> String {
     let codec = match codec {
         None => return String::new(),
-        Some(0xFF) => return "Pas de lecture".to_string(),
-        Some(c) => Codec(c).name().map_or(format!("codec {c}"), str::to_string),
+        Some(0xFF) => return tr("Pas de lecture").to_string(),
+        Some(c) => Codec(c)
+            .name()
+            .map_or(trf("codec {}", &[&c]), str::to_string),
     };
     match sample_rate_hz {
         Some(hz) if hz > 0 => {
@@ -331,7 +334,7 @@ pub fn stream_label(codec: Option<u8>, sample_rate_hz: Option<u32>) -> String {
             } else {
                 format!("{khz:.1}").replace('.', ",")
             };
-            format!("{codec} · {text} kHz")
+            trf("{} · {} kHz", &[&codec, &text])
         }
         _ => codec,
     }
@@ -339,7 +342,7 @@ pub fn stream_label(codec: Option<u8>, sample_rate_hz: Option<u32>) -> String {
 
 /// Valeur d'un réglage facultatif : « non lu » si le casque l'a refusé.
 fn opt<T>(value: Option<T>, text: impl Fn(T) -> String) -> String {
-    value.map_or_else(|| "non lu".to_string(), text)
+    value.map_or_else(|| tr("non lu").to_string(), text)
 }
 
 /// Première lettre en capitale (« profil personnalisé » → « Profil… »).
@@ -367,17 +370,17 @@ pub fn main_view(
         .unwrap_or_default();
     let waiting = match (name, state) {
         (_, Some(_)) => String::new(),
-        (Some(n), None) => format!("Connexion à « {n} »…"),
-        (None, None) => "Recherche du casque… Allumez-le et connectez-le à ce PC en \
-                         Bluetooth."
-            .to_string(),
+        (Some(n), None) => trf("Connexion à « {} »…", &[&n]),
+        (None, None) => {
+            tr("Recherche du casque… Allumez-le et connectez-le à ce PC en Bluetooth.").to_string()
+        }
     };
     MainView {
-        title: name.unwrap_or("Casque Sennheiser").to_string(),
+        title: name.unwrap_or(tr("Casque Sennheiser")).to_string(),
         connection: match (name, state) {
-            (_, Some(_)) => "Connecté".to_string(),
-            (Some(_), None) => "Connexion…".to_string(),
-            (None, None) => "Recherche du casque…".to_string(),
+            (_, Some(_)) => tr("Connecté").to_string(),
+            (Some(_), None) => tr("Connexion…").to_string(),
+            (None, None) => tr("Recherche du casque…").to_string(),
         },
         connected,
         writable: connected && read_only.is_none(),
@@ -410,23 +413,25 @@ pub fn main_view(
 fn home_rows(s: &HeadsetState) -> Vec<Row> {
     vec![
         row(
-            "Mode audio",
+            tr("Mode audio"),
             opt(s.audio_mode, |m| {
                 capitalize(audio_mode_label(m).trim_start_matches("Mode audio : "))
             }),
         ),
         row(
-            "Profil personnalisé",
+            tr("Profil personnalisé"),
             opt(s.sound_profile, |p| match p {
-                SoundProfileStatus::NoProfile => "Aucun".to_string(),
-                SoundProfileStatus::TestRunning => "Test en cours".to_string(),
+                SoundProfileStatus::NoProfile => tr("Aucun").to_string(),
+                SoundProfileStatus::TestRunning => tr("Test en cours").to_string(),
                 SoundProfileStatus::Received
                     if s.audio_mode == Some(AudioMode::Personalization) =>
                 {
-                    "Reçu par le casque, sélectionné".to_string()
+                    tr("Reçu par le casque, sélectionné").to_string()
                 }
-                SoundProfileStatus::Received => "Reçu par le casque, non sélectionné".to_string(),
-                SoundProfileStatus::Unknown(b) => format!("État inconnu ({b})"),
+                SoundProfileStatus::Received => {
+                    tr("Reçu par le casque, non sélectionné").to_string()
+                }
+                SoundProfileStatus::Unknown(b) => trf("État inconnu ({})", &[&b]),
             }),
         ),
     ]
@@ -525,19 +530,19 @@ fn info_rows(info: Option<&DeviceInfo>) -> Vec<Row> {
     let info = info.cloned().unwrap_or_default();
     vec![
         row(
-            "Langue des invites",
+            tr("Langue des invites"),
             opt(info.prompt_language, |l| match l {
-                2 => "Français".to_string(),
-                other => format!("Valeur {other}"),
+                2 => tr("Français").to_string(),
+                other => trf("Valeur {}", &[&other]),
             }),
         ),
         row(
-            "Priorité du mode audio",
+            tr("Priorité du mode audio"),
             opt(info.audio_priority, |p| match p {
-                (1, 0) => "Qualité audio avancée".to_string(),
-                (0, 0) => "Haute résolution 24 bits/96 kHz".to_string(),
-                (0, 1) => "Sans perte 16 bits/44,1 kHz".to_string(),
-                (h, l) => format!("Combinaison non observée ({h}, {l})"),
+                (1, 0) => tr("Qualité audio avancée").to_string(),
+                (0, 0) => tr("Haute résolution 24 bits/96 kHz").to_string(),
+                (0, 1) => tr("Sans perte 16 bits/44,1 kHz").to_string(),
+                (h, l) => trf("Combinaison non observée ({}, {})", &[&h, &l]),
             }),
         ),
     ]
@@ -547,23 +552,26 @@ fn info_rows(info: Option<&DeviceInfo>) -> Vec<Row> {
 pub fn about_rows(app_version: &str, info: Option<&DeviceInfo>) -> Vec<Row> {
     let mut rows = Vec::new();
     if let Some(info) = info {
-        rows.push(row("Modèle", opt(info.model.clone(), |m| m)));
-        rows.push(row("Micrologiciel", opt(info.firmware.clone(), |f| f)));
+        rows.push(row(tr("Modèle"), opt(info.model.clone(), |m| m)));
+        rows.push(row(tr("Micrologiciel"), opt(info.firmware.clone(), |f| f)));
         rows.push(row(
-            "Révision matérielle",
+            tr("Révision matérielle"),
             opt(info.hardware_revision, |r| r.to_string()),
         ));
     }
     rows.extend([
-        row("Application", format!("momentum-ctl-win {app_version}")),
         row(
-            "Statut",
-            "Projet non officiel, sans lien avec Sennheiser ni Sonova",
+            tr("Application"),
+            trf("momentum-ctl-win {}", &[&app_version]),
         ),
-        row("Licence", "MIT OU Apache-2.0"),
         row(
-            "Écritures",
-            "Uniquement celles capturées dans l'app puis validées sur le MOMENTUM 5",
+            tr("Statut"),
+            tr("Projet non officiel, sans lien avec Sennheiser ni Sonova"),
+        ),
+        row(tr("Licence"), tr("MIT OU Apache-2.0")),
+        row(
+            tr("Écritures"),
+            tr("Uniquement celles capturées dans l'app puis validées sur le MOMENTUM 5"),
         ),
     ]);
     rows
@@ -578,13 +586,13 @@ pub fn device_rows(info: Option<&DeviceInfo>) -> Vec<Row> {
     };
     let mut rows = Vec::new();
     if let Some(model) = &info.model {
-        rows.push(row("Modèle", model.clone()));
+        rows.push(row(tr("Modèle"), model.clone()));
     }
     if let Some(firmware) = &info.firmware {
-        rows.push(row("Micrologiciel", firmware.clone()));
+        rows.push(row(tr("Micrologiciel"), firmware.clone()));
     }
     if let Some(revision) = info.hardware_revision {
-        rows.push(row("Révision matérielle", revision.to_string()));
+        rows.push(row(tr("Révision matérielle"), revision.to_string()));
     }
     rows
 }
@@ -637,8 +645,8 @@ fn sourced(label: &str, value: impl Into<String>, source: impl Into<String>) -> 
 
 fn at(origin: &str, time: Option<&str>) -> String {
     time.map_or_else(
-        || format!("{origin}, heure inconnue"),
-        |t| format!("{origin}, lu à {t}"),
+        || trf("{}, heure inconnue", &[&origin]),
+        |t| trf("{}, lu à {}", &[&origin, &t]),
     )
 }
 
@@ -658,81 +666,85 @@ pub fn audio_view(i: &AudioInputs) -> AudioView {
         others_connected,
     };
 
-    let gaia = "casque (GAIA)";
+    let gaia = tr("casque (GAIA)");
     let mut control = vec![sourced(
-        "Pilotage par ce PC",
+        tr("Pilotage par ce PC"),
         if connected {
-            "connecté (commande les réglages ; ne prouve pas que le son passe)"
+            tr("connecté (commande les réglages ; ne prouve pas que le son passe)")
         } else {
-            "non connecté"
+            tr("non connecté")
         },
         if connected {
             i.control_since.map_or_else(
-                || "application".to_string(),
-                |t| format!("application, depuis {t}"),
+                || tr("application").to_string(),
+                |t| trf("application, depuis {}", &[&t]),
             )
         } else {
-            "application".to_string()
+            tr("application").to_string()
         },
     )];
     if connected {
         control.push(sourced(
-            "Ce PC dans la liste du casque",
-            this_pc.map_or("absent de la liste lue".to_string(), |c| {
+            tr("Ce PC dans la liste du casque"),
+            this_pc.map_or(tr("absent de la liste lue").to_string(), |c| {
                 describe_link_state(c.state)
             }),
             at(gaia, i.connections_at),
         ));
         control.push(sourced(
-            "Autres appareils connectés",
+            tr("Autres appareils connectés"),
             others_connected.to_string(),
             at(gaia, i.connections_at),
         ));
     }
 
-    let windows_origin = "Windows (sortie par défaut)";
+    let windows_origin = tr("Windows (sortie par défaut)");
     let windows = match i.windows {
-        None => vec![sourced("Sortie audio", "pas encore lue", "Windows")],
+        None => vec![sourced(
+            tr("Sortie audio"),
+            tr("pas encore lue"),
+            tr("Windows"),
+        )],
         Some(Err(e)) => vec![sourced(
-            "Sortie audio",
-            format!("illisible : {e}"),
-            at("Windows", i.windows_at),
+            tr("Sortie audio"),
+            trf("illisible : {}", &[&e]),
+            at(tr("Windows"), i.windows_at),
         )],
         Some(Ok(w)) => match &w.default_output {
             None => vec![sourced(
-                "Sortie par défaut",
-                "aucune",
+                tr("Sortie par défaut"),
+                tr("aucune"),
                 at(windows_origin, i.windows_at),
             )],
             Some(o) => {
                 let src = at(windows_origin, i.windows_at);
                 let mut rows = vec![
-                    sourced("Sortie par défaut", o.name.clone(), src.clone()),
+                    sourced(tr("Sortie par défaut"), o.name.clone(), src.clone()),
                     sourced(
-                        "C'est le casque",
-                        if o.headset { "oui" } else { "non" },
+                        tr("C'est le casque"),
+                        if o.headset { tr("oui") } else { tr("non") },
                         src.clone(),
                     ),
-                    sourced("Liaison", describe_output(o), src.clone()),
+                    sourced(tr("Liaison"), describe_output(o), src.clone()),
                     sourced(
-                        "Format de mixage (traitement de Windows, pas le codec Bluetooth)",
-                        o.mix.as_ref().map_or("inconnu".to_string(), format_mix),
+                        tr("Format de mixage (traitement de Windows, pas le codec Bluetooth)"),
+                        o.mix.as_ref().map_or(tr("inconnu").to_string(), format_mix),
                         src.clone(),
                     ),
                 ];
                 rows.push(sourced(
-                    "Volume",
+                    tr("Volume"),
                     match (o.muted, o.volume) {
-                        (Some(true), _) => "muet".to_string(),
+                        (Some(true), _) => tr("muet").to_string(),
                         (_, Some(v)) => format!("{v} %"),
-                        _ => "inconnu".to_string(),
+                        _ => tr("inconnu").to_string(),
                     },
                     src.clone(),
                 ));
                 rows.push(sourced(
-                    "Sorties actives du casque",
+                    tr("Sorties actives du casque"),
                     if w.headset_outputs.is_empty() {
-                        "aucune".to_string()
+                        tr("aucune").to_string()
                     } else {
                         w.headset_outputs
                             .iter()
@@ -740,7 +752,7 @@ pub fn audio_view(i: &AudioInputs) -> AudioView {
                             .collect::<Vec<_>>()
                             .join(" ; ")
                     },
-                    at("Windows", i.windows_at),
+                    at(tr("Windows"), i.windows_at),
                 ));
                 rows
             }
@@ -750,24 +762,27 @@ pub fn audio_view(i: &AudioInputs) -> AudioView {
     let mut stream = Vec::new();
     if let Some(s) = i.state {
         stream.push(sourced(
-            "Codec",
+            tr("Codec"),
             match s.codec {
-                None => "inconnu".to_string(),
-                Some(0xFF) => "pas de lecture".to_string(),
-                Some(c) => Codec(c).name().map_or(format!("codec {c}"), str::to_string),
+                None => tr("inconnu").to_string(),
+                Some(0xFF) => tr("pas de lecture").to_string(),
+                Some(c) => Codec(c)
+                    .name()
+                    .map_or(trf("codec {}", &[&c]), str::to_string),
             },
-            i.codec_since
-                .map_or(gaia.to_string(), |t| format!("{gaia}, valeur depuis {t}")),
+            i.codec_since.map_or(gaia.to_string(), |t| {
+                trf("{}, valeur depuis {}", &[&gaia, &t])
+            }),
         ));
         stream.push(sourced(
-            "Fréquence d'échantillonnage",
+            tr("Fréquence d'échantillonnage"),
             s.sample_rate_hz.filter(|&hz| hz > 0).map_or(
-                "inconnue (notifiée seulement au début d'une lecture)".to_string(),
+                tr("inconnue (notifiée seulement au début d'une lecture)").to_string(),
                 format_rate,
             ),
             match (s.sample_rate_hz.filter(|&hz| hz > 0), i.rate_since) {
-                (Some(_), Some(t)) => format!("{gaia} (notification), valeur depuis {t}"),
-                _ => format!("{gaia} (notification)"),
+                (Some(_), Some(t)) => trf("{} (notification), valeur depuis {}", &[&gaia, &t]),
+                _ => trf("{} (notification)", &[&gaia]),
             },
         ));
     }
@@ -798,67 +813,74 @@ pub fn pipewire_audio_view(
 ) -> AudioView {
     use crate::pipewire_audio::Profile;
     let mut view = audio_view(i);
-    let source = at("PipeWire (pw-dump, lecture seule)", read_at);
+    let source = at(tr("PipeWire (pw-dump, lecture seule)"), read_at);
     view.findings.clear();
     if i.state.is_none() {
         view.findings.push((
             false,
-            "Le casque n'est pas piloté par ce PC ; le son peut fonctionner sans pilotage.".into(),
+            tr("Le casque n'est pas piloté par ce PC ; le son peut fonctionner sans pilotage.")
+                .into(),
         ));
     }
     match result {
-        None => view.windows = vec![sourced("Sorties du système", "pas encore lues", source)],
+        None => {
+            view.windows = vec![sourced(
+                tr("Sorties du système"),
+                tr("pas encore lues"),
+                source,
+            )]
+        }
         Some(Err(error)) => {
-            view.windows = vec![sourced("Sorties du système", error.to_string(), source)];
+            view.windows = vec![sourced(tr("Sorties du système"), error.to_string(), source)];
             view.findings.push((false, error.to_string()));
         }
         Some(Ok(audio)) => {
             view.windows = vec![sourced(
-                "Le casque est la sortie par défaut",
+                tr("Le casque est la sortie par défaut"),
                 match audio.default_headset {
-                    Some(true) => "oui",
-                    Some(false) => "non",
-                    None => "inconnu (métadonnée ou sortie non identifiée)",
+                    Some(true) => tr("oui"),
+                    Some(false) => tr("non"),
+                    None => tr("inconnu (métadonnée ou sortie non identifiée)"),
                 },
                 source.clone(),
             )];
             if audio.outputs.is_empty() {
-                view.findings.push((true, "Aucune sortie Bluetooth du casque piloté n'est visible dans PipeWire. Vérifier la connexion audio dans les paramètres du système ; le pilotage seul ne prouve pas une sortie audio.".into()));
+                view.findings.push((true, tr("Aucune sortie Bluetooth du casque piloté n'est visible dans PipeWire. Vérifier la connexion audio dans les paramètres du système ; le pilotage seul ne prouve pas une sortie audio.").into()));
             }
             if audio.default_headset == Some(false) {
-                view.findings.push((true, "Le casque n'est pas la sortie audio par défaut. Le choisir dans les paramètres audio du système si c'est la sortie souhaitée.".into()));
+                view.findings.push((true, tr("Le casque n'est pas la sortie audio par défaut. Le choisir dans les paramètres audio du système si c'est la sortie souhaitée.").into()));
             }
             for (index, output) in audio.outputs.iter().enumerate() {
                 view.windows.extend([
                     sourced(
-                        &format!("Sortie Bluetooth {} : profil", index + 1),
-                        output.profile.map_or("inconnu", Profile::label),
+                        &trf("Sortie Bluetooth {} : profil", &[&(index + 1)]),
+                        output.profile.map_or(tr("inconnu"), Profile::label),
                         source.clone(),
                     ),
                     sourced(
-                        "Codec de cette sortie PipeWire",
-                        output.codec.unwrap_or("inconnu ou non reconnu"),
+                        tr("Codec de cette sortie PipeWire"),
+                        output.codec.unwrap_or(tr("inconnu ou non reconnu")),
                         source.clone(),
                     ),
                     sourced(
-                        "Cette sortie est celle par défaut",
+                        tr("Cette sortie est celle par défaut"),
                         output
                             .default
-                            .map_or("inconnu", |d| if d { "oui" } else { "non" }),
+                            .map_or(tr("inconnu"), |d| if d { tr("oui") } else { tr("non") }),
                         source.clone(),
                     ),
                 ]);
                 if output.profile.is_some_and(Profile::call) {
-                    view.findings.push((true, "Profil appel : qualité réduite (HFP/HSP). Hors appel, choisir le profil musique A2DP dans les paramètres audio si disponible.".into()));
+                    view.findings.push((true, tr("Profil appel : qualité réduite (HFP/HSP). Hors appel, choisir le profil musique A2DP dans les paramètres audio si disponible.").into()));
                 }
             }
-            view.findings.push((false, "Le codec PipeWire décrit la sortie de ce PC ; il ne prouve ni un son en cours ni une transmission sans perte. Le flux rapporté par le casque peut venir de l'autre appareil en Multipoint.".into()));
+            view.findings.push((false, tr("Le codec PipeWire décrit la sortie de ce PC ; il ne prouve ni un son en cours ni une transmission sans perte. Le flux rapporté par le casque peut venir de l'autre appareil en Multipoint.").into()));
         }
     }
     if i.connections.iter().any(|c| !c.this_device && c.connected) {
         view.findings.push((
             false,
-            "Un autre appareil est connecté (Multipoint) et peut prendre la main sur l'audio."
+            tr("Un autre appareil est connecté (Multipoint) et peut prendre la main sur l'audio.")
                 .into(),
         ));
     }
@@ -896,7 +918,7 @@ pub struct SceneForm {
 /// Préréglages proposés à une scène : « inchangé », ceux de l'app et les
 /// personnels, et celui de la scène s'il n'existe plus (signalé).
 pub fn equalizer_choices(scene: Option<&Scene>, presets: &[Preset]) -> Vec<String> {
-    let mut out = vec!["inchangé".to_string()];
+    let mut out = vec![tr("inchangé").to_string()];
     out.extend(presets.iter().map(|p| p.name.clone()));
     if let Some(name) = scene.and_then(|s| s.equalizer.as_deref())
         && !presets.iter().any(|p| p.name.eq_ignore_ascii_case(name))
@@ -962,7 +984,7 @@ pub fn scene_from_form(form: &SceneForm, equalizers: &[String]) -> Result<Scene,
         "" => None,
         text => match text.parse::<u8>() {
             Ok(l) if l <= 100 => Some(l),
-            _ => return Err("niveau : nombre entier de 0 à 100, ou vide".to_string()),
+            _ => return Err(tr("niveau : nombre entier de 0 à 100, ou vide").to_string()),
         },
     };
     let scene = Scene {
@@ -998,9 +1020,9 @@ pub fn scene_from_form(form: &SceneForm, equalizers: &[String]) -> Result<Scene,
 pub fn scene_preview(scene: &Scene) -> String {
     let steps: Vec<String> = scene.steps().iter().map(|s| s.label()).collect();
     if steps.is_empty() {
-        "Aucun réglage : la scène est vide.".to_string()
+        tr("Aucun réglage : la scène est vide.").to_string()
     } else {
-        format!("Étapes prévues : {}.", steps.join(" → "))
+        trf("Étapes prévues : {}.", &[&(steps.join(" → "))])
     }
 }
 

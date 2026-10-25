@@ -7,6 +7,7 @@
 //! Fichier des préréglages personnels : une ligne par préréglage,
 //! `nom = g1;g2;…` en dixièmes de dB ; `#` commence un commentaire.
 
+use crate::i18n::{tr, trf};
 /// Préréglage : nom et gains en dixièmes de dB.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Preset {
@@ -138,19 +139,19 @@ pub fn serialize_user_presets(presets: &[Preset]) -> String {
 pub fn validate_name(name: &str) -> Result<String, &'static str> {
     let name = name.trim();
     if name.is_empty() {
-        return Err("nom vide");
+        return Err(tr("nom vide"));
     }
     if name.chars().count() > MAX_NAME_CHARS {
-        return Err("nom trop long (32 caractères au plus)");
+        return Err(tr("nom trop long (32 caractères au plus)"));
     }
     if name.contains(['=', '#', '\n', '\r']) {
-        return Err("caractères = et # interdits");
+        return Err(tr("caractères = et # interdits"));
     }
     if builtin_presets(8)
         .iter()
         .any(|p| p.name.eq_ignore_ascii_case(name))
     {
-        return Err("nom réservé à un préréglage de l'app");
+        return Err(tr("nom réservé à un préréglage de l'app"));
     }
     Ok(name.to_string())
 }
@@ -200,9 +201,9 @@ pub fn parse_gains_db(text: &str, bands: usize, min: i8, max: i8) -> Result<Vec<
         .filter(|v| !v.is_empty())
         .collect();
     if values.len() != bands {
-        return Err(format!(
-            "{} valeurs saisies pour {bands} bandes (séparer les gains par « ; »)",
-            values.len()
+        return Err(trf(
+            "{} valeurs saisies pour {} bandes (séparer les gains par « ; »)",
+            &[&(values.len()), &bands],
         ));
     }
     values
@@ -224,11 +225,14 @@ pub fn parse_gains_db(text: &str, bands: usize, min: i8, max: i8) -> Result<Vec<
                 })?;
             let (lo, hi) = (f64::from(min), f64::from(max));
             if tenths < lo || tenths > hi {
-                return Err(format!(
-                    "bande {} : {raw} dB hors de la plage du casque ({} à {} dB)",
-                    i + 1,
-                    format_gains_db(&[min]),
-                    format_gains_db(&[max])
+                return Err(trf(
+                    "bande {} : {} dB hors de la plage du casque ({} à {} dB)",
+                    &[
+                        &(i + 1),
+                        &raw,
+                        &(format_gains_db(&[min])),
+                        &(format_gains_db(&[max])),
+                    ],
                 ));
             }
             // Borné par [min, max] ci-dessus : la conversion est exacte.
@@ -286,7 +290,7 @@ pub fn parse_curve(
             continue;
         }
         let Some((key, value)) = line.split_once('=') else {
-            return Err(format!("ligne illisible : « {line} »"));
+            return Err(trf("ligne illisible : « {} »", &[&line]));
         };
         let value = value.trim();
         match key.trim() {
@@ -298,34 +302,35 @@ pub fn parse_curve(
                 bass_boost = Some(match value {
                     "on" => true,
                     "off" => false,
-                    _ => return Err("basses : on ou off".to_string()),
+                    _ => return Err(tr("basses : on ou off").to_string()),
                 })
             }
-            other => return Err(format!("réglage inconnu « {other} »")),
+            other => return Err(trf("réglage inconnu « {} »", &[&other])),
         }
     }
     if version.as_deref() != Some(&CURVE_VERSION.to_string()) {
-        return Err(format!(
-            "version de fichier « {} » non prise en charge (attendue : {CURVE_VERSION})",
-            version.unwrap_or_default()
+        return Err(trf(
+            "version de fichier « {} » non prise en charge (attendue : {})",
+            &[&(version.unwrap_or_default()), &CURVE_VERSION],
         ));
     }
     let prefix = |m: &str| m.chars().take(6).collect::<String>().to_uppercase();
     if let (Some(file), Some(current)) = (&file_model, model)
         && prefix(file) != prefix(current)
     {
-        return Err(format!(
-            "courbe prévue pour le modèle « {file} », pas pour « {current} »"
+        return Err(trf(
+            "courbe prévue pour le modèle « {} », pas pour « {} »",
+            &[&file, &current],
         ));
     }
     if file_bands.is_some_and(|b| b != bands) {
-        return Err(format!(
-            "courbe à {} bandes, l'égaliseur du casque en a {bands}",
-            file_bands.unwrap_or_default()
+        return Err(trf(
+            "courbe à {} bandes, l'égaliseur du casque en a {}",
+            &[&(file_bands.unwrap_or_default()), &bands],
         ));
     }
     let gains = parse_gains_db(
-        &gains.ok_or_else(|| "ligne « gains = … » manquante".to_string())?,
+        &gains.ok_or_else(|| tr("ligne « gains = … » manquante").to_string())?,
         bands,
         min,
         max,

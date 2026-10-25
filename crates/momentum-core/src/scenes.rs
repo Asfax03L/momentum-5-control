@@ -13,6 +13,7 @@
 use crate::device::{
     AudioMode, DeviceError, EqState, Headset, HeadsetState, NoiseModeRequest, ProfileSelection,
 };
+use crate::i18n::{tr, trf};
 use crate::presets::Preset;
 use crate::transport::Transport;
 
@@ -226,18 +227,24 @@ impl Scene {
     /// Règles de cohérence entre réglages (voir le module).
     fn check(&self) -> Result<(), &'static str> {
         if self.steps().is_empty() {
-            return Err("scène vide");
+            return Err(tr("scène vide"));
         }
         if self.level.is_some() && matches!(self.noise, Some(n) if n != NoiseModeRequest::Custom) {
-            return Err("« niveau » exige « bruit = personnalise » (ou pas de « bruit »)");
+            return Err(tr(
+                "« niveau » exige « bruit = personnalise » (ou pas de « bruit »)",
+            ));
         }
         if (self.equalizer.is_some() || self.bass_boost.is_some())
             && self.sound != Some(SceneSound::Equalizer)
         {
-            return Err("« egaliseur » et « basses » exigent « son = egaliseur » dans la scène");
+            return Err(tr(
+                "« egaliseur » et « basses » exigent « son = egaliseur » dans la scène",
+            ));
         }
         if self.spatial == Some(true) && self.sound == Some(SceneSound::Profile) {
-            return Err("« spatial = on » est incompatible avec « son = profil »");
+            return Err(tr(
+                "« spatial = on » est incompatible avec « son = profil »",
+            ));
         }
         Ok(())
     }
@@ -247,7 +254,7 @@ fn on_off(value: &str) -> Result<bool, &'static str> {
     match value {
         "on" => Ok(true),
         "off" => Ok(false),
-        _ => Err("valeur attendue : on ou off"),
+        _ => Err(tr("valeur attendue : on ou off")),
     }
 }
 
@@ -255,13 +262,13 @@ fn on_off(value: &str) -> Result<bool, &'static str> {
 pub fn validate_name(name: &str) -> Result<String, &'static str> {
     let name = name.trim();
     if name.is_empty() {
-        return Err("nom de scène vide");
+        return Err(tr("nom de scène vide"));
     }
     if name.chars().count() > MAX_NAME_CHARS {
-        return Err("nom de scène trop long (32 caractères au plus)");
+        return Err(tr("nom de scène trop long (32 caractères au plus)"));
     }
     if name.contains(['[', ']', '=', '#', '\n', '\r']) {
-        return Err("caractères [ ] = # interdits dans un nom de scène");
+        return Err(tr("caractères [ ] = # interdits dans un nom de scène"));
     }
     Ok(name.to_string())
 }
@@ -270,7 +277,7 @@ pub fn validate_name(name: &str) -> Result<String, &'static str> {
 fn set_key(scene: &mut Scene, key: &str, value: &str) -> Result<(), String> {
     fn once<T>(slot: &mut Option<T>, value: T, key: &str) -> Result<(), String> {
         if slot.is_some() {
-            return Err(format!("« {key} » apparaît deux fois"));
+            return Err(trf("« {} » apparaît deux fois", &[&key]));
         }
         *slot = Some(value);
         Ok(())
@@ -282,7 +289,7 @@ fn set_key(scene: &mut Scene, key: &str, value: &str) -> Result<(), String> {
                 "egaliseur" => SceneSound::Equalizer,
                 "voix" => SceneSound::SpeechClarity,
                 "profil" => SceneSound::Profile,
-                _ => return Err("son : egaliseur, voix ou profil".to_string()),
+                _ => return Err(tr("son : egaliseur, voix ou profil").to_string()),
             };
             once(&mut scene.sound, sound, key)
         }
@@ -292,26 +299,26 @@ fn set_key(scene: &mut Scene, key: &str, value: &str) -> Result<(), String> {
                 "adaptatif" => NoiseModeRequest::Adaptive,
                 "personnalise" => NoiseModeRequest::Custom,
                 "arret" => NoiseModeRequest::Off,
-                _ => return Err("bruit : adaptatif, personnalise ou arret".to_string()),
+                _ => return Err(tr("bruit : adaptatif, personnalise ou arret").to_string()),
             };
             once(&mut scene.noise, mode, key)
         }
         "niveau" => match value.parse::<u8>() {
             Ok(level) if level <= 100 => once(&mut scene.level, level, key),
-            _ => Err("niveau : nombre entier de 0 à 100".to_string()),
+            _ => Err(tr("niveau : nombre entier de 0 à 100").to_string()),
         },
         "anti-vent" => once(&mut scene.anti_wind, on_off(value)?, key),
         "tactile" => once(&mut scene.touch, on_off(value)?, key),
         "egaliseur" => {
             if value.is_empty() {
-                return Err("egaliseur : nom de préréglage attendu".to_string());
+                return Err(tr("egaliseur : nom de préréglage attendu").to_string());
             }
             once(&mut scene.equalizer, value.to_string(), key)
         }
         "basses" => once(&mut scene.bass_boost, on_off(value)?, key),
-        _ => Err(format!(
-            "réglage inconnu « {key} » (possibles : {})",
-            KEYS.join(", ")
+        _ => Err(trf(
+            "réglage inconnu « {} » (possibles : {})",
+            &[&key, &(KEYS.join(", "))],
         )),
     }
 }
@@ -334,14 +341,17 @@ pub fn parse_scenes(text: &str) -> (Vec<Scene>, Vec<String>) {
             return;
         }
         if let Err(e) = scene.check() {
-            errors.push(format!("ligne {line} : scène « {} » : {e}", scene.name));
+            errors.push(trf(
+                "ligne {} : scène « {} » : {}",
+                &[&line, &scene.name, &e],
+            ));
         } else if scenes
             .iter()
             .any(|s| s.name.to_lowercase() == scene.name.to_lowercase())
         {
-            errors.push(format!(
-                "ligne {line} : scène « {} » déjà définie plus haut",
-                scene.name
+            errors.push(trf(
+                "ligne {} : scène « {} » déjà définie plus haut",
+                &[&line, &scene.name],
             ));
         } else {
             scenes.push(scene);
@@ -358,7 +368,7 @@ pub fn parse_scenes(text: &str) -> (Vec<Scene>, Vec<String>) {
             finish(current.take(), &mut scenes, &mut errors);
             let parsed = title
                 .strip_suffix(']')
-                .ok_or("titre de scène attendu sous la forme [Nom]")
+                .ok_or(tr("titre de scène attendu sous la forme [Nom]"))
                 .and_then(validate_name);
             current = Some(match parsed {
                 Ok(name) => (
@@ -370,27 +380,28 @@ pub fn parse_scenes(text: &str) -> (Vec<Scene>, Vec<String>) {
                     true,
                 ),
                 Err(e) => {
-                    errors.push(format!("ligne {number} : {e}"));
+                    errors.push(trf("ligne {} : {}", &[&number, &e]));
                     (number, Scene::default(), false)
                 }
             });
             continue;
         }
         let Some((_, scene, valid)) = current.as_mut() else {
-            errors.push(format!(
-                "ligne {number} : réglage hors d'une scène (ajouter un titre [Nom] avant)"
+            errors.push(trf(
+                "ligne {} : réglage hors d'une scène (ajouter un titre [Nom] avant)",
+                &[&number],
             ));
             continue;
         };
         let result = match line.split_once('=') {
             Some((key, value)) => set_key(scene, key.trim(), value),
-            None => Err("ligne attendue : réglage = valeur".to_string()),
+            None => Err(tr("ligne attendue : réglage = valeur").to_string()),
         };
         if let Err(e) = result {
             if *valid {
-                errors.push(format!(
-                    "ligne {number} : {e} (scène « {} » ignorée)",
-                    scene.name
+                errors.push(trf(
+                    "ligne {} : {} (scène « {} » ignorée)",
+                    &[&number, &e, &scene.name],
                 ));
             }
             *valid = false;
@@ -404,11 +415,11 @@ pub fn parse_scenes(text: &str) -> (Vec<Scene>, Vec<String>) {
 pub fn check_scene(scene: &Scene) -> Result<(), String> {
     let name = validate_name(&scene.name).map_err(str::to_string)?;
     if name != scene.name {
-        return Err("espaces en trop au début ou à la fin du nom".to_string());
+        return Err(tr("espaces en trop au début ou à la fin du nom").to_string());
     }
     scene
         .check()
-        .map_err(|e| format!("scène « {} » : {e}", scene.name))
+        .map_err(|e| trf("scène « {} » : {}", &[&scene.name, &e]))
 }
 
 /// Vérifie toutes les scènes avant l'écriture : chacune valide, noms
@@ -420,7 +431,7 @@ pub fn check_scenes(scenes: &[Scene]) -> Result<(), String> {
             .iter()
             .any(|s| s.name.to_lowercase() == scene.name.to_lowercase())
         {
-            return Err(format!("deux scènes s'appellent « {} »", scene.name));
+            return Err(trf("deux scènes s'appellent « {} »", &[&scene.name]));
         }
     }
     Ok(())
@@ -569,7 +580,7 @@ fn apply_step<T: Transport>(
             // on n'envoie rien plutôt que de laisser le casque trancher.
             if sound.is_none() && headset.audio_mode().map_err(err)? == AudioMode::Personalization {
                 return Err(
-                    "le profil personnalisé est sélectionné ; ajouter « son = egaliseur » ou « son = voix »"
+                    tr("le profil personnalisé est sélectionné ; ajouter « son = egaliseur » ou « son = voix »")
                         .to_string(),
                 );
             }
@@ -584,7 +595,7 @@ fn apply_step<T: Transport>(
             let preset = presets
                 .iter()
                 .find(|p| p.name.eq_ignore_ascii_case(name))
-                .ok_or_else(|| format!("préréglage « {name} » introuvable"))?;
+                .ok_or_else(|| trf("préréglage « {} » introuvable", &[&name]))?;
             let mut eq = headset.read_eq().map_err(err)?;
             headset.set_eq_gains(&mut eq, &preset.gains).map_err(err)
         }

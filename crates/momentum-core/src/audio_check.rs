@@ -12,6 +12,7 @@
 //!
 //! Aucune commande n'est envoyée au casque et rien n'est changé dans Windows.
 
+use crate::i18n::{tr, trf};
 /// Liaison d'une sortie audio de Windows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OutputLink {
@@ -67,28 +68,28 @@ pub struct WindowsAudio {
 pub fn classify(texts: &[&str], device_name: Option<&str>) -> (bool, OutputLink, bool) {
     let upper: Vec<String> = texts.iter().map(|t| t.to_uppercase()).collect();
     let any = |needle: &str| upper.iter().any(|t| t.contains(needle));
-    let headset = any("MOMENTUM")
-        || any("VID_3542")
+    let headset = any(tr("MOMENTUM"))
+        || any(tr("VID_3542"))
         || device_name
             .map(|n| n.trim().to_uppercase())
             .is_some_and(|n| n.len() >= 3 && any(&n));
-    let link = if any("BTHENUM") {
+    let link = if any(tr("BTHENUM")) {
         OutputLink::Bluetooth
     } else if upper.iter().any(|t| t == "USB" || t.contains("USB\\")) {
         OutputLink::Usb
     } else {
         OutputLink::Other
     };
-    let hands_free = any("{0000111E-") || any("{0000111F-") || any("HANDS-FREE");
+    let hands_free = any("{0000111E-") || any("{0000111F-") || any(tr("HANDS-FREE"));
     (headset, link, hands_free)
 }
 
 /// « 48 kHz », « 44,1 kHz ».
 pub fn format_rate(hz: u32) -> String {
     if hz.is_multiple_of(1000) {
-        format!("{} kHz", hz / 1000)
+        trf("{} kHz", &[&(hz / 1000)])
     } else {
-        format!("{:.1} kHz", f64::from(hz) / 1000.0).replace('.', ",")
+        trf("{} kHz", &[&(format!("{:.1}", f64::from(hz) / 1000.0))]).replace('.', ",")
     }
 }
 
@@ -96,29 +97,33 @@ pub fn format_rate(hz: u32) -> String {
 pub fn format_mix(mix: &MixFormat) -> String {
     let rate = format_rate(mix.rate_hz);
     let channels = match mix.channels {
-        1 => "1 canal (mono)".to_string(),
-        n => format!("{n} canaux"),
+        1 => tr("1 canal (mono)").to_string(),
+        n => trf("{} canaux", &[&n]),
     };
-    format!(
-        "{channels}, {rate}, {} bits{}",
-        mix.bits,
-        if mix.float { " virgule flottante" } else { "" }
+    trf(
+        "{}, {}, {} bits{}",
+        &[
+            &channels,
+            &rate,
+            &mix.bits,
+            &(if mix.float { " virgule flottante" } else { "" }),
+        ],
     )
 }
 
 /// Description courte d'une sortie : « Bluetooth, stéréo ».
 pub fn describe_output(output: &AudioOutput) -> String {
     let link = match output.link {
-        OutputLink::Bluetooth => "Bluetooth",
-        OutputLink::Usb => "USB",
-        OutputLink::Other => "autre liaison",
+        OutputLink::Bluetooth => tr("Bluetooth"),
+        OutputLink::Usb => tr("USB"),
+        OutputLink::Other => tr("autre liaison"),
     };
     let mode = if output.hands_free {
-        "mains libres (qualité téléphone)"
+        tr("mains libres (qualité téléphone)")
     } else if output.mix.is_some_and(|m| m.channels == 1) {
-        "mono"
+        tr("mono")
     } else {
-        "stéréo"
+        tr("stéréo")
     };
     format!("{link}, {mode}")
 }
@@ -127,10 +132,10 @@ pub fn describe_output(output: &AudioOutput) -> String {
 /// brute. Seules 1, 2 et 3 ont été observées.
 pub fn describe_link_state(state: u8) -> String {
     match state {
-        1 => "non connecté (1)".to_string(),
-        2 => "connecté (2)".to_string(),
-        3 => "connecté, audio actif (3, observé pendant une lecture)".to_string(),
-        n => format!("valeur {n} non caractérisée"),
+        1 => tr("non connecté (1)").to_string(),
+        2 => tr("connecté (2)").to_string(),
+        3 => tr("connecté, audio actif (3, observé pendant une lecture)").to_string(),
+        n => trf("valeur {} non caractérisée", &[&n]),
     }
 }
 
@@ -185,66 +190,57 @@ pub fn findings(
     let mut out = Vec::new();
     if !control.connected {
         out.push(note(
-            "Le casque n'est pas piloté par ce PC : les informations du casque ne sont pas \
-             disponibles. Le son peut fonctionner sans pilotage.",
+            tr("Le casque n'est pas piloté par ce PC : les informations du casque ne sont pas disponibles. Le son peut fonctionner sans pilotage."),
         ));
     }
     let Some(windows) = windows else {
-        out.push(note("Les sorties audio de Windows n'ont pas pu être lues."));
+        out.push(note(tr(
+            "Les sorties audio de Windows n'ont pas pu être lues.",
+        )));
         return out;
     };
     match &windows.default_output {
-        None => out.push(problem(
+        None => out.push(problem(tr(
             "Windows n'a aucune sortie audio par défaut : le son ne part nulle part.",
-        )),
+        ))),
         Some(output) if !output.headset => {
-            out.push(problem(format!(
-                "Le son de Windows part vers « {} », pas vers le casque. Choisissez le \
-                 casque dans les paramètres de son de Windows.",
-                output.name
-            )));
+            out.push(problem(trf("Le son de Windows part vers « {} », pas vers le casque. Choisissez le casque dans les paramètres de son de Windows.", &[&output.name])));
         }
         Some(output) => {
             if output.muted == Some(true) {
-                out.push(problem(
+                out.push(problem(tr(
                     "La sortie du casque est coupée (muet) dans Windows.",
-                ));
+                )));
             } else if output.volume == Some(0) {
-                out.push(problem(
+                out.push(problem(tr(
                     "Le volume de Windows est à 0 sur la sortie du casque.",
-                ));
+                )));
             }
             if output.hands_free {
                 out.push(problem(
-                    "La sortie choisie est le profil mains libres : son mono de qualité \
-                     téléphone. Choisissez la sortie stéréo du casque (sans « Hands-Free »), \
-                     sauf pendant un appel.",
+                    tr("La sortie choisie est le profil mains libres : son mono de qualité téléphone. Choisissez la sortie stéréo du casque (sans « Hands-Free »), sauf pendant un appel."),
                 ));
             }
         }
     }
     if control.connected && windows.headset_outputs.is_empty() {
         out.push(problem(
-            "Le casque est piloté, mais Windows n'a aucune sortie audio active vers lui : \
-             le profil audio Bluetooth n'est pas connecté (ou le câble USB est débranché).",
+            tr("Le casque est piloté, mais Windows n'a aucune sortie audio active vers lui : le profil audio Bluetooth n'est pas connecté (ou le câble USB est débranché)."),
         ));
     }
     if codec == Some(0xFF) {
-        out.push(note(
+        out.push(note(tr(
             "Le casque indique qu'aucun flux audio n'est en cours (dernière valeur reçue).",
-        ));
+        )));
     }
     if control.others_connected > 0 {
         out.push(note(
-            "Un autre appareil est connecté au casque (Multipoint) : le casque joue le son \
-             d'un appareil à la fois, et une lecture sur l'autre peut prendre la main. \
-             L'appareil qui envoie le flux n'est pas connu.",
+            tr("Un autre appareil est connecté au casque (Multipoint) : le casque joue le son d'un appareil à la fois, et une lecture sur l'autre peut prendre la main. L'appareil qui envoie le flux n'est pas connu."),
         ));
     }
     if !out.iter().any(|f| f.level == Level::Problem) {
         out.push(note(
-            "Aucune cause évidente côté PC : la sortie par défaut est le casque, sans \
-             muet. Vérifiez le volume de l'application et le volume du casque.",
+            tr("Aucune cause évidente côté PC : la sortie par défaut est le casque, sans muet. Vérifiez le volume de l'application et le volume du casque."),
         ));
     }
     out

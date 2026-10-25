@@ -1,5 +1,6 @@
 //! Enregistrement local d'une scène capturée, sans commande au service ou au casque.
 
+use crate::i18n::tr;
 use std::fs;
 use std::path::Path;
 
@@ -204,7 +205,7 @@ fn save_in(dir: &Path, captured: &CapturedScene, replace: bool) -> Result<(), Ca
                     Some(old) => paths::write_if_unchanged(&preset_path, Some(preset_text), old),
                     None => fs::remove_file(&preset_path).map_err(|e| e.to_string()),
                 },
-                _ => Err("prereglages.txt a changé entre-temps".into()),
+                _ => Err(tr("prereglages.txt a changé entre-temps").into()),
             };
             if let Err(restore_error) = restored {
                 return Err(CaptureError::File(format!(

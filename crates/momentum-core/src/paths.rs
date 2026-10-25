@@ -2,6 +2,7 @@
 //! (Windows) ou `~/.local/share/momentum-ctl-win` (Linux) : préréglages et
 //! scènes, partagés par l'icône et `ctl`.
 
+use crate::i18n::{tr, trf};
 use std::fs;
 use std::path::PathBuf;
 
@@ -35,8 +36,8 @@ pub fn hotkeys_file() -> Option<PathBuf> {
 /// défaut. Illisible (autre encodage, droits) : `Err`, le fichier reste tel
 /// quel (A05 de l'audit du 24/10/2026).
 pub fn hotkey_config() -> std::io::Result<String> {
-    let path =
-        hotkeys_file().ok_or_else(|| std::io::Error::other("dossier des données introuvable"))?;
+    let path = hotkeys_file()
+        .ok_or_else(|| std::io::Error::other(tr("dossier des données introuvable")))?;
     read_or_create_hotkeys(&path)
 }
 
@@ -108,8 +109,8 @@ pub fn store_headset_fingerprint(fingerprint: &str) -> std::io::Result<()> {
     if load_headset_fingerprint().as_deref() == Some(fingerprint) {
         return Ok(());
     }
-    let path =
-        headset_file().ok_or_else(|| std::io::Error::other("dossier des données introuvable"))?;
+    let path = headset_file()
+        .ok_or_else(|| std::io::Error::other(tr("dossier des données introuvable")))?;
     write_user_file(
         &path,
         &format!(
@@ -163,7 +164,7 @@ pub fn load_scenes() -> (Vec<Scene>, Vec<String>) {
                 });
             let (list, mut errors) = scenes::parse_scenes(scenes::DEFAULT_SCENES);
             if let Err(e) = created {
-                errors.push(format!("{} non créé : {e}", path.display()));
+                errors.push(trf("{} non créé : {}", &[&(path.display()), &e]));
             }
             (list, errors)
         }
@@ -189,8 +190,8 @@ pub fn load_panel_prefs() -> PanelPrefs {
 
 /// Enregistre les préréglages personnels (`prereglages.txt`).
 pub fn store_user_presets(list: &[Preset]) -> std::io::Result<()> {
-    let path =
-        presets_file().ok_or_else(|| std::io::Error::other("dossier des données introuvable"))?;
+    let path = presets_file()
+        .ok_or_else(|| std::io::Error::other(tr("dossier des données introuvable")))?;
     write_user_file(&path, &presets::serialize_user_presets(list))
 }
 
@@ -304,10 +305,11 @@ pub fn write_if_unchanged(
 ) -> Result<(), String> {
     update_user_file(path, |current| {
         if current != loaded {
-            return Err(format!(
+            return Err(trf(
                 "{} a été modifié ailleurs depuis son ouverture : relu, à refaire",
-                path.file_name()
-                    .map_or_else(String::new, |n| n.to_string_lossy().into_owned())
+                &[&(path
+                    .file_name()
+                    .map_or_else(String::new, |n| n.to_string_lossy().into_owned()))],
             ));
         }
         Ok(Some(text.to_string()))
@@ -339,7 +341,7 @@ fn modify_presets(
 /// Ajoute (ou remplace) le préréglage personnel `name` ; rend la liste à
 /// jour, avec ceux enregistrés entre-temps par une autre interface.
 pub fn upsert_user_preset(name: &str, gains: &[i8]) -> Result<Vec<Preset>, String> {
-    let path = presets_file().ok_or("dossier des données introuvable")?;
+    let path = presets_file().ok_or(tr("dossier des données introuvable"))?;
     modify_presets(&path, |list| {
         presets::upsert(list, name, gains).map_err(str::to_string)
     })
@@ -348,7 +350,7 @@ pub fn upsert_user_preset(name: &str, gains: &[i8]) -> Result<Vec<Preset>, Strin
 /// Supprime le préréglage personnel `name` (absent : rien à faire) ; rend
 /// la liste à jour.
 pub fn remove_user_preset(name: &str) -> Result<Vec<Preset>, String> {
-    let path = presets_file().ok_or("dossier des données introuvable")?;
+    let path = presets_file().ok_or(tr("dossier des données introuvable"))?;
     modify_presets(&path, |list| {
         presets::remove(list, name);
         Ok(())

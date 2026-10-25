@@ -11,6 +11,7 @@
 //! Sans ligne `scenes`, le panneau montre les premières scènes du fichier
 //! (comportement d'origine). Ces préférences ne touchent jamais le casque.
 
+use crate::i18n::trf;
 /// Nombre de scènes que le panneau peut montrer (largeur du panneau).
 pub const MAX_PANEL_SCENES: usize = 4;
 
@@ -110,8 +111,9 @@ impl PanelPrefs {
         chosen.retain(|n| !same(n, name));
         if shown {
             if chosen.len() >= MAX_PANEL_SCENES {
-                return Err(format!(
-                    "le panneau montre au plus {MAX_PANEL_SCENES} scènes : retirez-en une d'abord"
+                return Err(trf(
+                    "le panneau montre au plus {} scènes : retirez-en une d'abord",
+                    &[&MAX_PANEL_SCENES],
                 ));
             }
             chosen.push(name.to_string());

@@ -1,0 +1,3 @@
+# Catalogue anglais d'OpenHeadset Control : un paragraphe par texte,
+# ligne 1 : texte français du code (exact), ligne 2 : traduction.
+# Les « {} » sont les valeurs, dans le même ordre.

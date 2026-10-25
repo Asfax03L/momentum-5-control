@@ -1,5 +1,6 @@
 //! Sauvegarde portable des seuls réglages locaux, sans accès au service.
 
+use crate::i18n::{tr, trf};
 use std::collections::BTreeMap;
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
@@ -56,8 +57,8 @@ fn invalid(message: impl Into<String>) -> TransferError {
 
 fn read(path: &Path, limit: u64) -> Result<Option<String>, TransferError> {
     match fs::symlink_metadata(path) {
-        Ok(meta) if !meta.is_file() => return Err(invalid("un fichier ordinaire est requis")),
-        Ok(meta) if meta.len() > limit => return Err(invalid("fichier trop volumineux")),
+        Ok(meta) if !meta.is_file() => return Err(invalid(tr("un fichier ordinaire est requis"))),
+        Ok(meta) if meta.len() > limit => return Err(invalid(tr("fichier trop volumineux"))),
         Ok(_) => {}
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(e) => return Err(e.into()),
@@ -67,7 +68,7 @@ fn read(path: &Path, limit: u64) -> Result<Option<String>, TransferError> {
         .take(limit + 1)
         .read_to_string(&mut text)?;
     if text.len() as u64 > limit {
-        return Err(invalid("fichier trop volumineux"));
+        return Err(invalid(tr("fichier trop volumineux")));
     }
     Ok(Some(text))
 }
@@ -81,7 +82,7 @@ fn active_lines(text: &str) -> impl Iterator<Item = &str> {
 /// Les analyseurs d'affichage tolèrent certaines lignes incorrectes. L'import
 /// les vérifie aussi individuellement pour ne pas accepter une perte silencieuse.
 fn validate(name: &str, text: &str) -> Result<(), TransferError> {
-    let bad = || invalid(format!("{name} contient une ligne invalide"));
+    let bad = || invalid(trf("{} contient une ligne invalide", &[&name]));
     match name {
         "scenes.txt" => {
             let (list, errors) = scenes::parse_scenes(text);
@@ -159,14 +160,14 @@ fn validate(name: &str, text: &str) -> Result<(), TransferError> {
                 }
             }
         }
-        _ => return Err(invalid("fichier non autorisé dans la sauvegarde")),
+        _ => return Err(invalid(tr("fichier non autorisé dans la sauvegarde"))),
     }
     Ok(())
 }
 
 fn decode(text: &str) -> Result<Archive, TransferError> {
     if text.len() as u64 > MAX_ARCHIVE {
-        return Err(invalid("sauvegarde trop volumineuse"));
+        return Err(invalid(tr("sauvegarde trop volumineuse")));
     }
     let archive: Archive = serde_json::from_str(text)?;
     if archive.version != 1 {
@@ -176,17 +177,17 @@ fn decode(text: &str) -> Result<Archive, TransferError> {
         .iter()
         .any(|name| !archive.fichiers.contains_key(*name))
     {
-        return Err(invalid(
+        return Err(invalid(tr(
             "la liste des cinq fichiers de réglages est incomplète",
-        ));
+        )));
     }
     for (name, text) in &archive.fichiers {
         if !FILES.contains(&name.as_str()) && name != BATTERY {
-            return Err(invalid("fichier non autorisé dans la sauvegarde"));
+            return Err(invalid(tr("fichier non autorisé dans la sauvegarde")));
         }
         if let Some(text) = text {
             if text.len() as u64 > MAX_TEXT {
-                return Err(invalid("fichier trop volumineux"));
+                return Err(invalid(tr("fichier trop volumineux")));
             }
             validate(name, text)?;
         }
@@ -210,16 +211,16 @@ pub fn export(dir: &Path, destination: &Path, battery: bool) -> Result<String, T
         fichiers,
     })?;
     if text.len() as u64 > MAX_ARCHIVE {
-        return Err(invalid("sauvegarde trop volumineuse"));
+        return Err(invalid(tr("sauvegarde trop volumineuse")));
     }
     let mut file = OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(destination)
         .map_err(|e| match e.kind() {
-            std::io::ErrorKind::AlreadyExists => {
-                invalid("ce fichier existe déjà ; choisir un autre nom (rien n'est écrasé)")
-            }
+            std::io::ErrorKind::AlreadyExists => invalid(tr(
+                "ce fichier existe déjà ; choisir un autre nom (rien n'est écrasé)",
+            )),
             _ => e.into(),
         })?;
     file.write_all(text.as_bytes())?;
@@ -308,9 +309,9 @@ impl ImportPlan {
 
     fn check_one(&self, change: &Change) -> Result<(), TransferError> {
         if read(&self.dir.join(&change.name), MAX_TEXT)? != change.before {
-            return Err(invalid(format!(
+            return Err(invalid(trf(
                 "{} a changé depuis l'aperçu : refaire la simulation",
-                change.name
+                &[&change.name],
             )));
         }
         Ok(())
@@ -322,9 +323,9 @@ impl ImportPlan {
             if change.before.is_some()
                 && fs::symlink_metadata(self.dir.join(format!("{}.ancien", change.name))).is_ok()
             {
-                return Err(invalid(format!(
+                return Err(invalid(trf(
                     "{}.ancien existe déjà : le conserver ailleurs avant de recommencer",
-                    change.name
+                    &[&change.name],
                 )));
             }
         }
@@ -342,7 +343,9 @@ impl ImportPlan {
                     }),
                     None => fs::remove_file(&path).map_err(TransferError::from),
                 },
-                _ => Err(invalid("fichier modifié ailleurs pendant la restauration")),
+                _ => Err(invalid(tr(
+                    "fichier modifié ailleurs pendant la restauration",
+                ))),
             };
             ok &= restored.is_ok();
         }
@@ -392,7 +395,7 @@ pub fn prepare_import(
     source: &Path,
     battery: bool,
 ) -> Result<ImportPlan, TransferError> {
-    let text = read(source, MAX_ARCHIVE)?.ok_or_else(|| invalid("sauvegarde introuvable"))?;
+    let text = read(source, MAX_ARCHIVE)?.ok_or_else(|| invalid(tr("sauvegarde introuvable")))?;
     let archive = decode(&text)?;
     let mut changes = Vec::new();
     let mut lines = vec!["Import des réglages locaux (aucun accès au casque) :".to_string()];
