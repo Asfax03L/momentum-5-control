@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 use momentum_client::demo::{self, Demo};
 use momentum_client::tracker::Tracker;
 use momentum_client::{Client, ClientError, Command, Event, Outcome, Snapshot};
+use momentum_core::assistant::{self, Platform, StepAction};
 use momentum_core::audio_check::WindowsAudio;
 use momentum_core::battery_log::{self, BatteryLog};
 use momentum_core::device::{
@@ -331,6 +332,13 @@ enum Msg {
     ReportPreview,
     ReportOpen,
     ReportCancel,
+    /// Assistant de premier lancement.
+    AssistantOpen,
+    AssistantPrevious,
+    AssistantNext,
+    AssistantClose,
+    AssistantBluetooth,
+    OpenGuide,
 }
 
 // Le contenu de `Incoming` ne passe qu'une fois d'un thread à l'autre.
@@ -438,6 +446,8 @@ struct Root {
     /// texte-là, et lui seul, qui part dans l'adresse.
     report: Option<String>,
     report_failed: bool,
+    /// Étape affichée de l'assistant de premier lancement.
+    assistant: Option<usize>,
 }
 
 /// Suit le service dans un fil dédié (reconnexion toutes les 3 s) ; avec
@@ -1149,6 +1159,10 @@ impl Component for Root {
             diagnostic_copied: None,
             report: None,
             report_failed: false,
+            // `--assistant` : le montrer quand même (essais en démonstration).
+            assistant: (assistant::should_show(demo::requested())
+                || std::env::args().any(|a| a == "--assistant"))
+            .then_some(0),
         };
         let mut root = root;
         // Scènes du menu de l'icône.
@@ -1438,6 +1452,28 @@ impl Component for Root {
                 }
             }
             Msg::ReportCancel => self.report = None,
+            Msg::AssistantOpen => self.assistant = Some(0),
+            Msg::AssistantPrevious => {
+                self.assistant = self.assistant.map(|i| i.saturating_sub(1));
+            }
+            Msg::AssistantNext => {
+                let count = assistant::steps(Platform::Windows).len();
+                self.assistant = self.assistant.map(|i| (i + 1).min(count - 1));
+            }
+            Msg::AssistantClose => {
+                self.assistant = None;
+                if !demo::requested()
+                    && let Err(e) = assistant::mark_seen()
+                {
+                    eprintln!("assistant : état non enregistré : {e}");
+                }
+            }
+            Msg::AssistantBluetooth => {
+                desktop::open_url("ms-settings:bluetooth");
+            }
+            Msg::OpenGuide => {
+                desktop::open_url(assistant::GUIDE_URL);
+            }
             Msg::NoiseMode(Some(i)) => {
                 let current = viewmodel::main_view(None, state.as_ref(), &[], None, None)
                     .controls
@@ -1901,6 +1937,7 @@ impl Component for Root {
         );
 
         let page = match self.page {
+            _ if self.assistant.is_some() => self.assistant_view(context),
             Page::Home => self.home(context),
             Page::Sound => self.sound(context),
             Page::Scenes => self.scenes_page(context),
@@ -3236,6 +3273,17 @@ impl Root {
                     TextBlock::new()
                         .text(tr("Licence : MIT OU Apache-2.0"))
                         .opacity(0.7),
+                    StackPanel::new()
+                        .orientation(Orientation::Horizontal)
+                        .spacing(8.0)
+                        .children((
+                            Button::new()
+                                .on_click(context.message(Msg::OpenGuide))
+                                .content(tr("Guide d'utilisation")),
+                            Button::new()
+                                .on_click(context.message(Msg::AssistantOpen))
+                                .content(tr("Assistant de premier lancement")),
+                        )),
                 )),
             ),
             card(
@@ -3270,6 +3318,65 @@ impl Root {
             ),
             self.report_card(context),
         ))
+    }
+
+    /// Assistant de premier lancement : une étape à la fois, à la place de
+    /// la page.
+    fn assistant_view(&self, context: &mut ViewContext<Self>) -> View {
+        let steps = assistant::steps(Platform::Windows);
+        let index = self.assistant.unwrap_or(0).min(steps.len() - 1);
+        let step = &steps[index];
+        let last = index + 1 == steps.len();
+        let action: View = match step.action {
+            Some(StepAction::BluetoothSettings) => Button::new()
+                .on_click(context.message(Msg::AssistantBluetooth))
+                .content(tr("Ouvrir les paramètres Bluetooth")),
+            None => StackPanel::new().into(),
+        };
+        let connection = if step.shows_connection {
+            assistant::connection_text(self.snapshot.state.is_some())
+        } else {
+            ""
+        };
+        card(
+            step.title,
+            StackPanel::new().spacing(10.0).children((
+                TextBlock::new()
+                    .text(trf(
+                        "Premier lancement — étape {} sur {}",
+                        &[&(index + 1), &steps.len()],
+                    ))
+                    .font_size(12.0)
+                    .opacity(0.7),
+                TextBlock::new()
+                    .text(step.text)
+                    .text_wrapping(TextWrapping::Wrap),
+                action,
+                TextBlock::new()
+                    .text(connection)
+                    .font_weight(FontWeight::SEMI_BOLD)
+                    .text_wrapping(TextWrapping::Wrap),
+                StackPanel::new()
+                    .orientation(Orientation::Horizontal)
+                    .spacing(8.0)
+                    .children((
+                        Button::new()
+                            .is_enabled(index > 0)
+                            .on_click(context.message(Msg::AssistantPrevious))
+                            .content(tr("Précédent")),
+                        Button::new()
+                            .on_click(context.message(if last {
+                                Msg::AssistantClose
+                            } else {
+                                Msg::AssistantNext
+                            }))
+                            .content(if last { tr("Terminer") } else { tr("Suivant") }),
+                        Button::new()
+                            .on_click(context.message(Msg::AssistantClose))
+                            .content(tr("Passer l'assistant")),
+                    )),
+            )),
+        )
     }
 
     /// Aperçu du rapport de bogue : le diagnostic exact qui sera prérempli,

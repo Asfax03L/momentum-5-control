@@ -8,6 +8,7 @@
 
 pub mod alerts;
 pub mod appearance;
+pub mod assistant;
 pub mod audio_check;
 pub mod battery_log;
 pub mod client;

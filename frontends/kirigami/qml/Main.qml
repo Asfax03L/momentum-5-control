@@ -303,6 +303,117 @@ Kirigami.ApplicationWindow {
         }
     }
 
+    // Assistant de premier lancement : une étape à la fois (textes communs
+    // avec WinUI, momentum-core/src/assistant.rs). Fermé = noté vu.
+    Kirigami.Dialog {
+        id: assistantDialog
+        property int step: 0
+        readonly property int count: headset.assistantCount()
+        readonly property bool last: step === count - 1
+        title: headset.assistantTitle(step)
+        preferredWidth: Kirigami.Units.gridUnit * 30
+        padding: Kirigami.Units.largeSpacing
+        standardButtons: Kirigami.Dialog.NoButton
+        onRejected: headset.finishAssistant()
+        ColumnLayout {
+            spacing: Kirigami.Units.largeSpacing
+            QQC2.Label {
+                Layout.fillWidth: true
+                text: headset.tr("Premier lancement — étape {} sur {}")
+                    .replace("{}", assistantDialog.step + 1).replace("{}", assistantDialog.count)
+                font: Kirigami.Theme.smallFont
+                opacity: 0.7
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                text: headset.assistantText(assistantDialog.step)
+                wrapMode: Text.WordWrap
+            }
+            QQC2.Button {
+                visible: headset.assistantBluetooth(assistantDialog.step)
+                text: headset.tr("Ouvrir les paramètres Bluetooth")
+                icon.name: "preferences-system-bluetooth"
+                onClicked: headset.openBluetoothSettings()
+            }
+            QQC2.Label {
+                Layout.fillWidth: true
+                visible: headset.assistantShowsConnection(assistantDialog.step)
+                text: headset.assistantConnectionText(headset.connected)
+                font.bold: true
+                wrapMode: Text.WordWrap
+            }
+        }
+        customFooterActions: [
+            Kirigami.Action {
+                text: headset.tr("Précédent")
+                icon.name: "go-previous"
+                enabled: assistantDialog.step > 0
+                onTriggered: assistantDialog.step -= 1
+            },
+            Kirigami.Action {
+                text: assistantDialog.last ? headset.tr("Terminer") : headset.tr("Suivant")
+                icon.name: assistantDialog.last ? "dialog-ok" : "go-next"
+                onTriggered: {
+                    if (assistantDialog.last) {
+                        assistantDialog.close()
+                        headset.finishAssistant()
+                    } else {
+                        assistantDialog.step += 1
+                    }
+                }
+            },
+            Kirigami.Action {
+                text: headset.tr("Passer l'assistant")
+                icon.name: "dialog-cancel"
+                onTriggered: {
+                    assistantDialog.close()
+                    headset.finishAssistant()
+                }
+            }
+        ]
+    }
+    Connections {
+        target: headset
+        function onAssistantOpenChanged() {
+            if (headset.assistantOpen) {
+                assistantDialog.step = 0
+                assistantDialog.open()
+            }
+        }
+    }
+    Component.onCompleted: {
+        if (headset.assistantOpen)
+            assistantDialog.open()
+    }
+
+    // Essai de l'assistant (CI, `--demo --essai-assistant`) : chaque étape a
+    // un titre et un texte, « Terminer » ferme. Fin par « ESSAI ASSISTANT
+    // RÉUSSI » (code 0) ou un échec (code 1).
+    property var essaiTitres: []
+    Timer {
+        running: headset.assistantTest
+        interval: 800
+        repeat: true
+        onTriggered: {
+            if (!assistantDialog.visible) {
+                if (root.essaiTitres.length === assistantDialog.count && !headset.assistantOpen) {
+                    console.info("ESSAI ASSISTANT RÉUSSI : " + root.essaiTitres.join(" | "))
+                    Qt.exit(0)
+                }
+                console.error("ESSAI ASSISTANT ÉCHEC : fenêtre fermée trop tôt")
+                Qt.exit(1)
+            }
+            const titre = headset.assistantTitle(assistantDialog.step)
+            if (!titre || !headset.assistantText(assistantDialog.step)) {
+                console.error("ESSAI ASSISTANT ÉCHEC : étape " + assistantDialog.step + " vide")
+                Qt.exit(1)
+            }
+            root.essaiTitres = root.essaiTitres.concat([titre])
+            console.info("essai assistant : étape " + (assistantDialog.step + 1) + " : " + titre)
+            assistantDialog.customFooterActions[1].trigger()
+        }
+    }
+
     // Remet un interrupteur sur la valeur confirmée par le casque après un
     // clic : la nouvelle valeur n'apparaîtra qu'une fois relue.
     function confirmed(control, getter) {
@@ -1771,6 +1882,16 @@ Kirigami.ApplicationWindow {
                         clipboard.copy()
                         copied.visible = true
                     }
+                },
+                Kirigami.Action {
+                    text: headset.tr("Assistant de premier lancement")
+                    icon.name: "help-hint"
+                    onTriggered: headset.showAssistant()
+                },
+                Kirigami.Action {
+                    text: headset.tr("Guide d'utilisation")
+                    icon.name: "help-contents"
+                    onTriggered: Qt.openUrlExternally("https://asfax03l.github.io/openheadset-control/")
                 },
                 Kirigami.Action {
                     text: headset.tr("Signaler un problème…")

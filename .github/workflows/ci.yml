@@ -93,6 +93,11 @@ jobs:
         run: |
           ./scripts/audit-accessibilite-winui.ps1 -Exe target/debug/momentum-winui.exe -Langue fr
           ./scripts/audit-accessibilite-winui.ps1 -Exe target/debug/momentum-winui.exe -Langue en
+      - name: Essai de l'assistant de premier lancement WinUI
+        shell: pwsh
+        run: |
+          ./scripts/essai-assistant-winui.ps1 -Exe target/debug/momentum-winui.exe -Langue fr
+          ./scripts/essai-assistant-winui.ps1 -Exe target/debug/momentum-winui.exe -Langue en
       # Installateur Windows (Inno Setup) : mise à jour par-dessus la
       # version publiée précédente (installer.ps1), réinstallation, puis
       # désinstallation propre.

@@ -152,6 +152,10 @@ pub mod qobject {
         /// Langue enregistrée : 0 système, 1 français, 2 anglais.
         #[qproperty(i32, language_choice)]
         #[qproperty(QString, language_notice)]
+        // Assistant de premier lancement affiché ; son essai
+        // (`--demo --essai-assistant`, CI seulement).
+        #[qproperty(bool, assistant_open)]
+        #[qproperty(bool, assistant_test)]
         #[qproperty(QString, settings_notice)]
         #[qproperty(bool, settings_ready)]
         // Lancement à l'ouverture de session.
@@ -324,6 +328,28 @@ pub mod qobject {
         /// Ouvre la page Raccourcis de la Configuration du système.
         #[qinvokable]
         fn open_shortcut_settings(self: &Headset);
+        /// Assistant de premier lancement : nombre d'étapes, puis titre,
+        /// texte, bouton Bluetooth et état du casque de chacune.
+        #[qinvokable]
+        fn assistant_count(self: &Headset) -> i32;
+        #[qinvokable]
+        fn assistant_title(self: &Headset, step: i32) -> QString;
+        #[qinvokable]
+        fn assistant_text(self: &Headset, step: i32) -> QString;
+        #[qinvokable]
+        fn assistant_bluetooth(self: &Headset, step: i32) -> bool;
+        #[qinvokable]
+        fn assistant_shows_connection(self: &Headset, step: i32) -> bool;
+        #[qinvokable]
+        fn assistant_connection_text(self: &Headset, connected: bool) -> QString;
+        #[qinvokable]
+        fn open_bluetooth_settings(self: &Headset);
+        /// Rouvre l'assistant (« À propos »).
+        #[qinvokable]
+        fn show_assistant(self: Pin<&mut Headset>);
+        /// Assistant terminé ou passé : noté vu (hors démonstration).
+        #[qinvokable]
+        fn finish_assistant(self: Pin<&mut Headset>);
         /// Enregistre et applique le thème (0 clair, 1 sombre).
         #[qinvokable]
         fn choose_theme(self: Pin<&mut Headset>, choice: i32);
@@ -736,6 +762,9 @@ impl Default for HeadsetRust {
                 Some(momentum_core::i18n::Lang::En) => 2,
             },
             language_notice: QString::default(),
+            assistant_open: momentum_core::assistant::should_show(demo::requested())
+                || std::env::args().any(|a| a == "--assistant" || a == "--essai-assistant"),
+            assistant_test: demo::requested() && std::env::args().any(|a| a == "--essai-assistant"),
             settings_notice: QString::default(),
             settings_ready: false,
             settings_plan: None,
@@ -2003,6 +2032,65 @@ impl qobject::Headset {
         };
         self.as_mut()
             .set_language_notice(QString::from(notice.as_str()));
+    }
+
+    fn assistant_step(&self, step: i32) -> Option<momentum_core::assistant::Step> {
+        let steps = momentum_core::assistant::steps(momentum_core::assistant::Platform::Linux);
+        usize::try_from(step)
+            .ok()
+            .and_then(|i| steps.into_iter().nth(i))
+    }
+
+    fn assistant_count(&self) -> i32 {
+        momentum_core::assistant::steps(momentum_core::assistant::Platform::Linux)
+            .len()
+            .try_into()
+            .unwrap_or(0)
+    }
+
+    fn assistant_title(&self, step: i32) -> QString {
+        QString::from(self.assistant_step(step).map_or("", |s| s.title))
+    }
+
+    fn assistant_text(&self, step: i32) -> QString {
+        QString::from(self.assistant_step(step).map_or("", |s| s.text))
+    }
+
+    fn assistant_bluetooth(&self, step: i32) -> bool {
+        self.assistant_step(step).is_some_and(|s| {
+            s.action == Some(momentum_core::assistant::StepAction::BluetoothSettings)
+        })
+    }
+
+    fn assistant_shows_connection(&self, step: i32) -> bool {
+        self.assistant_step(step)
+            .is_some_and(|s| s.shows_connection)
+    }
+
+    fn assistant_connection_text(&self, connected: bool) -> QString {
+        QString::from(momentum_core::assistant::connection_text(connected))
+    }
+
+    fn open_bluetooth_settings(&self) {
+        if let Err(e) = std::process::Command::new("systemsettings")
+            .arg("kcm_bluetooth")
+            .spawn()
+        {
+            tracing::warn!(%e, "ouverture des réglages Bluetooth de KDE");
+        }
+    }
+
+    fn show_assistant(mut self: Pin<&mut Self>) {
+        self.as_mut().set_assistant_open(true);
+    }
+
+    fn finish_assistant(mut self: Pin<&mut Self>) {
+        self.as_mut().set_assistant_open(false);
+        if !demo::requested()
+            && let Err(e) = momentum_core::assistant::mark_seen()
+        {
+            tracing::warn!(%e, "assistant : état non enregistré");
+        }
     }
 
     fn open_shortcut_settings(&self) {

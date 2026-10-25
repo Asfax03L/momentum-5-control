@@ -2020,3 +2020,69 @@ Diagnostic to send
 
 Ouvrir le formulaire sur GitHub
 Open the form on GitHub
+
+Bienvenue
+Welcome
+
+OpenHeadset Control règle le Sennheiser MOMENTUM 5 depuis ce PC : réduction de bruit, égaliseur, scènes, batterie. Projet non officiel, sans lien avec Sennheiser ni Sonova. Seuls les réglages documentés sont modifiés ; le reste est en lecture seule.
+OpenHeadset Control adjusts the Sennheiser MOMENTUM 5 from this PC: noise cancelling, equalizer, scenes, battery. Unofficial project, not affiliated with Sennheiser or Sonova. Only documented settings are changed; everything else is read-only.
+
+Bluetooth
+Bluetooth
+
+Le Bluetooth du PC doit être activé : Paramètres > Bluetooth et appareils.
+Bluetooth must be on: Settings > Bluetooth & devices.
+
+Le Bluetooth du PC doit être activé : Configuration du système > Bluetooth.
+Bluetooth must be on: System Settings > Bluetooth.
+
+Appairage
+Pairing
+
+Appairez le casque avec ce PC dans les paramètres Bluetooth du système (mode appairage : voir la notice du casque). OpenHeadset Control n'appaire rien lui-même : il trouve ensuite le casque tout seul.
+Pair the headphones with this PC in the system Bluetooth settings (pairing mode: see the headphones' manual). OpenHeadset Control does not pair anything itself: it then finds the headphones on its own.
+
+Windows App Runtime
+Windows App Runtime
+
+Cette interface utilise Windows App Runtime 2 : il est installé, puisque cette fenêtre s'affiche. L'installateur le vérifie ; après une réinstallation de Windows : winget install Microsoft.WindowsAppRuntime.2.
+This interface uses Windows App Runtime 2: it is installed, since this window is showing. The installer checks it; after reinstalling Windows: winget install Microsoft.WindowsAppRuntime.2.
+
+Avec le Multipoint, le casque reste connecté à deux appareils à la fois, par exemple deux PC ou un PC et un téléphone. OpenHeadset Control peut tourner sur chaque PC. Couper le Multipoint déconnecte l'autre appareil.
+With Multipoint, the headphones stay connected to two devices at once, for example two PCs or a PC and a phone. OpenHeadset Control can run on each PC. Turning Multipoint off disconnects the other device.
+
+C'est prêt
+All set
+
+Cet assistant reste accessible depuis « À propos ». Guide d'utilisation et questions fréquentes : asfax03l.github.io/openheadset-control.
+This assistant stays available from “About”. User guide and FAQ: asfax03l.github.io/openheadset-control.
+
+Casque connecté : tout est prêt.
+Headphones connected: all set.
+
+Casque pas encore détecté : l'appairer, l'allumer, puis patienter quelques secondes.
+Headphones not detected yet: pair them, turn them on, then wait a few seconds.
+
+Guide d'utilisation
+User guide
+
+Assistant de premier lancement
+First-launch assistant
+
+Ouvrir les paramètres Bluetooth
+Open Bluetooth settings
+
+Précédent
+Previous
+
+Suivant
+Next
+
+Terminer
+Finish
+
+Passer l'assistant
+Skip the assistant
+
+Premier lancement — étape {} sur {}
+First launch — step {} of {}
