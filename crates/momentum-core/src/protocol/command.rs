@@ -300,6 +300,10 @@ pub mod set {
     pub const TOUCH_LOCK: CommandId = CommandId::new(0x1606);
     /// Smart Pause : `[0|1]` (capture du 09/10/2026).
     pub const SMART_PAUSE: CommandId = CommandId::new(0x080C);
+    /// Sidetone : un octet, `00` arrêt, `01` minimum, `02` deuxième palier
+    /// (capture du 25/10/2026, records 27904 à 28005). Rejeu depuis le PC :
+    /// à valider sur le matériel.
+    pub const SIDETONE: CommandId = CommandId::new(0x0805);
     /// Réponse automatique aux appels : `[0|1]`.
     pub const AUTO_ANSWER: CommandId = CommandId::new(0x080A);
     /// Appels confortables : `[0|1]`.

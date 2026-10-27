@@ -26,6 +26,15 @@ pub fn parse_on_head_state(payload: &[u8]) -> Result<OnHeadState, ProtocolError>
     }
 }
 
+/// Niveau de sidetone (`0906` / `0886`) : exactement un octet, gardé tel
+/// quel (`00` arrêt, `01`, `02` observés ; l'app prévoit jusqu'à `04`).
+pub fn parse_sidetone(payload: &[u8]) -> Result<u8, ProtocolError> {
+    match payload {
+        [value] => Ok(*value),
+        _ => Err(bad(get::SIDETONE.response(), "un octet attendu")),
+    }
+}
+
 /// Batterie en pourcentage (capture : `2A` = 42 %).
 pub fn parse_battery(payload: &[u8]) -> Result<u8, ProtocolError> {
     payload

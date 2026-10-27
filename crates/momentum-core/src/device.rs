@@ -17,7 +17,7 @@ use crate::protocol::messages::{
     M5NoiseMode, NoiseControlMode, m5_noise_mode, parse_battery, parse_codec, parse_core_features,
     parse_eq_config, parse_eq_gain, parse_firmware_version, parse_model_name,
     parse_noise_control_modes, parse_on_head_state, parse_paired_device, parse_sample_rate,
-    parse_switch,
+    parse_sidetone, parse_switch,
 };
 pub use crate::protocol::messages::{OnHeadState, PairedDevice};
 use crate::protocol::{
@@ -212,6 +212,8 @@ pub enum DeviceError {
     InvalidPromptVolume(i8),
     #[error("{}", trf("nom refusé : {}", &[&.0]))]
     InvalidName(&'static str),
+    #[error("{}", trf("niveau de sidetone {} non observé dans l'app (0, 1 ou 2)", &[&.0]))]
+    InvalidSidetone(u8),
     #[error("{}", tr("impossible de déconnecter l'appareil qui pilote le casque"))]
     OwnConnection,
     #[error(
@@ -679,6 +681,9 @@ fn contradicts_profile_reading(frame: &Frame) -> bool {
         || (request == get::SPATIAL_AUDIO && frame.payload.first() != Some(&0))
 }
 
+/// Niveaux de sidetone observés dans l'app (capture du 25/10/2026).
+pub const SIDETONE_LEVELS: [u8; 3] = [0, 1, 2];
+
 /// Raison donnée tant que `identify` n'a pas qualifié le casque.
 pub const NOT_IDENTIFIED: &str = "casque non identifié";
 
@@ -1060,6 +1065,21 @@ impl<T: Transport> Headset<T> {
             }
             .into()),
         }
+    }
+
+    /// Sidetone lu (`0806` → `0906`, un octet).
+    pub fn sidetone(&mut self) -> Result<u8, DeviceError> {
+        Ok(parse_sidetone(&self.get(get::SIDETONE)?)?)
+    }
+
+    /// Sidetone. App : `0805 [niveau]`. Seuls les niveaux observés dans
+    /// l'app (0, 1, 2 : [`SIDETONE_LEVELS`]) sont envoyés ; 3 et 4 restent
+    /// non essayés.
+    pub fn set_sidetone(&mut self, level: u8) -> Result<(), DeviceError> {
+        if !SIDETONE_LEVELS.contains(&level) {
+            return Err(DeviceError::InvalidSidetone(level));
+        }
+        self.write(set::SIDETONE, vec![level])
     }
 
     /// Smart Pause. App : `080C [0|1]`.
