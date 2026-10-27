@@ -13,12 +13,13 @@ use tracing::{debug, warn};
 use crate::client::{ClientError, GaiaClient};
 use crate::profile::{ProfileBlock, ProfileExport};
 use crate::protocol::command::{REGISTER_NOTIFICATION, core_set, feature, get, set};
-pub use crate::protocol::messages::PairedDevice;
 use crate::protocol::messages::{
     M5NoiseMode, NoiseControlMode, m5_noise_mode, parse_battery, parse_codec, parse_core_features,
     parse_eq_config, parse_eq_gain, parse_firmware_version, parse_model_name,
-    parse_noise_control_modes, parse_paired_device, parse_sample_rate, parse_switch,
+    parse_noise_control_modes, parse_on_head_state, parse_paired_device, parse_sample_rate,
+    parse_switch,
 };
+pub use crate::protocol::messages::{OnHeadState, PairedDevice};
 use crate::protocol::{
     CommandId, Frame, PacketKind, ProtocolError, VENDOR_QUALCOMM, VENDOR_SENNHEISER,
 };
@@ -242,7 +243,8 @@ impl NoiseState {
     }
 }
 
-/// Features auxquelles on s'abonne (`0495:0007 [feature]`, comme l'app).
+/// Features obligatoires (`0495:0007 [feature]`, comme l'app).
+/// La feature du port est ajoutée séparément, en abonnement facultatif.
 pub const NOTIFICATION_FEATURES: [u8; 6] = [
     feature::BATTERY,
     feature::ANC,
@@ -539,6 +541,9 @@ pub struct HeadsetState {
     pub codec: Option<u8>,
     /// Fréquence d'échantillonnage, connue seulement par notification `089A`.
     pub sample_rate_hz: Option<u32>,
+    /// État physique (`0402` / `0482`) ; `None` si la lecture est indisponible.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub on_head_state: Option<OnHeadState>,
 }
 
 impl HeadsetState {
@@ -546,7 +551,7 @@ impl HeadsetState {
     ///
     /// Notifications relevées dans la capture de Smart Control Plus :
     /// `0683` batterie, `1A85` ANC, `1A81` paires, `1A83` curseur,
-    /// `3685` audio spatial. Les autres sont ignorées.
+    /// `3685` audio spatial, `0482` état physique du port. Les autres sont ignorées.
     pub fn apply_notification(&mut self, frame: &Frame) -> bool {
         if frame.vendor != VENDOR_SENNHEISER || frame.kind() != PacketKind::Notification {
             return false;
@@ -554,7 +559,11 @@ impl HeadsetState {
         let before = *self;
         let request = frame.command.request();
         let p = &frame.payload;
-        if request == get::BATTERY {
+        if request == get::ON_HEAD_STATE {
+            if let Ok(state) = parse_on_head_state(p) {
+                self.on_head_state = Some(state);
+            }
+        } else if request == get::BATTERY {
             if let Ok(v) = parse_battery(p) {
                 self.battery = v;
             }
@@ -924,6 +933,7 @@ impl<T: Transport> Headset<T> {
                 .map(|c| c.0),
             // Pas de lecture connue : seulement par notification.
             sample_rate_hz: None,
+            on_head_state: self.optional(|h| h.on_head_state())?,
         })
     }
 
@@ -1353,12 +1363,26 @@ impl<T: Transport> Headset<T> {
         })
     }
 
+    /// Lit l'état physique du port, sans modifier l'activation du capteur.
+    pub fn on_head_state(&mut self) -> Result<OnHeadState, DeviceError> {
+        let state = parse_on_head_state(&self.get(get::ON_HEAD_STATE)?)?;
+        // La réponse remplace les états de port déjà reçus ; les notifications
+        // suivantes et celles des autres fonctions restent disponibles.
+        self.client
+            .forget_queued_notification(VENDOR_SENNHEISER, get::ON_HEAD_STATE.notification());
+        Ok(state)
+    }
+
     /// S'abonne aux notifications des features utiles, comme l'app.
     pub fn register_notifications(&mut self) -> Result<(), DeviceError> {
         // L'abonnement ne modifie aucun réglage : permis en lecture seule.
         for feature in NOTIFICATION_FEATURES {
             self.ack(REGISTER_NOTIFICATION, vec![feature])?;
         }
+        // Capture du 27/10/2026 : 0007 [02] / 0107 vide, records 40357/40360.
+        // Facultatif sur les autres micrologiciels ; une perte de transport
+        // reste une erreur et impose une nouvelle connexion.
+        self.optional(|h| h.ack(REGISTER_NOTIFICATION, vec![feature::ON_HEAD]))?;
         Ok(())
     }
 
@@ -1640,21 +1664,29 @@ mod tests {
             ("FF 03 00 00 04 95 08 02", "FF 03 00 01 04 95 09 02 02"),
             ("FF 03 00 00 04 95 08 00", "FF 03 00 01 04 95 09 00 02"),
         ];
-        let mut mock = MockTransport::new();
-        for (tx, rx) in script {
-            mock = mock.expect(&h(tx), &h(rx));
+        for (port_reply, expected_port) in [
+            ("FF 03 00 01 04 95 05 02 02", Some(OnHeadState::NotWorn)),
+            ("FF 03 00 01 04 95 05 82 01", None),
+            ("FF 03 00 00 04 95 05 02", None),
+        ] {
+            let mut mock = MockTransport::new();
+            for (tx, rx) in script {
+                mock = mock.expect(&h(tx), &h(rx));
+            }
+            mock = mock.expect(&h("FF 03 00 00 04 95 04 02"), &h(port_reply));
+            let mut headset = Headset::validated_for_tests(mock, T);
+            let state = headset.read_state().unwrap();
+            assert!(headset.client().transport().is_exhausted());
+            assert_eq!(state.battery, 80);
+            assert_eq!(state.spatial_audio, None);
+            assert_eq!(state.head_tracking, Some(true));
+            assert_eq!(state.audio_mode, Some(AudioMode::Equalizer));
+            assert_eq!(state.touch_controls, Some(true));
+            assert_eq!(state.auto_off_seconds, Some(1800));
+            assert_eq!(state.prompt_mode, Some(PromptMode::TonesAndVoice));
+            assert_eq!(state.codec, Some(2));
+            assert_eq!(state.on_head_state, expected_port);
         }
-        let mut headset = Headset::validated_for_tests(mock, T);
-        let state = headset.read_state().unwrap();
-        assert!(headset.client().transport().is_exhausted());
-        assert_eq!(state.battery, 80);
-        assert_eq!(state.spatial_audio, None);
-        assert_eq!(state.head_tracking, Some(true));
-        assert_eq!(state.audio_mode, Some(AudioMode::Equalizer));
-        assert_eq!(state.touch_controls, Some(true));
-        assert_eq!(state.auto_off_seconds, Some(1800));
-        assert_eq!(state.prompt_mode, Some(PromptMode::TonesAndVoice));
-        assert_eq!(state.codec, Some(2));
     }
 
     #[test]
@@ -2146,7 +2178,7 @@ mod tests {
     #[test]
     fn registration_uses_the_sennheiser_vendor() {
         let mut mock = MockTransport::new();
-        for f in ["03", "0D", "1B", "08", "04", "0B"] {
+        for f in ["03", "0D", "1B", "08", "04", "0B", "02"] {
             mock = mock.expect(
                 &h(&format!("FF 03 00 01 04 95 00 07 {f}")),
                 &h("FF 03 00 00 04 95 01 07"),

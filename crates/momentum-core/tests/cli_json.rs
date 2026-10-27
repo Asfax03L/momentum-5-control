@@ -24,6 +24,7 @@ fn etat_historique_identique_octet_pour_octet() {
         // Les nouveaux champs du résultat des réglages ne doivent pas
         // apparaître dans le contrat historique d'etat.
         smart_pause: Some(true),
+        on_head_state: Some(momentum_core::device::OnHeadState::Worn),
         ..HeadsetState::default()
     };
     assert_eq!(

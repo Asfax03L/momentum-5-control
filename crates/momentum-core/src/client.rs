@@ -112,6 +112,15 @@ impl<T: Transport> GaiaClient<T> {
         std::mem::take(&mut self.unsolicited)
     }
 
+    /// Oublie une notification déjà mise de côté avant le retour de `request`.
+    /// À appeler seulement après décodage réussi de la réponse qui la remplace.
+    /// Le décodeur reste intact : son suffixe peut contenir des notifications
+    /// postérieures à la réponse, qui doivent encore parvenir à l'appelant.
+    pub(crate) fn forget_queued_notification(&mut self, vendor: u16, command: CommandId) {
+        self.unsolicited
+            .retain(|frame| frame.vendor != vendor || frame.command != command);
+    }
+
     /// Attend au plus `timeout` des trames non sollicitées (notifications).
     ///
     /// Renvoie d'abord celles reçues pendant des requêtes précédentes, dans

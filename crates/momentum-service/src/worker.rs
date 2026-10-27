@@ -1722,4 +1722,24 @@ mod tests {
         };
         assert_eq!(keep_stream_info(&old, other).sample_rate_hz, None);
     }
+
+    #[test]
+    fn an_unavailable_wearing_read_does_not_reuse_the_previous_state() {
+        use momentum_core::device::OnHeadState;
+
+        let old = HeadsetState {
+            on_head_state: Some(OnHeadState::Worn),
+            ..HeadsetState::default()
+        };
+        let unread = keep_stream_info(&old, HeadsetState::default());
+        assert_eq!(unread.on_head_state, None);
+        let fresh = HeadsetState {
+            on_head_state: Some(OnHeadState::NotWorn),
+            ..HeadsetState::default()
+        };
+        assert_eq!(
+            keep_stream_info(&old, fresh).on_head_state,
+            fresh.on_head_state
+        );
+    }
 }

@@ -13,6 +13,64 @@ un PC Windows 11 (build 26300) **et** à un téléphone en même temps (multipoi
 | Numéro de série | 16 octets (masqué par le probe) | `001D:0003` |
 | Codec actif vers le PC | 1 = AAC | `0800` |
 
+## État physique du port — observation complémentaire du 27/10/2026
+
+L'état physique du port est distinct du réglage d'activation de la détection
+(`0401`, booléen) et de Smart Pause (`080D`). L'implémentation locale ajoute
+uniquement une lecture et le traitement des notifications ; elle n'ajoute
+aucune écriture de réglage ni action de lecture/pause multimédia.
+
+| Vendor | Feature / type / numéro | Identifiant et sens | Charge utile |
+|---|---|---|---|
+| `0495` | 2 / 0 / 2 | `0402`, requête de lecture | vide |
+| `0495` | 2 / 2 / 2 | `0502`, réponse | un octet ; `02` observé |
+| `0495` | 2 / 1 / 2 | `0482`, notification | un octet ; `02` et `03` observés |
+| `0495` | 0 / 0 / 7 | `0007`, abonnement | `02` (feature) |
+| `0495` | 0 / 2 / 7 | `0107`, réponse à l'abonnement | vide |
+
+Preuve : captures de Smart Control Plus **1.6.3 / 72844**, modèle **M5AEBT**,
+micrologiciel **6.21.5**, corroborées par l'analyse du comportement applicatif,
+sans copie de code. Le contexte physique déclaré corrobore `02 = non porté`
+et `03 = porté`. Les gestes ne sont pas horodatés individuellement et des
+fluctuations restent inexpliquées : aucune conclusion sur une panne du
+capteur ou sur l'effet de Smart Pause.
+
+Provenance des observations (empreintes SHA-256 des captures conservées en
+privé ; aucun journal brut n'est livré dans ce dépôt) :
+
+- **25/10/2026**, `017cfca9ac1e6d078f698004c8c7b12aff258f140b0dd0653cf7065197fc9efb` :
+  requête/réponse `0402`/`0502` aux records **22342/22345** (`02`),
+  notifications `0482` aux records **22273** (`02`) et **23003** (`03`).
+- **27/10/2026**, `0bc5df5b4400782891f4b396666beda8841dca1432f96a8bb9ebe99ebde41251` :
+  abonnement `0007 [02]` / `0107` vide aux records **40357/40360** ;
+  lecture `0402` / `0502 [02]` aux records **40436/40439**.
+
+Contrat local : `HeadsetState.on_head_state` vaut `None` si la lecture est
+indisponible, `NotWorn` pour `02`, `Worn` pour `03` et `Unknown(octet)` pour
+toute autre valeur. `00`, `01` et les valeurs futures ne sont pas assimilés
+à un état porté/non porté. Un payload vide ou de plusieurs octets est
+rejeté ; une notification malformée conserve le dernier état valide.
+Après une réponse valide, les notifications de port déjà reçues avant
+cette réponse sont écartées pour éviter de réafficher un état antérieur.
+Les notifications suivantes et celles des autres fonctions sont conservées ;
+une réponse malformée ne supprime pas une notification valide en attente.
+
+Le service relit cet état dans son instantané et applique les notifications
+`0482`. L'abonnement à la feature 2 est renouvelé à chaque connexion ; un
+refus GAIA laisse les autres fonctions disponibles, mais une expiration ou
+une erreur de transport fait échouer la session. Une déconnexion ou une
+nouvelle connexion efface l'ancien instantané du client.
+
+Le champ facultatif est transmis dans les événements JSON du service ; un
+ancien service qui l'omet reste lisible. Le JSON historique de `ctl etat`
+reste identique. Aucun indicateur graphique ni réglage supplémentaire n'est
+ajouté à ce stade.
+
+**Validation : transport simulé uniquement. Chaque échange ajouté reste
+« à valider sur le matériel » depuis le PC.** Les tests vérifient le décodage,
+le routage, les erreurs et la compatibilité JSON ; ils ne prouvent ni la
+réception réelle des notifications sous Windows/Linux ni la pause musicale.
+
 ## Transport
 
 - Bluetooth Classic, **RFCOMM**, service SDP nommé « GAIA »,

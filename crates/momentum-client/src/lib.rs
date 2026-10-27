@@ -335,6 +335,42 @@ mod tests {
     }
 
     #[test]
+    fn wearing_state_survives_ipc_but_not_a_connection_change() {
+        use momentum_core::device::OnHeadState;
+
+        for state in [
+            OnHeadState::NotWorn,
+            OnHeadState::Worn,
+            OnHeadState::Unknown(1),
+        ] {
+            let event = Event::State(HeadsetState {
+                on_head_state: Some(state),
+                ..HeadsetState::default()
+            });
+            let json = serde_json::to_string(&event).unwrap();
+            let event: Event = serde_json::from_str(&json).unwrap();
+            let mut snapshot = Snapshot::default();
+            snapshot.apply(&event);
+            assert_eq!(snapshot.state.unwrap().on_head_state, Some(state));
+            snapshot.apply(&Event::Lost("perte simulée".into()));
+            assert!(snapshot.state.is_none());
+            snapshot.apply(&event);
+            snapshot.apply(&Event::Connected {
+                headset_id: None,
+                name: "Casque démo".into(),
+                read_only: None,
+                session: 2,
+            });
+            assert!(snapshot.state.is_none());
+        }
+        // Un service ancien omet ce champ ; absence et code inconnu sont distincts.
+        let json = serde_json::to_value(HeadsetState::default()).unwrap();
+        assert!(json.get("on_head_state").is_none());
+        let old: HeadsetState = serde_json::from_value(json).unwrap();
+        assert_eq!(old.on_head_state, None);
+    }
+
+    #[test]
     fn current_identity_is_opaque_optional_and_forgotten_after_disconnect() {
         let id = momentum_core::transport::choice::fingerprint("02:00:00:00:00:01");
         let event = Event::Connected {

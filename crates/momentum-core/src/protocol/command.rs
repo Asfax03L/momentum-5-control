@@ -14,6 +14,8 @@ pub const VENDOR_QUALCOMM: u16 = 0x001D;
 
 /// Identifiants de feature (les 7 bits de poids fort du command id).
 pub mod feature {
+    /// Feature portant l'état de port (capture du 27/10/2026, docs/MOMENTUM5.md).
+    pub const ON_HEAD: u8 = 2;
     pub const BATTERY: u8 = 3;
     pub const GENERIC_AUDIO: u8 = 4;
     pub const USER_EQ: u8 = 8;
@@ -149,6 +151,10 @@ pub mod get {
     pub const SMART_PAUSE: CommandId = CommandId::new(0x080D);
     /// GET détection de port (on-head). À valider sur le matériel M5.
     pub const ON_HEAD_DETECTION: CommandId = CommandId::new(0x0401);
+    /// GET état physique du port, distinct de l'activation `0401`.
+    /// Capture du 25/10/2026, records 22342/22345 ; voir docs/MOMENTUM5.md.
+    /// Rejeu depuis le PC : à valider sur le matériel.
+    pub const ON_HEAD_STATE: CommandId = CommandId::new(0x0402);
 
     // Catalogue étendu : GET relevés dans le client macOS d'Oein (issus de
     // l'APK Smart Control Plus), envoyés seulement par `probe --deep`.

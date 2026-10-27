@@ -7,6 +7,25 @@ fn bad(command: CommandId, reason: &'static str) -> ProtocolError {
     ProtocolError::BadPayload { command, reason }
 }
 
+/// État physique du port (`0502` / `0482`), distinct de l'activation du capteur.
+/// `02` / `03` observés sur M5 ; toute autre valeur est conservée sans interprétation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum OnHeadState {
+    NotWorn,
+    Worn,
+    Unknown(u8),
+}
+
+/// Contrat de lecture strict : un seul octet, sans rabattre l'inconnu sur un booléen.
+pub fn parse_on_head_state(payload: &[u8]) -> Result<OnHeadState, ProtocolError> {
+    match payload {
+        [2] => Ok(OnHeadState::NotWorn),
+        [3] => Ok(OnHeadState::Worn),
+        [value] => Ok(OnHeadState::Unknown(*value)),
+        _ => Err(bad(get::ON_HEAD_STATE.response(), "un octet attendu")),
+    }
+}
+
 /// Batterie en pourcentage (capture : `2A` = 42 %).
 pub fn parse_battery(payload: &[u8]) -> Result<u8, ProtocolError> {
     payload
@@ -413,6 +432,12 @@ fn describe_extended(request: CommandId, p: &[u8]) -> Option<Result<String, Prot
         switch("Smart Pause", true)
     } else if request == get::ON_HEAD_DETECTION {
         switch("détection de port", true)
+    } else if request == get::ON_HEAD_STATE {
+        parse_on_head_state(p).map(|state| match state {
+            OnHeadState::NotWorn => "casque non porté".to_string(),
+            OnHeadState::Worn => "casque porté".to_string(),
+            OnHeadState::Unknown(value) => format!("état de port inconnu ({value:02X})"),
+        })
     } else if request == get::AUTO_ANSWER {
         switch("décroché automatique", false)
     } else if request == get::COMFORT_CALL {
