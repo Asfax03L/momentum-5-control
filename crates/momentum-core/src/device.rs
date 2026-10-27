@@ -1373,6 +1373,12 @@ impl<T: Transport> Headset<T> {
         Ok(state)
     }
 
+    /// Abonnement à la seule feature du port (`0007 [02]`), pour l'essai
+    /// ciblé du capteur : aucun autre abonnement n'est envoyé.
+    pub fn register_on_head_notification(&mut self) -> Result<(), DeviceError> {
+        self.ack(REGISTER_NOTIFICATION, vec![feature::ON_HEAD])
+    }
+
     /// S'abonne aux notifications des features utiles, comme l'app.
     pub fn register_notifications(&mut self) -> Result<(), DeviceError> {
         // L'abonnement ne modifie aucun réglage : permis en lecture seule.
