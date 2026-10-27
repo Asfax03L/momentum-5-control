@@ -162,7 +162,9 @@ pub mod get {
 
     /// GET révision matérielle → u16.
     pub const HARDWARE_REVISION: CommandId = CommandId::new(0x1200);
-    /// GET sidetone (retour de sa propre voix en appel) → niveau 0 à 5.
+    /// GET sidetone (retour de sa propre voix en appel) → un octet : `00`
+    /// arrêt, `01` minimum actif, `02` deuxième palier ; l'app prévoit cinq
+    /// pas (0 à 4), seuls 0 à 2 observés (capture du 25/10/2026).
     pub const SIDETONE: CommandId = CommandId::new(0x0806);
     /// GET invites sonores → 0 aucune, 1 tonalités, 2 tonalités et voix.
     pub const PROMPT_MODE: CommandId = CommandId::new(0x0802);

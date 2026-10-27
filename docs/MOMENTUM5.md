@@ -129,7 +129,7 @@ ne prouve pas un « GAIA v5 »).
 | Son | Faible latence | désactivée | `0818` |
 | Appels | Décroché auto | activé | `080B` |
 | Appels | Comfort Call | activé | `0815` |
-| Appels | Sidetone | 0 | `0806` (notification `0886` ; réglage absent de l'app pour le M5) |
+| Appels | Sidetone | 0 | `0806` (notification `0886`). Constat initial : réglage absent de l'app pour le M5 ; **mis à jour le 27/10/2026** : page « Sidetone » observée dans Smart Control Plus 1.6.3 et écritures `0805` `02`/`01`/`02`/`00` capturées le 25/10/2026 (voir « Sidetone » plus bas) |
 | Général | Smart Pause | activée | `080D` |
 | Général | Détection de port | activée | `0401` |
 | Général | Invites | tonalités + voix, en français | `0802`, `0807` |
@@ -231,7 +231,7 @@ Les réponses aux SET sont **vides** : l'accusé de réception est la réponse
 | 3 | `0602` → `00 00`, `060E` → `06 FF` | ? |
 | 4 | `081A` → `00 00 BB 80` | 48000 : fréquence d'échantillonnage (« 48 kHz » dans l'app) |
 | 4 | `080E` → `00 F8 0D C8`, `0808` → `02`, `081E` → `FF 00 00 00 00`, `081D` → `00` | ? |
-| 2 | `0402` → `03`, `0408` → `00` | ? |
+| 2 | `0402` → `03`, `0408` → `00` | `0402` : état physique porté (`03`) / non porté (`02`), distinct de `0401` ; établi le 27/10/2026, voir « État physique du port ». `0408` : ? |
 | 10 | `1409` → `02`, `1414` → `[adresse, 00]` | ? (voir « Gestion des connexions » pour `140D`, `140E`, `1413`) |
 | 11 | `1607` → `00` | MMI (gestes ?) |
 | 16 | `2001` → `00`, `2003`, `2005`, `2007` → zéros | Sound Personalization ? |
@@ -411,6 +411,25 @@ non qualifiées la combinaison de priorité audio `(0406, 0408) = (1, 1)`
 (jamais observée), la langue des invites (seul 2 = français est confirmé) et
 l'écriture de la priorité depuis le PC (non exposée, voir F5).
 
+### Sidetone (captures du 25/10/2026)
+
+Retour de sa propre voix pendant un appel. Contrat observé dans
+Smart Control Plus 1.6.3 / 72844, M5AEBT 6.21.5 (capture
+`0b6400dafa003961c4a08bc6f2780c0605f606c0f969a86b513d75174a0a0b60`,
+records 22322 à 28852) :
+
+| Échange | Identifiant | Charge utile |
+|---|---|---|
+| Lecture | `0806` → `0906` | vide → un octet ; `00` observé |
+| Écriture | `0805` → `0905` | un octet → vide ; `02`, `01`, `02`, `00` capturés (records 27904, 27936, 27970, 28005) |
+| Notification | `0886` | un octet ; `02`, `01`, `02`, `00` observés après chaque écriture |
+
+`00` = arrêt, `01` = minimum actif, `02` = deuxième palier actif.
+L'app prévoit cinq pas dans la configuration examinée, donc **0 à 4**
+(l'ancienne annotation « 0 à 5 » du code est corrigée) ; seuls **0, 1 et 2**
+ont été observés, 3 et 4 restent non essayés. Aucun essai pendant un appel ni
+mesure acoustique. Rejeu depuis le PC : **à valider sur le matériel**.
+
 ### Volume des invites : échelle (expérience F1, 09/10/2026)
 
 15 positions du curseur de l'app relues depuis le PC : **valeur =
@@ -423,6 +442,12 @@ arrondi(26 × % / 100 − 20)**, de −20 (0 %) à +6 (100 %), 0 = 77 %.
 Écriture `081C [i8]` validée depuis le PC (`ctl volume-invites 67` → −3
 relu, puis 77 → 0 relu). Plusieurs crans de l'app donnent la même valeur :
 le pourcentage affiché par le projet est donc approché.
+
+Ce pourcentage est une **échelle d'interface choisie par le projet** à partir
+de ces relevés. L'analyse de l'app (27/10/2026) décrit la même valeur
+interne sous une forme normalisée, (entier + 20) / 26 : ce n'est ni un
+niveau acoustique, ni un gain en dB, ni forcément le pourcentage affiché par
+l'app ; les deux présentations ne sont pas le même type de mesure.
 
 ### Persistance du profil (expérience F2, 09/10/2026)
 
