@@ -16,6 +16,9 @@
 //!
 //! Usage : cargo run --release -p momentum-cli --example essai_port -- --palier 1 --journal <fichier>
 
+#[path = "commun/exclusion.rs"]
+mod exclusion;
+
 use std::io::Write;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::{Duration, Instant};
@@ -324,6 +327,8 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let mut report = Report::new();
     report.note("palier", &args.palier.to_string());
+    // Aucun autre client du casque ni autre essai en cours (R07).
+    exclusion::verifier()?;
     let transport = connect()?;
     report.note(
         "connexion",

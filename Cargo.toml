@@ -78,6 +78,7 @@ windows = { version = "0.62.2", features = [
     "Win32_System_Com_StructuredStorage", "Win32_System_Variant", "Win32_UI_Shell_PropertiesSystem",
     "Win32_System_SystemInformation", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole",
     "Win32_Storage_EnhancedStorage", "Win32_Globalization", "Web_Http", "Web_Http_Headers",
+    "Win32_System_Diagnostics_ToolHelp",
 ] }
 
 # Binaires légers : optimisation, LTO et symboles retirés.

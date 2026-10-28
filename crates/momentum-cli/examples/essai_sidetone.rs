@@ -14,6 +14,9 @@
 //!
 //! Usage : cargo run --release -p momentum-cli --example essai_sidetone -- --journal <fichier>
 
+#[path = "commun/exclusion.rs"]
+mod exclusion;
+
 use std::io::Write;
 use std::time::{Duration, Instant};
 
@@ -175,6 +178,8 @@ fn connect() -> anyhow::Result<momentum_core::transport::bluez_rfcomm::BluezTran
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let mut report = Report::new();
+    // Aucun autre client du casque ni autre essai en cours (R07).
+    exclusion::verifier()?;
     let transport = connect()?;
     report.note(
         "connexion",
