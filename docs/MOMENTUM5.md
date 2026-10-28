@@ -15,6 +15,11 @@ un PC Windows 11 (build 26300) **et** à un téléphone en même temps (multipoi
 
 ## État physique du port — observation complémentaire du 27/10/2026
 
+> Les preuves du port, de la charge et du sidetone (capture de l'app, essai
+> depuis le PC ou cas synthétique) sont recensées dans
+> [`docs/preuves/registre-m5.json`](preuves/registre-m5.json), contrôlé par
+> le test `registre_preuves`.
+
 L'état physique du port est distinct du réglage d'activation de la détection
 (`0401`, booléen) et de Smart Pause (`080D`). L'implémentation locale ajoute
 uniquement une lecture et le traitement des notifications ; elle n'ajoute

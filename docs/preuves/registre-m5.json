@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "objet": "Registre des preuves des échanges GAIA du MOMENTUM 5 ajoutés depuis la 1.1 (port, charge, sidetone). Chaque entrée dit d'où vient la connaissance : capture de l'application officielle, essai depuis le PC, ou cas synthétique de test. Les journaux bruts restent privés ; seules les empreintes et les numéros de record sont publiés. Contrôlé par crates/momentum-core/tests/registre_preuves.rs.",
+  "modele": "M5AEBT",
+  "micrologiciel": "6.21.5",
+  "application": "Smart Control Plus 1.6.3 / 72844",
+  "natures": {
+    "capture_app": "échange observé entre l'application officielle et le casque (capture HCI du téléphone)",
+    "essai_pc": "échange envoyé depuis le PC par un outil ciblé, avec journal privé",
+    "synthetique": "cas construit pour les tests, jamais envoyé au casque"
+  },
+  "entrees": [
+    {
+      "id": "port-lecture-capture",
+      "fonction": "port",
+      "commande": "0402",
+      "sens": "requete",
+      "charge_utile": "",
+      "reponse": "0502",
+      "reponse_charge_utile": "02",
+      "nature": "capture_app",
+      "source": { "capture_sha256": "017cfca9ac1e6d078f698004c8c7b12aff258f140b0dd0653cf7065197fc9efb", "records": [22342, 22345] },
+      "tests": ["crates/momentum-core/tests/on_head.rs"]
+    },
+    {
+      "id": "port-notifications-capture",
+      "fonction": "port",
+      "commande": "0482",
+      "sens": "notification",
+      "charge_utile": "02 | 03",
+      "nature": "capture_app",
+      "source": { "capture_sha256": "017cfca9ac1e6d078f698004c8c7b12aff258f140b0dd0653cf7065197fc9efb", "records": [22273, 23003] },
+      "tests": ["crates/momentum-core/tests/on_head.rs"]
+    },
+    {
+      "id": "port-abonnement-capture",
+      "fonction": "port",
+      "commande": "0007",
+      "sens": "abonnement",
+      "charge_utile": "02",
+      "reponse": "0107",
+      "reponse_charge_utile": "",
+      "nature": "capture_app",
+      "source": { "capture_sha256": "0bc5df5b4400782891f4b396666beda8841dca1432f96a8bb9ebe99ebde41251", "records": [40357, 40360] },
+      "tests": ["crates/momentum-core/tests/on_head.rs"]
+    },
+    {
+      "id": "port-essai-pc-windows",
+      "fonction": "port",
+      "commande": "0402",
+      "sens": "requete",
+      "charge_utile": "",
+      "reponse": "0502",
+      "reponse_charge_utile": "02 | 03",
+      "nature": "essai_pc",
+      "source": {
+        "date": "2026-10-27",
+        "systeme": "Windows 11",
+        "outil": "crates/momentum-cli/examples/essai_port.rs",
+        "commit": "e54209b",
+        "resultat": "paliers 1 à 3 : 0402 → 0502 [02] et [03] ; 0007 [02] → 0107 ; 0482 suit les gestes ; notification avant réponse à la reconnexion",
+        "journal_prive": true
+      },
+      "tests": ["crates/momentum-cli/examples/essai_port.rs"]
+    },
+    {
+      "id": "charge-lecture-capture-sans-chargeur",
+      "fonction": "charge",
+      "commande": "0602",
+      "sens": "requete",
+      "charge_utile": "",
+      "reponse": "0702",
+      "reponse_charge_utile": "00 00",
+      "nature": "capture_app",
+      "source": { "capture_sha256": "b2b7b81e79d7ef1bc0ef34ac56c89ff3cdac71733e1d28213808451053142a9e", "records": [31359, 31362] },
+      "tests": ["crates/momentum-core/tests/charge.rs"]
+    },
+    {
+      "id": "charge-lecture-capture-chargeur",
+      "fonction": "charge",
+      "commande": "0602",
+      "sens": "requete",
+      "charge_utile": "",
+      "reponse": "0702",
+      "reponse_charge_utile": "01 00",
+      "nature": "capture_app",
+      "source": { "capture_sha256": "524ebe15dda3a26a705ba90318bc1aab1d3cdb373e3483754aed01b6759a89a6", "records": [56013, 56016] },
+      "tests": ["crates/momentum-core/tests/charge.rs"]
+    },
+    {
+      "id": "charge-notifications-capture",
+      "fonction": "charge",
+      "commande": "0682",
+      "sens": "notification",
+      "charge_utile": "00 | 01",
+      "nature": "capture_app",
+      "source": { "capture_sha256": "b2b7b81e79d7ef1bc0ef34ac56c89ff3cdac71733e1d28213808451053142a9e", "records": [31222, 31901, 32057] },
+      "tests": ["crates/momentum-core/tests/charge.rs"]
+    },
+    {
+      "id": "charge-cas-synthetiques",
+      "fonction": "charge",
+      "commande": "0702",
+      "sens": "reponse",
+      "charge_utile": "01 | 02 00 | 01 FF | vide | 01 00 00",
+      "nature": "synthetique",
+      "source": { "origine": "contrat-implementation-charge-2026-10-28.json (Codex), cas marqués synthétiques" },
+      "tests": ["crates/momentum-core/tests/charge.rs"]
+    },
+    {
+      "id": "sidetone-lecture-capture",
+      "fonction": "sidetone",
+      "commande": "0806",
+      "sens": "requete",
+      "charge_utile": "",
+      "reponse": "0906",
+      "reponse_charge_utile": "00",
+      "nature": "capture_app",
+      "source": { "capture_sha256": "0b6400dafa003961c4a08bc6f2780c0605f606c0f969a86b513d75174a0a0b60", "records": [22322, 22325, 28849, 28852] },
+      "tests": ["crates/momentum-cli/examples/essai_sidetone.rs"]
+    },
+    {
+      "id": "sidetone-ecritures-capture",
+      "fonction": "sidetone",
+      "commande": "0805",
+      "sens": "ecriture",
+      "charge_utile": "02 | 01 | 02 | 00",
+      "reponse": "0905",
+      "reponse_charge_utile": "",
+      "nature": "capture_app",
+      "source": { "capture_sha256": "0b6400dafa003961c4a08bc6f2780c0605f606c0f969a86b513d75174a0a0b60", "records": [27904, 27936, 27970, 28005] },
+      "tests": ["crates/momentum-cli/examples/essai_sidetone.rs"]
+    },
+    {
+      "id": "sidetone-notifications-capture",
+      "fonction": "sidetone",
+      "commande": "0886",
+      "sens": "notification",
+      "charge_utile": "02 | 01 | 02 | 00",
+      "nature": "capture_app",
+      "source": { "capture_sha256": "0b6400dafa003961c4a08bc6f2780c0605f606c0f969a86b513d75174a0a0b60", "records": [27912, 27942, 27977, 28011, 28777] },
+      "tests": ["crates/momentum-cli/examples/essai_sidetone.rs"]
+    }
+  ],
+  "a_valider_sur_le_materiel": [
+    { "fonction": "port", "systeme": "Linux (BlueZ)", "raison": "paliers 1 à 3 essayés sous Windows seulement" },
+    { "fonction": "charge", "systeme": "Windows et Linux", "raison": "aucun essai depuis le PC" },
+    { "fonction": "sidetone", "systeme": "Windows et Linux", "raison": "aucune écriture depuis le PC ; niveaux 3 et 4 jamais observés" }
+  ]
+}
