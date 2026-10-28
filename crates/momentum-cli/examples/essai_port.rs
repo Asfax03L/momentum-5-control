@@ -86,8 +86,12 @@ impl Report {
         self.lines.push(line);
     }
 
-    /// Notifications reçues : seule `0495:0482` est interprétée.
-    fn notifications(&mut self, frames: &[Frame]) {
+    /// Notifications reçues : seule `0495:0482` est interprétée. Toutes sont
+    /// notées ; une notification de port malformée ou de code inconnu arrête
+    /// l'essai (critère de la fiche), après avoir noté le lot entier. Les
+    /// autres fonctions sont seulement notées.
+    fn notifications(&mut self, frames: &[Frame]) -> anyhow::Result<()> {
+        let mut anomaly = None;
         for f in frames {
             let detail = format!(
                 "vendor {:04X} id {:04X} payload {}",
@@ -96,12 +100,32 @@ impl Report {
                 to_hex(&f.payload)
             );
             if f.vendor == VENDOR_SENNHEISER && f.command.raw() == 0x0482 {
-                let state = momentum_core::protocol::messages::parse_on_head_state(&f.payload)
-                    .map_or_else(|e| format!("malformée ({e})"), describe);
-                self.note("notification-port", &format!("{detail} : {state}"));
+                match momentum_core::protocol::messages::parse_on_head_state(&f.payload) {
+                    Ok(OnHeadState::Unknown(b)) => {
+                        self.note("notification-port", &format!("{detail} : {b:02X} inconnu"));
+                        anomaly.get_or_insert(format!("notification de port {b:02X} inconnue"));
+                    }
+                    Ok(state) => {
+                        self.note(
+                            "notification-port",
+                            &format!("{detail} : {}", describe(state)),
+                        );
+                    }
+                    Err(e) => {
+                        self.note("notification-port", &format!("{detail} : malformée ({e})"));
+                        anomaly.get_or_insert(format!("notification de port malformée ({e})"));
+                    }
+                }
             } else {
                 self.note("notification-autre", &detail);
             }
+        }
+        match anomaly {
+            Some(reason) => {
+                self.note("arret-notification", &reason);
+                bail!("{reason} : essai arrêté, relecture des preuves avant de continuer")
+            }
+            None => Ok(()),
         }
     }
 }
@@ -145,6 +169,10 @@ fn read_once<T: Transport>(
     budget.gets -= 1;
     report.note("envoi", "0402 (vide)");
     match headset.on_head_state() {
+        Ok(OnHeadState::Unknown(b)) => {
+            report.note("reponse", &format!("0502 {b:02X} inconnu [{label}]"));
+            bail!("code {b:02X} inconnu : essai arrêté, relecture des preuves avant de continuer");
+        }
         Ok(state) => {
             report.note("reponse", &format!("0502 {} [{label}]", describe(state)));
             Ok(state)
@@ -210,27 +238,24 @@ fn run<T: Transport>(
                         .client()
                         .poll(Duration::from_millis(250))
                         .context("réception des notifications")?;
-                    report.notifications(&frames);
+                    report.notifications(&frames)?;
                     match ready.try_recv() {
                         Ok(()) => break,
                         Err(TryRecvError::Empty) => {}
                         Err(TryRecvError::Disconnected) => bail!("saisie fermée : essai arrêté"),
                     }
                 }
-                let state = read_once(headset, &mut budget, report, position)?;
+                read_once(headset, &mut budget, report, position)?;
                 // Notifications reçues pendant la lecture (après elle).
                 let frames = headset.client().take_unsolicited();
-                report.notifications(&frames);
-                if let OnHeadState::Unknown(b) = state {
-                    bail!("code {b:02X} inconnu : relecture des preuves avant de continuer");
-                }
+                report.notifications(&frames)?;
             }
         }
         _ => {
             subscribe_once(headset, &mut budget, report)?;
             read_once(headset, &mut budget, report, "après reconnexion")?;
             let frames = headset.client().take_unsolicited();
-            report.notifications(&frames);
+            report.notifications(&frames)?;
         }
     }
     report.note(
@@ -414,6 +439,67 @@ mod tests {
         let mut report = Report::new();
         assert!(run(3, &mut headset, &signals(0), &mut report).is_err());
         assert_eq!(headset.client().transport().sent().len(), 3);
+    }
+
+    #[test]
+    fn unknown_code_stops_palier_1_and_3() {
+        let mock = identified().expect(
+            &h("FF 03 00 00 04 95 04 02"),
+            &h("FF 03 00 01 04 95 05 02 01"),
+        );
+        let mut headset = Headset::new(mock, T);
+        assert!(run(1, &mut headset, &signals(0), &mut Report::new()).is_err());
+        let mock = identified()
+            .expect(
+                &h("FF 03 00 01 04 95 00 07 02"),
+                &h("FF 03 00 00 04 95 01 07"),
+            )
+            .expect(
+                &h("FF 03 00 00 04 95 04 02"),
+                &h("FF 03 00 01 04 95 05 02 00"),
+            );
+        let mut headset = Headset::new(mock, T);
+        assert!(run(3, &mut headset, &signals(0), &mut Report::new()).is_err());
+    }
+
+    #[test]
+    fn invalid_port_notification_stops_before_the_next_request() {
+        // Notification de port inconnue (01) puis malformée (deux octets) :
+        // chacune arrête le palier 2 avant toute lecture.
+        for bad in [
+            "FF 03 00 01 04 95 04 82 01",
+            "FF 03 00 02 04 95 04 82 03 00",
+        ] {
+            let mut mock = identified().expect(
+                &h("FF 03 00 01 04 95 00 07 02"),
+                &h("FF 03 00 00 04 95 01 07"),
+            );
+            mock.push_incoming(&h(bad));
+            let mut headset = Headset::new(mock, T);
+            let mut report = Report::new();
+            assert!(run(2, &mut headset, &signals(6), &mut report).is_err());
+            // 2 identité + 1 abonnement, aucune lecture 0402.
+            assert_eq!(headset.client().transport().sent().len(), 3, "{bad}");
+            assert!(
+                report
+                    .lines
+                    .iter()
+                    .any(|l| l.contains("arret-notification"))
+            );
+        }
+    }
+
+    #[test]
+    fn other_notifications_are_only_logged() {
+        let mut mock = identified().expect(
+            &h("FF 03 00 00 04 95 04 02"),
+            &h("FF 03 00 01 04 95 05 02 02"),
+        );
+        // Batterie (0683), autre fonction : notée, sans arrêt.
+        mock.push_incoming(&h("FF 03 00 01 04 95 06 83 2A"));
+        let mut headset = Headset::new(mock, T);
+        let mut report = Report::new();
+        run(1, &mut headset, &signals(0), &mut report).unwrap();
     }
 
     #[test]
