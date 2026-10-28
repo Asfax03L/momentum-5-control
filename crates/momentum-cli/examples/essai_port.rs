@@ -25,6 +25,8 @@ use clap::Parser;
 use momentum_core::client::RawEvent;
 use momentum_core::device::{Headset, OnHeadState};
 use momentum_core::hex::to_hex;
+use momentum_core::protocol::command::get;
+use momentum_core::protocol::messages::parse_on_head_state;
 use momentum_core::protocol::{Frame, VENDOR_SENNHEISER};
 use momentum_core::transport::Transport;
 
@@ -100,7 +102,7 @@ impl Report {
                 to_hex(&f.payload)
             );
             if f.vendor == VENDOR_SENNHEISER && f.command.raw() == 0x0482 {
-                match momentum_core::protocol::messages::parse_on_head_state(&f.payload) {
+                match parse_on_head_state(&f.payload) {
                     Ok(OnHeadState::Unknown(b)) => {
                         self.note("notification-port", &format!("{detail} : {b:02X} inconnu"));
                         anomaly.get_or_insert(format!("notification de port {b:02X} inconnue"));
@@ -156,9 +158,15 @@ fn check_identity<T: Transport>(
     }
 }
 
-/// Une lecture `0402`, décomptée du budget.
+/// Une lecture `0402`, décomptée du budget. L'outil envoie la requête
+/// lui-même, sans passer par `Headset::on_head_state` qui écarte les
+/// notifications de port antérieures à la réponse : ici, **toutes** les
+/// notifications reçues (avant la réponse, ou après elle dans le même bloc
+/// et restées dans le décodeur) sont notées et contrôlées avant
+/// d'interpréter la réponse. Une anomalie arrête l'essai.
 fn read_once<T: Transport>(
     headset: &mut Headset<T>,
+    timeout: Duration,
     budget: &mut Budget,
     report: &mut Report,
     label: &str,
@@ -168,7 +176,22 @@ fn read_once<T: Transport>(
     }
     budget.gets -= 1;
     report.note("envoi", "0402 (vide)");
-    match headset.on_head_state() {
+    let reply = headset
+        .client()
+        .request(&Frame::sennheiser_request(get::ON_HEAD_STATE), timeout);
+    // Notifications d'avant la réponse et suffixe du décodeur.
+    let frames = headset.client().pending_notifications().to_vec();
+    headset.client().take_unsolicited();
+    let checked = report.notifications(&frames);
+    let reply = match reply {
+        Ok(frame) => frame,
+        Err(e) => {
+            report.note("echec-lecture", &e.to_string());
+            bail!("lecture 0402 sans réponse valide : essai arrêté ({e})");
+        }
+    };
+    checked?;
+    match parse_on_head_state(&reply.payload) {
         Ok(OnHeadState::Unknown(b)) => {
             report.note("reponse", &format!("0502 {b:02X} inconnu [{label}]"));
             bail!("code {b:02X} inconnu : essai arrêté, relecture des preuves avant de continuer");
@@ -178,8 +201,11 @@ fn read_once<T: Transport>(
             Ok(state)
         }
         Err(e) => {
-            report.note("echec-lecture", &e.to_string());
-            bail!("lecture 0402 sans réponse valide : essai arrêté ({e})");
+            report.note(
+                "reponse-malformee",
+                &format!("{} ({e})", to_hex(&reply.payload)),
+            );
+            bail!("réponse 0502 malformée : essai arrêté ({e})");
         }
     }
 }
@@ -213,6 +239,7 @@ fn subscribe_once<T: Transport>(
 fn run<T: Transport>(
     palier: u8,
     headset: &mut Headset<T>,
+    timeout: Duration,
     ready: &Receiver<()>,
     report: &mut Report,
 ) -> anyhow::Result<()> {
@@ -220,7 +247,7 @@ fn run<T: Transport>(
     let mut budget = Budget::of(palier);
     match palier {
         1 => {
-            read_once(headset, &mut budget, report, "casque posé")?;
+            read_once(headset, timeout, &mut budget, report, "casque posé")?;
         }
         2 => {
             subscribe_once(headset, &mut budget, report)?;
@@ -245,7 +272,7 @@ fn run<T: Transport>(
                         Err(TryRecvError::Disconnected) => bail!("saisie fermée : essai arrêté"),
                     }
                 }
-                read_once(headset, &mut budget, report, position)?;
+                read_once(headset, timeout, &mut budget, report, position)?;
                 // Notifications reçues pendant la lecture (après elle).
                 let frames = headset.client().take_unsolicited();
                 report.notifications(&frames)?;
@@ -253,7 +280,7 @@ fn run<T: Transport>(
         }
         _ => {
             subscribe_once(headset, &mut budget, report)?;
-            read_once(headset, &mut budget, report, "après reconnexion")?;
+            read_once(headset, timeout, &mut budget, report, "après reconnexion")?;
             let frames = headset.client().take_unsolicited();
             report.notifications(&frames)?;
         }
@@ -315,7 +342,13 @@ fn main() -> anyhow::Result<()> {
         }
     });
 
-    let result = run(args.palier, &mut headset, &ready, &mut report);
+    let result = run(
+        args.palier,
+        &mut headset,
+        Duration::from_millis(args.timeout_ms),
+        &ready,
+        &mut report,
+    );
     if let Err(e) = &result {
         report.note("arret", &e.to_string());
     }
@@ -375,7 +408,7 @@ mod tests {
         );
         let mut headset = Headset::new(mock, T);
         let mut report = Report::new();
-        run(1, &mut headset, &signals(0), &mut report).unwrap();
+        run(1, &mut headset, T, &signals(0), &mut report).unwrap();
         assert!(headset.client().transport().is_exhausted());
         assert_eq!(headset.client().transport().sent().len(), 3);
         assert!(report.lines.iter().any(|l| l.contains("0502 02 non porté")));
@@ -397,7 +430,7 @@ mod tests {
         mock.push_incoming(&h("FF 03 00 01 04 95 04 82 03"));
         let mut headset = Headset::new(mock, T);
         let mut report = Report::new();
-        run(2, &mut headset, &signals(6), &mut report).unwrap();
+        run(2, &mut headset, T, &signals(6), &mut report).unwrap();
         assert!(headset.client().transport().is_exhausted());
         // 2 identité + 1 abonnement + 6 lectures, rien d'autre.
         assert_eq!(headset.client().transport().sent().len(), 9);
@@ -425,7 +458,7 @@ mod tests {
         );
         let mut headset = Headset::new(mock, T);
         let mut report = Report::new();
-        assert!(run(1, &mut headset, &signals(0), &mut report).is_err());
+        assert!(run(1, &mut headset, T, &signals(0), &mut report).is_err());
         assert_eq!(headset.client().transport().sent().len(), 1);
     }
 
@@ -437,7 +470,7 @@ mod tests {
         );
         let mut headset = Headset::new(mock, T);
         let mut report = Report::new();
-        assert!(run(3, &mut headset, &signals(0), &mut report).is_err());
+        assert!(run(3, &mut headset, T, &signals(0), &mut report).is_err());
         assert_eq!(headset.client().transport().sent().len(), 3);
     }
 
@@ -448,7 +481,7 @@ mod tests {
             &h("FF 03 00 01 04 95 05 02 01"),
         );
         let mut headset = Headset::new(mock, T);
-        assert!(run(1, &mut headset, &signals(0), &mut Report::new()).is_err());
+        assert!(run(1, &mut headset, T, &signals(0), &mut Report::new()).is_err());
         let mock = identified()
             .expect(
                 &h("FF 03 00 01 04 95 00 07 02"),
@@ -459,7 +492,7 @@ mod tests {
                 &h("FF 03 00 01 04 95 05 02 00"),
             );
         let mut headset = Headset::new(mock, T);
-        assert!(run(3, &mut headset, &signals(0), &mut Report::new()).is_err());
+        assert!(run(3, &mut headset, T, &signals(0), &mut Report::new()).is_err());
     }
 
     #[test]
@@ -477,7 +510,7 @@ mod tests {
             mock.push_incoming(&h(bad));
             let mut headset = Headset::new(mock, T);
             let mut report = Report::new();
-            assert!(run(2, &mut headset, &signals(6), &mut report).is_err());
+            assert!(run(2, &mut headset, T, &signals(6), &mut report).is_err());
             // 2 identité + 1 abonnement, aucune lecture 0402.
             assert_eq!(headset.client().transport().sent().len(), 3, "{bad}");
             assert!(
@@ -490,6 +523,53 @@ mod tests {
     }
 
     #[test]
+    fn invalid_notification_in_the_reply_block_stops_the_trial() {
+        // Notification inconnue juste avant la réponse, puis juste après dans
+        // le même bloc : arrêt dans les deux cas, aucune lecture suivante.
+        let before = "FF 03 00 01 04 95 04 82 01 FF 03 00 01 04 95 05 02 02";
+        let after = "FF 03 00 01 04 95 05 02 03 FF 03 00 02 04 95 04 82 03 00";
+        for block in [before, after] {
+            let mut mock = identified().expect(
+                &h("FF 03 00 01 04 95 00 07 02"),
+                &h("FF 03 00 00 04 95 01 07"),
+            );
+            mock = mock.expect(&h("FF 03 00 00 04 95 04 02"), &h(block));
+            let mut headset = Headset::new(mock, T);
+            let mut report = Report::new();
+            assert!(
+                run(2, &mut headset, T, &signals(6), &mut report).is_err(),
+                "{block}"
+            );
+            // 2 identité + 1 abonnement + 1 lecture, aucune autre requête.
+            assert_eq!(headset.client().transport().sent().len(), 4, "{block}");
+            assert!(
+                report
+                    .lines
+                    .iter()
+                    .any(|l| l.contains("arret-notification"))
+            );
+        }
+    }
+
+    #[test]
+    fn valid_notification_before_the_reply_is_logged_not_hidden() {
+        let mock = identified().expect(
+            &h("FF 03 00 00 04 95 04 02"),
+            &h("FF 03 00 01 04 95 04 82 03 FF 03 00 01 04 95 05 02 02"),
+        );
+        let mut headset = Headset::new(mock, T);
+        let mut report = Report::new();
+        run(1, &mut headset, T, &signals(0), &mut report).unwrap();
+        assert!(
+            report
+                .lines
+                .iter()
+                .any(|l| l.contains("notification-port") && l.contains("03 porté"))
+        );
+        assert!(report.lines.iter().any(|l| l.contains("0502 02 non porté")));
+    }
+
+    #[test]
     fn other_notifications_are_only_logged() {
         let mut mock = identified().expect(
             &h("FF 03 00 00 04 95 04 02"),
@@ -499,7 +579,7 @@ mod tests {
         mock.push_incoming(&h("FF 03 00 01 04 95 06 83 2A"));
         let mut headset = Headset::new(mock, T);
         let mut report = Report::new();
-        run(1, &mut headset, &signals(0), &mut report).unwrap();
+        run(1, &mut headset, T, &signals(0), &mut report).unwrap();
     }
 
     #[test]
@@ -515,7 +595,7 @@ mod tests {
             );
         let mut headset = Headset::new(mock, T);
         let mut report = Report::new();
-        let err = run(2, &mut headset, &signals(6), &mut report).unwrap_err();
+        let err = run(2, &mut headset, T, &signals(6), &mut report).unwrap_err();
         assert!(err.to_string().contains("01 inconnu") || err.to_string().contains("code 01"));
         assert_eq!(headset.client().transport().sent().len(), 4);
     }
