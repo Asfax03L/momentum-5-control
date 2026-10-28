@@ -1,0 +1,117 @@
+[
+  {
+    "file": "headphones.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Headphones/SVG/ic_fluent_headphones_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "home.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Home/SVG/ic_fluent_home_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "settings.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Settings/SVG/ic_fluent_settings_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "battery_6.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Battery%206/SVG/ic_fluent_battery_6_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "bluetooth.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Bluetooth/SVG/ic_fluent_bluetooth_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "laptop.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Laptop/SVG/ic_fluent_laptop_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "phone.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Phone/SVG/ic_fluent_phone_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "speaker_2.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Speaker%202/SVG/ic_fluent_speaker_2_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "more_horizontal.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/More%20Horizontal/SVG/ic_fluent_more_horizontal_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "arrow_sync.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Arrow%20Sync/SVG/ic_fluent_arrow_sync_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "weather_moon.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Weather%20Moon/SVG/ic_fluent_weather_moon_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "weather_sunny.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Weather%20Sunny/SVG/ic_fluent_weather_sunny_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "checkmark.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Checkmark/SVG/ic_fluent_checkmark_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "arrow_left.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Arrow%20Left/SVG/ic_fluent_arrow_left_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "subtract.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Subtract/SVG/ic_fluent_subtract_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "square.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Square/SVG/ic_fluent_square_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "dismiss.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Dismiss/SVG/ic_fluent_dismiss_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "info.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Info/SVG/ic_fluent_info_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "music_note_2.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Music%20Note%202/SVG/ic_fluent_music_note_2_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "headset.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Headset/SVG/ic_fluent_headset_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "navigation.svg",
+    "url": "https://raw.githubusercontent.com/microsoft/fluentui-system-icons/main/assets/Navigation/SVG/ic_fluent_navigation_24_regular.svg",
+    "origin": "Microsoft Fluent UI System Icons, MIT"
+  },
+  {
+    "file": "momentum5-officiel.jpg",
+    "url": "https://cdn.shopify.com/s/files/1/0781/7248/7963/files/M5_Black_Main_IsoFront.jpg?v=1776463846&width=700",
+    "origin": "Sennheiser, photo officielle, téléchargement local uniquement"
+  },
+  {
+    "file": "reference-sonybridge.png",
+    "url": "https://raw.githubusercontent.com/AmitRajput-Dev/SonyBridge/d0ecd561ebf6f1cb87ffbf29528107b2221724d5/docs/screenshots/themes.png",
+    "origin": "SonyBridge, référence publique de comparaison locale"
+  }
+]
