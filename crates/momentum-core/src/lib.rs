@@ -15,6 +15,7 @@ pub mod client;
 pub mod device;
 pub mod diagnostic;
 pub mod hex;
+pub mod home_presentation;
 pub mod hotkeys;
 pub mod i18n;
 pub mod journal;

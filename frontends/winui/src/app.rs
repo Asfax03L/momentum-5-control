@@ -1,5 +1,6 @@
 //! Composant racine : état du service, messages et vues.
 
+use momentum_core::home_presentation::{self, Availability, availability, headset_summary};
 use momentum_core::i18n::{tr, trf};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -88,6 +89,8 @@ enum Desk {
     Hotkey(HotkeyAction),
     /// Clic gauche sur l'icône : panneau rapide (ou sa fermeture).
     Panel,
+    /// Changement de disposition uniquement au franchissement du seuil.
+    Layout(bool),
 }
 
 /// Canal des demandes du bureau : envoi depuis tout fil, réception par une
@@ -260,6 +263,7 @@ enum Msg {
     /// Message du service, puis attente du suivant.
     Service(Arc<Mutex<Option<Incoming>>>),
     Navigate(Option<String>),
+    PaneOpen(bool),
     ReconnectHeadset,
     NoiseMode(Option<usize>),
     Level(f64),
@@ -379,6 +383,8 @@ struct Root {
     settings_notice: String,
     settings_plan: Option<momentum_core::settings_transfer::ImportPlan>,
     page: Page,
+    wide_home: bool,
+    nav_open: bool,
     snapshot: Snapshot,
     service_error: Option<String>,
     reconnect_notice: Option<String>,
@@ -952,6 +958,10 @@ impl Root {
     fn on_desk(&mut self, request: Desk, context: &ComponentContext<Self>) {
         let state = self.snapshot.state.filter(|_| self.writable());
         match request {
+            Desk::Layout(wide) => {
+                self.wide_home = wide;
+                self.nav_open = wide;
+            }
             Desk::Panel => {
                 if !context.open_window(View::component::<crate::panel::Panel>(())) {
                     desktop::show();
@@ -1128,6 +1138,8 @@ impl Component for Root {
         let start_hidden = std::env::args().any(|a| a == HIDDEN_FLAG) && tray.is_some();
         let root = Self {
             page,
+            wide_home: true,
+            nav_open: true,
             snapshot: Snapshot::default(),
             service_error: None,
             reconnect_notice: None,
@@ -1222,6 +1234,7 @@ impl Component for Root {
     fn update(&mut self, message: Msg, context: &ComponentContext<Self>) {
         let state = self.snapshot.state;
         match message {
+            Msg::PaneOpen(open) => self.nav_open = open,
             Msg::Service(cell) => {
                 let incoming = cell.lock().ok().and_then(|mut c| c.take());
                 if let Some(failure) = incoming.as_ref().and_then(|i| self.requests.on_incoming(i))
@@ -2014,6 +2027,9 @@ impl Component for Root {
             Msg::Cancelled => self.confirm = None,
             Msg::Attach(tries) => {
                 if desktop::attach() {
+                    desktop::on_layout_changed(|wide| {
+                        let _ = desk().0.send(Desk::Layout(wide));
+                    });
                     if self.start_hidden {
                         desktop::hide();
                     }
@@ -2093,9 +2109,10 @@ impl Component for Root {
         });
         NavigationView::new()
             .pane_title(tr("OpenHeadset Control"))
-            // Volet toujours ouvert à gauche (le mode automatique le pose
-            // par-dessus le contenu dans une fenêtre moyenne).
-            .pane_display_mode(NavigationViewPaneDisplayMode::Left)
+            // Mode natif compact/fermé quand la largeur diminue.
+            .pane_display_mode(NavigationViewPaneDisplayMode::Auto)
+            .is_pane_open(self.nav_open)
+            .on_is_pane_open_changed(context.callback(Msg::PaneOpen))
             .open_pane_length(220.0)
             .is_settings_visible(false)
             .is_back_button_visible(NavigationViewBackButtonVisible::Collapsed)
@@ -2112,7 +2129,7 @@ impl Component for Root {
                         .content(
                             StackPanel::new()
                                 .spacing(12.0)
-                                .margin(Thickness::new(32.0, 24.0, 32.0, 32.0))
+                                .margin(Thickness::new(20.0, 24.0, 20.0, 24.0))
                                 .max_width(860.0)
                                 .children((self.header(context), page)),
                         ),
@@ -2257,6 +2274,44 @@ fn switch_row(
         ))
 }
 
+fn availability_hint(status: Availability) -> View {
+    if status.enabled() {
+        View::empty()
+    } else {
+        small(status.reason())
+    }
+}
+
+fn small(text: impl Into<String>) -> View {
+    TextBlock::new()
+        .text(text)
+        .font_size(12.0)
+        .opacity(0.8)
+        .text_wrapping(TextWrapping::Wrap)
+        .into()
+}
+
+/// Un réglage non lu ne devient pas un faux interrupteur « désactivé ».
+fn available_switch(
+    label: &str,
+    description: &str,
+    on: bool,
+    status: Availability,
+    toggled: Callback<bool>,
+) -> View {
+    if matches!(status, Availability::Unread | Availability::Disconnected) {
+        return StackPanel::new().spacing(4.0).children((
+            TextBlock::new().text(label),
+            small(description),
+            availability_hint(status),
+        ));
+    }
+    StackPanel::new().spacing(4.0).children((
+        switch_row(label, description, on, status.enabled(), toggled),
+        availability_hint(status),
+    ))
+}
+
 /// Lecture de la dernière publication (fil de fond).
 fn check_update() -> update_check::Outcome {
     let body = desktop::fetch_latest_release();
@@ -2363,6 +2418,7 @@ impl Root {
             TextBlock::new()
                 .text(v.title.clone())
                 .font_size(28.0)
+                .text_wrapping(TextWrapping::Wrap)
                 .automation_heading_level(AutomationHeadingLevel::Level1)
                 .font_weight(FontWeight::SEMI_BOLD),
             StackPanel::new()
@@ -2444,135 +2500,253 @@ impl Root {
     fn home(&self, context: &mut ViewContext<Self>) -> View {
         let v = self.main_view();
         if !v.connected {
-            return StackPanel::new().spacing(12.0).children((
-                TextBlock::new()
-                    .text(v.waiting.clone())
-                    .text_wrapping(TextWrapping::Wrap),
-                Button::new()
-                    .is_enabled(self.service_error.is_none() && !self.busy)
-                    .on_click(context.message(Msg::ReconnectHeadset))
-                    .content(tr("Reconnecter le casque")),
-            ));
+            return card(
+                tr("Votre casque"),
+                StackPanel::new().spacing(12.0).children((
+                    TextBlock::new()
+                        .text(v.waiting.clone())
+                        .text_wrapping(TextWrapping::Wrap),
+                    Button::new()
+                        .is_enabled(self.service_error.is_none() && !self.busy)
+                        .on_click(context.message(Msg::ReconnectHeadset))
+                        .content(tr("Reconnecter le casque")),
+                )),
+            );
         }
         let c = &v.controls;
-        let battery = self.snapshot.state.map_or(0.0, |s| f64::from(s.battery));
+        let s = self.snapshot.state.as_ref();
+        let a = home_presentation::home_availability(s, self.snapshot.info.as_ref(), v.writable);
+        let summary = headset_summary(s);
         let multipoint = self.snapshot.info.as_ref().and_then(|i| i.multipoint);
+        let st = viewmodel::settings_view(s, self.snapshot.info.as_ref(), v.writable);
         let rows = self.rows(v.writable);
         let devices = rows.iter().enumerate().map(|(i, row)| {
-            // Pas de bouton pour ce PC ni en lecture seule.
-            let button = Border::new().grid_column(1).content(if row.can_act {
-                Button::new()
-                    .on_click(context.message(Msg::ToggleConnection(i)))
-                    .content(row.action.clone())
-            } else {
-                View::empty()
-            });
             KeyedView::new(
                 format!("{i}-{}", row.name),
                 Grid::new()
                     .columns([GridLength::Star(1.0), GridLength::Auto])
+                    .column_spacing(8.0)
                     .children((
-                        StackPanel::new().children((
-                            TextBlock::new().text(row.name.clone()),
+                        StackPanel::new().spacing(4.0).children((
                             TextBlock::new()
-                                .text(row.status.clone())
-                                .font_size(12.0)
-                                .opacity(0.7),
+                                .text(row.name.clone())
+                                .text_wrapping(TextWrapping::Wrap),
+                            small(row.status.clone()),
                         )),
-                        button,
+                        Border::new().grid_column(1).content(if row.can_act {
+                            Button::new()
+                                .on_click(context.message(Msg::ToggleConnection(i)))
+                                .content(row.action.clone())
+                        } else {
+                            View::empty()
+                        }),
                     )),
             )
         });
-        StackPanel::new().spacing(12.0).children((
-            card(
-                tr("Casque"),
-                StackPanel::new().spacing(6.0).children((
-                    TextBlock::new().text(v.battery_text.clone()),
-                    ProgressBar::new()
-                        .minimum(0.0)
-                        .maximum(100.0)
-                        .value(battery),
-                    TextBlock::new().text(v.stream.clone()).opacity(0.7),
+        let noise_modes: View = if a.noise.enabled() {
+            RadioButtons::new()
+                .items_source(viewmodel::NOISE_MODES.map(tr))
+                .max_columns(3)
+                .selected_index(index(c.noise_mode))
+                .automation_name(tr("Mode de réduction du bruit"))
+                .on_selection_changed(context.callback(Msg::NoiseMode))
+                .into()
+        } else {
+            TextBlock::new()
+                .text(
+                    viewmodel::NOISE_MODES
+                        .get(c.noise_mode as usize)
+                        .map_or(tr("non lu"), |label| tr(label)),
+                )
+                .into()
+        };
+        let noise = card(
+            tr("Contrôle du bruit"),
+            StackPanel::new().spacing(10.0).children((
+                noise_modes,
+                availability_hint(a.noise),
+                TextBlock::new().text(trf("ANC ↔ transparence : {} %", &[&c.level])),
+                Slider::new()
+                    .minimum(0.0)
+                    .maximum(100.0)
+                    .step_frequency(1.0)
+                    .value(f64::from(c.level))
+                    .is_enabled(a.level.enabled())
+                    .automation_name(tr("ANC ↔ transparence"))
+                    .on_value_changed(context.callback(Msg::Level)),
+                Grid::new()
+                    .columns([GridLength::Star(1.0), GridLength::Star(1.0)])
+                    .children((
+                        small(tr("ANC maximal")),
+                        TextBlock::new()
+                            .text(tr("Transparence maximale"))
+                            .font_size(12.0)
+                            .text_wrapping(TextWrapping::Wrap)
+                            .horizontal_alignment(HorizontalAlignment::Right)
+                            .grid_column(1),
+                    )),
+                availability_hint(a.level),
+                available_switch(
+                    tr("Anti-vent"),
+                    tr("Réduit le bruit du vent sur les micros"),
+                    c.anti_wind,
+                    a.anti_wind,
+                    context.callback(Msg::AntiWind),
+                ),
+            )),
+        );
+        let spatial = card(
+            tr("Audio spatial"),
+            StackPanel::new().spacing(14.0).children((
+                available_switch(
+                    tr("Audio spatial"),
+                    tr("Une scène sonore plus enveloppante"),
+                    c.spatial_on,
+                    a.spatial,
+                    context.callback(Msg::Spatial),
+                ),
+                available_switch(
+                    tr("Suivi de tête"),
+                    tr("Avec l'audio spatial"),
+                    c.head_tracking_on,
+                    a.tracking,
+                    context.callback(Msg::HeadTracking),
+                ),
+            )),
+        );
+        let connections = card(
+            tr("Appareils"),
+            StackPanel::new().spacing(12.0).children((
+                available_switch(
+                    tr("Multipoint"),
+                    tr("Deux appareils à la fois"),
+                    multipoint == Some(true),
+                    a.multipoint,
+                    context.callback(Msg::Multipoint),
+                ),
+                if rows.is_empty() {
+                    small(tr("Liste des appareils non disponible."))
+                } else {
+                    StackPanel::new().spacing(12.0).keyed_children(devices)
+                },
+                small(tr(
+                    "La connexion Bluetooth n'indique pas quel appareil diffuse du son.",
                 )),
-            ),
-            card(
-                tr("Réduction de bruit"),
-                StackPanel::new().spacing(10.0).children((
-                    RadioButtons::new()
-                        .items_source(viewmodel::NOISE_MODES.map(tr))
-                        .max_columns(3)
-                        .selected_index(index(c.noise_mode))
-                        .on_selection_changed(context.callback(Msg::NoiseMode)),
-                    TextBlock::new().text(trf("ANC ↔ transparence : {} %", &[&c.level])),
-                    Slider::new()
-                        .minimum(0.0)
-                        .maximum(100.0)
-                        // Pas de 1 : une valeur lue ne peut pas être arrondie (et renvoyée).
-                        .step_frequency(1.0)
-                        .value(f64::from(c.level))
-                        .is_enabled(v.writable)
-                        .automation_name(tr("ANC ↔ transparence"))
-                        .on_value_changed(context.callback(Msg::Level)),
-                    switch_row(
-                        tr("Anti-vent"),
-                        tr("Réduit le bruit du vent sur les micros"),
-                        c.anti_wind,
-                        v.writable,
-                        context.callback(Msg::AntiWind),
+                if !v.writable {
+                    availability_hint(Availability::ReadOnly)
+                } else {
+                    View::empty()
+                },
+            )),
+        );
+        let quick = card(
+            tr("Au quotidien"),
+            StackPanel::new().spacing(14.0).children((
+                available_switch(
+                    tr("Commandes tactiles"),
+                    tr("Gestes sur l'écouteur droit"),
+                    c.touch_on,
+                    a.touch,
+                    context.callback(Msg::Touch),
+                ),
+                available_switch(
+                    tr("Smart Pause"),
+                    tr("Pause au retrait du casque"),
+                    st.smart_pause.on,
+                    a.smart_pause,
+                    context.callback(Msg::SmartPause),
+                ),
+                Button::new()
+                    .automation_id("accueil-egaliseur")
+                    .on_click(context.message(Msg::Navigate(Some("son".into()))))
+                    .content(
+                        TextBlock::new()
+                            .text(tr("Ouvrir l'égaliseur et la comparaison A/B"))
+                            .text_wrapping(TextWrapping::Wrap),
                     ),
+            )),
+        );
+        let position = |column: i32, row: i32, content: View| {
+            Border::new()
+                .grid_column(if self.wide_home { column } else { 0 })
+                .grid_row(if self.wide_home {
+                    row
+                } else {
+                    row * 2 + column
+                })
+                .content(content)
+        };
+        StackPanel::new().spacing(16.0).children((
+            self.headset_card(&v, &summary),
+            Grid::new()
+                .columns(if self.wide_home {
+                    vec![GridLength::Star(1.0), GridLength::Star(1.0)]
+                } else {
+                    vec![GridLength::Star(1.0)]
+                })
+                .rows([GridLength::Auto; 4])
+                .column_spacing(16.0)
+                .row_spacing(16.0)
+                .children((
+                    position(0, 0, noise),
+                    position(1, 0, connections),
+                    position(0, 1, spatial),
+                    position(1, 1, quick),
                 )),
-            ),
-            card(
-                tr("Fonctionnalités rapides"),
-                StackPanel::new().spacing(8.0).children((
-                    switch_row(
-                        tr("Multipoint"),
-                        tr("Deux appareils à la fois"),
-                        multipoint == Some(true),
-                        v.writable && multipoint.is_some(),
-                        context.callback(Msg::Multipoint),
-                    ),
-                    switch_row(
-                        tr("Audio spatial"),
-                        tr("Dolby Atmos"),
-                        c.spatial_on,
-                        c.spatial_enabled,
-                        context.callback(Msg::Spatial),
-                    ),
-                    switch_row(
-                        tr("Suivi de tête"),
-                        tr("Avec l'audio spatial"),
-                        c.head_tracking_on,
-                        c.head_tracking_enabled,
-                        context.callback(Msg::HeadTracking),
-                    ),
-                    switch_row(
-                        tr("Commandes tactiles"),
-                        tr("Gestes sur l'écouteur droit"),
-                        c.touch_on,
-                        c.touch_enabled,
-                        context.callback(Msg::Touch),
-                    ),
-                    switch_row(
-                        tr("Smart Pause"),
-                        tr("Pause au retrait du casque"),
-                        viewmodel::settings_view(
-                            self.snapshot.state.as_ref(),
-                            self.snapshot.info.as_ref(),
-                            v.writable,
-                        )
-                        .smart_pause
-                        .on,
-                        v.writable,
-                        context.callback(Msg::SmartPause),
-                    ),
-                )),
-            ),
-            card(
-                tr("Appareils appairés au casque"),
-                StackPanel::new().spacing(8.0).keyed_children(devices),
-            ),
         ))
+    }
+
+    fn headset_card(
+        &self,
+        v: &viewmodel::MainView,
+        summary: &home_presentation::HeadsetSummary,
+    ) -> View {
+        let model = self
+            .snapshot
+            .info
+            .as_ref()
+            .and_then(|i| i.model.clone())
+            .unwrap_or_else(|| tr("Casque Sennheiser").into());
+        card(
+            tr("Votre casque"),
+            Grid::new()
+                .columns([GridLength::Auto, GridLength::Star(1.0)])
+                .column_spacing(20.0)
+                .children((
+                    Image::new()
+                        .source_data(EncodedImage::from_static(include_bytes!(
+                            "../../../assets/logo/png/128.png"
+                        )))
+                        .width(if self.wide_home { 88.0 } else { 48.0 })
+                        .height(if self.wide_home { 88.0 } else { 48.0 })
+                        .vertical_alignment(VerticalAlignment::Top),
+                    StackPanel::new().grid_column(1).spacing(10.0).children((
+                        TextBlock::new()
+                            .text(model)
+                            .font_size(24.0)
+                            .font_weight(FontWeight::SEMI_BOLD)
+                            .text_wrapping(TextWrapping::Wrap),
+                        TextBlock::new()
+                            .text(trf("Batterie : {}", &[&v.battery_text]))
+                            .automation_id("accueil-batterie")
+                            .font_size(18.0),
+                        ProgressBar::new()
+                            .minimum(0.0)
+                            .maximum(100.0)
+                            .value(f64::from(v.battery.unwrap_or(0)))
+                            .automation_name(tr("Niveau de batterie")),
+                        TextBlock::new()
+                            .text(summary.charge.clone())
+                            .automation_id("accueil-charge")
+                            .text_wrapping(TextWrapping::Wrap),
+                        TextBlock::new()
+                            .text(summary.wearing.clone())
+                            .automation_id("accueil-port")
+                            .text_wrapping(TextWrapping::Wrap),
+                        small(summary.stream.clone()),
+                    )),
+                )),
+        )
     }
 
     fn sound(&self, context: &mut ViewContext<Self>) -> View {
@@ -2955,18 +3129,18 @@ impl Root {
             card(
                 tr("Appels"),
                 StackPanel::new().spacing(8.0).children((
-                    switch_row(
+                    available_switch(
                         tr("Réponse automatique"),
                         tr("Décrocher en mettant le casque"),
                         st.auto_answer.on,
-                        st.auto_answer.enabled,
+                        availability(v.connected, v.writable, self.snapshot.state.is_some_and(|s| s.auto_answer.is_some())),
                         context.callback(Msg::AutoAnswer),
                     ),
-                    switch_row(
+                    available_switch(
                         tr("Appels confortables"),
                         tr("Votre voix dans le casque pendant un appel"),
                         st.comfort_call.on,
-                        st.comfort_call.enabled,
+                        availability(v.connected, v.writable, self.snapshot.state.is_some_and(|s| s.comfort_call.is_some())),
                         context.callback(Msg::Comfort),
                     ),
                 )),
@@ -2975,17 +3149,18 @@ impl Root {
                 tr("Alimentation"),
                 StackPanel::new().spacing(8.0).children((
                     TextBlock::new().text(tr("Extinction automatique")),
+                    availability_hint(availability(v.connected, v.writable, self.snapshot.state.is_some_and(|s| s.auto_off_seconds.is_some()))),
                     ComboBox::new()
                         .items_source(viewmodel::AUTO_OFF_LABELS.map(tr))
                         .selected_index(index(st.auto_off))
                         .is_enabled(st.auto_off_enabled)
                         .automation_name(tr("Extinction automatique"))
                         .on_selection_changed(context.callback(Msg::AutoOff)),
-                    switch_row(
+                    available_switch(
                         tr("Protection de la batterie"),
                         tr("Limite la charge pour ménager la batterie"),
                         st.battery_protection.on,
-                        st.battery_protection.enabled,
+                        availability(v.connected, v.writable, self.snapshot.state.is_some_and(|s| s.battery_protection.is_some())),
                         context.callback(Msg::BatteryProtection),
                     ),
                 )),
@@ -2993,6 +3168,7 @@ impl Root {
             card(
                 tr("Invites"),
                 StackPanel::new().spacing(8.0).children((
+                    availability_hint(availability(v.connected, v.writable, self.snapshot.state.is_some_and(|s| s.prompt_mode.is_some()))),
                     ComboBox::new()
                         .items_source(viewmodel::PROMPT_MODES.map(tr))
                         .selected_index(index(st.prompt_mode))
@@ -3004,6 +3180,7 @@ impl Root {
                     } else {
                         trf("Volume des invites : {} %", &[&st.prompt_volume])
                     }),
+                    availability_hint(availability(v.connected, v.writable, self.snapshot.info.as_ref().is_some_and(|i| i.prompt_volume.is_some()))),
                     Slider::new()
                         .minimum(0.0)
                         .maximum(100.0)
@@ -3017,6 +3194,7 @@ impl Root {
             card(
                 tr("Nom du casque"),
                 StackPanel::new().spacing(8.0).children((
+                    availability_hint(availability(v.connected, v.writable, self.snapshot.info.as_ref().is_some_and(|i| i.name.is_some()))),
                     Grid::new()
                         .columns([GridLength::Star(1.0), GridLength::Auto])
                         .column_spacing(8.0)
@@ -3358,7 +3536,13 @@ impl Root {
                     .text_wrapping(TextWrapping::Wrap),
             )
         });
+        let summary = headset_summary(self.snapshot.state.as_ref());
         StackPanel::new().spacing(12.0).children((
+            card(tr("État actuel"), StackPanel::new().spacing(8.0).children((
+                TextBlock::new().text(summary.charge).automation_id("batterie-charge"),
+                TextBlock::new().text(summary.wearing).automation_id("batterie-port"),
+                small(tr("Le niveau de batterie et l'état de charge sont deux informations distinctes.")),
+            ))),
             card(
                 &trf("Batterie : {}", &[&page.view.current]),
                 StackPanel::new().spacing(10.0).children((

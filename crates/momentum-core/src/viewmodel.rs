@@ -104,9 +104,7 @@ pub fn battery_view(
             ),
             row(
                 tr("Non mesuré"),
-                tr(
-                    "état de charge, santé et cycles de la batterie : le casque ne les donne pas au projet",
-                ),
+                tr("santé et cycles de la batterie : non fournis au projet"),
             ),
         ],
     }

@@ -2263,3 +2263,87 @@ Once below 15 %
 
 niveau de sidetone {} non observé dans l'app (0, 1 ou 2)
 sidetone level {} not observed in the app (0, 1 or 2)
+
+Connectez le casque pour utiliser ce réglage.
+Connect the headset to use this setting.
+
+Lecture seule : les réglages du casque ne sont pas modifiables.
+Read-only: headset settings cannot be changed.
+
+Valeur non disponible pour cette connexion.
+Value unavailable for this connection.
+
+Choisissez Personnalisé pour ajuster le niveau.
+Choose Custom to adjust the level.
+
+Activez l'audio spatial pour régler le suivi de tête.
+Enable spatial audio to adjust head tracking.
+
+L'audio spatial est indisponible avec le profil personnalisé sélectionné.
+Spatial audio is unavailable while the personalized profile is selected.
+
+État de charge non disponible
+Charging state unavailable
+
+État de port non disponible
+Wearing state unavailable
+
+Flux audio non disponible
+Audio stream unavailable
+
+Sur batterie
+On battery
+
+En charge
+Charging
+
+Porté
+Worn
+
+Non porté
+Not worn
+
+Charge inconnue (0x{})
+Unknown charging state (0x{})
+
+Port inconnu (0x{})
+Unknown wearing state (0x{})
+
+santé et cycles de la batterie : non fournis au projet
+battery health and cycles: not provided to the project
+
+Votre casque
+Your headset
+
+Mode de réduction du bruit
+Noise reduction mode
+
+ANC maximal
+Maximum ANC
+
+Une scène sonore plus enveloppante
+A more immersive soundstage
+
+Appareils
+Devices
+
+Liste des appareils non disponible.
+Device list unavailable.
+
+La connexion Bluetooth n'indique pas quel appareil diffuse du son.
+A Bluetooth connection does not identify which device is playing audio.
+
+Au quotidien
+Everyday use
+
+Ouvrir l'égaliseur et la comparaison A/B
+Open the equalizer and A/B comparison
+
+Niveau de batterie
+Battery level
+
+État actuel
+Current state
+
+Le niveau de batterie et l'état de charge sont deux informations distinctes.
+Battery level and charging state are separate readings.
