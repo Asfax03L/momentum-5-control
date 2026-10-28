@@ -335,6 +335,34 @@ mod tests {
     }
 
     #[test]
+    fn charge_state_survives_ipc_but_not_a_connection_change() {
+        use momentum_core::device::{ChargeReading, ChargerStatus};
+
+        let state = ChargeReading {
+            primary_status: ChargerStatus::Unknown(2),
+            secondary_raw: Some(0),
+        };
+        let event = Event::State(HeadsetState {
+            charge_state: Some(state),
+            ..HeadsetState::default()
+        });
+        let event: Event = serde_json::from_str(&serde_json::to_string(&event).unwrap()).unwrap();
+        let mut snapshot = Snapshot::default();
+        snapshot.apply(&event);
+        assert_eq!(snapshot.state.unwrap().charge_state, Some(state));
+        snapshot.apply(&Event::Lost("perte simulée".into()));
+        assert!(snapshot.state.is_none());
+        snapshot.apply(&event);
+        snapshot.apply(&Event::Connected {
+            headset_id: None,
+            name: "Casque démo".into(),
+            read_only: None,
+            session: 2,
+        });
+        assert!(snapshot.state.is_none());
+    }
+
+    #[test]
     fn wearing_state_survives_ipc_but_not_a_connection_change() {
         use momentum_core::device::OnHeadState;
 

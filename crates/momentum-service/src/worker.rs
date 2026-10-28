@@ -1724,6 +1724,24 @@ mod tests {
     }
 
     #[test]
+    fn an_unavailable_charge_read_does_not_reuse_the_previous_state() {
+        use momentum_core::device::{ChargeReading, ChargerStatus};
+
+        let old = HeadsetState {
+            charge_state: Some(ChargeReading {
+                primary_status: ChargerStatus::Charging,
+                secondary_raw: Some(0),
+            }),
+            ..HeadsetState::default()
+        };
+        // Le cache de la fréquence audio ne s'applique pas à la charge.
+        assert_eq!(
+            keep_stream_info(&old, HeadsetState::default()).charge_state,
+            None
+        );
+    }
+
+    #[test]
     fn an_unavailable_wearing_read_does_not_reuse_the_previous_state() {
         use momentum_core::device::OnHeadState;
 

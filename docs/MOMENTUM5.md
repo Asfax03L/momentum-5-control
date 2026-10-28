@@ -228,7 +228,7 @@ Les réponses aux SET sont **vides** : l'accusé de réception est la réponse
 | Feature | GET → réponse M5 | Piste |
 |---|---|---|
 | 3 | `060B` → `00` | protection de la batterie ? (désactivée dans l'app) |
-| 3 | `0602` → `00 00`, `060E` → `06 FF` | ? |
+| 3 | `0602` → `00 00`, `060E` → `06 FF` | `0602` : état du chargeur, établi le 28/10/2026 (voir « État de charge déclaré »). `060E` : ? |
 | 4 | `081A` → `00 00 BB 80` | 48000 : fréquence d'échantillonnage (« 48 kHz » dans l'app) |
 | 4 | `080E` → `00 F8 0D C8`, `0808` → `02`, `081E` → `FF 00 00 00 00`, `081D` → `00` | ? |
 | 2 | `0402` → `03`, `0408` → `00` | `0402` : état physique porté (`03`) / non porté (`02`), distinct de `0401` ; établi le 27/10/2026, voir « État physique du port ». `0408` : ? |
@@ -410,6 +410,41 @@ identifiées comme propres à l'app. Capturé ne veut pas dire validé : restent
 non qualifiées la combinaison de priorité audio `(0406, 0408) = (1, 1)`
 (jamais observée), la langue des invites (seul 2 = français est confirmé) et
 l'écriture de la priorité depuis le PC (non exposée, voir F5).
+
+### État de charge déclaré (captures du 28/10/2026)
+
+Lecture seule, feature 3, numéro 2 ; **aucun SET** établi ni proposé
+(`0603` est la lecture du pourcentage, pas une écriture de charge).
+
+| Échange | Identifiant | Charge utile |
+|---|---|---|
+| Lecture | `0602` → `0702` | vide → `00 00` (sans câble), `01 00` (câble branché) |
+| Notification | `0682` | un octet : `00`, `01` observés |
+| Abonnement | `0007 [03]` | déjà dans les six abonnements historiques (feature batterie) |
+
+Captures de Smart Control Plus (empreintes SHA-256) :
+`b2b7b81e79d7ef1bc0ef34ac56c89ff3cdac71733e1d28213808451053142a9e`
+(`0702 [00 00]` record 31362, `0682 [00]` 31222, `0682 [01]` 31901 et 32057),
+`524ebe15dda3a26a705ba90318bc1aab1d3cdb373e3483754aed01b6759a89a6`
+(`0702 [01 00]` record 56016, après `0703 [64]` = 100 % record 55934).
+
+- `00` = chargeur déconnecté, `01` = en charge (déclaré par le casque).
+  `02` figure dans le code de l'app (fin de charge) mais n'a jamais été
+  observé sur le M5 : il reste **inconnu**, comme toute autre valeur.
+- `01` peut coexister avec **100 %** : pourcentage et état de charge sont
+  deux informations indépendantes ; 100 % ne veut jamais dire « charge
+  terminée ».
+- Le second octet de `0702` vaut `00` dans les captures ; son rôle physique
+  est inconnu : il est gardé brut, sans interprétation. Une notification
+  d'un octet l'invalide (il n'a pas été relu).
+- L'app accepte aussi une réponse d'un octet (non observée sur le M5).
+  Contrôle du projet : `0702` d'un ou deux octets, `0682` d'un octet ;
+  autre longueur = erreur, sans nouvel état.
+
+Implémentation (branche d'essai, d'après la fiche de Codex du 28/10/2026) :
+`HeadsetState.charge_state`, lu à chaque relecture complète ; tests sur
+transport simulé seulement. Rejeu depuis le PC : **à valider sur le
+matériel**.
 
 ### Sidetone (captures du 25/10/2026)
 

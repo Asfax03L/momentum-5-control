@@ -13,13 +13,13 @@ use tracing::{debug, warn};
 use crate::client::{ClientError, GaiaClient};
 use crate::profile::{ProfileBlock, ProfileExport};
 use crate::protocol::command::{REGISTER_NOTIFICATION, core_set, feature, get, set};
+pub use crate::protocol::messages::{ChargeReading, ChargerStatus, OnHeadState, PairedDevice};
 use crate::protocol::messages::{
-    M5NoiseMode, NoiseControlMode, m5_noise_mode, parse_battery, parse_codec, parse_core_features,
-    parse_eq_config, parse_eq_gain, parse_firmware_version, parse_model_name,
-    parse_noise_control_modes, parse_on_head_state, parse_paired_device, parse_sample_rate,
-    parse_sidetone, parse_switch,
+    M5NoiseMode, NoiseControlMode, m5_noise_mode, parse_battery, parse_charge_notification,
+    parse_charge_response, parse_codec, parse_core_features, parse_eq_config, parse_eq_gain,
+    parse_firmware_version, parse_model_name, parse_noise_control_modes, parse_on_head_state,
+    parse_paired_device, parse_sample_rate, parse_sidetone, parse_switch,
 };
-pub use crate::protocol::messages::{OnHeadState, PairedDevice};
 use crate::protocol::{
     CommandId, Frame, PacketKind, ProtocolError, VENDOR_QUALCOMM, VENDOR_SENNHEISER,
 };
@@ -546,6 +546,10 @@ pub struct HeadsetState {
     /// État physique (`0402` / `0482`) ; `None` si la lecture est indisponible.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub on_head_state: Option<OnHeadState>,
+    /// État de charge déclaré (`0602` / `0682`), indépendant du pourcentage :
+    /// 100 % ne signifie jamais « charge terminée ». `None` : non lu.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub charge_state: Option<ChargeReading>,
 }
 
 impl HeadsetState {
@@ -564,6 +568,16 @@ impl HeadsetState {
         if request == get::ON_HEAD_STATE {
             if let Ok(state) = parse_on_head_state(p) {
                 self.on_head_state = Some(state);
+            }
+        } else if request == get::CHARGER_STATE {
+            // Un octet seulement : le second champ de la dernière réponse
+            // n'est plus frais, il est oublié. Une notification invalide est
+            // ignorée sans toucher à l'état précédent.
+            if let Ok(status) = parse_charge_notification(p) {
+                self.charge_state = Some(ChargeReading {
+                    primary_status: status,
+                    secondary_raw: None,
+                });
             }
         } else if request == get::BATTERY {
             if let Ok(v) = parse_battery(p) {
@@ -939,6 +953,7 @@ impl<T: Transport> Headset<T> {
             // Pas de lecture connue : seulement par notification.
             sample_rate_hz: None,
             on_head_state: self.optional(|h| h.on_head_state())?,
+            charge_state: self.optional(|h| h.charge_state())?,
         })
     }
 
@@ -1393,6 +1408,16 @@ impl<T: Transport> Headset<T> {
         Ok(state)
     }
 
+    /// Lit l'état de charge déclaré (`0602` → `0702`), sans écriture.
+    pub fn charge_state(&mut self) -> Result<ChargeReading, DeviceError> {
+        let reading = parse_charge_response(&self.get(get::CHARGER_STATE)?)?;
+        // Seule une réponse valide remplace les notifications de charge déjà
+        // reçues ; celles qui suivent et celles des autres fonctions restent.
+        self.client
+            .forget_queued_notification(VENDOR_SENNHEISER, get::CHARGER_STATE.notification());
+        Ok(reading)
+    }
+
     /// Abonnement à la seule feature du port (`0007 [02]`), pour l'essai
     /// ciblé du capteur : aucun autre abonnement n'est envoyé.
     pub fn register_on_head_notification(&mut self) -> Result<(), DeviceError> {
@@ -1690,16 +1715,37 @@ mod tests {
             ("FF 03 00 00 04 95 08 02", "FF 03 00 01 04 95 09 02 02"),
             ("FF 03 00 00 04 95 08 00", "FF 03 00 01 04 95 09 00 02"),
         ];
-        for (port_reply, expected_port) in [
-            ("FF 03 00 01 04 95 05 02 02", Some(OnHeadState::NotWorn)),
-            ("FF 03 00 01 04 95 05 82 01", None),
-            ("FF 03 00 00 04 95 05 02", None),
+        let charging = Some(ChargeReading {
+            primary_status: ChargerStatus::Charging,
+            secondary_raw: Some(0),
+        });
+        // Port et charge : réponse lue, refus, réponse malformée (vide).
+        for (port_reply, expected_port, charge_reply, expected_charge) in [
+            (
+                "FF 03 00 01 04 95 05 02 02",
+                Some(OnHeadState::NotWorn),
+                "FF 03 00 02 04 95 07 02 01 00",
+                charging,
+            ),
+            (
+                "FF 03 00 01 04 95 05 82 01",
+                None,
+                "FF 03 00 01 04 95 07 82 01",
+                None,
+            ),
+            (
+                "FF 03 00 00 04 95 05 02",
+                None,
+                "FF 03 00 00 04 95 07 02",
+                None,
+            ),
         ] {
             let mut mock = MockTransport::new();
             for (tx, rx) in script {
                 mock = mock.expect(&h(tx), &h(rx));
             }
             mock = mock.expect(&h("FF 03 00 00 04 95 04 02"), &h(port_reply));
+            mock = mock.expect(&h("FF 03 00 00 04 95 06 02"), &h(charge_reply));
             let mut headset = Headset::validated_for_tests(mock, T);
             let state = headset.read_state().unwrap();
             assert!(headset.client().transport().is_exhausted());
@@ -1712,6 +1758,7 @@ mod tests {
             assert_eq!(state.prompt_mode, Some(PromptMode::TonesAndVoice));
             assert_eq!(state.codec, Some(2));
             assert_eq!(state.on_head_state, expected_port);
+            assert_eq!(state.charge_state, expected_charge);
         }
     }
 
