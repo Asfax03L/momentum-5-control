@@ -352,6 +352,26 @@ pub fn upsert_user_preset(name: &str, gains: &[i8]) -> Result<Vec<Preset>, Strin
     })
 }
 
+pub fn upsert_user_preset_for(
+    name: &str,
+    gains: &[i8],
+    topology: &presets::EqTopology,
+) -> Result<Vec<Preset>, String> {
+    let path = presets_file().ok_or(tr("dossier des données introuvable"))?;
+    modify_presets(&path, |list| {
+        presets::upsert_for(list, name, gains, topology).map_err(str::to_string)
+    })
+}
+
+/// Mise à jour atomique avec sauvegarde, seulement sur action explicite.
+pub fn bind_legacy_presets(topology: &presets::EqTopology) -> Result<Vec<Preset>, String> {
+    let path = presets_file().ok_or(tr("dossier des données introuvable"))?;
+    modify_presets(&path, |list| {
+        presets::bind_legacy(list, topology);
+        Ok(())
+    })
+}
+
 /// Supprime le préréglage personnel `name` (absent : rien à faire) ; rend
 /// la liste à jour.
 pub fn remove_user_preset(name: &str) -> Result<Vec<Preset>, String> {

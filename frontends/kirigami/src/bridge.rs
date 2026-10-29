@@ -91,6 +91,9 @@ pub mod qobject {
         #[qproperty(QString, user_preset)]
         /// Résultat de la dernière action sur les préréglages et courbes.
         #[qproperty(QString, eq_notice)]
+        #[qproperty(QString, slider_notice)]
+        #[qproperty(u64, edit_epoch)]
+        #[qproperty(bool, legacy_presets)]
         #[qproperty(bool, ab_ready)]
         #[qproperty(QString, ab_label)]
         #[qproperty(bool, bass_boost)]
@@ -266,6 +269,8 @@ pub mod qobject {
         /// `true` si c'est fait.
         #[qinvokable]
         fn save_preset(self: Pin<&mut Headset>, name: QString) -> bool;
+        #[qinvokable]
+        fn bind_legacy_presets(self: Pin<&mut Headset>);
         #[qinvokable]
         fn delete_user_preset(self: Pin<&mut Headset>);
         /// Gains saisis en dB (« -3,5 ; -1 ; … ») ; `true` si envoyés.
@@ -446,6 +451,7 @@ use cxx_qt::{CxxQtType, Threading};
 use cxx_qt_lib::{QString, QStringList};
 use momentum_client::dbus::Client;
 use momentum_client::demo::{self, Demo};
+use momentum_client::edits::{SliderEdits, SliderKey};
 use momentum_client::tracker::Tracker;
 use momentum_client::{Command, Event, Outcome, Snapshot};
 use momentum_core::battery_log::BatteryLog;
@@ -587,6 +593,9 @@ pub struct HeadsetRust {
     preset_index: i32,
     user_preset: QString,
     eq_notice: QString,
+    slider_notice: QString,
+    edit_epoch: u64,
+    legacy_presets: bool,
     ab_ready: bool,
     ab_label: QString,
     bass_boost: bool,
@@ -692,6 +701,7 @@ pub struct HeadsetRust {
     incidents: Vec<(u64, String)>,
     user_presets: Vec<Preset>,
     ab: AbCompare,
+    slider_edits: SliderEdits,
     /// Numéro de la dernière commande envoyée (efface l'attente périmée).
     /// Demandes envoyées, suivies jusqu'à leur résultat (`Event::Done`).
     requests: Tracker,
@@ -761,6 +771,9 @@ impl Default for HeadsetRust {
             preset_index: -1,
             user_preset: QString::default(),
             eq_notice: QString::default(),
+            slider_notice: QString::default(),
+            edit_epoch: 0,
+            legacy_presets: false,
             ab_ready: false,
             ab_label: QString::from(tr("Écouter A")),
             bass_boost: false,
@@ -867,6 +880,7 @@ impl Default for HeadsetRust {
             incidents: Vec::new(),
             user_presets: paths::load_user_presets(),
             ab: AbCompare::default(),
+            slider_edits: SliderEdits::default(),
             requests: Tracker::default(),
         }
     }
@@ -1084,9 +1098,19 @@ impl qobject::Headset {
         } else {
             self.rust().snapshot.session
         };
-        if tx.send((command, session)).is_err() {
+        if tx.send((command.clone(), session)).is_err() {
             return;
         }
+        if matches!(command, Command::SetMode(_)) {
+            self.as_mut()
+                .rust_mut()
+                .slider_edits
+                .discard(SliderKey::Level);
+        }
+        if matches!(command, Command::SetEqGains(_) | Command::SetEqFlat) {
+            self.as_mut().rust_mut().slider_edits.discard_bands();
+        }
+        self.as_mut().rust_mut().slider_edits.submitted(&command);
         self.as_mut().rust_mut().requests.sent();
         self.as_mut().rust_mut().snapshot.problem = None;
         self.as_mut().set_busy(true);
@@ -1112,6 +1136,7 @@ impl qobject::Headset {
                 .set_reconnect_notice(QString::from(notice.as_str()));
         }
         if let Some(message) = failure {
+            self.as_mut().rust_mut().ab = AbCompare::default();
             tracing::warn!(%message, "demande sans succès");
             self.as_mut().rust_mut().note_incident(message.clone());
             self.as_mut().rust_mut().snapshot.problem = Some(message);
@@ -1307,6 +1332,12 @@ impl qobject::Headset {
 
     /// Recopie l'état courant dans les propriétés QML.
     fn refresh(mut self: Pin<&mut Self>) {
+        let snapshot = self.rust().snapshot.clone();
+        let busy = self.rust().requests.busy();
+        if self.as_mut().rust_mut().slider_edits.sync(&snapshot) {
+            self.as_mut().rust_mut().ab = AbCompare::default();
+        }
+        self.as_mut().rust_mut().slider_edits.finish_if_idle(busy);
         let r = self.rust();
         let s = &r.snapshot;
         let name = s
@@ -1336,6 +1367,19 @@ impl qobject::Headset {
         let presets = r.all_presets();
         let ab_ready = r.ab.ready();
         let ab_label = r.ab.label();
+        let slider_notice = r.slider_edits.notice(s);
+        let edit_epoch = r.slider_edits.epoch();
+        let display_prompt = r
+            .slider_edits
+            .value(SliderKey::PromptVolume)
+            .map_or(st.prompt_volume, |v| {
+                i32::from(momentum_core::device::prompt_volume_percent(v as i8))
+            });
+        let display_level = r
+            .slider_edits
+            .value(SliderKey::Level)
+            .map_or(v.controls.level, i32::from);
+        let legacy_presets = r.user_presets.iter().any(|p| p.topology.is_none());
         let sv = viewmodel::sound_view(
             s.state.as_ref(),
             s.equalizer.as_ref().map(|e| e.gains.as_slice()),
@@ -1421,7 +1465,11 @@ impl qobject::Headset {
         h.as_mut().set_model(QString::from(model.as_str()));
         h.as_mut().set_firmware(QString::from(firmware.as_str()));
         h.as_mut().set_noise_mode(c.noise_mode);
-        h.as_mut().set_level(c.level);
+        h.as_mut().set_level(display_level);
+        h.as_mut().set_edit_epoch(edit_epoch);
+        h.as_mut()
+            .set_slider_notice(QString::from(slider_notice.as_str()));
+        h.as_mut().set_legacy_presets(legacy_presets);
         h.as_mut().set_anti_wind(c.anti_wind);
         h.as_mut().set_profile_on(profile_on);
         h.as_mut()
@@ -1448,7 +1496,7 @@ impl qobject::Headset {
         h.as_mut().set_auto_off_enabled(st.auto_off_enabled);
         h.as_mut().set_prompt_mode(st.prompt_mode);
         h.as_mut().set_prompts_enabled(st.prompts_enabled);
-        h.as_mut().set_prompt_volume(st.prompt_volume);
+        h.as_mut().set_prompt_volume(display_prompt);
         h.as_mut()
             .set_prompt_volume_enabled(st.prompt_volume_enabled);
         h.as_mut().set_headset_name(QString::from(st.name.as_str()));
@@ -1483,6 +1531,11 @@ impl qobject::Headset {
     }
 
     fn band_gain(&self, index: i32) -> f64 {
+        if let Ok(band) = u8::try_from(index)
+            && let Some(value) = self.rust().slider_edits.value(SliderKey::Band(band))
+        {
+            return f64::from(value) / 10.0;
+        }
         usize::try_from(index)
             .ok()
             .and_then(|i| {
@@ -1592,7 +1645,13 @@ impl qobject::Headset {
             .info
             .as_ref()
             .and_then(|i| i.prompt_volume);
-        if current.is_some_and(|c| c != value) {
+        if current.is_some_and(|c| c != value)
+            || self
+                .rust()
+                .slider_edits
+                .value(SliderKey::PromptVolume)
+                .is_some()
+        {
             self.send(Command::SetPromptVolume(value));
         }
     }
@@ -2360,7 +2419,10 @@ impl qobject::Headset {
         };
         let name = name.to_string().trim().to_string();
         // Relu puis modifié : rien d'enregistré par une autre interface n'est perdu.
-        match paths::upsert_user_preset(&name, &gains) {
+        let Some(topology) = self.rust().snapshot.eq_topology() else {
+            return false;
+        };
+        match paths::upsert_user_preset_for(&name, &gains, &topology) {
             Ok(list) => {
                 self.as_mut().rust_mut().user_presets = list;
                 self.as_mut()
@@ -2373,6 +2435,22 @@ impl qobject::Headset {
                 false
             }
         }
+    }
+
+    fn bind_legacy_presets(mut self: Pin<&mut Self>) {
+        let Some(topology) = self.rust().snapshot.eq_topology() else {
+            return;
+        };
+        match paths::bind_legacy_presets(&topology) {
+            Ok(list) => {
+                self.as_mut().rust_mut().user_presets = list;
+                self.as_mut().notice(
+                    tr("Association enregistrée sur ce PC, sans modifier le casque.").into(),
+                );
+            }
+            Err(reason) => self.as_mut().notice(reason),
+        }
+        self.refresh();
     }
 
     fn delete_user_preset(mut self: Pin<&mut Self>) {
@@ -2546,7 +2624,13 @@ impl qobject::Headset {
         else {
             return;
         };
-        self.as_mut().rust_mut().ab.remember(&gains);
+        let Some(topology) = self.rust().snapshot.eq_topology() else {
+            return;
+        };
+        if let Err(reason) = self.as_mut().rust_mut().ab.remember_for(&topology, &gains) {
+            self.notice(reason.into());
+            return;
+        }
         self.as_mut().notice(
             tr("Courbe A mémorisée : modifiez l'égaliseur (B), puis comparez.").to_string(),
         );
@@ -2563,19 +2647,35 @@ impl qobject::Headset {
         else {
             return;
         };
-        let target = self.as_mut().rust_mut().ab.toggle(&current);
-        if let Some(gains) = target.filter(|g| *g != current) {
-            self.as_mut().send(Command::SetEqGains(gains));
+        let Some(topology) = self.rust().snapshot.eq_topology() else {
+            return;
+        };
+        match self.as_mut().rust_mut().ab.toggle_for(&topology, &current) {
+            Ok(Some(gains)) if gains != current => self.as_mut().send(Command::SetEqGains(gains)),
+            Err(reason) => self.as_mut().notice(reason.into()),
+            _ => {}
         }
         self.refresh();
     }
 
-    fn apply_preset_index(self: Pin<&mut Self>, index: i32) {
-        let gains = usize::try_from(index)
+    fn apply_preset_index(mut self: Pin<&mut Self>, index: i32) {
+        let preset = usize::try_from(index)
             .ok()
-            .and_then(|i| self.rust().all_presets().get(i).map(|p| p.gains.clone()));
-        if let Some(gains) = gains {
-            self.send(Command::SetEqGains(gains));
+            .and_then(|i| self.rust().all_presets().get(i).cloned());
+        if let Some(preset) = preset {
+            match self
+                .rust()
+                .snapshot
+                .eq_topology()
+                .ok_or(tr("Topologie de l'égaliseur non disponible."))
+                .and_then(|t| preset.check_topology(&t))
+            {
+                Ok(()) => self.send(Command::SetEqGains(preset.gains)),
+                Err(reason) => {
+                    self.as_mut().notice(reason.into());
+                    self.refresh();
+                }
+            }
         }
     }
 }

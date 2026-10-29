@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use momentum_client::demo::{self, Demo};
+use momentum_client::edits::{SliderEdits, SliderKey};
 use momentum_client::tracker::Tracker;
 use momentum_client::{Client, ClientError, Command, Event, Outcome, Snapshot};
 use momentum_core::alerts::NotificationPrefs;
@@ -276,8 +277,8 @@ enum Msg {
     PaneOpen(bool),
     ReconnectHeadset,
     NoiseMode(Option<usize>),
-    Level(f64),
-    PromptVolume(f64),
+    Level(f64, u64),
+    PromptVolume(f64, u64),
     NewName(String),
     Rename,
     AntiWind(bool),
@@ -292,12 +293,13 @@ enum Msg {
     AutoOff(Option<usize>),
     PromptMode(Option<usize>),
     AudioMode(Option<usize>),
-    Band(usize, f64),
+    Band(usize, f64, u64),
     Bass(bool),
     Flat,
     Preset(Option<usize>),
     NewPresetName(String),
     SavePreset,
+    BindLegacyPresets,
     DeletePreset,
     GainsText(String),
     ApplyGainsText,
@@ -410,10 +412,8 @@ struct Root {
     eq_notice: Option<String>,
     ab: AbCompare,
     /// Curseurs déplacés, pas encore envoyés.
-    pending_level: Option<u8>,
-    pending_bands: Vec<(u8, i8)>,
+    slider_edits: SliderEdits,
     /// Volume des invites (valeur du casque), pas encore envoyé.
-    pending_prompt_volume: Option<i8>,
     edits: u64,
     /// Nom saisi, et pourquoi il est refusé avant tout envoi.
     new_name: String,
@@ -1025,6 +1025,12 @@ impl Root {
     }
 
     fn send(&mut self, command: Command) {
+        if matches!(command, Command::SetMode(_)) {
+            self.slider_edits.discard(SliderKey::Level);
+        }
+        if matches!(command, Command::SetEqGains(_) | Command::SetEqFlat) {
+            self.slider_edits.discard_bands();
+        }
         let reconnect = command == Command::ReconnectHeadset;
         if reconnect {
             if self.service_error.is_some() || self.busy {
@@ -1035,7 +1041,8 @@ impl Root {
             return;
         }
         let session = if reconnect { 0 } else { self.snapshot.session };
-        if self.commands.send((command, session)).is_ok() {
+        if self.commands.send((command.clone(), session)).is_ok() {
+            self.slider_edits.submitted(&command);
             self.requests.sent();
             self.busy = true;
             self.snapshot.problem = None;
@@ -1163,9 +1170,7 @@ impl Component for Root {
             gains_text: String::new(),
             eq_notice: None,
             ab: AbCompare::default(),
-            pending_level: None,
-            pending_bands: Vec::new(),
-            pending_prompt_volume: None,
+            slider_edits: SliderEdits::default(),
             edits: 0,
             new_name: String::new(),
             name_problem: None,
@@ -1249,6 +1254,7 @@ impl Component for Root {
                 let incoming = cell.lock().ok().and_then(|mut c| c.take());
                 if let Some(failure) = incoming.as_ref().and_then(|i| self.requests.on_incoming(i))
                 {
+                    self.ab = AbCompare::default();
                     self.note_incident(failure.clone());
                     self.snapshot.problem = Some(failure);
                 }
@@ -1301,6 +1307,11 @@ impl Component for Root {
                     }
                     None => {}
                 }
+                if self.slider_edits.sync(&self.snapshot) {
+                    self.edits = self.edits.wrapping_add(1);
+                    self.ab = AbCompare::default();
+                }
+                self.slider_edits.finish_if_idle(self.busy);
                 self.listen(context);
             }
             Msg::ReconnectHeadset => self.send(Command::ReconnectHeadset),
@@ -1622,17 +1633,19 @@ impl Component for Root {
                     }));
                 }
             }
-            Msg::Level(v) => {
+            Msg::Level(v, epoch) if epoch == self.slider_edits.epoch() => {
                 let level = v.round().clamp(0.0, 100.0) as u8;
                 let current = viewmodel::main_view(None, state.as_ref(), &[], None, None)
                     .controls
                     .level;
-                if i32::from(level) != current || self.pending_level.is_some() {
-                    self.pending_level = Some(level);
+                if self
+                    .slider_edits
+                    .edit(SliderKey::Level, i16::from(level), current as i16)
+                {
                     self.settle_later(context);
                 }
             }
-            Msg::Band(i, db) => {
+            Msg::Band(i, db, epoch) if epoch == self.slider_edits.epoch() => {
                 let tenths = (db * 10.0).round().clamp(-128.0, 127.0) as i8;
                 let current = self
                     .snapshot
@@ -1640,22 +1653,28 @@ impl Component for Root {
                     .as_ref()
                     .and_then(|e| e.gains.get(i).copied());
                 let band = u8::try_from(i).unwrap_or(u8::MAX);
-                let pending = self.pending_bands.iter().any(|(b, _)| *b == band);
-                if current.is_some() && (current != Some(tenths) || pending) {
-                    self.pending_bands.retain(|(b, _)| *b != band);
-                    self.pending_bands.push((band, tenths));
+                if let Some(read) = current
+                    && self.slider_edits.edit(
+                        SliderKey::Band(band),
+                        i16::from(tenths),
+                        i16::from(read),
+                    )
+                {
                     self.settle_later(context);
                 }
             }
-            Msg::PromptVolume(pct) => {
+            Msg::PromptVolume(pct, epoch) if epoch == self.slider_edits.epoch() => {
                 // Échelle de l'app : plusieurs % donnent la même valeur du
                 // casque ; on compare donc les valeurs du casque.
                 let value = prompt_volume_from_percent(pct.round().clamp(0.0, 100.0) as u8);
                 let current = self.snapshot.info.as_ref().and_then(|i| i.prompt_volume);
-                if current.is_some()
-                    && (current != Some(value) || self.pending_prompt_volume.is_some())
+                if let Some(read) = current
+                    && self.slider_edits.edit(
+                        SliderKey::PromptVolume,
+                        i16::from(value),
+                        i16::from(read),
+                    )
                 {
-                    self.pending_prompt_volume = Some(value);
                     self.settle_later(context);
                 }
             }
@@ -1680,14 +1699,8 @@ impl Component for Root {
             }
             Msg::Settled(edit) => {
                 if edit == self.edits {
-                    if let Some(level) = self.pending_level.take() {
-                        self.send(Command::SetLevel(level));
-                    }
-                    if let Some(volume) = self.pending_prompt_volume.take() {
-                        self.send(Command::SetPromptVolume(volume));
-                    }
-                    for (band, gain) in std::mem::take(&mut self.pending_bands) {
-                        self.send(Command::SetEqBand(band, gain));
+                    for command in self.slider_edits.take_commands() {
+                        self.send(command);
                     }
                 }
             }
@@ -1801,23 +1814,35 @@ impl Component for Root {
                 if i32::try_from(i).ok() != Some(sv.current_preset)
                     && let Some(p) = presets.get(i)
                 {
-                    self.send(Command::SetEqGains(p.gains.clone()));
+                    match self
+                        .snapshot
+                        .eq_topology()
+                        .ok_or(tr("Topologie de l'égaliseur non disponible."))
+                        .and_then(|t| p.check_topology(&t))
+                    {
+                        Ok(()) => self.send(Command::SetEqGains(p.gains.clone())),
+                        Err(reason) => self.eq_notice = Some(reason.into()),
+                    }
                 }
             }
             Msg::NewPresetName(text) => self.new_preset_name = text,
             Msg::SavePreset => {
-                if let Some(gains) = self.snapshot.equalizer.as_ref().map(|e| e.gains.clone()) {
+                if let Some(gains) = self.snapshot.equalizer.as_ref().map(|e| e.gains.clone())
+                    && let Some(topology) = self.snapshot.eq_topology()
+                {
                     let name = self.new_preset_name.trim().to_string();
                     // Relu puis modifié : rien d'enregistré par une autre
                     // interface n'est perdu.
-                    self.eq_notice = Some(match paths::upsert_user_preset(&name, &gains) {
-                        Ok(list) => {
-                            self.user_presets = list;
-                            self.new_preset_name.clear();
-                            trf("Préréglage « {} » enregistré sur ce PC.", &[&name])
-                        }
-                        Err(reason) => trf("Préréglage non enregistré : {}.", &[&reason]),
-                    });
+                    self.eq_notice = Some(
+                        match paths::upsert_user_preset_for(&name, &gains, &topology) {
+                            Ok(list) => {
+                                self.user_presets = list;
+                                self.new_preset_name.clear();
+                                trf("Préréglage « {} » enregistré sur ce PC.", &[&name])
+                            }
+                            Err(reason) => trf("Préréglage non enregistré : {}.", &[&reason]),
+                        },
+                    );
                 }
             }
             Msg::DeletePreset => {
@@ -1828,6 +1853,17 @@ impl Component for Root {
                             trf("Préréglage « {} » supprimé.", &[&preset.name])
                         }
                         Err(e) => trf("Suppression non enregistrée : {}.", &[&e]),
+                    });
+                }
+            }
+            Msg::BindLegacyPresets => {
+                if let Some(topology) = self.snapshot.eq_topology() {
+                    self.eq_notice = Some(match paths::bind_legacy_presets(&topology) {
+                        Ok(list) => {
+                            self.user_presets = list;
+                            tr("Association enregistrée sur ce PC, sans modifier le casque.").into()
+                        }
+                        Err(reason) => reason,
                     });
                 }
             }
@@ -1935,8 +1971,10 @@ impl Component for Root {
                 }
             },
             Msg::RememberA => {
-                if let Some(eq) = self.snapshot.equalizer.as_ref() {
-                    self.ab.remember(&eq.gains);
+                if let Some(eq) = self.snapshot.equalizer.as_ref()
+                    && let Some(topology) = self.snapshot.eq_topology()
+                {
+                    let _ = self.ab.remember_for(&topology, &eq.gains);
                     self.eq_notice = Some(
                         tr("Courbe A mémorisée : modifiez l'égaliseur (B), puis comparez.")
                             .to_string(),
@@ -1945,10 +1983,15 @@ impl Component for Root {
             }
             Msg::ToggleAb => {
                 if let Some(eq) = self.snapshot.equalizer.clone()
-                    && let Some(gains) = self.ab.toggle(&eq.gains)
-                    && gains != eq.gains
+                    && let Some(topology) = self.snapshot.eq_topology()
                 {
-                    self.send(Command::SetEqGains(gains));
+                    match self.ab.toggle_for(&topology, &eq.gains) {
+                        Ok(Some(gains)) if gains != eq.gains => {
+                            self.send(Command::SetEqGains(gains))
+                        }
+                        Err(reason) => self.eq_notice = Some(reason.into()),
+                        _ => {}
+                    }
                 }
             }
             Msg::ToggleConnection(index) => {
@@ -2071,6 +2114,9 @@ impl Component for Root {
                 }
             }
             Msg::NoiseMode(None)
+            | Msg::Level(_, _)
+            | Msg::Band(_, _, _)
+            | Msg::PromptVolume(_, _)
             | Msg::AutoOff(None)
             | Msg::PromptMode(None)
             | Msg::AudioMode(None)
@@ -2533,6 +2579,18 @@ impl Root {
                 .message(tr(
                     "Démonstration : données simulées (aucun casque, aucun service)",
                 )),
+            // Hauteur réservée : un retour de lecture ne déplace pas le
+            // curseur sous la souris ni le point de défilement.
+            TextBlock::new()
+                .text(
+                    self.slider_edits
+                        .notice(&self.snapshot)
+                        .replace('\n', " · "),
+                )
+                .height(20.0)
+                .text_trimming(TextTrimming::CharacterEllipsis)
+                .automation_id("intentions-curseurs")
+                .automation_name(self.slider_edits.notice(&self.snapshot)),
             InfoBar::new()
                 .is_open(!v.banner.is_empty())
                 .is_closable(false)
@@ -2718,10 +2776,17 @@ impl Root {
                     .minimum(0.0)
                     .maximum(100.0)
                     .step_frequency(1.0)
-                    .value(f64::from(c.level))
+                    .value(f64::from(
+                        self.slider_edits
+                            .value(SliderKey::Level)
+                            .unwrap_or(c.level as i16),
+                    ))
                     .is_enabled(a.level.enabled())
                     .automation_name(tr("ANC ↔ transparence"))
-                    .on_value_changed(context.callback(Msg::Level)),
+                    .on_value_changed(context.callback({
+                        let epoch = self.slider_edits.epoch();
+                        move |v| Msg::Level(v, epoch)
+                    })),
                 Grid::new()
                     .columns([GridLength::Star(1.0), GridLength::Star(1.0)])
                     .children((
@@ -2981,12 +3046,19 @@ impl Root {
                         .maximum(max)
                         // Pas du casque (0,1 dB) : aucune valeur lue n'est arrondie.
                         .step_frequency(0.1)
-                        .value(db)
+                        .value(
+                            self.slider_edits
+                                .value(SliderKey::Band(i as u8))
+                                .map_or(db, |v| f64::from(v) / 10.0),
+                        )
                         .height(180.0)
                         .is_enabled(v.writable)
                         .automation_name(trf("Bande {}", &[&band_label(i, count)]))
                         .horizontal_alignment(HorizontalAlignment::Center)
-                        .on_value_changed(context.callback(move |value| Msg::Band(i, value))),
+                        .on_value_changed(context.callback({
+                            let epoch = self.slider_edits.epoch();
+                            move |value| Msg::Band(i, value, epoch)
+                        })),
                     TextBlock::new()
                         .text(band_label(i, count))
                         .font_size(12.0)
@@ -3068,6 +3140,14 @@ impl Root {
         card(
             tr("Préréglages et courbes"),
             StackPanel::new().spacing(10.0).children((
+                if self.user_presets.iter().any(|p| p.topology.is_none()) {
+                    StackPanel::new().spacing(4.0).children((
+                        small(tr("Les anciens préréglages sont conservés. Associez-les aux fréquences documentées du M5 avant de les appliquer.").into()),
+                        Button::new().is_enabled(self.snapshot.eq_topology().is_some())
+                            .on_click(context.message(Msg::BindLegacyPresets))
+                            .content(tr("Associer les anciens préréglages à cet égaliseur")),
+                    ))
+                } else { View::empty() },
                 field_row(
                     TextBox::new()
                         .text(self.new_preset_name.clone())
@@ -3385,10 +3465,10 @@ impl Root {
                         .minimum(0.0)
                         .maximum(100.0)
                         .step_frequency(1.0)
-                        .value(f64::from(st.prompt_volume.max(0)))
+                        .value(self.slider_edits.value(SliderKey::PromptVolume).map_or(f64::from(st.prompt_volume.max(0)), |v| f64::from(momentum_core::device::prompt_volume_percent(v as i8))))
                         .is_enabled(st.prompt_volume_enabled)
                         .automation_name(tr("Volume des invites"))
-                        .on_value_changed(context.callback(Msg::PromptVolume)),
+                        .on_value_changed(context.callback({ let epoch = self.slider_edits.epoch(); move |v| Msg::PromptVolume(v, epoch) })),
                 )),
             ),
             card(

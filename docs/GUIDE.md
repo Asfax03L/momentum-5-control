@@ -83,6 +83,19 @@ Rien n'est présenté comme appliqué avant la réponse du casque : chaque
 réglage est relu, et un refus s'affiche dans un bandeau. Un réglage que le
 casque n'a pas communiqué apparaît indisponible.
 
+### Préréglages personnels enregistrés avant la 1.3
+
+Dans Égaliseur (Windows ou KDE), les anciens préréglages restent conservés.
+Avant de les appliquer, cliquer sur « Associer les anciens préréglages à
+cet égaliseur » pour les lier aux fréquences documentées du M5 et aux
+limites courantes. Cette action ne modifie pas le casque et conserve la
+sauvegarde habituelle du fichier. Les courbes incompatibles restent présentes.
+Faire cette association avant de réutiliser une scène qui en dépend.
+
+Pendant un déplacement de curseur, la valeur demandée et la dernière
+lecture sont distinguées. Une reconnexion annule les anciens gestes ;
+recommencer le réglage après le retour de la connexion.
+
 ## 4. Icône et raccourcis
 
 - **Clic gauche** sur l'icône près de l'horloge : panneau rapide (batterie,

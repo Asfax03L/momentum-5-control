@@ -12,6 +12,57 @@ refuse de publier sans elles) :
 - « À faire après la mise à jour » : les actions concrètes par système,
   ou « Rien de particulier » avec la raison.
 
+## v1.3.0 — 29/10/2026
+
+### En bref
+- **Windows et Linux (KDE, GTK)** : les valeurs demandées par les curseurs
+  restent distinctes des valeurs relues. Un retour ancien ne fait pas
+  oublier la dernière intention ; une nouvelle connexion annule les
+  intentions périmées. Windows et KDE protègent aussi la fin d'un geste
+  contre un changement de session.
+- **ANC / transparence** : le service relit les réglages liés avant un
+  niveau qui suit un changement de mode ou une scène dans le même lot.
+- **Préréglages et A/B, Windows et KDE** : association aux fréquences
+  documentées du M5 et aux limites de gain ; refus d'une topologie
+  incompatible. Les scènes refusent un ancien préréglage non associé avant
+  de modifier le casque. Les courbes A/B sont abandonnées si leur contexte
+  change ou si une demande échoue.
+- **Windows** : nouvel accueil illustré, cartes adaptables, indicateurs de
+  charge et de port séparés et réglages indisponibles expliqués, repris de
+  la publication Windows 1.2.1.
+- **Publication Linux** : identifiant Flatpak conservé ; contrôle explicite
+  du renommage GitHub avant une exception locale limitée du linter. L'avis
+  de nouvelle version reconnaît les URL du dépôt renommé.
+- **Sidetone différé** : aucune preuve de rejeu PC avec restauration n'a pu
+  être retrouvée ou confirmée. Aucun contrôle d'écriture sidetone n'est
+  ajouté. Les captures de l'app ne sont pas une qualification PC.
+
+### À faire après la mise à jour
+- **Windows** : quitter l'interface par le menu de son icône, installer
+  ensemble le service et l'interface 1.3.0, puis relancer. Windows App
+  Runtime 2 reste nécessaire. Les réglages sont conservés.
+- **Linux** : utiliser le paquet correspondant à l'installation actuelle
+  (archive, `.deb`, `.rpm`, Flatpak, widget Plasma ou Decky), puis relancer
+  l'interface. Le Flatpak garde le même identifiant et le même dossier de
+  données ; aucune suppression ni migration manuelle n'est nécessaire.
+- **Anciens préréglages personnels, Windows et KDE** : ils sont conservés
+  mais ne s'appliquent plus sans association. Dans Égaliseur, utiliser
+  « Associer les anciens préréglages à cet égaliseur » après vérification
+  du casque. L'action ne change aucun réglage du casque et garde la
+  sauvegarde `.bak` habituelle ; les courbes incompatibles restent présentes.
+- **Scènes automatiques** : associer leurs anciens préréglages avant de
+  les réutiliser. Une scène refusée indique son motif et n'applique pas
+  ses autres étapes si le précontrôle du préréglage échoue.
+- **Retour à une ancienne version** : les lignes de gains restent lisibles.
+  Une ancienne version qui réenregistre le fichier peut supprimer les
+  commentaires de topologie ; une nouvelle association sera alors requise.
+
+### Qualification
+Le [lot 2](docs/LOT2-REGLAGES.md) décrit les garde-fous, les lectures ajoutées
+et les limites. Tests synthétiques et démonstrations sont distincts d'un
+essai matériel. Cette publication ne revendique aucune nouvelle validation
+Bluetooth ni qualification du sidetone.
+
 ## v1.1.0 — 25/10/2026
 
 ### En bref

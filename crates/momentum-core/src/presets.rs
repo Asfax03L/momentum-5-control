@@ -7,7 +7,52 @@
 //! Fichier des préréglages personnels : une ligne par préréglage,
 //! `nom = g1;g2;…` en dixièmes de dB ; `#` commence un commentaire.
 
+use crate::device::EqState;
 use crate::i18n::{tr, trf};
+
+/// Topologie documentée, pas une mesure des fréquences par GAIA.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct EqTopology {
+    pub model: String,
+    pub frequencies_hz: Vec<u16>,
+    pub min_gain: i8,
+    pub max_gain: i8,
+}
+
+impl EqTopology {
+    /// Réservé au M5 identifié par le service (ou à sa démonstration).
+    /// Sans contrat connu à huit bandes, aucune association n'est proposée.
+    pub fn momentum5(eq: &EqState) -> Option<Self> {
+        (eq.gains.len() == crate::ui::M5_EQ_FREQUENCIES_HZ.len() && eq.min_gain <= eq.max_gain)
+            .then(|| Self {
+                model: "M5AEBT".into(),
+                frequencies_hz: crate::ui::M5_EQ_FREQUENCIES_HZ.to_vec(),
+                min_gain: eq.min_gain,
+                max_gain: eq.max_gain,
+            })
+    }
+
+    pub fn check_gains(&self, gains: &[i8]) -> Result<(), &'static str> {
+        if gains.len() != self.frequencies_hz.len()
+            || gains
+                .iter()
+                .any(|g| *g < self.min_gain || *g > self.max_gain)
+        {
+            return Err(tr(
+                "Courbe incompatible avec les bandes ou les limites de cet égaliseur.",
+            ));
+        }
+        Ok(())
+    }
+}
+
+/// Métadonnée en commentaire : les anciennes versions lisent encore les
+/// lignes de gains. Une entrée non qualifiée reste conservée, mais refusée.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct PresetTopology {
+    name: String,
+    topology: EqTopology,
+}
 /// Préréglage : nom et gains en dixièmes de dB.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Preset {
@@ -15,6 +60,21 @@ pub struct Preset {
     pub gains: Vec<i8>,
     /// Préréglage de l'app (non modifiable, non supprimable).
     pub builtin: bool,
+    pub topology: Option<EqTopology>,
+}
+
+impl Preset {
+    pub fn check_topology(&self, current: &EqTopology) -> Result<(), &'static str> {
+        let saved = self.topology.as_ref().ok_or(tr(
+            "Préréglage ancien sans topologie : associez-le explicitement à cet égaliseur avant de l'appliquer.",
+        ))?;
+        if saved != current {
+            return Err(tr(
+                "La topologie de ce préréglage ne correspond pas à cet égaliseur.",
+            ));
+        }
+        current.check_gains(&self.gains)
+    }
 }
 
 /// Comparaison A/B de deux courbes d'égaliseur : on mémorise la courbe
@@ -25,14 +85,41 @@ pub struct AbCompare {
     a: Option<Vec<i8>>,
     b: Option<Vec<i8>>,
     on_a: bool,
+    topology: Option<EqTopology>,
 }
 
 impl AbCompare {
+    pub fn remember_for(
+        &mut self,
+        topology: &EqTopology,
+        gains: &[i8],
+    ) -> Result<(), &'static str> {
+        topology.check_gains(gains)?;
+        self.remember(gains);
+        self.topology = Some(topology.clone());
+        Ok(())
+    }
+
+    pub fn toggle_for(
+        &mut self,
+        topology: &EqTopology,
+        current: &[i8],
+    ) -> Result<Option<Vec<i8>>, &'static str> {
+        if self.topology.as_ref() != Some(topology) {
+            *self = Self::default();
+            return Err(tr(
+                "Comparaison A/B annulée : l'égaliseur ou la session a changé.",
+            ));
+        }
+        topology.check_gains(current)?;
+        Ok(self.toggle(current))
+    }
     /// Mémorise `gains` comme courbe A (la suite des réglages sera B).
     pub fn remember(&mut self, gains: &[i8]) {
         self.a = Some(gains.to_vec());
         self.b = None;
         self.on_a = false;
+        self.topology = None;
     }
 
     /// Une courbe A est mémorisée.
@@ -84,11 +171,23 @@ pub fn builtin_presets(band_count: usize) -> Vec<Preset> {
             name: "Neutre".to_string(),
             gains: vec![0; 8],
             builtin: true,
+            topology: EqTopology::momentum5(&EqState {
+                min_gain: -60,
+                max_gain: 60,
+                gains: vec![0; 8],
+                ..EqState::default()
+            }),
         },
         Preset {
             name: "Audiophile".to_string(),
             gains: vec![-35, -10, 10, 6, -10, -5, -5, 30],
             builtin: true,
+            topology: EqTopology::momentum5(&EqState {
+                min_gain: -60,
+                max_gain: 60,
+                gains: vec![0; 8],
+                ..EqState::default()
+            }),
         },
     ]
 }
@@ -96,6 +195,11 @@ pub fn builtin_presets(band_count: usize) -> Vec<Preset> {
 /// Lit les préréglages personnels ; les lignes invalides sont ignorées.
 pub fn parse_user_presets(text: &str) -> Vec<Preset> {
     let mut presets: Vec<Preset> = Vec::new();
+    let topology: Vec<PresetTopology> = text
+        .lines()
+        .filter_map(|l| l.trim().strip_prefix("# topologie = "))
+        .filter_map(|s| serde_json::from_str(s).ok())
+        .collect();
     for line in text.lines() {
         let line = line.trim();
         if line.is_empty() || line.starts_with('#') {
@@ -116,8 +220,16 @@ pub fn parse_user_presets(text: &str) -> Vec<Preset> {
                 name,
                 gains,
                 builtin: false,
+                topology: None,
             });
         }
+    }
+    for p in &mut presets {
+        p.topology = topology
+            .iter()
+            .rev()
+            .find(|t| t.name == p.name)
+            .map(|t| t.topology.clone());
     }
     presets
 }
@@ -128,6 +240,15 @@ pub fn serialize_user_presets(presets: &[Preset]) -> String {
         "# Préréglages d'égaliseur de momentum-ctl-win : nom = gains en dixièmes de dB\n",
     );
     for p in presets.iter().filter(|p| !p.builtin) {
+        if let Some(topology) = &p.topology {
+            let metadata = PresetTopology {
+                name: p.name.clone(),
+                topology: topology.clone(),
+            };
+            if let Ok(json) = serde_json::to_string(&metadata) {
+                out.push_str(&format!("# topologie = {json}\n"));
+            }
+        }
         let gains: Vec<String> = p.gains.iter().map(i8::to_string).collect();
         out.push_str(&format!("{} = {}\n", p.name, gains.join(";")));
     }
@@ -164,8 +285,40 @@ pub fn upsert(presets: &mut Vec<Preset>, name: &str, gains: &[i8]) -> Result<(),
         name,
         gains: gains.to_vec(),
         builtin: false,
+        topology: None,
     });
     Ok(())
+}
+
+/// Enregistrement explicite de la topologie, sans écriture au casque.
+pub fn upsert_for(
+    presets: &mut Vec<Preset>,
+    name: &str,
+    gains: &[i8],
+    topology: &EqTopology,
+) -> Result<(), &'static str> {
+    topology.check_gains(gains)?;
+    upsert(presets, name, gains)?;
+    if let Some(p) = presets.last_mut() {
+        p.topology = Some(topology.clone());
+    }
+    Ok(())
+}
+
+/// Association demandée par l'utilisateur. Les anciens gains sont conservés,
+/// y compris ceux qu'on ne peut pas associer à la topologie courante.
+pub fn bind_legacy(presets: &mut [Preset], topology: &EqTopology) -> usize {
+    let mut count = 0;
+    for p in presets
+        .iter_mut()
+        .filter(|p| !p.builtin && p.topology.is_none())
+    {
+        if topology.check_gains(&p.gains).is_ok() {
+            p.topology = Some(topology.clone());
+            count += 1;
+        }
+    }
+    count
 }
 
 /// Supprime un préréglage personnel ; ceux de l'app restent.

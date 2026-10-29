@@ -75,6 +75,11 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="1.3.0" date="2026-10-29">
+      <description>
+        <p>Requested slider values stay separate from readback. Equalizer presets and A/B comparisons are protected by their documented topology and connection context. Legacy presets are preserved and can be explicitly associated without changing the headphones. Windows also gains a redesigned native home page.</p>
+      </description>
+    </release>
     <release version="1.1.0" date="2026-10-25">
       <description>
         <p>Measured battery life (also per noise cancelling mode), local event log, notifications of your choice including "headphones on without sound", automatic scenes on connection or at a set time, and curve export for Equalizer APO.</p>

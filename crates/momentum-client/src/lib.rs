@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(target_os = "linux")]
 pub mod dbus;
 pub mod demo;
+pub mod edits;
 pub mod essais;
 pub mod menu;
 #[cfg(windows)]
@@ -186,6 +187,15 @@ pub struct Snapshot {
 }
 
 impl Snapshot {
+    /// Fréquences documentées du M5 qualifié, pas des fréquences lues par GAIA.
+    pub fn eq_topology(&self) -> Option<momentum_core::presets::EqTopology> {
+        if self.state.is_none() || self.read_only.is_some() {
+            return None;
+        }
+        self.equalizer
+            .as_ref()
+            .and_then(momentum_core::presets::EqTopology::momentum5)
+    }
     /// Met l'état à jour d'après un événement (même règle dans le service
     /// et dans une interface qui suit les événements).
     pub fn apply(&mut self, event: &Event) {

@@ -643,6 +643,8 @@ fn run_batch<T: Transport>(
 ) -> Result<Vec<Job>, SessionEnd> {
     let mut sent: Vec<Job> = Vec::new();
     let mut eq_stale = false;
+    let mut noise_stale = false;
+    let mut current_state = *state;
     let mut jobs = batch.into_iter();
     // Session perdue pendant `id` : rien n'est renvoyé.
     let abort = |id: u64,
@@ -705,6 +707,7 @@ fn run_batch<T: Transport>(
                 };
                 scenes_done.push((id, outcome, details));
                 eq_stale = true;
+                noise_stale = true;
             }
             WorkerCommand::ToggleConnection { device, connect } => {
                 let Some(current) = paired.iter().find(|d| d.same_device(&device)) else {
@@ -751,6 +754,22 @@ fn run_batch<T: Transport>(
                 notify(WorkerEvent::Exported(result.map(|()| path)));
             }
             command => {
+                // Un mode précédent (ou une scène) peut avoir changé les
+                // réglages couplés. Le niveau suivant ne doit pas décider
+                // depuis l'état antérieur au lot.
+                if matches!(command, WorkerCommand::SetLevel(_)) && noise_stale {
+                    match headset.read_noise() {
+                        Ok(noise) => current_state.noise = noise,
+                        Err(e) => {
+                            let rest = std::iter::once(Job {
+                                id,
+                                session: job.session,
+                                command,
+                            });
+                            return Err(abort(0, e.to_string(), &sent, &mut rest.chain(&mut jobs)));
+                        }
+                    }
+                }
                 if command.is_eq() && eq_stale {
                     match headset.read_eq() {
                         Ok(fresh) => *eq = fresh,
@@ -767,7 +786,11 @@ fn run_batch<T: Transport>(
                     eq_stale = false;
                 }
                 let kept = command.clone_setting();
-                match apply(headset, state, eq, command) {
+                noise_stale |= matches!(
+                    command,
+                    WorkerCommand::SetMode(_) | WorkerCommand::SetLevel(_)
+                );
+                match apply(headset, &current_state, eq, command) {
                     Ok(()) => sent.push(Job {
                         id,
                         session: job.session,
@@ -1238,11 +1261,11 @@ mod tests {
         mock.expect(&frame(0x1001, &[band, gain as u8]), &frame(0x1101, &[]))
     }
 
-    /// Réponses à `read_eq` pour un égaliseur de deux bandes.
-    fn read_eq(mock: MockTransport, gains: [i8; 2]) -> MockTransport {
+    /// Réponses synthétiques à `read_eq` pour N bandes.
+    fn read_eq<const N: usize>(mock: MockTransport, gains: [i8; N]) -> MockTransport {
         let mut mock = mock.expect(
             &frame(0x1000, &[]),
-            &frame(0x1100, &[2, (-60i8) as u8, 60, 0, 0]),
+            &frame(0x1100, &[N as u8, (-60i8) as u8, 60, 0, 0]),
         );
         for (band, gain) in gains.into_iter().enumerate() {
             mock = mock.expect(&frame(0x1002, &[band as u8]), &frame(0x1102, &[gain as u8]));
@@ -1250,7 +1273,7 @@ mod tests {
         mock.expect(&frame(0x1009, &[]), &frame(0x1109, &[0]))
     }
 
-    fn eq(gains: [i8; 2]) -> EqState {
+    fn eq<const N: usize>(gains: [i8; N]) -> EqState {
         EqState {
             min_gain: -60,
             max_gain: 60,
@@ -1295,10 +1318,50 @@ mod tests {
     }
 
     #[test]
+    fn a_level_after_another_mode_reads_the_new_coupled_state() {
+        use momentum_core::protocol::command::{get, set};
+        let ack = |mock: MockTransport, c: CommandId, p: &[u8]| {
+            mock.expect(&frame(c.raw(), p), &frame(c.response().raw(), &[]))
+        };
+        let answer = |mock: MockTransport, c: CommandId, p: &[u8]| {
+            mock.expect(&frame(c.raw(), &[]), &frame(c.response().raw(), p))
+        };
+        let mut mock = ack(MockTransport::new(), set::ANC_ENABLED, &[1]);
+        mock = ack(mock, set::NOISE_CONTROL_MODE, &[3, 1]);
+        mock = answer(mock, get::ANC_ENABLED, &[1]);
+        mock = answer(mock, get::NOISE_CONTROL_MODES, &[3, 1, 1, 0]);
+        mock = answer(mock, get::TRANSPARENCY_LEVEL, &[0]);
+        // Le cache était Personnalisé avant le lot. Après la relecture,
+        // le service doit vraiment quitter Adaptatif avant le niveau.
+        mock = ack(mock, set::NOISE_CONTROL_MODE, &[3, 0]);
+        mock = ack(mock, set::ANC_ENABLED, &[1]);
+        mock = ack(mock, set::TRANSPARENCY_LEVEL, &[40]);
+        let mut headset = Headset::validated_for_tests(mock, Duration::from_millis(20));
+        let mut state = HeadsetState::default();
+        state.noise.anc_enabled = true;
+        state.noise.adaptive = false;
+        let sent = run_batch(
+            &mut headset,
+            jobs(vec![
+                WorkerCommand::SetMode(NoiseModeRequest::Adaptive),
+                WorkerCommand::SetLevel(40),
+            ]),
+            &state,
+            &mut eq([0; 8]),
+            &[],
+            &|_| {},
+            &mut Vec::new(),
+        )
+        .unwrap();
+        assert_eq!(sent.len(), 2);
+        assert!(headset.client().transport().is_exhausted());
+    }
+
+    #[test]
     fn a_scene_result_waits_for_the_read_back() {
         // Le `Done` d'une scène part après la relecture de fin de lot, comme
         // celui des autres réglages : run_batch le met de côté.
-        let mut mock = read_eq(MockTransport::new(), [0, 0]);
+        let mut mock = read_eq(read_eq(MockTransport::new(), [0; 8]), [0; 8]);
         mock = ack_band(ack_band(mock, 0, 5), 1, 5);
         let scene = Scene {
             name: "Essai".into(),
@@ -1307,8 +1370,9 @@ mod tests {
         };
         let presets = vec![Preset {
             name: "Basses".into(),
-            gains: vec![5, 5],
+            gains: vec![5, 5, 0, 0, 0, 0, 0, 0],
             builtin: false,
+            topology: momentum_core::presets::EqTopology::momentum5(&eq([0; 8])),
         }];
         let mut headset = Headset::validated_for_tests(mock, Duration::from_millis(20));
         let events = std::cell::RefCell::new(Vec::new());
@@ -1322,7 +1386,7 @@ mod tests {
             }]))
             .0,
             &HeadsetState::default(),
-            &mut eq([0, 0]),
+            &mut eq([0; 8]),
             &[],
             &|e| events.borrow_mut().push(e),
             &mut scenes_done,
@@ -1345,9 +1409,9 @@ mod tests {
         // La scène écrit « Basses » avec sa propre lecture ; la courbe qui
         // suit est comparée à une nouvelle lecture, pas au cache d'avant la
         // scène (qui l'aurait jugée inutile).
-        let mut mock = read_eq(MockTransport::new(), [0, 0]);
+        let mut mock = read_eq(read_eq(MockTransport::new(), [0; 8]), [0; 8]);
         mock = ack_band(ack_band(mock, 0, 5), 1, 5);
-        mock = read_eq(mock, [5, 5]);
+        mock = read_eq(mock, [5, 5, 0, 0, 0, 0, 0, 0]);
         mock = ack_band(ack_band(mock, 0, 0), 1, 0);
         let scene = Scene {
             name: "Essai".into(),
@@ -1356,10 +1420,11 @@ mod tests {
         };
         let presets = vec![Preset {
             name: "Basses".into(),
-            gains: vec![5, 5],
+            gains: vec![5, 5, 0, 0, 0, 0, 0, 0],
             builtin: false,
+            topology: momentum_core::presets::EqTopology::momentum5(&eq([0; 8])),
         }];
-        let mut cache = eq([0, 0]);
+        let mut cache = eq([0; 8]);
         let mut headset = run(
             mock,
             vec![
@@ -1368,7 +1433,7 @@ mod tests {
                     presets,
                     reply: None,
                 },
-                WorkerCommand::SetEqGains(vec![0, 0]),
+                WorkerCommand::SetEqGains(vec![0; 8]),
             ],
             &mut cache,
         );

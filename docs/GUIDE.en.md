@@ -78,6 +78,18 @@ Nothing is shown as applied before the headphones answer: every setting is
 read back, and a refusal shows in a banner. A setting the headphones did not
 report appears unavailable.
 
+### Personal presets saved before 1.3
+
+In Equalizer (Windows or KDE), older presets are preserved. Before applying
+them, use “Associate older presets with this equalizer” to bind them to the
+documented M5 frequencies and current gain limits. This does not change the
+headset and keeps the usual backup file. Incompatible curves remain saved.
+Associate presets before reusing a scene that depends on them.
+
+While moving a slider, the requested value is distinguished from the latest
+readback. Reconnecting cancels older gestures; adjust the control again
+after the connection returns.
+
 ## 4. Icon and shortcuts
 
 - **Left click** on the icon near the clock: quick panel (battery, noise

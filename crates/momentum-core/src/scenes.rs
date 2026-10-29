@@ -257,6 +257,7 @@ pub fn from_state(
                 name,
                 gains: eq.gains.clone(),
                 builtin: false,
+                topology: None,
             })
         })
         .transpose()?
@@ -685,6 +686,9 @@ fn apply_step<T: Transport>(
                 .find(|p| p.name.eq_ignore_ascii_case(name))
                 .ok_or_else(|| trf("préréglage « {} » introuvable", &[&name]))?;
             let mut eq = headset.read_eq().map_err(err)?;
+            let topology = crate::presets::EqTopology::momentum5(&eq)
+                .ok_or_else(|| tr("Topologie de l'égaliseur non disponible.").to_string())?;
+            preset.check_topology(&topology).map_err(str::to_string)?;
             headset.set_eq_gains(&mut eq, &preset.gains).map_err(err)
         }
         Step::BassBoost(on) => headset.set_bass_boost(*on).map_err(err),
@@ -706,6 +710,34 @@ pub fn apply_scene<T: Transport>(
         failed: None,
         skipped: Vec::new(),
     };
+    // Refuser un préréglage non associé avant de changer le mode audio ou
+    // tout autre réglage de la scène. Une seconde lecture à l'étape EQ
+    // protège encore contre un changement intervenu entre les étapes.
+    if let Some(name) = &scene.equalizer {
+        let checked = (|| -> Result<(), String> {
+            let preset = presets
+                .iter()
+                .find(|p| p.name.eq_ignore_ascii_case(name))
+                .ok_or_else(|| trf("préréglage « {} » introuvable", &[&name]))?;
+            if preset.topology.is_none() {
+                return Err(tr("Préréglage ancien sans topologie : associez-le explicitement à cet égaliseur avant de l'appliquer.").into());
+            }
+            let eq = headset.read_eq().map_err(|e| e.to_string())?;
+            let topology = crate::presets::EqTopology::momentum5(&eq)
+                .ok_or_else(|| tr("Topologie de l'égaliseur non disponible.").to_string())?;
+            preset.check_topology(&topology).map_err(str::to_string)
+        })();
+        if let Err(reason) = checked {
+            report.failed = Some((Step::Equalizer(name.clone()).label(), reason));
+            report.skipped = scene
+                .steps()
+                .iter()
+                .filter(|s| !matches!(s, Step::Equalizer(_)))
+                .map(Step::label)
+                .collect();
+            return report;
+        }
+    }
     for step in scene.steps() {
         if report.failed.is_some() {
             report.skipped.push(step.label());
@@ -880,20 +912,13 @@ tactile = on
     #[test]
     fn unknown_preset_fails_before_any_band_is_written() {
         let (scenes, _) = parse_scenes("[Eq]\nson = egaliseur\negaliseur = Inexistant\n");
-        // Mode lu : Speech Clarity (02), donc l'égaliseur est sélectionné.
-        let mock = MockTransport::new()
-            .expect(
-                &h("FF 03 00 00 04 95 08 04"),
-                &h("FF 03 00 02 04 95 09 04 00 02"),
-            )
-            .expect(
-                &h("FF 03 00 02 04 95 08 03 00 01"),
-                &h("FF 03 00 00 04 95 09 03"),
-            );
+        // Le préréglage est refusé avant même de lire ou modifier le mode.
+        let mock = MockTransport::new();
         let mut headset = Headset::validated_for_tests(mock, T);
         let report = apply_scene(&mut headset, &scenes[0], &builtin_presets(8));
-        assert_eq!(report.applied, ["mode audio : égaliseur"]);
+        assert!(report.applied.is_empty());
         assert!(report.failed.unwrap().1.contains("introuvable"));
+        assert!(headset.client().transport().sent().is_empty());
         assert!(headset.client().transport().is_exhausted());
     }
 

@@ -59,6 +59,16 @@ service et ses clients (toujours de la même installation), crates Rust
 internes (non publiées sur crates.io). Ils peuvent changer dans n'importe
 quelle version.
 
+## Préréglages depuis la 1.3.0
+
+Les lignes historiques `nom = gains` sont conservées ; les topologies
+s'ajoutent dans des commentaires. Une version récente lit les anciens
+fichiers sans perdre leurs courbes, mais demande une association explicite
+aux fréquences documentées du M5 et aux limites courantes avant application.
+Les interfaces WinUI et KDE proposent cette action sans écriture au casque.
+Une ancienne version peut retirer ces commentaires en réenregistrant le
+fichier ; il faudra alors réassocier les préréglages dans la version récente.
+
 ## Micrologiciel du casque
 
 Une nouvelle version du micrologiciel peut changer le comportement d'une

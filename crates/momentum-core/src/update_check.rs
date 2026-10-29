@@ -13,9 +13,10 @@ use crate::i18n::{tr, trf};
 
 /// Dernière publication du dépôt (API GitHub).
 pub const LATEST_URL: &str =
-    "https://api.github.com/repos/Asfax03L/openheadset-control/releases/latest";
+    "https://api.github.com/repos/Asfax03L/momentum-5-control/releases/latest";
 /// Seules pages ouvertes depuis l'avis.
-pub const RELEASES_PREFIX: &str = "https://github.com/Asfax03L/openheadset-control/releases/";
+pub const RELEASES_PREFIX: &str = "https://github.com/Asfax03L/momentum-5-control/releases/";
+const LEGACY_RELEASES_PREFIX: &str = "https://github.com/Asfax03L/openheadset-control/releases/";
 /// En-tête exigé par l'API GitHub ; rien d'autre n'est envoyé.
 pub const USER_AGENT: &str = "OpenHeadset-Control";
 
@@ -49,7 +50,10 @@ pub fn parse_latest(json: &str) -> Option<Release> {
     }
     let tag = value.get("tag_name")?.as_str()?.to_string();
     let url = value.get("html_url")?.as_str()?.to_string();
-    if !url.starts_with(RELEASES_PREFIX) || url.contains(['"', '\'', ' ', '\n']) {
+    if ![RELEASES_PREFIX, LEGACY_RELEASES_PREFIX]
+        .iter()
+        .any(|prefix| url == format!("{prefix}tag/{tag}"))
+    {
         return None;
     }
     Some(Release {
@@ -188,5 +192,22 @@ mod tests {
         assert!(!parse_pref("avis = non\n"));
         assert!(parse_pref("# commentaire\navis = oui\n"));
         assert!(!parse_pref("# avis = oui\n"));
+    }
+
+    #[test]
+    fn canonical_and_historical_release_urls_remain_strictly_bound_to_the_tag() {
+        for prefix in [RELEASES_PREFIX, LEGACY_RELEASES_PREFIX] {
+            let json = reponse("v1.3.0", &format!("{prefix}tag/v1.3.0"), false);
+            assert!(matches!(
+                Outcome::from_response("1.2.1", Ok(&json)),
+                Outcome::Available(_)
+            ));
+            assert!(
+                parse_latest(&reponse("v1.3.0", &format!("{prefix}tag/v9.0.0"), false)).is_none()
+            );
+            assert!(
+                parse_latest(&reponse("v1.3.0", &format!("{prefix}../../other"), false)).is_none()
+            );
+        }
     }
 }
