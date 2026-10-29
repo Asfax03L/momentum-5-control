@@ -2347,3 +2347,27 @@ Current state
 
 Le niveau de batterie et l'état de charge sont deux informations distinctes.
 Battery level and charging state are separate readings.
+
+{} (mode actuel)
+{} (current mode)
+
+ANC / transparence
+ANC / transparency
+
+CONNECTÉS · {}
+CONNECTED · {}
+
+APPAIRÉS NON CONNECTÉS
+PAIRED, NOT CONNECTED
+
+Illustration de casque
+Headphone illustration
+
+Flux audio
+Audio stream
+
+Port
+Wearing state
+
+{} %
+{} %

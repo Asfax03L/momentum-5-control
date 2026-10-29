@@ -8,8 +8,24 @@ ajoutée ou modifiée.
 
 L'accueil regroupe un bandeau d'identité et de batterie, puis les cartes
 Contrôle du bruit, Appareils, Audio spatial et Au quotidien. Un raccourci
-ouvre l'égaliseur et l'A/B existants. Le logo du projet est intégré ; aucune
-photographie ni ressource d'un fabricant n'est distribuée.
+ouvre l'égaliseur et l'A/B existants. L'affinage du 29 octobre 2026 reprend
+la hiérarchie de la maquette SonyBridge : bandeau horizontal illustré,
+indicateurs regroupés, modes de bruit dans un sélecteur et cartes compactes.
+Les couleurs et les contrôles restent natifs et suivent le thème Windows.
+
+L'[illustration originale](../frontends/winui/assets/README.md) représente
+un casque générique sans marque. Elle est intégrée à l'exécutable et
+n'est pas une photographie du matériel. Aucune ressource Sony ou
+Sennheiser n'est distribuée.
+
+Les badges batterie, flux audio et port présentent uniquement les données
+du service. L'état de charge est conservé séparément. La liste distingue
+les appareils connectés et les appareils appairés non connectés, sans
+modifier les actions existantes ni déduire une source audio du Bluetooth.
+
+Le mode actif est nommé dans l'accessibilité. Les modes sont des boutons
+natifs utilisables au clavier ; les interrupteurs conservent leur nom et
+leur état accessibles sans répéter Activé / Désactivé dans chaque carte.
 
 Les cartes passent de deux colonnes à une sous 1000 DIP de largeur cliente.
 Le seuil tient compte du DPI de la fenêtre. La navigation conserve les sept
@@ -56,6 +72,8 @@ des essais matériels.
 La compilation WinUI et la suite de tests par défaut ont été exécutées sous
 Windows. Les essais visuels utilisent exclusivement `momentum-winui --demo`
 avec un dossier de données séparé, sans service ni connexion Bluetooth.
+La démonstration possède sa propre instance et ne réserve aucun raccourci
+global, pour coexister avec l'application installée sans la réveiller.
 La navigation, le changement de mode, un niveau simulé, l'anti-vent, le suivi
 de tête conditionnel et le redimensionnement ont été contrôlés. Les retours
 matériels et les autres frontends ne sont pas qualifiés par ces essais.

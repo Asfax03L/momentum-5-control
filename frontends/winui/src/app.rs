@@ -112,8 +112,18 @@ pub fn run() {
     if let Some(name) = taskbar::scene_argument() {
         std::process::exit(taskbar::apply_scene(&name, start_daemon));
     }
-    // Une seule fenêtre : un deuxième lancement montre la première.
-    match acquire_named_instance("openheadset-control-show", "openheadset-control-winui") {
+    // La démonstration reste indépendante de l'application réelle : elle
+    // peut être vérifiée sans réveiller ni fermer la fenêtre de l'utilisateur.
+    let (show, instance) = if demo::requested() {
+        (
+            "openheadset-control-demo-show",
+            "openheadset-control-demo-winui",
+        )
+    } else {
+        ("openheadset-control-show", "openheadset-control-winui")
+    };
+    // Une seule fenêtre par mode : un deuxième lancement montre la première.
+    match acquire_named_instance(show, instance) {
         Ok(Instance::AlreadyRunning) => return,
         Ok(Instance::First(request)) => {
             std::thread::spawn(move || {
@@ -2130,7 +2140,11 @@ impl Component for Root {
                             StackPanel::new()
                                 .spacing(12.0)
                                 .margin(Thickness::new(20.0, 24.0, 20.0, 24.0))
-                                .max_width(860.0)
+                                .max_width(if self.page == Page::Home {
+                                    None
+                                } else {
+                                    Some(860.0)
+                                })
                                 .children((self.header(context), page)),
                         ),
                 ),
@@ -2203,6 +2217,11 @@ fn export_battery_history() -> String {
 /// Enregistre les raccourcis de `config` ; renvoie le fil qui les écoute
 /// et les erreurs (ligne invalide, combinaison déjà prise).
 fn register_hotkeys(config: &str) -> (Option<HotkeyThread>, Vec<String>) {
+    // La démonstration ne réserve aucune combinaison globale : les
+    // raccourcis de l'application réelle doivent rester disponibles.
+    if demo::requested() {
+        return (None, Vec::new());
+    }
     let (keys, mut errors) = hotkeys::parse_config(config);
     let (thread, refused) = momentum_service::desktop::spawn_hotkeys(keys, |action| match action {
         HotkeyAction::OpenWindow => desktop::show(),
@@ -2280,6 +2299,78 @@ fn availability_hint(status: Availability) -> View {
     } else {
         small(status.reason())
     }
+}
+
+/// Cartes de l'accueil : hiérarchie compacte inspirée de la maquette,
+/// avec les ressources de thème et les icônes natives de Windows.
+fn home_card(title: &str, glyph: &str, content: impl Into<View>) -> View {
+    Border::new()
+        .background(ThemeBrush::CardBackground)
+        .border_brush(ThemeBrush::CardStroke)
+        .border_thickness(1.0)
+        .corner_radius(8.0)
+        .padding(20.0)
+        .content(
+            StackPanel::new().spacing(16.0).children((
+                StackPanel::new()
+                    .orientation(Orientation::Horizontal)
+                    .spacing(10.0)
+                    .children((
+                        FontIcon::new()
+                            .glyph(glyph)
+                            .width(20.0)
+                            .height(20.0)
+                            .opacity(0.8),
+                        TextBlock::new()
+                            .text(title)
+                            .font_size(16.0)
+                            .font_weight(FontWeight::SEMI_BOLD)
+                            .automation_heading_level(AutomationHeadingLevel::Level2),
+                    )),
+                content.into(),
+            )),
+        )
+}
+
+/// Le TogglePattern conserve l'état accessible ; le libellé Activé /
+/// Désactivé est masqué pour éviter de répéter l'interrupteur dans la carte.
+fn home_switch(
+    label: &str,
+    description: &str,
+    on: bool,
+    status: Availability,
+    toggled: Callback<bool>,
+) -> View {
+    if matches!(status, Availability::Unread | Availability::Disconnected) {
+        return available_switch(label, description, on, status, toggled);
+    }
+    StackPanel::new().spacing(4.0).children((
+        Grid::new()
+            .columns([GridLength::Star(1.0), GridLength::Auto])
+            .column_spacing(14.0)
+            .children((
+                StackPanel::new().spacing(4.0).children((
+                    TextBlock::new()
+                        .text(label)
+                        .text_wrapping(TextWrapping::Wrap),
+                    small(description),
+                )),
+                ToggleSwitch::new()
+                    .is_on(on)
+                    .is_enabled(status.enabled())
+                    .automation_name(label)
+                    .on_toggled(toggled)
+                    .min_width(0.0)
+                    .width(48.0)
+                    .grid_column(1)
+                    .vertical_alignment(VerticalAlignment::Center)
+                    .slots([
+                        SlotView::new(ToggleSwitchSlot::OnContent, TextBlock::new().text("")),
+                        SlotView::new(ToggleSwitchSlot::OffContent, TextBlock::new().text("")),
+                    ]),
+            )),
+        availability_hint(status),
+    ))
 }
 
 fn small(text: impl Into<String>) -> View {
@@ -2416,7 +2507,11 @@ impl Root {
         });
         StackPanel::new().spacing(8.0).children((
             TextBlock::new()
-                .text(v.title.clone())
+                .text(if self.page == Page::Home && self.assistant.is_none() {
+                    tr("Accueil").to_string()
+                } else {
+                    v.title.clone()
+                })
                 .font_size(28.0)
                 .text_wrapping(TextWrapping::Wrap)
                 .automation_heading_level(AutomationHeadingLevel::Level1)
@@ -2520,52 +2615,105 @@ impl Root {
         let multipoint = self.snapshot.info.as_ref().and_then(|i| i.multipoint);
         let st = viewmodel::settings_view(s, self.snapshot.info.as_ref(), v.writable);
         let rows = self.rows(v.writable);
-        let devices = rows.iter().enumerate().map(|(i, row)| {
-            KeyedView::new(
-                format!("{i}-{}", row.name),
-                Grid::new()
-                    .columns([GridLength::Star(1.0), GridLength::Auto])
-                    .column_spacing(8.0)
-                    .children((
-                        StackPanel::new().spacing(4.0).children((
-                            TextBlock::new()
-                                .text(row.name.clone())
-                                .text_wrapping(TextWrapping::Wrap),
-                            small(row.status.clone()),
-                        )),
-                        Border::new().grid_column(1).content(if row.can_act {
-                            Button::new()
-                                .on_click(context.message(Msg::ToggleConnection(i)))
-                                .content(row.action.clone())
-                        } else {
-                            View::empty()
-                        }),
-                    )),
-            )
-        });
-        let noise_modes: View = if a.noise.enabled() {
-            RadioButtons::new()
-                .items_source(viewmodel::NOISE_MODES.map(tr))
-                .max_columns(3)
-                .selected_index(index(c.noise_mode))
-                .automation_name(tr("Mode de réduction du bruit"))
-                .on_selection_changed(context.callback(Msg::NoiseMode))
-                .into()
-        } else {
-            TextBlock::new()
-                .text(
-                    viewmodel::NOISE_MODES
-                        .get(c.noise_mode as usize)
-                        .map_or(tr("non lu"), |label| tr(label)),
-                )
-                .into()
+        let is_connected = |i: usize| {
+            self.snapshot
+                .connections
+                .get(i)
+                .is_some_and(|d| d.connected || d.this_device)
         };
-        let noise = card(
+        let connected_count = (0..rows.len()).filter(|&i| is_connected(i)).count();
+        let device_group = |connected: bool| {
+            StackPanel::new().spacing(12.0).keyed_children(
+                rows.iter()
+                    .enumerate()
+                    .filter(|(i, _)| is_connected(*i) == connected)
+                    .map(|(i, row)| {
+                        KeyedView::new(
+                            format!("{i}-{}", row.name),
+                            Grid::new()
+                                .columns([GridLength::Star(1.0), GridLength::Auto])
+                                .column_spacing(8.0)
+                                .children((
+                                    StackPanel::new().spacing(4.0).children((
+                                        TextBlock::new()
+                                            .text(row.name.clone())
+                                            .text_wrapping(TextWrapping::Wrap),
+                                        small(row.status.clone()),
+                                    )),
+                                    Border::new().grid_column(1).content(if row.can_act {
+                                        Button::new()
+                                            .on_click(context.message(Msg::ToggleConnection(i)))
+                                            .content(row.action.clone())
+                                    } else {
+                                        View::empty()
+                                    }),
+                                )),
+                        )
+                    }),
+            )
+        };
+        let noise_modes = Border::new()
+            .background(ThemeBrush::SolidBackground)
+            .corner_radius(6.0)
+            .padding(4.0)
+            .content(
+                Grid::new()
+                    .columns([GridLength::Star(1.0); 3])
+                    .column_spacing(4.0)
+                    .keyed_children(viewmodel::NOISE_MODES.iter().enumerate().map(|(i, label)| {
+                        let selected = c.noise_mode == i as i32;
+                        KeyedView::new(
+                            i as u64,
+                            Border::new().grid_column(i as i32).content(
+                                Button::new()
+                                    .style(if selected {
+                                        ButtonStyle::Accent
+                                    } else {
+                                        ButtonStyle::Subtle
+                                    })
+                                    .is_enabled(a.noise.enabled())
+                                    .horizontal_alignment(HorizontalAlignment::Stretch)
+                                    .automation_id(format!("mode-bruit-{i}"))
+                                    .automation_name(if selected {
+                                        trf("{} (mode actuel)", &[&tr(label)])
+                                    } else {
+                                        tr(label).into()
+                                    })
+                                    .on_click(context.message(Msg::NoiseMode(Some(i))))
+                                    .content(
+                                        TextBlock::new()
+                                            .text(tr(label))
+                                            .font_size(12.0)
+                                            .font_weight(if selected {
+                                                FontWeight::SEMI_BOLD
+                                            } else {
+                                                FontWeight::NORMAL
+                                            })
+                                            .text_wrapping(TextWrapping::Wrap),
+                                    ),
+                            ),
+                        )
+                    })),
+            );
+        let noise = home_card(
             tr("Contrôle du bruit"),
+            "\u{E7F6}",
             StackPanel::new().spacing(10.0).children((
                 noise_modes,
                 availability_hint(a.noise),
-                TextBlock::new().text(trf("ANC ↔ transparence : {} %", &[&c.level])),
+                Grid::new()
+                    .columns([GridLength::Star(1.0), GridLength::Auto])
+                    .children((
+                        TextBlock::new()
+                            .text(tr("ANC / transparence"))
+                            .vertical_alignment(VerticalAlignment::Center),
+                        TextBlock::new()
+                            .text(trf("{} %", &[&c.level]))
+                            .font_size(22.0)
+                            .font_weight(FontWeight::SEMI_BOLD)
+                            .foreground(ThemeBrush::Accent)
+                            .grid_column(1),
+                    )),
                 Slider::new()
                     .minimum(0.0)
                     .maximum(100.0)
@@ -2586,7 +2734,7 @@ impl Root {
                             .grid_column(1),
                     )),
                 availability_hint(a.level),
-                available_switch(
+                home_switch(
                     tr("Anti-vent"),
                     tr("Réduit le bruit du vent sur les micros"),
                     c.anti_wind,
@@ -2595,17 +2743,18 @@ impl Root {
                 ),
             )),
         );
-        let spatial = card(
+        let spatial = home_card(
             tr("Audio spatial"),
+            "\u{E767}",
             StackPanel::new().spacing(14.0).children((
-                available_switch(
+                home_switch(
                     tr("Audio spatial"),
                     tr("Une scène sonore plus enveloppante"),
                     c.spatial_on,
                     a.spatial,
                     context.callback(Msg::Spatial),
                 ),
-                available_switch(
+                home_switch(
                     tr("Suivi de tête"),
                     tr("Avec l'audio spatial"),
                     c.head_tracking_on,
@@ -2614,10 +2763,11 @@ impl Root {
                 ),
             )),
         );
-        let connections = card(
+        let connections = home_card(
             tr("Appareils"),
+            "\u{E702}",
             StackPanel::new().spacing(12.0).children((
-                available_switch(
+                home_switch(
                     tr("Multipoint"),
                     tr("Deux appareils à la fois"),
                     multipoint == Some(true),
@@ -2627,7 +2777,18 @@ impl Root {
                 if rows.is_empty() {
                     small(tr("Liste des appareils non disponible."))
                 } else {
-                    StackPanel::new().spacing(12.0).keyed_children(devices)
+                    StackPanel::new().spacing(12.0).children((
+                        small(trf("CONNECTÉS · {}", &[&connected_count])),
+                        device_group(true),
+                        if rows.len() > connected_count {
+                            StackPanel::new().spacing(12.0).children((
+                                small(tr("APPAIRÉS NON CONNECTÉS")),
+                                device_group(false),
+                            ))
+                        } else {
+                            View::empty()
+                        },
+                    ))
                 },
                 small(tr(
                     "La connexion Bluetooth n'indique pas quel appareil diffuse du son.",
@@ -2639,17 +2800,18 @@ impl Root {
                 },
             )),
         );
-        let quick = card(
+        let quick = home_card(
             tr("Au quotidien"),
+            "\u{E713}",
             StackPanel::new().spacing(14.0).children((
-                available_switch(
+                home_switch(
                     tr("Commandes tactiles"),
                     tr("Gestes sur l'écouteur droit"),
                     c.touch_on,
                     a.touch,
                     context.callback(Msg::Touch),
                 ),
-                available_switch(
+                home_switch(
                     tr("Smart Pause"),
                     tr("Pause au retrait du casque"),
                     st.smart_pause.on,
@@ -2684,7 +2846,7 @@ impl Root {
                 } else {
                     vec![GridLength::Star(1.0)]
                 })
-                .rows([GridLength::Auto; 4])
+                .rows(vec![GridLength::Auto; if self.wide_home { 2 } else { 4 }])
                 .column_spacing(16.0)
                 .row_spacing(16.0)
                 .children((
@@ -2707,46 +2869,84 @@ impl Root {
             .as_ref()
             .and_then(|i| i.model.clone())
             .unwrap_or_else(|| tr("Casque Sennheiser").into());
-        card(
-            tr("Votre casque"),
-            Grid::new()
-                .columns([GridLength::Auto, GridLength::Star(1.0)])
-                .column_spacing(20.0)
-                .children((
-                    Image::new()
-                        .source_data(EncodedImage::from_static(include_bytes!(
-                            "../../../assets/logo/png/128.png"
-                        )))
-                        .width(if self.wide_home { 88.0 } else { 48.0 })
-                        .height(if self.wide_home { 88.0 } else { 48.0 })
-                        .vertical_alignment(VerticalAlignment::Top),
-                    StackPanel::new().grid_column(1).spacing(10.0).children((
-                        TextBlock::new()
-                            .text(model)
-                            .font_size(24.0)
-                            .font_weight(FontWeight::SEMI_BOLD)
-                            .text_wrapping(TextWrapping::Wrap),
-                        TextBlock::new()
-                            .text(trf("Batterie : {}", &[&v.battery_text]))
-                            .automation_id("accueil-batterie")
-                            .font_size(18.0),
-                        ProgressBar::new()
-                            .minimum(0.0)
-                            .maximum(100.0)
-                            .value(f64::from(v.battery.unwrap_or(0)))
-                            .automation_name(tr("Niveau de batterie")),
-                        TextBlock::new()
-                            .text(summary.charge.clone())
-                            .automation_id("accueil-charge")
-                            .text_wrapping(TextWrapping::Wrap),
-                        TextBlock::new()
-                            .text(summary.wearing.clone())
-                            .automation_id("accueil-port")
-                            .text_wrapping(TextWrapping::Wrap),
-                        small(summary.stream.clone()),
+        let badge = |label: &str, value: &str, id: &str| {
+            Border::new()
+                .background(ThemeBrush::SolidBackground)
+                .corner_radius(6.0)
+                .padding(Thickness::new(10.0, 6.0, 10.0, 6.0))
+                .content(
+                    TextBlock::new()
+                        .text(value)
+                        .font_size(12.0)
+                        .font_weight(FontWeight::SEMI_BOLD)
+                        .text_wrapping(TextWrapping::Wrap)
+                        .automation_id(id)
+                        .automation_name(trf("{} : {}", &[&label, &value])),
+                )
+        };
+        Border::new()
+            .background(ThemeBrush::CardBackground)
+            .border_brush(ThemeBrush::CardStroke)
+            .border_thickness(1.0)
+            .corner_radius(10.0)
+            .padding(20.0)
+            .content(
+                Grid::new()
+                    .columns([GridLength::Auto, GridLength::Star(1.0)])
+                    .column_spacing(if self.wide_home { 28.0 } else { 16.0 })
+                    .children((
+                        Image::new()
+                            .source_data(EncodedImage::from_static(include_bytes!(
+                                "../assets/casque-illustration.png"
+                            )))
+                            .width(if self.wide_home { 148.0 } else { 76.0 })
+                            .height(if self.wide_home { 148.0 } else { 100.0 })
+                            .stretch(Stretch::Uniform)
+                            .automation_name(tr("Illustration de casque"))
+                            .vertical_alignment(VerticalAlignment::Center),
+                        StackPanel::new().grid_column(1).spacing(10.0).children((
+                            TextBlock::new()
+                                .text(v.title.clone())
+                                .font_size(if self.wide_home { 28.0 } else { 22.0 })
+                                .font_weight(FontWeight::SEMI_BOLD)
+                                .text_wrapping(TextWrapping::Wrap),
+                            small(model),
+                            Grid::new()
+                                .columns(vec![
+                                    GridLength::Star(1.0);
+                                    if self.wide_home { 3 } else { 1 }
+                                ])
+                                .rows(vec![GridLength::Auto; if self.wide_home { 1 } else { 3 }])
+                                .column_spacing(8.0)
+                                .row_spacing(6.0)
+                                .children((
+                                    badge(tr("Batterie"), &v.battery_text, "accueil-batterie"),
+                                    Border::new()
+                                        .grid_column(if self.wide_home { 1 } else { 0 })
+                                        .grid_row(if self.wide_home { 0 } else { 1 })
+                                        .content(badge(
+                                            tr("Flux audio"),
+                                            &summary.stream,
+                                            "accueil-flux",
+                                        )),
+                                    Border::new()
+                                        .grid_column(if self.wide_home { 2 } else { 0 })
+                                        .grid_row(if self.wide_home { 0 } else { 2 })
+                                        .content(badge(
+                                            tr("Port"),
+                                            &summary.wearing,
+                                            "accueil-port",
+                                        )),
+                                )),
+                            TextBlock::new()
+                                .text(summary.charge.clone())
+                                .automation_id("accueil-charge")
+                                .font_size(12.0)
+                                .opacity(0.8)
+                                .text_wrapping(TextWrapping::Wrap),
+                        )),
                     )),
-                )),
-        )
+            )
     }
 
     fn sound(&self, context: &mut ViewContext<Self>) -> View {
