@@ -503,8 +503,8 @@ Kirigami.ApplicationWindow {
             Layout.preferredHeight: Kirigami.Units.gridUnit
             text: headset.sliderNotice.replace(/\n/g, " · ")
             elide: Text.ElideRight
-            hoverEnabled: true
-            QQC2.ToolTip.visible: hovered && headset.sliderNotice !== ""
+            HoverHandler { id: sliderNoticeHover }
+            QQC2.ToolTip.visible: sliderNoticeHover.hovered && headset.sliderNotice !== ""
             QQC2.ToolTip.text: headset.sliderNotice
         }
         Kirigami.InlineMessage {
