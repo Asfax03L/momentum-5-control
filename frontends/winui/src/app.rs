@@ -3260,7 +3260,7 @@ impl Root {
                 line(trf("Courbe relue (dB) : {}", &[&g.current])).automation_id("assistant-eq-courbe-relue").into()
             } else { View::empty() },
             if g.active && !g.review {
-                StackPanel::new().orientation(Orientation::Horizontal).spacing(8.0).children((
+                StackPanel::new().orientation(if self.wide_home { Orientation::Horizontal } else { Orientation::Vertical }).spacing(8.0).children((
                     button("Moins (−1 dB)", GuidedAction::Less, g.can_listen, context),
                     button("Référence de l'étape", GuidedAction::Reference, g.can_listen, context),
                     button("Plus (+1 dB)", GuidedAction::More, g.can_listen, context),
@@ -3271,7 +3271,7 @@ impl Root {
             } else { View::empty() },
             if g.active && g.review {
                 StackPanel::new().spacing(8.0).children((
-                    StackPanel::new().orientation(Orientation::Horizontal).spacing(8.0).children((
+                    StackPanel::new().orientation(if self.wide_home { Orientation::Horizontal } else { Orientation::Vertical }).spacing(8.0).children((
                         button("Écouter la courbe initiale", GuidedAction::Initial, g.can_listen, context),
                         button("Écouter le résultat", GuidedAction::Result, g.can_listen, context),
                     )),
