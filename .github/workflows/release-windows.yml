@@ -20,7 +20,7 @@ jobs:
       - name: Version et notes
         shell: pwsh
         run: |
-          $version = (Select-String Cargo.toml '^version = "(.*)"$' | Select-Object -First 1).Matches.Groups[1].Value
+          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.*)"$' | Select-Object -First 1).Matches.Groups[1].Value
           if ($env:GITHUB_REF_NAME -cne "windows-v$version") { throw 'Le tag et Cargo.toml diffèrent.' }
           if (-not (Test-Path "docs/versions/windows-$version.md")) { throw 'Notes Windows manquantes.' }
           "VERSION=$version" >> $env:GITHUB_ENV

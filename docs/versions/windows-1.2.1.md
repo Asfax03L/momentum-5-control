@@ -1,4 +1,4 @@
-# OpenHeadset Control 1.2.0 — Windows uniquement
+# OpenHeadset Control 1.2.1 — Windows uniquement
 
 ## En bref
 
@@ -30,7 +30,7 @@ Les outils d'essai ne sont pas inclus dans les téléchargements.
 
 1. Quitter OpenHeadset Control depuis le menu de son icône de notification.
 2. Télécharger puis lancer
-   `openheadset-control-v1.2.0-windows-x86_64-installateur.exe`.
+   `openheadset-control-v1.2.1-windows-x86_64-installateur.exe`.
 3. Relancer l'application. Installer ensemble le service et l'interface
    fournis dans cette version, pour bénéficier des nouveaux champs d'état.
 
@@ -39,12 +39,12 @@ actuel et conserve les réglages. Windows App Runtime 2 est nécessaire ;
 le paquet ne contient pas de certificat de signature Authenticode.
 
 Une archive manuelle est également fournie :
-`openheadset-control-v1.2.0-windows-x86_64.zip`. Elle contient l'interface,
+`openheadset-control-v1.2.1-windows-x86_64.zip`. Elle contient l'interface,
 le service, `ctl`, `probe`, les licences et `installer.ps1`.
 
 ## Périmètre et validation
 
-Publication Windows uniquement, sous le tag `windows-v1.2.0`. Aucun paquet
+Publication Windows uniquement, sous le tag `windows-v1.2.1`. Aucun paquet
 Linux, Flatpak, Plasma ou Decky n'est publié pour cette version. La dernière
 publication multiplateforme reste inchangée ; cette version Windows n'est
 pas désignée comme « Latest » pour éviter de rediriger les utilisateurs
