@@ -976,6 +976,12 @@ Kirigami.ApplicationWindow {
                             readOnly: true
                             Accessible.name: headset.tr("Courbe initiale en dB")
                         }
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            visible: root.guided.active
+                            wrapMode: Text.WordWrap
+                            text: headset.tr("Courbe relue (dB) : {}").replace("{}", root.guided.current || "")
+                        }
                         Flow {
                             Layout.fillWidth: true
                             spacing: Kirigami.Units.smallSpacing

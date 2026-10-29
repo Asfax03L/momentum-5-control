@@ -2527,3 +2527,15 @@ Cancel and restore the initial curve
 
 Fermer sans restauration
 Close without restoring
+
+Courbe relue : {}.
+Confirmed curve: {}.
+
+Courbe relue (dB) : {}
+Confirmed curve (dB): {}
+
+Courbe initiale
+Initial curve
+
+Résultat
+Result

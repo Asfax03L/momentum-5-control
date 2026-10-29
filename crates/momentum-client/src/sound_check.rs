@@ -40,6 +40,7 @@ impl Context {
 #[derive(Clone, Debug)]
 struct Pending {
     target: Vec<i8>,
+    choice: Action,
     restore: bool,
     id: Option<u64>,
     early: Vec<(u64, Outcome)>,
@@ -53,6 +54,7 @@ struct Session {
     chosen: Vec<i8>,
     expected: Vec<i8>,
     step: usize,
+    listening: Action,
     pending: Option<Pending>,
     problem: Option<String>,
     invalid: bool,
@@ -77,6 +79,7 @@ pub struct GuidedView {
     pub title: String,
     pub status: String,
     pub initial: String,
+    pub current: String,
 }
 
 impl GuidedEq {
@@ -97,6 +100,9 @@ impl GuidedEq {
             title: tr("Assistant EQ guidé").into(),
             status: self.notice.clone(),
             initial: String::new(),
+            current: snapshot.equalizer.as_ref().map_or_else(String::new, |eq| {
+                momentum_core::presets::format_gains_db(&eq.gains)
+            }),
         };
         if let Some(s) = &self.session {
             let ready = !busy && s.pending.is_none() && !s.invalid;
@@ -118,7 +124,16 @@ impl GuidedEq {
             } else if s.pending.is_some() {
                 tr("Attente du résultat et de la courbe relue…").into()
             } else {
-                tr("Courbe relue. Comparez à votre rythme, puis gardez votre choix.").into()
+                momentum_core::i18n::trf(
+                    "Courbe relue : {}.",
+                    &[&tr(match s.listening {
+                        Action::Less => "Moins (−1 dB)",
+                        Action::More => "Plus (+1 dB)",
+                        Action::Initial => "Courbe initiale",
+                        Action::Result => "Résultat",
+                        _ => "Référence de l'étape",
+                    })],
+                )
             };
             v.initial = momentum_core::presets::format_gains_db(&s.initial);
         } else if v.status.is_empty() {
@@ -172,6 +187,7 @@ impl GuidedEq {
                     && current == &p.target
                 {
                     s.expected = p.target.clone();
+                    s.listening = p.choice;
                     restored = p.restore;
                     s.pending = None;
                 } else {
@@ -250,6 +266,7 @@ impl GuidedEq {
                 expected: initial.clone(),
                 initial,
                 step: 0,
+                listening: Action::Reference,
                 pending: None,
                 problem: None,
                 invalid: false,
@@ -275,6 +292,11 @@ impl GuidedEq {
         if action == Action::Next && s.step < 3 {
             s.chosen = s.expected.clone();
             s.step += 1;
+            s.listening = if s.step == 3 {
+                Action::Result
+            } else {
+                Action::Reference
+            };
             return Ok(None);
         }
         let target = match action {
@@ -301,6 +323,7 @@ impl GuidedEq {
         };
         s.context.topology.check_gains(&target)?;
         if target == s.expected && s.problem.is_none() {
+            s.listening = action;
             if action == Action::Restore {
                 self.session = None;
                 self.notice = tr("Courbe initiale déjà relue. Assistant terminé.").into();
@@ -309,6 +332,7 @@ impl GuidedEq {
         }
         s.pending = Some(Pending {
             target: target.clone(),
+            choice: action,
             restore: action == Action::Restore,
             id: None,
             early: Vec::new(),

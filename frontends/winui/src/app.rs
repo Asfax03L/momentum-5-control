@@ -3256,6 +3256,9 @@ impl Root {
             if g.active {
                 line(trf("Courbe initiale (dB) : {}", &[&g.initial])).into()
             } else { View::empty() },
+            if g.active {
+                line(trf("Courbe relue (dB) : {}", &[&g.current])).automation_id("assistant-eq-courbe-relue").into()
+            } else { View::empty() },
             if g.active && !g.review {
                 StackPanel::new().orientation(Orientation::Horizontal).spacing(8.0).children((
                     button("Moins (−1 dB)", GuidedAction::Less, g.can_listen, context),
