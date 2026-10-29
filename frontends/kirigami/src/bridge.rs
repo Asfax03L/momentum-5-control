@@ -91,6 +91,7 @@ pub mod qobject {
         #[qproperty(QString, user_preset)]
         /// Résultat de la dernière action sur les préréglages et courbes.
         #[qproperty(QString, eq_notice)]
+        #[qproperty(QString, guided_state)]
         #[qproperty(QString, slider_notice)]
         #[qproperty(u64, edit_epoch)]
         #[qproperty(bool, legacy_presets)]
@@ -271,6 +272,11 @@ pub mod qobject {
         fn save_preset(self: Pin<&mut Headset>, name: QString) -> bool;
         #[qinvokable]
         fn bind_legacy_presets(self: Pin<&mut Headset>);
+        /// Actions locales de l'assistant EQ, aucune nouvelle commande GAIA.
+        #[qinvokable]
+        fn guided_action(self: Pin<&mut Headset>, action: i32);
+        #[qinvokable]
+        fn guided_save(self: Pin<&mut Headset>, name: QString) -> bool;
         #[qinvokable]
         fn delete_user_preset(self: Pin<&mut Headset>);
         /// Gains saisis en dB (« -3,5 ; -1 ; … ») ; `true` si envoyés.
@@ -452,6 +458,7 @@ use cxx_qt_lib::{QString, QStringList};
 use momentum_client::dbus::Client;
 use momentum_client::demo::{self, Demo};
 use momentum_client::edits::{SliderEdits, SliderKey};
+use momentum_client::sound_check::{Action as GuidedAction, GuidedEq};
 use momentum_client::tracker::Tracker;
 use momentum_client::{Command, Event, Outcome, Snapshot};
 use momentum_core::battery_log::BatteryLog;
@@ -593,6 +600,7 @@ pub struct HeadsetRust {
     preset_index: i32,
     user_preset: QString,
     eq_notice: QString,
+    guided_state: QString,
     slider_notice: QString,
     edit_epoch: u64,
     legacy_presets: bool,
@@ -701,6 +709,7 @@ pub struct HeadsetRust {
     incidents: Vec<(u64, String)>,
     user_presets: Vec<Preset>,
     ab: AbCompare,
+    guided_eq: GuidedEq,
     slider_edits: SliderEdits,
     /// Numéro de la dernière commande envoyée (efface l'attente périmée).
     /// Demandes envoyées, suivies jusqu'à leur résultat (`Event::Done`).
@@ -771,6 +780,15 @@ impl Default for HeadsetRust {
             preset_index: -1,
             user_preset: QString::default(),
             eq_notice: QString::default(),
+            guided_state: QString::from(
+                serde_json::to_string(&GuidedEq::default().view(
+                    &Snapshot::default(),
+                    false,
+                    false,
+                ))
+                .unwrap_or_else(|_| "{}".into())
+                .as_str(),
+            ),
             slider_notice: QString::default(),
             edit_epoch: 0,
             legacy_presets: false,
@@ -880,6 +898,7 @@ impl Default for HeadsetRust {
             incidents: Vec::new(),
             user_presets: paths::load_user_presets(),
             ab: AbCompare::default(),
+            guided_eq: GuidedEq::default(),
             slider_edits: SliderEdits::default(),
             requests: Tracker::default(),
         }
@@ -1090,8 +1109,19 @@ impl HeadsetRust {
 impl qobject::Headset {
     /// Envoie une demande et affiche l'attente de son résultat.
     fn send(mut self: Pin<&mut Self>, command: Command) {
-        let Some(tx) = self.rust().commands.clone() else {
+        if self.rust().guided_eq.active() {
+            self.as_mut()
+                .notice(tr("Terminez ou restaurez l'assistant EQ en cours.").into());
+            self.as_mut().equalizer_requested();
+            self.refresh();
             return;
+        }
+        self.send_raw(command);
+    }
+
+    fn send_raw(mut self: Pin<&mut Self>, command: Command) -> bool {
+        let Some(tx) = self.rust().commands.clone() else {
+            return false;
         };
         let session = if command == Command::ReconnectHeadset {
             0
@@ -1099,7 +1129,7 @@ impl qobject::Headset {
             self.rust().snapshot.session
         };
         if tx.send((command.clone(), session)).is_err() {
-            return;
+            return false;
         }
         if matches!(command, Command::SetMode(_)) {
             self.as_mut()
@@ -1115,16 +1145,19 @@ impl qobject::Headset {
         self.as_mut().rust_mut().snapshot.problem = None;
         self.as_mut().set_busy(true);
         self.refresh();
+        true
     }
 
     /// Numéro de la demande rendu par le service.
     fn on_submitted(mut self: Pin<&mut Self>, id: u64) {
+        self.as_mut().rust_mut().guided_eq.submitted(id);
         let failure = self.as_mut().rust_mut().requests.submitted(id);
         self.as_mut().finish_request(failure);
     }
 
     /// Demande refusée tout de suite par le service.
     fn on_rejected(mut self: Pin<&mut Self>, reason: String) {
+        self.as_mut().rust_mut().guided_eq.rejected();
         let failure = self.as_mut().rust_mut().requests.rejected(&reason);
         self.as_mut().finish_request(Some(failure));
     }
@@ -1169,6 +1202,7 @@ impl qobject::Headset {
             self.as_mut().rust_mut().pipewire_at = None;
         }
         if let Event::Done { id, outcome, .. } = &event {
+            self.as_mut().rust_mut().guided_eq.done(*id, outcome);
             let failure = self.as_mut().rust_mut().requests.done(*id, outcome);
             self.as_mut().finish_request(failure);
         }
@@ -1269,7 +1303,15 @@ impl qobject::Headset {
             MenuAction::ReconnectHeadset => self.as_mut().reconnect_headset(),
             MenuAction::OpenWindow => self.as_mut().show_requested(),
             MenuAction::OpenEqualizer => self.as_mut().equalizer_requested(),
-            MenuAction::Quit => self.as_mut().quit_requested(),
+            MenuAction::Quit => {
+                if self.rust().guided_eq.active() {
+                    self.as_mut()
+                        .notice(tr("Terminez ou restaurez l'assistant EQ en cours.").into());
+                    self.as_mut().equalizer_requested();
+                } else {
+                    self.as_mut().quit_requested();
+                }
+            }
             MenuAction::ReloadScenes => {
                 self.as_mut().reload_scenes();
                 self.refresh();
@@ -1334,11 +1376,19 @@ impl qobject::Headset {
     fn refresh(mut self: Pin<&mut Self>) {
         let snapshot = self.rust().snapshot.clone();
         let busy = self.rust().requests.busy();
+        self.as_mut().rust_mut().guided_eq.sync(&snapshot);
         if self.as_mut().rust_mut().slider_edits.sync(&snapshot) {
             self.as_mut().rust_mut().ab = AbCompare::default();
         }
         self.as_mut().rust_mut().slider_edits.finish_if_idle(busy);
         let r = self.rust();
+        let guided_state = serde_json::to_string(&r.guided_eq.view(
+            &snapshot,
+            busy,
+            !r.slider_edits.is_empty(),
+        ))
+        .unwrap_or_else(|_| "{}".into());
+        let guided_active = r.guided_eq.active();
         let s = &r.snapshot;
         let name = s
             .info
@@ -1449,7 +1499,7 @@ impl qobject::Headset {
             .set_connection(QString::from(v.connection.as_str()));
         h.as_mut().set_can_reconnect(can_reconnect);
         h.as_mut().set_connected(v.connected);
-        h.as_mut().set_writable(v.writable);
+        h.as_mut().set_writable(v.writable && !guided_active);
         h.as_mut().set_waiting(QString::from(v.waiting.as_str()));
         let banner = if v.banner.is_empty() && demo::requested() {
             tr("Démonstration : données simulées (aucun casque, aucun service)").to_string()
@@ -1470,6 +1520,8 @@ impl qobject::Headset {
         h.as_mut()
             .set_slider_notice(QString::from(slider_notice.as_str()));
         h.as_mut().set_legacy_presets(legacy_presets);
+        h.as_mut()
+            .set_guided_state(QString::from(guided_state.as_str()));
         h.as_mut().set_anti_wind(c.anti_wind);
         h.as_mut().set_profile_on(profile_on);
         h.as_mut()
@@ -2612,6 +2664,83 @@ impl qobject::Headset {
                 self.notice(tr("Export impossible : dossier personnel introuvable.").to_string())
             }
         }
+    }
+
+    fn guided_action(mut self: Pin<&mut Self>, action: i32) {
+        let action = match action {
+            0 => GuidedAction::Start,
+            1 => GuidedAction::Less,
+            2 => GuidedAction::Reference,
+            3 => GuidedAction::More,
+            4 => GuidedAction::Next,
+            5 => GuidedAction::Initial,
+            6 => GuidedAction::Result,
+            7 => GuidedAction::Restore,
+            8 => GuidedAction::Dismiss,
+            _ => return,
+        };
+        let snapshot = self.rust().snapshot.clone();
+        let busy = self.rust().requests.busy();
+        let drafts = !self.rust().slider_edits.is_empty();
+        if action == GuidedAction::Start
+            && self
+                .rust()
+                .guided_eq
+                .view(&snapshot, busy, drafts)
+                .can_start
+        {
+            let Some(eq) = snapshot.equalizer.as_ref() else {
+                return;
+            };
+            if let Err(error) = paths::save_guided_reference(eq) {
+                self.as_mut().notice(trf(
+                    "Copie initiale impossible : {}. Assistant non démarré.",
+                    &[&error],
+                ));
+                self.refresh();
+                return;
+            }
+            self.as_mut().rust_mut().ab = AbCompare::default();
+        }
+        match self
+            .as_mut()
+            .rust_mut()
+            .guided_eq
+            .action(action, &snapshot, busy, drafts)
+        {
+            Ok(Some(command)) => {
+                if !self.as_mut().send_raw(command) {
+                    self.as_mut().rust_mut().guided_eq.rejected();
+                }
+            }
+            Ok(None) => {}
+            Err(reason) => self.as_mut().notice(reason.into()),
+        }
+        self.refresh();
+    }
+
+    fn guided_save(mut self: Pin<&mut Self>, name: QString) -> bool {
+        let result = self
+            .rust()
+            .guided_eq
+            .curve_to_save(&self.rust().snapshot, self.rust().requests.busy())
+            .map_err(str::to_string)
+            .and_then(|(gains, topology)| {
+                paths::create_user_preset_for(name.to_string().trim(), &gains, &topology)
+            });
+        let saved = match result {
+            Ok(list) => {
+                self.as_mut().rust_mut().user_presets = list;
+                self.as_mut().rust_mut().guided_eq.saved();
+                true
+            }
+            Err(reason) => {
+                self.as_mut().notice(reason);
+                false
+            }
+        };
+        self.refresh();
+        saved
     }
 
     fn remember_a(mut self: Pin<&mut Self>) {

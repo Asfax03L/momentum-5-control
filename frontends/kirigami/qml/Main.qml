@@ -20,6 +20,7 @@ Kirigami.ApplicationWindow {
     height: Kirigami.Units.gridUnit * 40
     minimumWidth: Kirigami.Units.gridUnit * 20
     minimumHeight: Kirigami.Units.gridUnit * 24
+    readonly property var guided: JSON.parse(headset.guidedState)
     // Montrée à la fin du chargement, sauf démarrage caché (`--cache`) avec
     // l'icône de la zone de notification.
     visible: false
@@ -67,7 +68,10 @@ Kirigami.ApplicationWindow {
     // Avec l'icône de la zone de notification, fermer la fenêtre la cache :
     // l'icône reste, et un clic dessus la rouvre.
     onClosing: (close) => {
-        if (headset.trayAvailable) {
+        if (root.guided.active && !headset.trayAvailable) {
+            close.accepted = false
+            root.pageStack.replace(soundPage)
+        } else if (headset.trayAvailable) {
             close.accepted = false
             root.hide()
         }
@@ -245,6 +249,7 @@ Kirigami.ApplicationWindow {
     property int essaiEtape: 0
     property bool essaiAntiVent: false
     property int essaiAttente: 0
+    property var essaiGains: []
     function essaiEchec(message) {
         console.error("ESSAI INTERFACE ÉCHEC : " + message)
         Qt.exit(1)
@@ -267,6 +272,11 @@ Kirigami.ApplicationWindow {
         interval: 1500
         repeat: true
         onTriggered: {
+            if (root.essaiEtape >= 4 && headset.busy) {
+                root.essaiAttente += 1
+                if (root.essaiAttente > 12) return root.essaiEchec("assistant EQ : résultat absent")
+                return
+            }
             if (root.essaiEtape === 0) {
                 const pages = [
                     [homePage, "page-accueil"], [soundPage, "page-egaliseur"],
@@ -302,6 +312,49 @@ Kirigami.ApplicationWindow {
             } else if (root.essaiEtape === 3) {
                 if (!quickPanel.visible)
                     return root.essaiEchec("panneau rapide non ouvert")
+                quickPanel.hide()
+                root.pageStack.replace(soundPage)
+                const demarrer = root.essaiChercher(root.pageStack.currentItem, "assistant-eq-demarrer")
+                if (!demarrer || !demarrer.enabled)
+                    return root.essaiEchec("assistant EQ indisponible")
+                root.essaiGains = []
+                for (let i = 0; i < headset.bandCount; ++i) root.essaiGains.push(headset.bandGain(i))
+                headset.guidedAction(0)
+            } else if (root.essaiEtape === 4) {
+                if (!root.guided.active || !root.guided.can_listen)
+                    return root.essaiEchec("assistant EQ non démarré")
+                headset.guidedAction(3)
+            } else if (root.essaiEtape === 5) {
+                if (!root.guided.can_next || headset.bandGain(0) !== root.essaiGains[0] + 1 || headset.bandGain(7) !== root.essaiGains[7])
+                    return root.essaiEchec("variante graves non relue")
+                headset.guidedAction(4)
+                headset.guidedAction(1)
+            } else if (root.essaiEtape === 6) {
+                if (!root.guided.can_next || headset.bandGain(2) !== root.essaiGains[2] - 1)
+                    return root.essaiEchec("variante médiums non relue")
+                headset.guidedAction(4)
+                headset.guidedAction(3)
+            } else if (root.essaiEtape === 7) {
+                if (!root.guided.can_next || headset.bandGain(7) !== root.essaiGains[7] + 1)
+                    return root.essaiEchec("variante aigus non relue")
+                headset.guidedAction(4)
+                if (!root.guided.review) return root.essaiEchec("comparaison finale absente")
+                headset.guidedAction(5)
+            } else if (root.essaiEtape === 8) {
+                for (let i = 0; i < headset.bandCount; ++i) {
+                    if (headset.bandGain(i) !== root.essaiGains[i]) return root.essaiEchec("initiale non relue")
+                }
+                if (root.guided.can_save) return root.essaiEchec("résultat initial enregistré à tort")
+                headset.guidedAction(6)
+            } else if (root.essaiEtape === 9) {
+                if (!root.guided.can_save) return root.essaiEchec("résultat final non confirmé")
+                headset.guidedAction(7)
+            } else if (root.essaiEtape === 10) {
+                if (root.guided.active) return root.essaiEchec("restauration non terminée")
+                for (let i = 0; i < headset.bandCount; ++i) {
+                    if (headset.bandGain(i) !== root.essaiGains[i]) return root.essaiEchec("restauration incorrecte")
+                }
+                console.info("essai interface : assistant EQ et restauration relue réussis")
                 console.info("ESSAI INTERFACE RÉUSSI")
                 Qt.exit(0)
             }
@@ -501,7 +554,9 @@ Kirigami.ApplicationWindow {
         QQC2.Label {
             Layout.fillWidth: true
             Layout.preferredHeight: Kirigami.Units.gridUnit
-            text: headset.sliderNotice.replace(/\n/g, " · ")
+            text: root.guided.active
+                ? headset.tr("Assistant EQ en cours — ouvrez Égaliseur pour continuer ou restaurer.")
+                : headset.sliderNotice.replace(/\n/g, " · ")
             elide: Text.ElideRight
             HoverHandler { id: sliderNoticeHover }
             QQC2.ToolTip.visible: sliderNoticeHover.hovered && headset.sliderNotice !== ""
@@ -884,7 +939,128 @@ Kirigami.ApplicationWindow {
 
                 Kirigami.AbstractCard {
                     Layout.fillWidth: true
-                    visible: headset.connected
+                    visible: headset.connected || root.guided.active
+                    header: Kirigami.Heading {
+                        text: headset.tr("Assistant EQ guidé")
+                        level: 3
+                    }
+                    contentItem: ColumnLayout {
+                        spacing: Kirigami.Units.smallSpacing
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: headset.tr("Comparez votre musique à volume modéré. Chaque variante change un groupe de ±1 dB, dans les limites lues. Aucun son automatique ; ce parcours ne mesure pas l'audition.")
+                        }
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: headset.tr("Une copie initiale est conservée dans le sous-dossier assistant-eq des données de l'application. Restaurez ou enregistrez avant de quitter ; une fermeture forcée conserve la dernière courbe appliquée.")
+                        }
+                        Kirigami.Heading { text: root.guided.title || ""; level: 3; visible: root.guided.active }
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: root.guided.status || ""
+                        }
+                        QQC2.Button {
+                            objectName: "assistant-eq-demarrer"
+                            text: headset.tr("Commencer les comparaisons")
+                            visible: !root.guided.active
+                            enabled: root.guided.can_start || false
+                            onClicked: headset.guidedAction(0)
+                        }
+                        QQC2.TextField {
+                            Layout.fillWidth: true
+                            visible: root.guided.active || false
+                            text: root.guided.initial || ""
+                            readOnly: true
+                            Accessible.name: headset.tr("Courbe initiale en dB")
+                        }
+                        Flow {
+                            Layout.fillWidth: true
+                            spacing: Kirigami.Units.smallSpacing
+                            visible: root.guided.active && !root.guided.review
+                            QQC2.Button {
+                                text: headset.tr("Moins (−1 dB)")
+                                enabled: root.guided.can_listen || false
+                                onClicked: headset.guidedAction(1)
+                            }
+                            QQC2.Button {
+                                text: headset.tr("Référence de l'étape")
+                                enabled: root.guided.can_listen || false
+                                onClicked: headset.guidedAction(2)
+                            }
+                            QQC2.Button {
+                                objectName: "assistant-eq-plus"
+                                text: headset.tr("Plus (+1 dB)")
+                                enabled: root.guided.can_listen || false
+                                onClicked: headset.guidedAction(3)
+                            }
+                        }
+                        QQC2.Button {
+                            text: headset.tr("Garder ce choix et continuer")
+                            visible: root.guided.active && !root.guided.review
+                            enabled: root.guided.can_next || false
+                            onClicked: headset.guidedAction(4)
+                        }
+                        Flow {
+                            Layout.fillWidth: true
+                            spacing: Kirigami.Units.smallSpacing
+                            visible: root.guided.active && root.guided.review
+                            QQC2.Button {
+                                text: headset.tr("Écouter la courbe initiale")
+                                enabled: root.guided.can_listen || false
+                                onClicked: headset.guidedAction(5)
+                            }
+                            QQC2.Button {
+                                text: headset.tr("Écouter le résultat")
+                                enabled: root.guided.can_listen || false
+                                onClicked: headset.guidedAction(6)
+                            }
+                        }
+                        QQC2.TextField {
+                            id: guidedName
+                            Layout.fillWidth: true
+                            visible: root.guided.active && root.guided.review
+                            placeholderText: headset.tr("Nom du nouveau préréglage")
+                            Accessible.name: headset.tr("Nom du nouveau préréglage")
+                        }
+                        QQC2.Button {
+                            text: headset.tr("Enregistrer le résultat et terminer")
+                            visible: root.guided.active && root.guided.review
+                            enabled: root.guided.can_save && guidedName.text.trim() !== ""
+                            onClicked: { if (headset.guidedSave(guidedName.text)) guidedName.text = "" }
+                        }
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            visible: root.guided.active && root.guided.review
+                            text: headset.tr("Pour enregistrer, écoutez d'abord le résultat et attendez sa relecture. Un nom de préréglage existant n'est pas remplacé.")
+                        }
+                        QQC2.Button {
+                            objectName: "assistant-eq-restaurer"
+                            text: headset.tr("Annuler et restaurer la courbe initiale")
+                            visible: root.guided.active || false
+                            enabled: root.guided.can_restore || false
+                            onClicked: headset.guidedAction(7)
+                        }
+                        QQC2.Button {
+                            text: headset.tr("Fermer sans restauration")
+                            visible: root.guided.can_dismiss || false
+                            onClicked: headset.guidedAction(8)
+                        }
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: headset.eqNotice
+                            visible: text !== ""
+                        }
+                    }
+                }
+
+                Kirigami.AbstractCard {
+                    Layout.fillWidth: true
+                    visible: headset.connected && !root.guided.active
                     header: Kirigami.Heading {
                         text: headset.tr("Mode audio")
                         level: 3
@@ -911,7 +1087,7 @@ Kirigami.ApplicationWindow {
 
                 Kirigami.AbstractCard {
                     Layout.fillWidth: true
-                    visible: headset.connected
+                    visible: headset.connected && !root.guided.active
                     header: RowLayout {
                         Kirigami.Heading {
                             Layout.fillWidth: true
@@ -997,7 +1173,7 @@ Kirigami.ApplicationWindow {
 
                 Kirigami.AbstractCard {
                     Layout.fillWidth: true
-                    visible: headset.connected
+                    visible: headset.connected && !root.guided.active
                     header: Kirigami.Heading {
                         text: headset.tr("Préréglages")
                         level: 3
@@ -1024,7 +1200,7 @@ Kirigami.ApplicationWindow {
 
                 Kirigami.AbstractCard {
                     Layout.fillWidth: true
-                    visible: headset.connected
+                    visible: headset.connected && !root.guided.active
                     header: Kirigami.Heading {
                         text: headset.tr("Préréglages et courbes")
                         level: 3

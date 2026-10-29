@@ -18,6 +18,12 @@ au casque, et deux outils en ligne de commande.
 
 ## État du projet
 
+Depuis la **1.4.0**, la page Égaliseur de WinUI et KDE propose un
+[assistant EQ guidé](docs/LOT3-ASSISTANT-EQ.md) : trois comparaisons bornées,
+copie locale initiale, résultat relu, restauration ou nouveau préréglage.
+Aucun son automatique ni profil auditif créé. Le parcours est vérifié en
+simulation ; aucune nouvelle séance matérielle n'est revendiquée.
+
 | Phase | Contenu | État |
 |---|---|---|
 | 1 | Protocole GAIA V3 pur, `MockTransport`, tests sur captures | ✅ |
@@ -48,7 +54,7 @@ au casque, et deux outils en ligne de commande.
 | X | Version stable : politique de versions (`docs/VERSIONS.md`), politique de sécurité (`SECURITY.md`), avis de nouvelle version désactivé par défaut, décisions écrites sur les points ouverts | ✅ v1.0.0 |
 | Y | Fonctions avancées : autonomie mesurée (aussi par mode de réduction de bruit), journal local des événements, notifications au choix (dont « casque allumé sans son »), scènes automatiques (connexion, heure fixe), export pour Equalizer APO | ✅ v1.1.0 ; scènes automatiques essayées sur le M5 (Bazzite) |
 
-Version du code : **v1.3.0** (publications sur la page Releases du dépôt), série
+Version du code : **v1.4.0** (publications sur la page Releases du dépôt), série
 stable 1.x. Ce qui reste compatible en 1.x : [`docs/VERSIONS.md`](docs/VERSIONS.md) ;
 signaler une faille : [`SECURITY.md`](SECURITY.md). **Guide
 d'utilisation et FAQ** : [`docs/GUIDE.md`](docs/GUIDE.md),

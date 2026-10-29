@@ -96,6 +96,21 @@ Pendant un déplacement de curseur, la valeur demandée et la dernière
 lecture sont distinguées. Une reconnexion annule les anciens gestes ;
 recommencer le réglage après le retour de la connexion.
 
+### Assistant EQ guidé (1.4, Windows et KDE)
+
+Dans Égaliseur, sélectionner le mode graphique puis **Commencer les
+comparaisons**. Choisir Moins, Référence ou Plus pour les graves, médiums
+et aigus, et attendre chaque relecture avant de continuer. Chaque groupe
+varie au plus de ±1 dB autour de la référence de son étape, sans cumul.
+Comparer ensuite courbe initiale et résultat, puis enregistrer sous un
+nouveau nom, ou **Annuler et restaurer la courbe initiale**.
+
+Le parcours ne lance aucun son et ne crée aucun profil auditif. Une copie
+locale est conservée dans `assistant-eq/` sous le dossier des données.
+Une déconnexion interrompt le parcours sans restauration automatique.
+Terminer ou restaurer avant de quitter ; un arrêt forcé laisse la dernière
+courbe appliquée. [Parcours, récupération et limites](LOT3-ASSISTANT-EQ.md).
+
 ## 4. Icône et raccourcis
 
 - **Clic gauche** sur l'icône près de l'horloge : panneau rapide (batterie,

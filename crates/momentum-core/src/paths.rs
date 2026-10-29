@@ -81,6 +81,41 @@ pub fn presets_file() -> Option<PathBuf> {
     Some(data_dir()?.join("prereglages.txt"))
 }
 
+/// Copie de secours avant un assistant EQ, distincte d'un profil auditif.
+/// Chaque démarrage crée un fichier exclusif : aucune ancienne copie écrasée.
+pub fn save_guided_reference(eq: &crate::device::EqState) -> std::io::Result<PathBuf> {
+    let dir =
+        data_dir().ok_or_else(|| std::io::Error::other(tr("dossier des données introuvable")))?;
+    write_guided_reference(&dir.join("assistant-eq"), eq)
+}
+
+fn write_guided_reference(
+    dir: &std::path::Path,
+    eq: &crate::device::EqState,
+) -> std::io::Result<PathBuf> {
+    use std::io::Write;
+    static NEXT_REFERENCE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let topology = presets::EqTopology::momentum5(eq)
+        .ok_or_else(|| std::io::Error::other(tr("Égaliseur indisponible")))?;
+    topology
+        .check_gains(&eq.gains)
+        .map_err(std::io::Error::other)?;
+    let time = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(std::io::Error::other)?
+        .as_nanos();
+    let n = NEXT_REFERENCE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    fs::create_dir_all(dir)?;
+    let path = dir.join(format!("initiale-{time}-{}-{n}.txt", std::process::id()));
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)?;
+    file.write_all(presets::format_curve(Some("M5AEBT"), &eq.gains, eq.bass_boost).as_bytes())?;
+    file.sync_all()?;
+    Ok(path)
+}
+
 /// `batterie.csv` : historique local de la batterie.
 pub fn battery_file() -> Option<PathBuf> {
     Some(data_dir()?.join("batterie.csv"))
@@ -363,6 +398,30 @@ pub fn upsert_user_preset_for(
     })
 }
 
+/// Création par l'assistant : un nom existant n'est jamais remplacé.
+pub fn create_user_preset_for(
+    name: &str,
+    gains: &[i8],
+    topology: &presets::EqTopology,
+) -> Result<Vec<Preset>, String> {
+    let path = presets_file().ok_or(tr("dossier des données introuvable"))?;
+    create_preset_at(&path, name, gains, topology)
+}
+
+fn create_preset_at(
+    path: &std::path::Path,
+    name: &str,
+    gains: &[i8],
+    topology: &presets::EqTopology,
+) -> Result<Vec<Preset>, String> {
+    modify_presets(path, |list| {
+        if list.iter().any(|p| p.name == name.trim()) {
+            return Err(tr("Un préréglage porte déjà ce nom. Choisissez un autre nom.").into());
+        }
+        presets::upsert_for(list, name, gains, topology).map_err(str::to_string)
+    })
+}
+
 /// Mise à jour atomique avec sauvegarde, seulement sur action explicite.
 pub fn bind_legacy_presets(topology: &presets::EqTopology) -> Result<Vec<Preset>, String> {
     let path = presets_file().ok_or(tr("dossier des données introuvable"))?;
@@ -385,6 +444,72 @@ pub fn remove_user_preset(name: &str) -> Result<Vec<Preset>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn guided_references_are_distinct_complete_and_importable() {
+        let dir =
+            std::env::temp_dir().join(format!("momentum-guided-reference-{}", std::process::id()));
+        let eq = crate::device::EqState {
+            gains: vec![3, -7, 12, 0, -1, 20, -30, 60],
+            min_gain: -60,
+            max_gain: 60,
+            bass_boost: true,
+        };
+        let first = write_guided_reference(&dir, &eq).unwrap();
+        let mut other = eq.clone();
+        other.gains[0] = 9;
+        let second = write_guided_reference(&dir, &other).unwrap();
+        assert_ne!(first, second);
+        let curve = presets::parse_curve(
+            &fs::read_to_string(&first).unwrap(),
+            Some("M5AEBT"),
+            8,
+            -60,
+            60,
+        )
+        .unwrap();
+        assert_eq!(curve.gains, eq.gains);
+        assert_eq!(curve.bass_boost, Some(true));
+        assert!(write_guided_reference(&first, &other).is_err());
+        assert_eq!(
+            presets::parse_curve(
+                &fs::read_to_string(&first).unwrap(),
+                Some("M5AEBT"),
+                8,
+                -60,
+                60
+            )
+            .unwrap()
+            .gains,
+            eq.gains
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn guided_preset_creation_never_overwrites_an_existing_name() {
+        let dir =
+            std::env::temp_dir().join(format!("momentum-guided-preset-{}", std::process::id()));
+        let path = dir.join("prereglages.txt");
+        let eq = crate::device::EqState {
+            gains: vec![0; 8],
+            min_gain: -60,
+            max_gain: 60,
+            bass_boost: false,
+        };
+        let topology = presets::EqTopology::momentum5(&eq).unwrap();
+        create_preset_at(&path, "Essai local", &eq.gains, &topology).unwrap();
+        let before = fs::read(&path).unwrap();
+        assert!(create_preset_at(&path, " Essai local ", &[10; 8], &topology).is_err());
+        assert_eq!(fs::read(&path).unwrap(), before);
+        assert_eq!(
+            create_preset_at(&path, "Autre essai", &[10; 8], &topology)
+                .unwrap()
+                .len(),
+            2
+        );
+        fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn user_files_are_replaced_with_a_backup() {

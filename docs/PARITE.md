@@ -1,6 +1,6 @@
 # Parité des interfaces (après le retrait de Slint)
 
-État au 22/10/2026 (`main`). ✅ disponible · 🟡 partiel ou différent ·
+État mis à jour le 29/10/2026 pour le lot 3. ✅ disponible · 🟡 partiel ou différent ·
 — absent (avec la raison). Toutes les interfaces passent par le service :
 aucune ne parle au casque elle-même.
 
@@ -16,6 +16,7 @@ commande ; le widget Plasma se limite aux réglages rapides.
 | Audio spatial, suivi de tête | ✅ | ✅ | ✅ | ✅ |
 | Égaliseur 8 bandes, basses, remise à plat | ✅ | ✅ | ✅ | — |
 | Préréglages, courbes (export, import), A/B | ✅ | ✅ | — | — |
+| Assistant EQ guidé, trois groupes et restauration | ✅ (1.4) | ✅ (1.4) | — parcours interactif | — |
 | Mode audio : Speech Clarity, profil personnalisé | ✅ | ✅ | ✅ | 🟡 profil personnalisé seul |
 | Smart Pause, réponse automatique, appels confortables | ✅ | ✅ | ✅ | — |
 | Extinction automatique, protection de la batterie | ✅ | ✅ | ✅ | — |

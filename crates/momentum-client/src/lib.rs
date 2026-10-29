@@ -24,6 +24,7 @@ pub mod menu;
 #[cfg(windows)]
 pub mod pipe;
 pub mod runner;
+pub mod sound_check;
 pub mod tracker;
 pub mod wire;
 

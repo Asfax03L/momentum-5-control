@@ -90,6 +90,21 @@ While moving a slider, the requested value is distinguished from the latest
 readback. Reconnecting cancels older gestures; adjust the control again
 after the connection returns.
 
+### Guided EQ assistant (1.4, Windows and KDE)
+
+In Equalizer, select graphic mode, then **Start comparisons**. Choose Less,
+Reference or More for bass, midrange and treble, waiting for each readback
+before continuing. Each group changes by at most ±1 dB around its step
+reference; repeated previews do not accumulate changes. Finally compare
+the initial curve and the result, then save under a new name, or **Cancel
+and restore the initial curve**.
+
+The assistant plays no sound and creates no hearing profile. An initial
+copy is kept in `assistant-eq/` under the application data folder. A
+disconnection interrupts the session without automatic restoration.
+Finish or restore before quitting; a forced close leaves the last applied
+curve active. [Workflow, recovery and limits (French)](LOT3-ASSISTANT-EQ.md).
+
 ## 4. Icon and shortcuts
 
 - **Left click** on the icon near the clock: quick panel (battery, noise
