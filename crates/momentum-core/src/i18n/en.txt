@@ -2260,3 +2260,150 @@ All events logged on this PC are deleted. Export first to keep them.
 
 Une fois sous 15 %
 Once below 15 %
+
+niveau de sidetone {} non observé dans l'app (0, 1 ou 2)
+sidetone level {} not observed in the app (0, 1 or 2)
+
+Connectez le casque pour utiliser ce réglage.
+Connect the headset to use this setting.
+
+Lecture seule : les réglages du casque ne sont pas modifiables.
+Read-only: headset settings cannot be changed.
+
+Valeur non disponible pour cette connexion.
+Value unavailable for this connection.
+
+Choisissez Personnalisé pour ajuster le niveau.
+Choose Custom to adjust the level.
+
+Activez l'audio spatial pour régler le suivi de tête.
+Enable spatial audio to adjust head tracking.
+
+L'audio spatial est indisponible avec le profil personnalisé sélectionné.
+Spatial audio is unavailable while the personalized profile is selected.
+
+État de charge non disponible
+Charging state unavailable
+
+État de port non disponible
+Wearing state unavailable
+
+Flux audio non disponible
+Audio stream unavailable
+
+Sur batterie
+On battery
+
+En charge
+Charging
+
+Porté
+Worn
+
+Non porté
+Not worn
+
+Charge inconnue (0x{})
+Unknown charging state (0x{})
+
+Port inconnu (0x{})
+Unknown wearing state (0x{})
+
+santé et cycles de la batterie : non fournis au projet
+battery health and cycles: not provided to the project
+
+Votre casque
+Your headset
+
+Mode de réduction du bruit
+Noise reduction mode
+
+ANC maximal
+Maximum ANC
+
+Une scène sonore plus enveloppante
+A more immersive soundstage
+
+Appareils
+Devices
+
+Liste des appareils non disponible.
+Device list unavailable.
+
+La connexion Bluetooth n'indique pas quel appareil diffuse du son.
+A Bluetooth connection does not identify which device is playing audio.
+
+Au quotidien
+Everyday use
+
+Ouvrir l'égaliseur et la comparaison A/B
+Open the equalizer and A/B comparison
+
+Niveau de batterie
+Battery level
+
+État actuel
+Current state
+
+Le niveau de batterie et l'état de charge sont deux informations distinctes.
+Battery level and charging state are separate readings.
+
+{} (mode actuel)
+{} (current mode)
+
+ANC / transparence
+ANC / transparency
+
+CONNECTÉS · {}
+CONNECTED · {}
+
+APPAIRÉS NON CONNECTÉS
+PAIRED, NOT CONNECTED
+
+Illustration de casque
+Headphone illustration
+
+Flux audio
+Audio stream
+
+Port
+Wearing state
+
+{} %
+{} %
+
+Topologie de l'égaliseur non disponible.
+Equalizer topology unavailable.
+
+Association enregistrée sur ce PC, sans modifier le casque.
+Association saved on this computer without changing the headset.
+
+Les anciens préréglages sont conservés. Associez-les aux fréquences documentées du M5 avant de les appliquer.
+Your older presets are preserved. Associate them with the documented M5 frequencies before applying them.
+
+Associer les anciens préréglages à cet égaliseur
+Associate older presets with this equalizer
+
+Courbe incompatible avec les bandes ou les limites de cet égaliseur.
+Curve incompatible with this equalizer's bands or gain limits.
+
+Préréglage ancien sans topologie : associez-le explicitement à cet égaliseur avant de l'appliquer.
+Older preset without topology: explicitly associate it with this equalizer before applying it.
+
+La topologie de ce préréglage ne correspond pas à cet égaliseur.
+This preset's topology does not match this equalizer.
+
+Comparaison A/B annulée : l'égaliseur ou la session a changé.
+A/B comparison cancelled: the equalizer or session has changed.
+
+Volume des invites demandé : attente de la relecture.
+Prompt volume requested: waiting for readback.
+
+ANC/transparence demandé : {} % ; relu : {} %.
+ANC/transparency requested: {} %; read back: {} %.
+
+Bande {} demandée : {} dB ; relue : {} dB.
+Band {} requested: {} dB; read back: {} dB.
+
+Niveau confirmé : {} %.
+Confirmed level: {} %.

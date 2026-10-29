@@ -158,6 +158,7 @@ Kirigami.ApplicationWindow {
                 QQC2.Slider {
                     Accessible.name: headset.tr("ANC ↔ transparence")
                     id: panelLevel
+                    property double dragEpoch: 0
                     Layout.fillWidth: true
                     from: 0
                     to: 100
@@ -165,8 +166,9 @@ Kirigami.ApplicationWindow {
                     value: headset.level
                     enabled: headset.writable
                     onPressedChanged: {
+                        if (pressed) dragEpoch = headset.editEpoch
                         if (!pressed) {
-                            headset.sendLevel(Math.round(value))
+                            if (dragEpoch === headset.editEpoch) headset.sendLevel(Math.round(value))
                             value = Qt.binding(() => headset.level)
                         }
                     }
@@ -496,6 +498,15 @@ Kirigami.ApplicationWindow {
 
     // En-tête commun : état de la connexion et envoi en cours.
     component StatusHeader: ColumnLayout {
+        QQC2.Label {
+            Layout.fillWidth: true
+            Layout.preferredHeight: Kirigami.Units.gridUnit
+            text: headset.sliderNotice.replace(/\n/g, " · ")
+            elide: Text.ElideRight
+            HoverHandler { id: sliderNoticeHover }
+            QQC2.ToolTip.visible: sliderNoticeHover.hovered && headset.sliderNotice !== ""
+            QQC2.ToolTip.text: headset.sliderNotice
+        }
         Kirigami.InlineMessage {
             Layout.fillWidth: true
             visible: headset.reconnectNotice !== ""
@@ -644,6 +655,7 @@ Kirigami.ApplicationWindow {
                                 QQC2.Slider {
                                     Accessible.name: headset.tr("ANC ↔ transparence")
                                     id: levelSlider
+                                    property double dragEpoch: 0
                                     Layout.fillWidth: true
                                     from: 0
                                     to: 100
@@ -651,8 +663,9 @@ Kirigami.ApplicationWindow {
                                     value: headset.level
                                     enabled: headset.writable
                                     onPressedChanged: {
+                                        if (pressed) dragEpoch = headset.editEpoch
                                         if (!pressed) {
-                                            headset.sendLevel(Math.round(value))
+                                            if (dragEpoch === headset.editEpoch) headset.sendLevel(Math.round(value))
                                             value = Qt.binding(() => headset.level)
                                         }
                                     }
@@ -931,6 +944,7 @@ Kirigami.ApplicationWindow {
                                     QQC2.Slider {
                                         Accessible.name: headset.tr("Bande {}").replace("{}", headset.bandLabel(band.index))
                                         id: bandSlider
+                                        property double dragEpoch: 0
                                         Layout.alignment: Qt.AlignHCenter
                                         Layout.fillHeight: true
                                         orientation: Qt.Vertical
@@ -944,8 +958,9 @@ Kirigami.ApplicationWindow {
                                             return headset.bandGain(band.index)
                                         }
                                         onPressedChanged: {
+                                            if (pressed) dragEpoch = headset.editEpoch
                                             if (!pressed) {
-                                                headset.sendBand(band.index, value)
+                                                if (dragEpoch === headset.editEpoch) headset.sendBand(band.index, value)
                                                 value = Qt.binding(() => {
                                                     headset.eqRevision
                                                     return headset.bandGain(band.index)
@@ -1031,6 +1046,18 @@ Kirigami.ApplicationWindow {
                                         presetName.text = ""
                                 }
                             }
+                        }
+                        QQC2.Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            visible: headset.legacyPresets
+                            text: headset.tr("Les anciens préréglages sont conservés. Associez-les aux fréquences documentées du M5 avant de les appliquer.")
+                        }
+                        QQC2.Button {
+                            visible: headset.legacyPresets
+                            text: headset.tr("Associer les anciens préréglages à cet égaliseur")
+                            enabled: headset.writable
+                            onClicked: headset.bindLegacyPresets()
                         }
                         QQC2.Button {
                             text: headset.userPreset === ""
@@ -1369,6 +1396,7 @@ Kirigami.ApplicationWindow {
                         QQC2.Slider {
                             Accessible.name: headset.tr("Volume des invites")
                             id: promptVolume
+                            property double dragEpoch: 0
                             Layout.fillWidth: true
                             from: 0
                             to: 100
@@ -1376,8 +1404,9 @@ Kirigami.ApplicationWindow {
                             value: Math.max(0, headset.promptVolume)
                             enabled: headset.promptVolumeEnabled
                             onPressedChanged: {
+                                if (pressed) dragEpoch = headset.editEpoch
                                 if (!pressed) {
-                                    headset.sendPromptVolume(Math.round(value))
+                                    if (dragEpoch === headset.editEpoch) headset.sendPromptVolume(Math.round(value))
                                     value = Qt.binding(() => Math.max(0, headset.promptVolume))
                                 }
                             }

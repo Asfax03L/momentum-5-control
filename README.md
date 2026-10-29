@@ -48,7 +48,7 @@ au casque, et deux outils en ligne de commande.
 | X | Version stable : politique de versions (`docs/VERSIONS.md`), politique de sécurité (`SECURITY.md`), avis de nouvelle version désactivé par défaut, décisions écrites sur les points ouverts | ✅ v1.0.0 |
 | Y | Fonctions avancées : autonomie mesurée (aussi par mode de réduction de bruit), journal local des événements, notifications au choix (dont « casque allumé sans son »), scènes automatiques (connexion, heure fixe), export pour Equalizer APO | ✅ v1.1.0 ; scènes automatiques essayées sur le M5 (Bazzite) |
 
-Dernière publication : **v1.1.0** (page Releases du dépôt), série
+Version du code : **v1.3.0** (publications sur la page Releases du dépôt), série
 stable 1.x. Ce qui reste compatible en 1.x : [`docs/VERSIONS.md`](docs/VERSIONS.md) ;
 signaler une faille : [`SECURITY.md`](SECURITY.md). **Guide
 d'utilisation et FAQ** : [`docs/GUIDE.md`](docs/GUIDE.md),
@@ -60,6 +60,12 @@ d'utilisation et FAQ** : [`docs/GUIDE.md`](docs/GUIDE.md),
 version dans [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Limites documentées
+
+L'état physique « porté / non porté » est disponible dans l'état transmis
+par l'API du service, distinct de l'activation du capteur et de Smart Pause.
+Cette lecture et ses notifications sont couvertes par des tests simulés,
+**à valider sur le matériel** depuis le PC ; aucun indicateur graphique
+n'est encore ajouté. Voir la [provenance et le contrat](docs/MOMENTUM5.md#état-physique-du-port--observation-complémentaire-du-27102026).
 
 Le protocole du MOMENTUM 5 est décrit dans [docs/MOMENTUM5.md](docs/MOMENTUM5.md) : chaque commande y est marquée validée sur le casque, ou seulement lue. Seules les écritures validées sont envoyées.
 

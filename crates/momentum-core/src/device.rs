@@ -13,11 +13,12 @@ use tracing::{debug, warn};
 use crate::client::{ClientError, GaiaClient};
 use crate::profile::{ProfileBlock, ProfileExport};
 use crate::protocol::command::{REGISTER_NOTIFICATION, core_set, feature, get, set};
-pub use crate::protocol::messages::PairedDevice;
+pub use crate::protocol::messages::{ChargeReading, ChargerStatus, OnHeadState, PairedDevice};
 use crate::protocol::messages::{
-    M5NoiseMode, NoiseControlMode, m5_noise_mode, parse_battery, parse_codec, parse_core_features,
-    parse_eq_config, parse_eq_gain, parse_firmware_version, parse_model_name,
-    parse_noise_control_modes, parse_paired_device, parse_sample_rate, parse_switch,
+    M5NoiseMode, NoiseControlMode, m5_noise_mode, parse_battery, parse_charge_notification,
+    parse_charge_response, parse_codec, parse_core_features, parse_eq_config, parse_eq_gain,
+    parse_firmware_version, parse_model_name, parse_noise_control_modes, parse_on_head_state,
+    parse_paired_device, parse_sample_rate, parse_sidetone, parse_switch,
 };
 use crate::protocol::{
     CommandId, Frame, PacketKind, ProtocolError, VENDOR_QUALCOMM, VENDOR_SENNHEISER,
@@ -211,6 +212,8 @@ pub enum DeviceError {
     InvalidPromptVolume(i8),
     #[error("{}", trf("nom refusé : {}", &[&.0]))]
     InvalidName(&'static str),
+    #[error("{}", trf("niveau de sidetone {} non observé dans l'app (0, 1 ou 2)", &[&.0]))]
+    InvalidSidetone(u8),
     #[error("{}", tr("impossible de déconnecter l'appareil qui pilote le casque"))]
     OwnConnection,
     #[error(
@@ -242,7 +245,8 @@ impl NoiseState {
     }
 }
 
-/// Features auxquelles on s'abonne (`0495:0007 [feature]`, comme l'app).
+/// Features obligatoires (`0495:0007 [feature]`, comme l'app).
+/// La feature du port est ajoutée séparément, en abonnement facultatif.
 pub const NOTIFICATION_FEATURES: [u8; 6] = [
     feature::BATTERY,
     feature::ANC,
@@ -539,6 +543,13 @@ pub struct HeadsetState {
     pub codec: Option<u8>,
     /// Fréquence d'échantillonnage, connue seulement par notification `089A`.
     pub sample_rate_hz: Option<u32>,
+    /// État physique (`0402` / `0482`) ; `None` si la lecture est indisponible.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub on_head_state: Option<OnHeadState>,
+    /// État de charge déclaré (`0602` / `0682`), indépendant du pourcentage :
+    /// 100 % ne signifie jamais « charge terminée ». `None` : non lu.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub charge_state: Option<ChargeReading>,
 }
 
 impl HeadsetState {
@@ -546,7 +557,7 @@ impl HeadsetState {
     ///
     /// Notifications relevées dans la capture de Smart Control Plus :
     /// `0683` batterie, `1A85` ANC, `1A81` paires, `1A83` curseur,
-    /// `3685` audio spatial. Les autres sont ignorées.
+    /// `3685` audio spatial, `0482` état physique du port. Les autres sont ignorées.
     pub fn apply_notification(&mut self, frame: &Frame) -> bool {
         if frame.vendor != VENDOR_SENNHEISER || frame.kind() != PacketKind::Notification {
             return false;
@@ -554,7 +565,21 @@ impl HeadsetState {
         let before = *self;
         let request = frame.command.request();
         let p = &frame.payload;
-        if request == get::BATTERY {
+        if request == get::ON_HEAD_STATE {
+            if let Ok(state) = parse_on_head_state(p) {
+                self.on_head_state = Some(state);
+            }
+        } else if request == get::CHARGER_STATE {
+            // Un octet seulement : le second champ de la dernière réponse
+            // n'est plus frais, il est oublié. Une notification invalide est
+            // ignorée sans toucher à l'état précédent.
+            if let Ok(status) = parse_charge_notification(p) {
+                self.charge_state = Some(ChargeReading {
+                    primary_status: status,
+                    secondary_raw: None,
+                });
+            }
+        } else if request == get::BATTERY {
             if let Ok(v) = parse_battery(p) {
                 self.battery = v;
             }
@@ -669,6 +694,9 @@ fn contradicts_profile_reading(frame: &Frame) -> bool {
         || request == get::SOUND_PROFILE_USAGE_NOTIFICATION.request()
         || (request == get::SPATIAL_AUDIO && frame.payload.first() != Some(&0))
 }
+
+/// Niveaux de sidetone observés dans l'app (capture du 25/10/2026).
+pub const SIDETONE_LEVELS: [u8; 3] = [0, 1, 2];
 
 /// Raison donnée tant que `identify` n'a pas qualifié le casque.
 pub const NOT_IDENTIFIED: &str = "casque non identifié";
@@ -924,6 +952,8 @@ impl<T: Transport> Headset<T> {
                 .map(|c| c.0),
             // Pas de lecture connue : seulement par notification.
             sample_rate_hz: None,
+            on_head_state: self.optional(|h| h.on_head_state())?,
+            charge_state: self.optional(|h| h.charge_state())?,
         })
     }
 
@@ -1050,6 +1080,21 @@ impl<T: Transport> Headset<T> {
             }
             .into()),
         }
+    }
+
+    /// Sidetone lu (`0806` → `0906`, un octet).
+    pub fn sidetone(&mut self) -> Result<u8, DeviceError> {
+        Ok(parse_sidetone(&self.get(get::SIDETONE)?)?)
+    }
+
+    /// Sidetone. App : `0805 [niveau]`. Seuls les niveaux observés dans
+    /// l'app (0, 1, 2 : [`SIDETONE_LEVELS`]) sont envoyés ; 3 et 4 restent
+    /// non essayés.
+    pub fn set_sidetone(&mut self, level: u8) -> Result<(), DeviceError> {
+        if !SIDETONE_LEVELS.contains(&level) {
+            return Err(DeviceError::InvalidSidetone(level));
+        }
+        self.write(set::SIDETONE, vec![level])
     }
 
     /// Smart Pause. App : `080C [0|1]`.
@@ -1353,12 +1398,42 @@ impl<T: Transport> Headset<T> {
         })
     }
 
+    /// Lit l'état physique du port, sans modifier l'activation du capteur.
+    pub fn on_head_state(&mut self) -> Result<OnHeadState, DeviceError> {
+        let state = parse_on_head_state(&self.get(get::ON_HEAD_STATE)?)?;
+        // La réponse remplace les états de port déjà reçus ; les notifications
+        // suivantes et celles des autres fonctions restent disponibles.
+        self.client
+            .forget_queued_notification(VENDOR_SENNHEISER, get::ON_HEAD_STATE.notification());
+        Ok(state)
+    }
+
+    /// Lit l'état de charge déclaré (`0602` → `0702`), sans écriture.
+    pub fn charge_state(&mut self) -> Result<ChargeReading, DeviceError> {
+        let reading = parse_charge_response(&self.get(get::CHARGER_STATE)?)?;
+        // Seule une réponse valide remplace les notifications de charge déjà
+        // reçues ; celles qui suivent et celles des autres fonctions restent.
+        self.client
+            .forget_queued_notification(VENDOR_SENNHEISER, get::CHARGER_STATE.notification());
+        Ok(reading)
+    }
+
+    /// Abonnement à la seule feature du port (`0007 [02]`), pour l'essai
+    /// ciblé du capteur : aucun autre abonnement n'est envoyé.
+    pub fn register_on_head_notification(&mut self) -> Result<(), DeviceError> {
+        self.ack(REGISTER_NOTIFICATION, vec![feature::ON_HEAD])
+    }
+
     /// S'abonne aux notifications des features utiles, comme l'app.
     pub fn register_notifications(&mut self) -> Result<(), DeviceError> {
         // L'abonnement ne modifie aucun réglage : permis en lecture seule.
         for feature in NOTIFICATION_FEATURES {
             self.ack(REGISTER_NOTIFICATION, vec![feature])?;
         }
+        // Capture du 27/10/2026 : 0007 [02] / 0107 vide, records 40357/40360.
+        // Facultatif sur les autres micrologiciels ; une perte de transport
+        // reste une erreur et impose une nouvelle connexion.
+        self.optional(|h| h.ack(REGISTER_NOTIFICATION, vec![feature::ON_HEAD]))?;
         Ok(())
     }
 
@@ -1640,21 +1715,51 @@ mod tests {
             ("FF 03 00 00 04 95 08 02", "FF 03 00 01 04 95 09 02 02"),
             ("FF 03 00 00 04 95 08 00", "FF 03 00 01 04 95 09 00 02"),
         ];
-        let mut mock = MockTransport::new();
-        for (tx, rx) in script {
-            mock = mock.expect(&h(tx), &h(rx));
+        let charging = Some(ChargeReading {
+            primary_status: ChargerStatus::Charging,
+            secondary_raw: Some(0),
+        });
+        // Port et charge : réponse lue, refus, réponse malformée (vide).
+        for (port_reply, expected_port, charge_reply, expected_charge) in [
+            (
+                "FF 03 00 01 04 95 05 02 02",
+                Some(OnHeadState::NotWorn),
+                "FF 03 00 02 04 95 07 02 01 00",
+                charging,
+            ),
+            (
+                "FF 03 00 01 04 95 05 82 01",
+                None,
+                "FF 03 00 01 04 95 07 82 01",
+                None,
+            ),
+            (
+                "FF 03 00 00 04 95 05 02",
+                None,
+                "FF 03 00 00 04 95 07 02",
+                None,
+            ),
+        ] {
+            let mut mock = MockTransport::new();
+            for (tx, rx) in script {
+                mock = mock.expect(&h(tx), &h(rx));
+            }
+            mock = mock.expect(&h("FF 03 00 00 04 95 04 02"), &h(port_reply));
+            mock = mock.expect(&h("FF 03 00 00 04 95 06 02"), &h(charge_reply));
+            let mut headset = Headset::validated_for_tests(mock, T);
+            let state = headset.read_state().unwrap();
+            assert!(headset.client().transport().is_exhausted());
+            assert_eq!(state.battery, 80);
+            assert_eq!(state.spatial_audio, None);
+            assert_eq!(state.head_tracking, Some(true));
+            assert_eq!(state.audio_mode, Some(AudioMode::Equalizer));
+            assert_eq!(state.touch_controls, Some(true));
+            assert_eq!(state.auto_off_seconds, Some(1800));
+            assert_eq!(state.prompt_mode, Some(PromptMode::TonesAndVoice));
+            assert_eq!(state.codec, Some(2));
+            assert_eq!(state.on_head_state, expected_port);
+            assert_eq!(state.charge_state, expected_charge);
         }
-        let mut headset = Headset::validated_for_tests(mock, T);
-        let state = headset.read_state().unwrap();
-        assert!(headset.client().transport().is_exhausted());
-        assert_eq!(state.battery, 80);
-        assert_eq!(state.spatial_audio, None);
-        assert_eq!(state.head_tracking, Some(true));
-        assert_eq!(state.audio_mode, Some(AudioMode::Equalizer));
-        assert_eq!(state.touch_controls, Some(true));
-        assert_eq!(state.auto_off_seconds, Some(1800));
-        assert_eq!(state.prompt_mode, Some(PromptMode::TonesAndVoice));
-        assert_eq!(state.codec, Some(2));
     }
 
     #[test]
@@ -2146,7 +2251,7 @@ mod tests {
     #[test]
     fn registration_uses_the_sennheiser_vendor() {
         let mut mock = MockTransport::new();
-        for f in ["03", "0D", "1B", "08", "04", "0B"] {
+        for f in ["03", "0D", "1B", "08", "04", "0B", "02"] {
             mock = mock.expect(
                 &h(&format!("FF 03 00 01 04 95 00 07 {f}")),
                 &h("FF 03 00 00 04 95 01 07"),

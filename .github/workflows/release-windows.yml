@@ -1,0 +1,146 @@
+name: Publication Windows
+
+# Le préfixe windows-v évite de déclencher la publication multiplateforme.
+on:
+  push:
+    tags: ["windows-v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publication-windows-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Version et notes
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.*)"$' | Select-Object -First 1).Matches.Groups[1].Value
+          if ($env:GITHUB_REF_NAME -cne "windows-v$version") { throw 'Le tag et Cargo.toml diffèrent.' }
+          if (-not (Test-Path "docs/versions/windows-$version.md")) { throw 'Notes Windows manquantes.' }
+          "VERSION=$version" >> $env:GITHUB_ENV
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: "1.99.0"
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - name: Tests avec données témoin
+        shell: bash
+        run: sh scripts/essai-temoin.sh cargo test --locked
+      - name: Confidentialité
+        shell: bash
+        run: sh scripts/verifier-confidentialite.sh
+      - run: cargo build --release --locked --bins
+      - name: Windows App Runtime 2
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://aka.ms/windowsappsdk/2.0/latest/windowsappruntimeinstall-x64.exe -OutFile runtime.exe
+          $runtime = Start-Process ./runtime.exe -ArgumentList '--quiet' -Wait -PassThru -WindowStyle Hidden
+          if ($runtime.ExitCode -ne 0) { throw "Installation du runtime : $($runtime.ExitCode)" }
+      - name: Démarrage de WinUI en démonstration
+        shell: pwsh
+        run: |
+          foreach ($page in @('accueil', 'son', 'scenes', 'reglages')) {
+            $demo = Start-Process target/release/momentum-winui.exe -ArgumentList '--demo', '--page', $page -PassThru -RedirectStandardError "winui-$page.log" -WindowStyle Hidden
+            try {
+              Start-Sleep 20
+              Get-Content "winui-$page.log" -ErrorAction SilentlyContinue
+              if ($demo.HasExited) { throw "WinUI arrêté sur $page (code $($demo.ExitCode))" }
+            } finally {
+              if (-not $demo.HasExited) { Stop-Process -Id $demo.Id }
+              $demo.WaitForExit()
+            }
+          }
+      - name: Navigation et accessibilité
+        shell: pwsh
+        run: |
+          foreach ($langue in @('fr', 'en')) {
+            ./scripts/essai-interface-winui.ps1 -Exe target/release/momentum-winui.exe -Langue $langue -Capture "interface-$langue.png"
+            ./scripts/audit-accessibilite-winui.ps1 -Exe target/release/momentum-winui.exe -Langue $langue
+          }
+      - name: Archive et installateur
+        shell: pwsh
+        run: |
+          $dir = "openheadset-control-v$env:VERSION-windows-x86_64"
+          New-Item -ItemType Directory $dir | Out-Null
+          Copy-Item target/release/momentum-winui.exe, target/release/momentum-daemon.exe, target/release/ctl.exe, target/release/probe.exe $dir
+          Copy-Item scripts/installer.ps1, README.md, LICENSE-MIT, LICENSE-APACHE $dir
+          Compress-Archive -Path $dir -DestinationPath "$dir.zip"
+          ./packaging/windows/construire-installateur.ps1 -Version $env:VERSION -Bin target/release -Sortie .
+          ./scripts/essai-installateur-windows.ps1 -Installateur "openheadset-control-v$env:VERSION-windows-x86_64-installateur.exe" -Version $env:VERSION -SansRuntime
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: windows
+          path: |
+            openheadset-control-*-windows-x86_64.zip
+            openheadset-control-*-windows-x86_64-installateur.exe
+          if-no-files-found: error
+
+  publication:
+    needs: windows
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: CI verte sur cette révision
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -eu
+          for i in $(seq 1 120); do
+            etat=$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --json status,conclusion \
+              --jq 'map(select(.status == "completed")) | if length == 0 then "attente" else (.[0].conclusion) end')
+            echo "CI de $GITHUB_SHA : $etat"
+            case "$etat" in
+              success) exit 0 ;;
+              attente) sleep 30 ;;
+              *) echo 'CI en échec : rien ne sera publié.' >&2; exit 1 ;;
+            esac
+          done
+          echo 'CI absente ou trop longue : rien ne sera publié.' >&2
+          exit 1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: windows
+          path: paquets
+      - name: Empreintes des deux paquets Windows
+        working-directory: paquets
+        run: |
+          set -eu
+          set -- ./*.zip ./*.exe
+          test "$#" -eq 2
+          for f do
+            test -s "$f"
+            sha256sum "${f#./}" > "$f.sha256"
+          done
+          sha256sum -c ./*.sha256
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-path: |
+            paquets/*.zip
+            paquets/*.exe
+      - name: Publier Windows uniquement
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -eu
+          version="${GITHUB_REF_NAME#windows-v}"
+          gh release create "$GITHUB_REF_NAME" --verify-tag --draft \
+            --title "OpenHeadset Control $version — Windows" \
+            --notes-file "docs/versions/windows-$version.md" paquets/*
+          count=$(gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets | length')
+          test "$count" -eq 4
+          gh release edit "$GITHUB_REF_NAME" --draft=false --latest=false

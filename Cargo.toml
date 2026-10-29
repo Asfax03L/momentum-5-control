@@ -24,14 +24,14 @@ default-members = [
 ]
 
 [workspace.package]
-version = "1.1.0"
+version = "1.3.0"
 edition = "2024"
 # Version minimale de Rust (uuid, via BlueZ) ; l'interface WinUI demande
 # 1.95 (windows-reactor), le client GTK 1.92 (gtk-rs). Vérifiées par la
 # tâche « msrv » de la CI.
 rust-version = "1.89"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/Asfax03L/openheadset-control"
+repository = "https://github.com/Asfax03L/momentum-5-control"
 publish = false
 
 [workspace.dependencies]
@@ -70,6 +70,7 @@ windows = { version = "0.62.2", features = [
     "Data_Xml_Dom",
     "UI_Notifications",
     "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_HiDpi",
     "Win32_UI_WindowsAndMessaging",
     "Win32_System_WinRT", "Win32_System_Registry", "Win32_System_Threading", "Win32_Foundation", "Win32_Security",
     "Win32_Security_Authorization", "Win32_System_Pipes", "Win32_Storage_FileSystem", "Win32_System_IO",
@@ -78,6 +79,7 @@ windows = { version = "0.62.2", features = [
     "Win32_System_Com_StructuredStorage", "Win32_System_Variant", "Win32_UI_Shell_PropertiesSystem",
     "Win32_System_SystemInformation", "Win32_System_DataExchange", "Win32_System_Memory", "Win32_System_Ole",
     "Win32_Storage_EnhancedStorage", "Win32_Globalization", "Web_Http", "Web_Http_Headers",
+    "Win32_System_Diagnostics_ToolHelp",
 ] }
 
 # Binaires légers : optimisation, LTO et symboles retirés.

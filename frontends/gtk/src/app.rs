@@ -34,6 +34,7 @@ enum Incoming {
 /// État de la fenêtre : celui du service, suivi événement par événement.
 #[derive(Default)]
 struct State {
+    slider_edits: momentum_client::edits::SliderEdits,
     snapshot: Snapshot,
     service_error: Option<String>,
     requests: Tracker,
@@ -97,8 +98,15 @@ fn build(app: &adw::Application, exit: Rc<Cell<i32>>) {
         let commands = commands.clone();
         Rc::new(move |command: Command| {
             let session = state.borrow().snapshot.session;
-            if commands.send((command, session)).is_ok() {
-                state.borrow_mut().requests.sent();
+            if commands.send((command.clone(), session)).is_ok() {
+                let mut state = state.borrow_mut();
+                if matches!(command, Command::SetMode(_)) {
+                    state
+                        .slider_edits
+                        .discard(momentum_client::edits::SliderKey::Level);
+                }
+                state.slider_edits.submitted(&command);
+                state.requests.sent();
                 widgets.spinner.set_spinning(true);
             }
         })
@@ -328,6 +336,8 @@ fn handle(widgets: &Widgets, state: &mut State, message: Incoming) {
             state.requests.reset();
         }
     }
+    state.slider_edits.sync(&state.snapshot);
+    state.slider_edits.finish_if_idle(state.requests.busy());
 }
 
 /// Recopie l'état dans les contrôles (sans renvoyer de commande).
@@ -376,7 +386,17 @@ fn refresh(widgets: &Widgets, state: &State, updating: &Cell<bool>) {
         button.set_active(usize::try_from(c.noise_mode).ok() == Some(index));
         button.set_sensitive(v.writable);
     }
-    widgets.level.set_value(f64::from(c.level));
+    widgets.level.set_value(f64::from(
+        state
+            .slider_edits
+            .value(momentum_client::edits::SliderKey::Level)
+            .unwrap_or(c.level as i16),
+    ));
+    let mut notice = state.slider_edits.notice(s);
+    if notice.is_empty() {
+        notice = trf("Niveau confirmé : {} %.", &[&c.level]);
+    }
+    widgets.level_row.set_subtitle(&notice);
     widgets.level.set_sensitive(v.writable);
     widgets.level_row.set_sensitive(v.writable);
     widgets.anti_wind.set_active(c.anti_wind);

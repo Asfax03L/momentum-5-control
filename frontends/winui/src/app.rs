@@ -1,11 +1,13 @@
 //! Composant racine : état du service, messages et vues.
 
+use momentum_core::home_presentation::{self, Availability, availability, headset_summary};
 use momentum_core::i18n::{tr, trf};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 use momentum_client::demo::{self, Demo};
+use momentum_client::edits::{SliderEdits, SliderKey};
 use momentum_client::tracker::Tracker;
 use momentum_client::{Client, ClientError, Command, Event, Outcome, Snapshot};
 use momentum_core::alerts::NotificationPrefs;
@@ -88,6 +90,8 @@ enum Desk {
     Hotkey(HotkeyAction),
     /// Clic gauche sur l'icône : panneau rapide (ou sa fermeture).
     Panel,
+    /// Changement de disposition uniquement au franchissement du seuil.
+    Layout(bool),
 }
 
 /// Canal des demandes du bureau : envoi depuis tout fil, réception par une
@@ -109,8 +113,18 @@ pub fn run() {
     if let Some(name) = taskbar::scene_argument() {
         std::process::exit(taskbar::apply_scene(&name, start_daemon));
     }
-    // Une seule fenêtre : un deuxième lancement montre la première.
-    match acquire_named_instance("openheadset-control-show", "openheadset-control-winui") {
+    // La démonstration reste indépendante de l'application réelle : elle
+    // peut être vérifiée sans réveiller ni fermer la fenêtre de l'utilisateur.
+    let (show, instance) = if demo::requested() {
+        (
+            "openheadset-control-demo-show",
+            "openheadset-control-demo-winui",
+        )
+    } else {
+        ("openheadset-control-show", "openheadset-control-winui")
+    };
+    // Une seule fenêtre par mode : un deuxième lancement montre la première.
+    match acquire_named_instance(show, instance) {
         Ok(Instance::AlreadyRunning) => return,
         Ok(Instance::First(request)) => {
             std::thread::spawn(move || {
@@ -260,10 +274,11 @@ enum Msg {
     /// Message du service, puis attente du suivant.
     Service(Arc<Mutex<Option<Incoming>>>),
     Navigate(Option<String>),
+    PaneOpen(bool),
     ReconnectHeadset,
     NoiseMode(Option<usize>),
-    Level(f64),
-    PromptVolume(f64),
+    Level(f64, u64),
+    PromptVolume(f64, u64),
     NewName(String),
     Rename,
     AntiWind(bool),
@@ -278,12 +293,13 @@ enum Msg {
     AutoOff(Option<usize>),
     PromptMode(Option<usize>),
     AudioMode(Option<usize>),
-    Band(usize, f64),
+    Band(usize, f64, u64),
     Bass(bool),
     Flat,
     Preset(Option<usize>),
     NewPresetName(String),
     SavePreset,
+    BindLegacyPresets,
     DeletePreset,
     GainsText(String),
     ApplyGainsText,
@@ -379,6 +395,8 @@ struct Root {
     settings_notice: String,
     settings_plan: Option<momentum_core::settings_transfer::ImportPlan>,
     page: Page,
+    wide_home: bool,
+    nav_open: bool,
     snapshot: Snapshot,
     service_error: Option<String>,
     reconnect_notice: Option<String>,
@@ -394,10 +412,8 @@ struct Root {
     eq_notice: Option<String>,
     ab: AbCompare,
     /// Curseurs déplacés, pas encore envoyés.
-    pending_level: Option<u8>,
-    pending_bands: Vec<(u8, i8)>,
+    slider_edits: SliderEdits,
     /// Volume des invites (valeur du casque), pas encore envoyé.
-    pending_prompt_volume: Option<i8>,
     edits: u64,
     /// Nom saisi, et pourquoi il est refusé avant tout envoi.
     new_name: String,
@@ -952,6 +968,10 @@ impl Root {
     fn on_desk(&mut self, request: Desk, context: &ComponentContext<Self>) {
         let state = self.snapshot.state.filter(|_| self.writable());
         match request {
+            Desk::Layout(wide) => {
+                self.wide_home = wide;
+                self.nav_open = wide;
+            }
             Desk::Panel => {
                 if !context.open_window(View::component::<crate::panel::Panel>(())) {
                     desktop::show();
@@ -1005,6 +1025,12 @@ impl Root {
     }
 
     fn send(&mut self, command: Command) {
+        if matches!(command, Command::SetMode(_)) {
+            self.slider_edits.discard(SliderKey::Level);
+        }
+        if matches!(command, Command::SetEqGains(_) | Command::SetEqFlat) {
+            self.slider_edits.discard_bands();
+        }
         let reconnect = command == Command::ReconnectHeadset;
         if reconnect {
             if self.service_error.is_some() || self.busy {
@@ -1015,7 +1041,8 @@ impl Root {
             return;
         }
         let session = if reconnect { 0 } else { self.snapshot.session };
-        if self.commands.send((command, session)).is_ok() {
+        if self.commands.send((command.clone(), session)).is_ok() {
+            self.slider_edits.submitted(&command);
             self.requests.sent();
             self.busy = true;
             self.snapshot.problem = None;
@@ -1128,6 +1155,8 @@ impl Component for Root {
         let start_hidden = std::env::args().any(|a| a == HIDDEN_FLAG) && tray.is_some();
         let root = Self {
             page,
+            wide_home: true,
+            nav_open: true,
             snapshot: Snapshot::default(),
             service_error: None,
             reconnect_notice: None,
@@ -1141,9 +1170,7 @@ impl Component for Root {
             gains_text: String::new(),
             eq_notice: None,
             ab: AbCompare::default(),
-            pending_level: None,
-            pending_bands: Vec::new(),
-            pending_prompt_volume: None,
+            slider_edits: SliderEdits::default(),
             edits: 0,
             new_name: String::new(),
             name_problem: None,
@@ -1222,10 +1249,12 @@ impl Component for Root {
     fn update(&mut self, message: Msg, context: &ComponentContext<Self>) {
         let state = self.snapshot.state;
         match message {
+            Msg::PaneOpen(open) => self.nav_open = open,
             Msg::Service(cell) => {
                 let incoming = cell.lock().ok().and_then(|mut c| c.take());
                 if let Some(failure) = incoming.as_ref().and_then(|i| self.requests.on_incoming(i))
                 {
+                    self.ab = AbCompare::default();
                     self.note_incident(failure.clone());
                     self.snapshot.problem = Some(failure);
                 }
@@ -1278,6 +1307,11 @@ impl Component for Root {
                     }
                     None => {}
                 }
+                if self.slider_edits.sync(&self.snapshot) {
+                    self.edits = self.edits.wrapping_add(1);
+                    self.ab = AbCompare::default();
+                }
+                self.slider_edits.finish_if_idle(self.busy);
                 self.listen(context);
             }
             Msg::ReconnectHeadset => self.send(Command::ReconnectHeadset),
@@ -1599,17 +1633,19 @@ impl Component for Root {
                     }));
                 }
             }
-            Msg::Level(v) => {
+            Msg::Level(v, epoch) if epoch == self.slider_edits.epoch() => {
                 let level = v.round().clamp(0.0, 100.0) as u8;
                 let current = viewmodel::main_view(None, state.as_ref(), &[], None, None)
                     .controls
                     .level;
-                if i32::from(level) != current || self.pending_level.is_some() {
-                    self.pending_level = Some(level);
+                if self
+                    .slider_edits
+                    .edit(SliderKey::Level, i16::from(level), current as i16)
+                {
                     self.settle_later(context);
                 }
             }
-            Msg::Band(i, db) => {
+            Msg::Band(i, db, epoch) if epoch == self.slider_edits.epoch() => {
                 let tenths = (db * 10.0).round().clamp(-128.0, 127.0) as i8;
                 let current = self
                     .snapshot
@@ -1617,22 +1653,28 @@ impl Component for Root {
                     .as_ref()
                     .and_then(|e| e.gains.get(i).copied());
                 let band = u8::try_from(i).unwrap_or(u8::MAX);
-                let pending = self.pending_bands.iter().any(|(b, _)| *b == band);
-                if current.is_some() && (current != Some(tenths) || pending) {
-                    self.pending_bands.retain(|(b, _)| *b != band);
-                    self.pending_bands.push((band, tenths));
+                if let Some(read) = current
+                    && self.slider_edits.edit(
+                        SliderKey::Band(band),
+                        i16::from(tenths),
+                        i16::from(read),
+                    )
+                {
                     self.settle_later(context);
                 }
             }
-            Msg::PromptVolume(pct) => {
+            Msg::PromptVolume(pct, epoch) if epoch == self.slider_edits.epoch() => {
                 // Échelle de l'app : plusieurs % donnent la même valeur du
                 // casque ; on compare donc les valeurs du casque.
                 let value = prompt_volume_from_percent(pct.round().clamp(0.0, 100.0) as u8);
                 let current = self.snapshot.info.as_ref().and_then(|i| i.prompt_volume);
-                if current.is_some()
-                    && (current != Some(value) || self.pending_prompt_volume.is_some())
+                if let Some(read) = current
+                    && self.slider_edits.edit(
+                        SliderKey::PromptVolume,
+                        i16::from(value),
+                        i16::from(read),
+                    )
                 {
-                    self.pending_prompt_volume = Some(value);
                     self.settle_later(context);
                 }
             }
@@ -1657,14 +1699,8 @@ impl Component for Root {
             }
             Msg::Settled(edit) => {
                 if edit == self.edits {
-                    if let Some(level) = self.pending_level.take() {
-                        self.send(Command::SetLevel(level));
-                    }
-                    if let Some(volume) = self.pending_prompt_volume.take() {
-                        self.send(Command::SetPromptVolume(volume));
-                    }
-                    for (band, gain) in std::mem::take(&mut self.pending_bands) {
-                        self.send(Command::SetEqBand(band, gain));
+                    for command in self.slider_edits.take_commands() {
+                        self.send(command);
                     }
                 }
             }
@@ -1778,23 +1814,35 @@ impl Component for Root {
                 if i32::try_from(i).ok() != Some(sv.current_preset)
                     && let Some(p) = presets.get(i)
                 {
-                    self.send(Command::SetEqGains(p.gains.clone()));
+                    match self
+                        .snapshot
+                        .eq_topology()
+                        .ok_or(tr("Topologie de l'égaliseur non disponible."))
+                        .and_then(|t| p.check_topology(&t))
+                    {
+                        Ok(()) => self.send(Command::SetEqGains(p.gains.clone())),
+                        Err(reason) => self.eq_notice = Some(reason.into()),
+                    }
                 }
             }
             Msg::NewPresetName(text) => self.new_preset_name = text,
             Msg::SavePreset => {
-                if let Some(gains) = self.snapshot.equalizer.as_ref().map(|e| e.gains.clone()) {
+                if let Some(gains) = self.snapshot.equalizer.as_ref().map(|e| e.gains.clone())
+                    && let Some(topology) = self.snapshot.eq_topology()
+                {
                     let name = self.new_preset_name.trim().to_string();
                     // Relu puis modifié : rien d'enregistré par une autre
                     // interface n'est perdu.
-                    self.eq_notice = Some(match paths::upsert_user_preset(&name, &gains) {
-                        Ok(list) => {
-                            self.user_presets = list;
-                            self.new_preset_name.clear();
-                            trf("Préréglage « {} » enregistré sur ce PC.", &[&name])
-                        }
-                        Err(reason) => trf("Préréglage non enregistré : {}.", &[&reason]),
-                    });
+                    self.eq_notice = Some(
+                        match paths::upsert_user_preset_for(&name, &gains, &topology) {
+                            Ok(list) => {
+                                self.user_presets = list;
+                                self.new_preset_name.clear();
+                                trf("Préréglage « {} » enregistré sur ce PC.", &[&name])
+                            }
+                            Err(reason) => trf("Préréglage non enregistré : {}.", &[&reason]),
+                        },
+                    );
                 }
             }
             Msg::DeletePreset => {
@@ -1805,6 +1853,17 @@ impl Component for Root {
                             trf("Préréglage « {} » supprimé.", &[&preset.name])
                         }
                         Err(e) => trf("Suppression non enregistrée : {}.", &[&e]),
+                    });
+                }
+            }
+            Msg::BindLegacyPresets => {
+                if let Some(topology) = self.snapshot.eq_topology() {
+                    self.eq_notice = Some(match paths::bind_legacy_presets(&topology) {
+                        Ok(list) => {
+                            self.user_presets = list;
+                            tr("Association enregistrée sur ce PC, sans modifier le casque.").into()
+                        }
+                        Err(reason) => reason,
                     });
                 }
             }
@@ -1912,8 +1971,10 @@ impl Component for Root {
                 }
             },
             Msg::RememberA => {
-                if let Some(eq) = self.snapshot.equalizer.as_ref() {
-                    self.ab.remember(&eq.gains);
+                if let Some(eq) = self.snapshot.equalizer.as_ref()
+                    && let Some(topology) = self.snapshot.eq_topology()
+                {
+                    let _ = self.ab.remember_for(&topology, &eq.gains);
                     self.eq_notice = Some(
                         tr("Courbe A mémorisée : modifiez l'égaliseur (B), puis comparez.")
                             .to_string(),
@@ -1922,10 +1983,15 @@ impl Component for Root {
             }
             Msg::ToggleAb => {
                 if let Some(eq) = self.snapshot.equalizer.clone()
-                    && let Some(gains) = self.ab.toggle(&eq.gains)
-                    && gains != eq.gains
+                    && let Some(topology) = self.snapshot.eq_topology()
                 {
-                    self.send(Command::SetEqGains(gains));
+                    match self.ab.toggle_for(&topology, &eq.gains) {
+                        Ok(Some(gains)) if gains != eq.gains => {
+                            self.send(Command::SetEqGains(gains))
+                        }
+                        Err(reason) => self.eq_notice = Some(reason.into()),
+                        _ => {}
+                    }
                 }
             }
             Msg::ToggleConnection(index) => {
@@ -2014,6 +2080,9 @@ impl Component for Root {
             Msg::Cancelled => self.confirm = None,
             Msg::Attach(tries) => {
                 if desktop::attach() {
+                    desktop::on_layout_changed(|wide| {
+                        let _ = desk().0.send(Desk::Layout(wide));
+                    });
                     if self.start_hidden {
                         desktop::hide();
                     }
@@ -2045,6 +2114,9 @@ impl Component for Root {
                 }
             }
             Msg::NoiseMode(None)
+            | Msg::Level(_, _)
+            | Msg::Band(_, _, _)
+            | Msg::PromptVolume(_, _)
             | Msg::AutoOff(None)
             | Msg::PromptMode(None)
             | Msg::AudioMode(None)
@@ -2093,9 +2165,10 @@ impl Component for Root {
         });
         NavigationView::new()
             .pane_title(tr("OpenHeadset Control"))
-            // Volet toujours ouvert à gauche (le mode automatique le pose
-            // par-dessus le contenu dans une fenêtre moyenne).
-            .pane_display_mode(NavigationViewPaneDisplayMode::Left)
+            // Mode natif compact/fermé quand la largeur diminue.
+            .pane_display_mode(NavigationViewPaneDisplayMode::Auto)
+            .is_pane_open(self.nav_open)
+            .on_is_pane_open_changed(context.callback(Msg::PaneOpen))
             .open_pane_length(220.0)
             .is_settings_visible(false)
             .is_back_button_visible(NavigationViewBackButtonVisible::Collapsed)
@@ -2112,8 +2185,12 @@ impl Component for Root {
                         .content(
                             StackPanel::new()
                                 .spacing(12.0)
-                                .margin(Thickness::new(32.0, 24.0, 32.0, 32.0))
-                                .max_width(860.0)
+                                .margin(Thickness::new(20.0, 24.0, 20.0, 24.0))
+                                .max_width(if self.page == Page::Home {
+                                    None
+                                } else {
+                                    Some(860.0)
+                                })
                                 .children((self.header(context), page)),
                         ),
                 ),
@@ -2186,6 +2263,11 @@ fn export_battery_history() -> String {
 /// Enregistre les raccourcis de `config` ; renvoie le fil qui les écoute
 /// et les erreurs (ligne invalide, combinaison déjà prise).
 fn register_hotkeys(config: &str) -> (Option<HotkeyThread>, Vec<String>) {
+    // La démonstration ne réserve aucune combinaison globale : les
+    // raccourcis de l'application réelle doivent rester disponibles.
+    if demo::requested() {
+        return (None, Vec::new());
+    }
     let (keys, mut errors) = hotkeys::parse_config(config);
     let (thread, refused) = momentum_service::desktop::spawn_hotkeys(keys, |action| match action {
         HotkeyAction::OpenWindow => desktop::show(),
@@ -2255,6 +2337,116 @@ fn switch_row(
                 .automation_name(label)
                 .grid_column(1),
         ))
+}
+
+fn availability_hint(status: Availability) -> View {
+    if status.enabled() {
+        View::empty()
+    } else {
+        small(status.reason())
+    }
+}
+
+/// Cartes de l'accueil : hiérarchie compacte inspirée de la maquette,
+/// avec les ressources de thème et les icônes natives de Windows.
+fn home_card(title: &str, glyph: &str, content: impl Into<View>) -> View {
+    Border::new()
+        .background(ThemeBrush::CardBackground)
+        .border_brush(ThemeBrush::CardStroke)
+        .border_thickness(1.0)
+        .corner_radius(8.0)
+        .padding(20.0)
+        .content(
+            StackPanel::new().spacing(16.0).children((
+                StackPanel::new()
+                    .orientation(Orientation::Horizontal)
+                    .spacing(10.0)
+                    .children((
+                        FontIcon::new()
+                            .glyph(glyph)
+                            .width(20.0)
+                            .height(20.0)
+                            .opacity(0.8),
+                        TextBlock::new()
+                            .text(title)
+                            .font_size(16.0)
+                            .font_weight(FontWeight::SEMI_BOLD)
+                            .automation_heading_level(AutomationHeadingLevel::Level2),
+                    )),
+                content.into(),
+            )),
+        )
+}
+
+/// Le TogglePattern conserve l'état accessible ; le libellé Activé /
+/// Désactivé est masqué pour éviter de répéter l'interrupteur dans la carte.
+fn home_switch(
+    label: &str,
+    description: &str,
+    on: bool,
+    status: Availability,
+    toggled: Callback<bool>,
+) -> View {
+    if matches!(status, Availability::Unread | Availability::Disconnected) {
+        return available_switch(label, description, on, status, toggled);
+    }
+    StackPanel::new().spacing(4.0).children((
+        Grid::new()
+            .columns([GridLength::Star(1.0), GridLength::Auto])
+            .column_spacing(14.0)
+            .children((
+                StackPanel::new().spacing(4.0).children((
+                    TextBlock::new()
+                        .text(label)
+                        .text_wrapping(TextWrapping::Wrap),
+                    small(description),
+                )),
+                ToggleSwitch::new()
+                    .is_on(on)
+                    .is_enabled(status.enabled())
+                    .automation_name(label)
+                    .on_toggled(toggled)
+                    .min_width(0.0)
+                    .width(48.0)
+                    .grid_column(1)
+                    .vertical_alignment(VerticalAlignment::Center)
+                    .slots([
+                        SlotView::new(ToggleSwitchSlot::OnContent, TextBlock::new().text("")),
+                        SlotView::new(ToggleSwitchSlot::OffContent, TextBlock::new().text("")),
+                    ]),
+            )),
+        availability_hint(status),
+    ))
+}
+
+fn small(text: impl Into<String>) -> View {
+    TextBlock::new()
+        .text(text)
+        .font_size(12.0)
+        .opacity(0.8)
+        .text_wrapping(TextWrapping::Wrap)
+        .into()
+}
+
+/// Un réglage non lu ne devient pas un faux interrupteur « désactivé ».
+fn available_switch(
+    label: &str,
+    description: &str,
+    on: bool,
+    status: Availability,
+    toggled: Callback<bool>,
+) -> View {
+    if matches!(status, Availability::Unread | Availability::Disconnected) {
+        return StackPanel::new().spacing(4.0).children((
+            TextBlock::new().text(label),
+            small(description),
+            availability_hint(status),
+        ));
+    }
+    StackPanel::new().spacing(4.0).children((
+        switch_row(label, description, on, status.enabled(), toggled),
+        availability_hint(status),
+    ))
 }
 
 /// Lecture de la dernière publication (fil de fond).
@@ -2361,8 +2553,13 @@ impl Root {
         });
         StackPanel::new().spacing(8.0).children((
             TextBlock::new()
-                .text(v.title.clone())
+                .text(if self.page == Page::Home && self.assistant.is_none() {
+                    tr("Accueil").to_string()
+                } else {
+                    v.title.clone()
+                })
                 .font_size(28.0)
+                .text_wrapping(TextWrapping::Wrap)
                 .automation_heading_level(AutomationHeadingLevel::Level1)
                 .font_weight(FontWeight::SEMI_BOLD),
             StackPanel::new()
@@ -2382,6 +2579,18 @@ impl Root {
                 .message(tr(
                     "Démonstration : données simulées (aucun casque, aucun service)",
                 )),
+            // Hauteur réservée : un retour de lecture ne déplace pas le
+            // curseur sous la souris ni le point de défilement.
+            TextBlock::new()
+                .text(
+                    self.slider_edits
+                        .notice(&self.snapshot)
+                        .replace('\n', " · "),
+                )
+                .height(20.0)
+                .text_trimming(TextTrimming::CharacterEllipsis)
+                .automation_id("intentions-curseurs")
+                .automation_name(self.slider_edits.notice(&self.snapshot)),
             InfoBar::new()
                 .is_open(!v.banner.is_empty())
                 .is_closable(false)
@@ -2444,135 +2653,365 @@ impl Root {
     fn home(&self, context: &mut ViewContext<Self>) -> View {
         let v = self.main_view();
         if !v.connected {
-            return StackPanel::new().spacing(12.0).children((
-                TextBlock::new()
-                    .text(v.waiting.clone())
-                    .text_wrapping(TextWrapping::Wrap),
-                Button::new()
-                    .is_enabled(self.service_error.is_none() && !self.busy)
-                    .on_click(context.message(Msg::ReconnectHeadset))
-                    .content(tr("Reconnecter le casque")),
-            ));
+            return card(
+                tr("Votre casque"),
+                StackPanel::new().spacing(12.0).children((
+                    TextBlock::new()
+                        .text(v.waiting.clone())
+                        .text_wrapping(TextWrapping::Wrap),
+                    Button::new()
+                        .is_enabled(self.service_error.is_none() && !self.busy)
+                        .on_click(context.message(Msg::ReconnectHeadset))
+                        .content(tr("Reconnecter le casque")),
+                )),
+            );
         }
         let c = &v.controls;
-        let battery = self.snapshot.state.map_or(0.0, |s| f64::from(s.battery));
+        let s = self.snapshot.state.as_ref();
+        let a = home_presentation::home_availability(s, self.snapshot.info.as_ref(), v.writable);
+        let summary = headset_summary(s);
         let multipoint = self.snapshot.info.as_ref().and_then(|i| i.multipoint);
+        let st = viewmodel::settings_view(s, self.snapshot.info.as_ref(), v.writable);
         let rows = self.rows(v.writable);
-        let devices = rows.iter().enumerate().map(|(i, row)| {
-            // Pas de bouton pour ce PC ni en lecture seule.
-            let button = Border::new().grid_column(1).content(if row.can_act {
-                Button::new()
-                    .on_click(context.message(Msg::ToggleConnection(i)))
-                    .content(row.action.clone())
-            } else {
-                View::empty()
-            });
-            KeyedView::new(
-                format!("{i}-{}", row.name),
+        let is_connected = |i: usize| {
+            self.snapshot
+                .connections
+                .get(i)
+                .is_some_and(|d| d.connected || d.this_device)
+        };
+        let connected_count = (0..rows.len()).filter(|&i| is_connected(i)).count();
+        let device_group = |connected: bool| {
+            StackPanel::new().spacing(12.0).keyed_children(
+                rows.iter()
+                    .enumerate()
+                    .filter(|(i, _)| is_connected(*i) == connected)
+                    .map(|(i, row)| {
+                        KeyedView::new(
+                            format!("{i}-{}", row.name),
+                            Grid::new()
+                                .columns([GridLength::Star(1.0), GridLength::Auto])
+                                .column_spacing(8.0)
+                                .children((
+                                    StackPanel::new().spacing(4.0).children((
+                                        TextBlock::new()
+                                            .text(row.name.clone())
+                                            .text_wrapping(TextWrapping::Wrap),
+                                        small(row.status.clone()),
+                                    )),
+                                    Border::new().grid_column(1).content(if row.can_act {
+                                        Button::new()
+                                            .on_click(context.message(Msg::ToggleConnection(i)))
+                                            .content(row.action.clone())
+                                    } else {
+                                        View::empty()
+                                    }),
+                                )),
+                        )
+                    }),
+            )
+        };
+        let noise_modes = Border::new()
+            .background(ThemeBrush::SolidBackground)
+            .corner_radius(6.0)
+            .padding(4.0)
+            .content(
+                Grid::new()
+                    .columns([GridLength::Star(1.0); 3])
+                    .column_spacing(4.0)
+                    .keyed_children(viewmodel::NOISE_MODES.iter().enumerate().map(|(i, label)| {
+                        let selected = c.noise_mode == i as i32;
+                        KeyedView::new(
+                            i as u64,
+                            Border::new().grid_column(i as i32).content(
+                                Button::new()
+                                    .style(if selected {
+                                        ButtonStyle::Accent
+                                    } else {
+                                        ButtonStyle::Subtle
+                                    })
+                                    .is_enabled(a.noise.enabled())
+                                    .horizontal_alignment(HorizontalAlignment::Stretch)
+                                    .automation_id(format!("mode-bruit-{i}"))
+                                    .automation_name(if selected {
+                                        trf("{} (mode actuel)", &[&tr(label)])
+                                    } else {
+                                        tr(label).into()
+                                    })
+                                    .on_click(context.message(Msg::NoiseMode(Some(i))))
+                                    .content(
+                                        TextBlock::new()
+                                            .text(tr(label))
+                                            .font_size(12.0)
+                                            .font_weight(if selected {
+                                                FontWeight::SEMI_BOLD
+                                            } else {
+                                                FontWeight::NORMAL
+                                            })
+                                            .text_wrapping(TextWrapping::Wrap),
+                                    ),
+                            ),
+                        )
+                    })),
+            );
+        let noise = home_card(
+            tr("Contrôle du bruit"),
+            "\u{E7F6}",
+            StackPanel::new().spacing(10.0).children((
+                noise_modes,
+                availability_hint(a.noise),
                 Grid::new()
                     .columns([GridLength::Star(1.0), GridLength::Auto])
                     .children((
-                        StackPanel::new().children((
-                            TextBlock::new().text(row.name.clone()),
+                        TextBlock::new()
+                            .text(tr("ANC / transparence"))
+                            .vertical_alignment(VerticalAlignment::Center),
+                        TextBlock::new()
+                            .text(trf("{} %", &[&c.level]))
+                            .font_size(22.0)
+                            .font_weight(FontWeight::SEMI_BOLD)
+                            .foreground(ThemeBrush::Accent)
+                            .grid_column(1),
+                    )),
+                Slider::new()
+                    .minimum(0.0)
+                    .maximum(100.0)
+                    .step_frequency(1.0)
+                    .value(f64::from(
+                        self.slider_edits
+                            .value(SliderKey::Level)
+                            .unwrap_or(c.level as i16),
+                    ))
+                    .is_enabled(a.level.enabled())
+                    .automation_name(tr("ANC ↔ transparence"))
+                    .on_value_changed(context.callback({
+                        let epoch = self.slider_edits.epoch();
+                        move |v| Msg::Level(v, epoch)
+                    })),
+                Grid::new()
+                    .columns([GridLength::Star(1.0), GridLength::Star(1.0)])
+                    .children((
+                        small(tr("ANC maximal")),
+                        TextBlock::new()
+                            .text(tr("Transparence maximale"))
+                            .font_size(12.0)
+                            .text_wrapping(TextWrapping::Wrap)
+                            .horizontal_alignment(HorizontalAlignment::Right)
+                            .grid_column(1),
+                    )),
+                availability_hint(a.level),
+                home_switch(
+                    tr("Anti-vent"),
+                    tr("Réduit le bruit du vent sur les micros"),
+                    c.anti_wind,
+                    a.anti_wind,
+                    context.callback(Msg::AntiWind),
+                ),
+            )),
+        );
+        let spatial = home_card(
+            tr("Audio spatial"),
+            "\u{E767}",
+            StackPanel::new().spacing(14.0).children((
+                home_switch(
+                    tr("Audio spatial"),
+                    tr("Une scène sonore plus enveloppante"),
+                    c.spatial_on,
+                    a.spatial,
+                    context.callback(Msg::Spatial),
+                ),
+                home_switch(
+                    tr("Suivi de tête"),
+                    tr("Avec l'audio spatial"),
+                    c.head_tracking_on,
+                    a.tracking,
+                    context.callback(Msg::HeadTracking),
+                ),
+            )),
+        );
+        let connections = home_card(
+            tr("Appareils"),
+            "\u{E702}",
+            StackPanel::new().spacing(12.0).children((
+                home_switch(
+                    tr("Multipoint"),
+                    tr("Deux appareils à la fois"),
+                    multipoint == Some(true),
+                    a.multipoint,
+                    context.callback(Msg::Multipoint),
+                ),
+                if rows.is_empty() {
+                    small(tr("Liste des appareils non disponible."))
+                } else {
+                    StackPanel::new().spacing(12.0).children((
+                        small(trf("CONNECTÉS · {}", &[&connected_count])),
+                        device_group(true),
+                        if rows.len() > connected_count {
+                            StackPanel::new().spacing(12.0).children((
+                                small(tr("APPAIRÉS NON CONNECTÉS")),
+                                device_group(false),
+                            ))
+                        } else {
+                            View::empty()
+                        },
+                    ))
+                },
+                small(tr(
+                    "La connexion Bluetooth n'indique pas quel appareil diffuse du son.",
+                )),
+                if !v.writable {
+                    availability_hint(Availability::ReadOnly)
+                } else {
+                    View::empty()
+                },
+            )),
+        );
+        let quick = home_card(
+            tr("Au quotidien"),
+            "\u{E713}",
+            StackPanel::new().spacing(14.0).children((
+                home_switch(
+                    tr("Commandes tactiles"),
+                    tr("Gestes sur l'écouteur droit"),
+                    c.touch_on,
+                    a.touch,
+                    context.callback(Msg::Touch),
+                ),
+                home_switch(
+                    tr("Smart Pause"),
+                    tr("Pause au retrait du casque"),
+                    st.smart_pause.on,
+                    a.smart_pause,
+                    context.callback(Msg::SmartPause),
+                ),
+                Button::new()
+                    .automation_id("accueil-egaliseur")
+                    .on_click(context.message(Msg::Navigate(Some("son".into()))))
+                    .content(
+                        TextBlock::new()
+                            .text(tr("Ouvrir l'égaliseur et la comparaison A/B"))
+                            .text_wrapping(TextWrapping::Wrap),
+                    ),
+            )),
+        );
+        let position = |column: i32, row: i32, content: View| {
+            Border::new()
+                .grid_column(if self.wide_home { column } else { 0 })
+                .grid_row(if self.wide_home {
+                    row
+                } else {
+                    row * 2 + column
+                })
+                .content(content)
+        };
+        StackPanel::new().spacing(16.0).children((
+            self.headset_card(&v, &summary),
+            Grid::new()
+                .columns(if self.wide_home {
+                    vec![GridLength::Star(1.0), GridLength::Star(1.0)]
+                } else {
+                    vec![GridLength::Star(1.0)]
+                })
+                .rows(vec![GridLength::Auto; if self.wide_home { 2 } else { 4 }])
+                .column_spacing(16.0)
+                .row_spacing(16.0)
+                .children((
+                    position(0, 0, noise),
+                    position(1, 0, connections),
+                    position(0, 1, spatial),
+                    position(1, 1, quick),
+                )),
+        ))
+    }
+
+    fn headset_card(
+        &self,
+        v: &viewmodel::MainView,
+        summary: &home_presentation::HeadsetSummary,
+    ) -> View {
+        let model = self
+            .snapshot
+            .info
+            .as_ref()
+            .and_then(|i| i.model.clone())
+            .unwrap_or_else(|| tr("Casque Sennheiser").into());
+        let badge = |label: &str, value: &str, id: &str| {
+            Border::new()
+                .background(ThemeBrush::SolidBackground)
+                .corner_radius(6.0)
+                .padding(Thickness::new(10.0, 6.0, 10.0, 6.0))
+                .content(
+                    TextBlock::new()
+                        .text(value)
+                        .font_size(12.0)
+                        .font_weight(FontWeight::SEMI_BOLD)
+                        .text_wrapping(TextWrapping::Wrap)
+                        .automation_id(id)
+                        .automation_name(trf("{} : {}", &[&label, &value])),
+                )
+        };
+        Border::new()
+            .background(ThemeBrush::CardBackground)
+            .border_brush(ThemeBrush::CardStroke)
+            .border_thickness(1.0)
+            .corner_radius(10.0)
+            .padding(20.0)
+            .content(
+                Grid::new()
+                    .columns([GridLength::Auto, GridLength::Star(1.0)])
+                    .column_spacing(if self.wide_home { 28.0 } else { 16.0 })
+                    .children((
+                        Image::new()
+                            .source_data(EncodedImage::from_static(include_bytes!(
+                                "../assets/casque-illustration.png"
+                            )))
+                            .width(if self.wide_home { 148.0 } else { 76.0 })
+                            .height(if self.wide_home { 148.0 } else { 100.0 })
+                            .stretch(Stretch::Uniform)
+                            .automation_name(tr("Illustration de casque"))
+                            .vertical_alignment(VerticalAlignment::Center),
+                        StackPanel::new().grid_column(1).spacing(10.0).children((
                             TextBlock::new()
-                                .text(row.status.clone())
+                                .text(v.title.clone())
+                                .font_size(if self.wide_home { 28.0 } else { 22.0 })
+                                .font_weight(FontWeight::SEMI_BOLD)
+                                .text_wrapping(TextWrapping::Wrap),
+                            small(model),
+                            Grid::new()
+                                .columns(vec![
+                                    GridLength::Star(1.0);
+                                    if self.wide_home { 3 } else { 1 }
+                                ])
+                                .rows(vec![GridLength::Auto; if self.wide_home { 1 } else { 3 }])
+                                .column_spacing(8.0)
+                                .row_spacing(6.0)
+                                .children((
+                                    badge(tr("Batterie"), &v.battery_text, "accueil-batterie"),
+                                    Border::new()
+                                        .grid_column(if self.wide_home { 1 } else { 0 })
+                                        .grid_row(if self.wide_home { 0 } else { 1 })
+                                        .content(badge(
+                                            tr("Flux audio"),
+                                            &summary.stream,
+                                            "accueil-flux",
+                                        )),
+                                    Border::new()
+                                        .grid_column(if self.wide_home { 2 } else { 0 })
+                                        .grid_row(if self.wide_home { 0 } else { 2 })
+                                        .content(badge(
+                                            tr("Port"),
+                                            &summary.wearing,
+                                            "accueil-port",
+                                        )),
+                                )),
+                            TextBlock::new()
+                                .text(summary.charge.clone())
+                                .automation_id("accueil-charge")
                                 .font_size(12.0)
-                                .opacity(0.7),
+                                .opacity(0.8)
+                                .text_wrapping(TextWrapping::Wrap),
                         )),
-                        button,
                     )),
             )
-        });
-        StackPanel::new().spacing(12.0).children((
-            card(
-                tr("Casque"),
-                StackPanel::new().spacing(6.0).children((
-                    TextBlock::new().text(v.battery_text.clone()),
-                    ProgressBar::new()
-                        .minimum(0.0)
-                        .maximum(100.0)
-                        .value(battery),
-                    TextBlock::new().text(v.stream.clone()).opacity(0.7),
-                )),
-            ),
-            card(
-                tr("Réduction de bruit"),
-                StackPanel::new().spacing(10.0).children((
-                    RadioButtons::new()
-                        .items_source(viewmodel::NOISE_MODES.map(tr))
-                        .max_columns(3)
-                        .selected_index(index(c.noise_mode))
-                        .on_selection_changed(context.callback(Msg::NoiseMode)),
-                    TextBlock::new().text(trf("ANC ↔ transparence : {} %", &[&c.level])),
-                    Slider::new()
-                        .minimum(0.0)
-                        .maximum(100.0)
-                        // Pas de 1 : une valeur lue ne peut pas être arrondie (et renvoyée).
-                        .step_frequency(1.0)
-                        .value(f64::from(c.level))
-                        .is_enabled(v.writable)
-                        .automation_name(tr("ANC ↔ transparence"))
-                        .on_value_changed(context.callback(Msg::Level)),
-                    switch_row(
-                        tr("Anti-vent"),
-                        tr("Réduit le bruit du vent sur les micros"),
-                        c.anti_wind,
-                        v.writable,
-                        context.callback(Msg::AntiWind),
-                    ),
-                )),
-            ),
-            card(
-                tr("Fonctionnalités rapides"),
-                StackPanel::new().spacing(8.0).children((
-                    switch_row(
-                        tr("Multipoint"),
-                        tr("Deux appareils à la fois"),
-                        multipoint == Some(true),
-                        v.writable && multipoint.is_some(),
-                        context.callback(Msg::Multipoint),
-                    ),
-                    switch_row(
-                        tr("Audio spatial"),
-                        tr("Dolby Atmos"),
-                        c.spatial_on,
-                        c.spatial_enabled,
-                        context.callback(Msg::Spatial),
-                    ),
-                    switch_row(
-                        tr("Suivi de tête"),
-                        tr("Avec l'audio spatial"),
-                        c.head_tracking_on,
-                        c.head_tracking_enabled,
-                        context.callback(Msg::HeadTracking),
-                    ),
-                    switch_row(
-                        tr("Commandes tactiles"),
-                        tr("Gestes sur l'écouteur droit"),
-                        c.touch_on,
-                        c.touch_enabled,
-                        context.callback(Msg::Touch),
-                    ),
-                    switch_row(
-                        tr("Smart Pause"),
-                        tr("Pause au retrait du casque"),
-                        viewmodel::settings_view(
-                            self.snapshot.state.as_ref(),
-                            self.snapshot.info.as_ref(),
-                            v.writable,
-                        )
-                        .smart_pause
-                        .on,
-                        v.writable,
-                        context.callback(Msg::SmartPause),
-                    ),
-                )),
-            ),
-            card(
-                tr("Appareils appairés au casque"),
-                StackPanel::new().spacing(8.0).keyed_children(devices),
-            ),
-        ))
     }
 
     fn sound(&self, context: &mut ViewContext<Self>) -> View {
@@ -2607,12 +3046,19 @@ impl Root {
                         .maximum(max)
                         // Pas du casque (0,1 dB) : aucune valeur lue n'est arrondie.
                         .step_frequency(0.1)
-                        .value(db)
+                        .value(
+                            self.slider_edits
+                                .value(SliderKey::Band(i as u8))
+                                .map_or(db, |v| f64::from(v) / 10.0),
+                        )
                         .height(180.0)
                         .is_enabled(v.writable)
                         .automation_name(trf("Bande {}", &[&band_label(i, count)]))
                         .horizontal_alignment(HorizontalAlignment::Center)
-                        .on_value_changed(context.callback(move |value| Msg::Band(i, value))),
+                        .on_value_changed(context.callback({
+                            let epoch = self.slider_edits.epoch();
+                            move |value| Msg::Band(i, value, epoch)
+                        })),
                     TextBlock::new()
                         .text(band_label(i, count))
                         .font_size(12.0)
@@ -2694,6 +3140,14 @@ impl Root {
         card(
             tr("Préréglages et courbes"),
             StackPanel::new().spacing(10.0).children((
+                if self.user_presets.iter().any(|p| p.topology.is_none()) {
+                    StackPanel::new().spacing(4.0).children((
+                        small(tr("Les anciens préréglages sont conservés. Associez-les aux fréquences documentées du M5 avant de les appliquer.").into()),
+                        Button::new().is_enabled(self.snapshot.eq_topology().is_some())
+                            .on_click(context.message(Msg::BindLegacyPresets))
+                            .content(tr("Associer les anciens préréglages à cet égaliseur")),
+                    ))
+                } else { View::empty() },
                 field_row(
                     TextBox::new()
                         .text(self.new_preset_name.clone())
@@ -2955,18 +3409,18 @@ impl Root {
             card(
                 tr("Appels"),
                 StackPanel::new().spacing(8.0).children((
-                    switch_row(
+                    available_switch(
                         tr("Réponse automatique"),
                         tr("Décrocher en mettant le casque"),
                         st.auto_answer.on,
-                        st.auto_answer.enabled,
+                        availability(v.connected, v.writable, self.snapshot.state.is_some_and(|s| s.auto_answer.is_some())),
                         context.callback(Msg::AutoAnswer),
                     ),
-                    switch_row(
+                    available_switch(
                         tr("Appels confortables"),
                         tr("Votre voix dans le casque pendant un appel"),
                         st.comfort_call.on,
-                        st.comfort_call.enabled,
+                        availability(v.connected, v.writable, self.snapshot.state.is_some_and(|s| s.comfort_call.is_some())),
                         context.callback(Msg::Comfort),
                     ),
                 )),
@@ -2975,17 +3429,18 @@ impl Root {
                 tr("Alimentation"),
                 StackPanel::new().spacing(8.0).children((
                     TextBlock::new().text(tr("Extinction automatique")),
+                    availability_hint(availability(v.connected, v.writable, self.snapshot.state.is_some_and(|s| s.auto_off_seconds.is_some()))),
                     ComboBox::new()
                         .items_source(viewmodel::AUTO_OFF_LABELS.map(tr))
                         .selected_index(index(st.auto_off))
                         .is_enabled(st.auto_off_enabled)
                         .automation_name(tr("Extinction automatique"))
                         .on_selection_changed(context.callback(Msg::AutoOff)),
-                    switch_row(
+                    available_switch(
                         tr("Protection de la batterie"),
                         tr("Limite la charge pour ménager la batterie"),
                         st.battery_protection.on,
-                        st.battery_protection.enabled,
+                        availability(v.connected, v.writable, self.snapshot.state.is_some_and(|s| s.battery_protection.is_some())),
                         context.callback(Msg::BatteryProtection),
                     ),
                 )),
@@ -2993,6 +3448,7 @@ impl Root {
             card(
                 tr("Invites"),
                 StackPanel::new().spacing(8.0).children((
+                    availability_hint(availability(v.connected, v.writable, self.snapshot.state.is_some_and(|s| s.prompt_mode.is_some()))),
                     ComboBox::new()
                         .items_source(viewmodel::PROMPT_MODES.map(tr))
                         .selected_index(index(st.prompt_mode))
@@ -3004,19 +3460,21 @@ impl Root {
                     } else {
                         trf("Volume des invites : {} %", &[&st.prompt_volume])
                     }),
+                    availability_hint(availability(v.connected, v.writable, self.snapshot.info.as_ref().is_some_and(|i| i.prompt_volume.is_some()))),
                     Slider::new()
                         .minimum(0.0)
                         .maximum(100.0)
                         .step_frequency(1.0)
-                        .value(f64::from(st.prompt_volume.max(0)))
+                        .value(self.slider_edits.value(SliderKey::PromptVolume).map_or(f64::from(st.prompt_volume.max(0)), |v| f64::from(momentum_core::device::prompt_volume_percent(v as i8))))
                         .is_enabled(st.prompt_volume_enabled)
                         .automation_name(tr("Volume des invites"))
-                        .on_value_changed(context.callback(Msg::PromptVolume)),
+                        .on_value_changed(context.callback({ let epoch = self.slider_edits.epoch(); move |v| Msg::PromptVolume(v, epoch) })),
                 )),
             ),
             card(
                 tr("Nom du casque"),
                 StackPanel::new().spacing(8.0).children((
+                    availability_hint(availability(v.connected, v.writable, self.snapshot.info.as_ref().is_some_and(|i| i.name.is_some()))),
                     Grid::new()
                         .columns([GridLength::Star(1.0), GridLength::Auto])
                         .column_spacing(8.0)
@@ -3358,7 +3816,13 @@ impl Root {
                     .text_wrapping(TextWrapping::Wrap),
             )
         });
+        let summary = headset_summary(self.snapshot.state.as_ref());
         StackPanel::new().spacing(12.0).children((
+            card(tr("État actuel"), StackPanel::new().spacing(8.0).children((
+                TextBlock::new().text(summary.charge).automation_id("batterie-charge"),
+                TextBlock::new().text(summary.wearing).automation_id("batterie-port"),
+                small(tr("Le niveau de batterie et l'état de charge sont deux informations distinctes.")),
+            ))),
             card(
                 &trf("Batterie : {}", &[&page.view.current]),
                 StackPanel::new().spacing(10.0).children((

@@ -13,6 +13,69 @@ un PC Windows 11 (build 26300) **et** à un téléphone en même temps (multipoi
 | Numéro de série | 16 octets (masqué par le probe) | `001D:0003` |
 | Codec actif vers le PC | 1 = AAC | `0800` |
 
+## État physique du port — observation complémentaire du 27/10/2026
+
+> Les preuves du port, de la charge et du sidetone (capture de l'app, essai
+> depuis le PC ou cas synthétique) sont recensées dans
+> [`docs/preuves/registre-m5.json`](preuves/registre-m5.json), contrôlé par
+> le test `registre_preuves`.
+
+L'état physique du port est distinct du réglage d'activation de la détection
+(`0401`, booléen) et de Smart Pause (`080D`). L'implémentation locale ajoute
+uniquement une lecture et le traitement des notifications ; elle n'ajoute
+aucune écriture de réglage ni action de lecture/pause multimédia.
+
+| Vendor | Feature / type / numéro | Identifiant et sens | Charge utile |
+|---|---|---|---|
+| `0495` | 2 / 0 / 2 | `0402`, requête de lecture | vide |
+| `0495` | 2 / 2 / 2 | `0502`, réponse | un octet ; `02` observé |
+| `0495` | 2 / 1 / 2 | `0482`, notification | un octet ; `02` et `03` observés |
+| `0495` | 0 / 0 / 7 | `0007`, abonnement | `02` (feature) |
+| `0495` | 0 / 2 / 7 | `0107`, réponse à l'abonnement | vide |
+
+Preuve : captures de Smart Control Plus **1.6.3 / 72844**, modèle **M5AEBT**,
+micrologiciel **6.21.5**, corroborées par l'analyse du comportement applicatif,
+sans copie de code. Le contexte physique déclaré corrobore `02 = non porté`
+et `03 = porté`. Les gestes ne sont pas horodatés individuellement et des
+fluctuations restent inexpliquées : aucune conclusion sur une panne du
+capteur ou sur l'effet de Smart Pause.
+
+Provenance des observations (empreintes SHA-256 des captures conservées en
+privé ; aucun journal brut n'est livré dans ce dépôt) :
+
+- **25/10/2026**, `017cfca9ac1e6d078f698004c8c7b12aff258f140b0dd0653cf7065197fc9efb` :
+  requête/réponse `0402`/`0502` aux records **22342/22345** (`02`),
+  notifications `0482` aux records **22273** (`02`) et **23003** (`03`).
+- **27/10/2026**, `0bc5df5b4400782891f4b396666beda8841dca1432f96a8bb9ebe99ebde41251` :
+  abonnement `0007 [02]` / `0107` vide aux records **40357/40360** ;
+  lecture `0402` / `0502 [02]` aux records **40436/40439**.
+
+Contrat local : `HeadsetState.on_head_state` vaut `None` si la lecture est
+indisponible, `NotWorn` pour `02`, `Worn` pour `03` et `Unknown(octet)` pour
+toute autre valeur. `00`, `01` et les valeurs futures ne sont pas assimilés
+à un état porté/non porté. Un payload vide ou de plusieurs octets est
+rejeté ; une notification malformée conserve le dernier état valide.
+Après une réponse valide, les notifications de port déjà reçues avant
+cette réponse sont écartées pour éviter de réafficher un état antérieur.
+Les notifications suivantes et celles des autres fonctions sont conservées ;
+une réponse malformée ne supprime pas une notification valide en attente.
+
+Le service relit cet état dans son instantané et applique les notifications
+`0482`. L'abonnement à la feature 2 est renouvelé à chaque connexion ; un
+refus GAIA laisse les autres fonctions disponibles, mais une expiration ou
+une erreur de transport fait échouer la session. Une déconnexion ou une
+nouvelle connexion efface l'ancien instantané du client.
+
+Le champ facultatif est transmis dans les événements JSON du service ; un
+ancien service qui l'omet reste lisible. Le JSON historique de `ctl etat`
+reste identique. Aucun indicateur graphique ni réglage supplémentaire n'est
+ajouté à ce stade.
+
+**Validation : transport simulé uniquement. Chaque échange ajouté reste
+« à valider sur le matériel » depuis le PC.** Les tests vérifient le décodage,
+le routage, les erreurs et la compatibilité JSON ; ils ne prouvent ni la
+réception réelle des notifications sous Windows/Linux ni la pause musicale.
+
 ## Transport
 
 - Bluetooth Classic, **RFCOMM**, service SDP nommé « GAIA »,
@@ -71,7 +134,7 @@ ne prouve pas un « GAIA v5 »).
 | Son | Faible latence | désactivée | `0818` |
 | Appels | Décroché auto | activé | `080B` |
 | Appels | Comfort Call | activé | `0815` |
-| Appels | Sidetone | 0 | `0806` (notification `0886` ; réglage absent de l'app pour le M5) |
+| Appels | Sidetone | 0 | `0806` (notification `0886`). Constat initial : réglage absent de l'app pour le M5 ; **mis à jour le 27/10/2026** : page « Sidetone » observée dans Smart Control Plus 1.6.3 et écritures `0805` `02`/`01`/`02`/`00` capturées le 25/10/2026 (voir « Sidetone » plus bas) |
 | Général | Smart Pause | activée | `080D` |
 | Général | Détection de port | activée | `0401` |
 | Général | Invites | tonalités + voix, en français | `0802`, `0807` |
@@ -170,10 +233,10 @@ Les réponses aux SET sont **vides** : l'accusé de réception est la réponse
 | Feature | GET → réponse M5 | Piste |
 |---|---|---|
 | 3 | `060B` → `00` | protection de la batterie ? (désactivée dans l'app) |
-| 3 | `0602` → `00 00`, `060E` → `06 FF` | ? |
+| 3 | `0602` → `00 00`, `060E` → `06 FF` | `0602` : état du chargeur, établi le 28/10/2026 (voir « État de charge déclaré »). `060E` : ? |
 | 4 | `081A` → `00 00 BB 80` | 48000 : fréquence d'échantillonnage (« 48 kHz » dans l'app) |
 | 4 | `080E` → `00 F8 0D C8`, `0808` → `02`, `081E` → `FF 00 00 00 00`, `081D` → `00` | ? |
-| 2 | `0402` → `03`, `0408` → `00` | ? |
+| 2 | `0402` → `03`, `0408` → `00` | `0402` : état physique porté (`03`) / non porté (`02`), distinct de `0401` ; établi le 27/10/2026, voir « État physique du port ». `0408` : ? |
 | 10 | `1409` → `02`, `1414` → `[adresse, 00]` | ? (voir « Gestion des connexions » pour `140D`, `140E`, `1413`) |
 | 11 | `1607` → `00` | MMI (gestes ?) |
 | 16 | `2001` → `00`, `2003`, `2005`, `2007` → zéros | Sound Personalization ? |
@@ -353,6 +416,60 @@ non qualifiées la combinaison de priorité audio `(0406, 0408) = (1, 1)`
 (jamais observée), la langue des invites (seul 2 = français est confirmé) et
 l'écriture de la priorité depuis le PC (non exposée, voir F5).
 
+### État de charge déclaré (captures du 28/10/2026)
+
+Lecture seule, feature 3, numéro 2 ; **aucun SET** établi ni proposé
+(`0603` est la lecture du pourcentage, pas une écriture de charge).
+
+| Échange | Identifiant | Charge utile |
+|---|---|---|
+| Lecture | `0602` → `0702` | vide → `00 00` (sans câble), `01 00` (câble branché) |
+| Notification | `0682` | un octet : `00`, `01` observés |
+| Abonnement | `0007 [03]` | déjà dans les six abonnements historiques (feature batterie) |
+
+Captures de Smart Control Plus (empreintes SHA-256) :
+`b2b7b81e79d7ef1bc0ef34ac56c89ff3cdac71733e1d28213808451053142a9e`
+(`0702 [00 00]` record 31362, `0682 [00]` 31222, `0682 [01]` 31901 et 32057),
+`524ebe15dda3a26a705ba90318bc1aab1d3cdb373e3483754aed01b6759a89a6`
+(`0702 [01 00]` record 56016, après `0703 [64]` = 100 % record 55934).
+
+- `00` = chargeur déconnecté, `01` = en charge (déclaré par le casque).
+  `02` figure dans le code de l'app (fin de charge) mais n'a jamais été
+  observé sur le M5 : il reste **inconnu**, comme toute autre valeur.
+- `01` peut coexister avec **100 %** : pourcentage et état de charge sont
+  deux informations indépendantes ; 100 % ne veut jamais dire « charge
+  terminée ».
+- Le second octet de `0702` vaut `00` dans les captures ; son rôle physique
+  est inconnu : il est gardé brut, sans interprétation. Une notification
+  d'un octet l'invalide (il n'a pas été relu).
+- L'app accepte aussi une réponse d'un octet (non observée sur le M5).
+  Contrôle du projet : `0702` d'un ou deux octets, `0682` d'un octet ;
+  autre longueur = erreur, sans nouvel état.
+
+Implémentation (branche d'essai, d'après la fiche de Codex du 28/10/2026) :
+`HeadsetState.charge_state`, lu à chaque relecture complète ; tests sur
+transport simulé seulement. Rejeu depuis le PC : **à valider sur le
+matériel**.
+
+### Sidetone (captures du 25/10/2026)
+
+Retour de sa propre voix pendant un appel. Contrat observé dans
+Smart Control Plus 1.6.3 / 72844, M5AEBT 6.21.5 (capture
+`0b6400dafa003961c4a08bc6f2780c0605f606c0f969a86b513d75174a0a0b60`,
+records 22322 à 28852) :
+
+| Échange | Identifiant | Charge utile |
+|---|---|---|
+| Lecture | `0806` → `0906` | vide → un octet ; `00` observé |
+| Écriture | `0805` → `0905` | un octet → vide ; `02`, `01`, `02`, `00` capturés (records 27904, 27936, 27970, 28005) |
+| Notification | `0886` | un octet ; `02`, `01`, `02`, `00` observés après chaque écriture |
+
+`00` = arrêt, `01` = minimum actif, `02` = deuxième palier actif.
+L'app prévoit cinq pas dans la configuration examinée, donc **0 à 4**
+(l'ancienne annotation « 0 à 5 » du code est corrigée) ; seuls **0, 1 et 2**
+ont été observés, 3 et 4 restent non essayés. Aucun essai pendant un appel ni
+mesure acoustique. Rejeu depuis le PC : **à valider sur le matériel**.
+
 ### Volume des invites : échelle (expérience F1, 09/10/2026)
 
 15 positions du curseur de l'app relues depuis le PC : **valeur =
@@ -365,6 +482,12 @@ arrondi(26 × % / 100 − 20)**, de −20 (0 %) à +6 (100 %), 0 = 77 %.
 Écriture `081C [i8]` validée depuis le PC (`ctl volume-invites 67` → −3
 relu, puis 77 → 0 relu). Plusieurs crans de l'app donnent la même valeur :
 le pourcentage affiché par le projet est donc approché.
+
+Ce pourcentage est une **échelle d'interface choisie par le projet** à partir
+de ces relevés. L'analyse de l'app (27/10/2026) décrit la même valeur
+interne sous une forme normalisée, (entier + 20) / 26 : ce n'est ni un
+niveau acoustique, ni un gain en dB, ni forcément le pourcentage affiché par
+l'app ; les deux présentations ne sont pas le même type de mesure.
 
 ### Persistance du profil (expérience F2, 09/10/2026)
 

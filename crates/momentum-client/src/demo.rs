@@ -74,6 +74,8 @@ impl Demo {
                 prompt_mode: Some(PromptMode::TonesAndVoice),
                 codec: None,
                 sample_rate_hz: Some(48_000),
+                on_head_state: None,
+                charge_state: None,
             },
             eq: EqState {
                 min_gain: -60,

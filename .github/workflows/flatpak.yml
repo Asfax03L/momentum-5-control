@@ -85,7 +85,10 @@ jobs:
         run: |
           flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
           flatpak install --user -y --noninteractive flathub org.flatpak.Builder
-          lint() { flatpak run --command=flatpak-builder-lint org.flatpak.Builder "$@"; }
+          # Exception locale limitée au renommage, vérifié à chaque essai.
+          # L'identifiant de l'application et ses données restent inchangés.
+          python3 scripts/verifier-identite-flatpak.py
+          lint() { flatpak run --command=flatpak-builder-lint org.flatpak.Builder --exceptions --user-exceptions "$PWD/packaging/flatpak/exceptions-locales.json" "$@"; }
           lint manifest "$MANIFESTE"
           # Dépôt construit : seules les erreurs de copie des captures
           # d'écran sont attendues, l'infrastructure de Flathub faisant cette

@@ -7,6 +7,91 @@ fn bad(command: CommandId, reason: &'static str) -> ProtocolError {
     ProtocolError::BadPayload { command, reason }
 }
 
+/// État physique du port (`0502` / `0482`), distinct de l'activation du capteur.
+/// `02` / `03` observés sur M5 ; toute autre valeur est conservée sans interprétation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum OnHeadState {
+    NotWorn,
+    Worn,
+    Unknown(u8),
+}
+
+/// Contrat de lecture strict : un seul octet, sans rabattre l'inconnu sur un booléen.
+pub fn parse_on_head_state(payload: &[u8]) -> Result<OnHeadState, ProtocolError> {
+    match payload {
+        [2] => Ok(OnHeadState::NotWorn),
+        [3] => Ok(OnHeadState::Worn),
+        [value] => Ok(OnHeadState::Unknown(*value)),
+        _ => Err(bad(get::ON_HEAD_STATE.response(), "un octet attendu")),
+    }
+}
+
+/// État du chargeur déclaré par le casque (premier octet de `0702`, octet
+/// de `0682`). `02` figure dans le code de l'app (fin de charge) mais n'a
+/// jamais été observé sur le M5 : il reste inconnu, comme toute autre valeur.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum ChargerStatus {
+    Disconnected,
+    Charging,
+    Unknown(u8),
+}
+
+impl ChargerStatus {
+    fn from_byte(b: u8) -> Self {
+        match b {
+            0 => ChargerStatus::Disconnected,
+            1 => ChargerStatus::Charging,
+            other => ChargerStatus::Unknown(other),
+        }
+    }
+}
+
+/// Lecture de l'état de charge : état principal et second octet brut de la
+/// réponse `0702`, s'il existe (rôle physique inconnu, jamais interprété).
+/// Une notification `0682` n'a pas de second octet : `secondary_raw` vaut
+/// alors `None` (l'ancien n'est pas recopié comme s'il venait d'être relu).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ChargeReading {
+    pub primary_status: ChargerStatus,
+    pub secondary_raw: Option<u8>,
+}
+
+/// Réponse `0702` : exactement un ou deux octets (un octet : format prévu par
+/// l'app, non observé sur le M5). Vide ou plus long : erreur de structure.
+pub fn parse_charge_response(payload: &[u8]) -> Result<ChargeReading, ProtocolError> {
+    match payload {
+        [primary] => Ok(ChargeReading {
+            primary_status: ChargerStatus::from_byte(*primary),
+            secondary_raw: None,
+        }),
+        [primary, secondary] => Ok(ChargeReading {
+            primary_status: ChargerStatus::from_byte(*primary),
+            secondary_raw: Some(*secondary),
+        }),
+        _ => Err(bad(
+            get::CHARGER_STATE.response(),
+            "un ou deux octets attendus",
+        )),
+    }
+}
+
+/// Notification `0682` : exactement un octet.
+pub fn parse_charge_notification(payload: &[u8]) -> Result<ChargerStatus, ProtocolError> {
+    match payload {
+        [status] => Ok(ChargerStatus::from_byte(*status)),
+        _ => Err(bad(get::CHARGER_STATE.notification(), "un octet attendu")),
+    }
+}
+
+/// Niveau de sidetone (`0906` / `0886`) : exactement un octet, gardé tel
+/// quel (`00` arrêt, `01`, `02` observés ; l'app prévoit jusqu'à `04`).
+pub fn parse_sidetone(payload: &[u8]) -> Result<u8, ProtocolError> {
+    match payload {
+        [value] => Ok(*value),
+        _ => Err(bad(get::SIDETONE.response(), "un octet attendu")),
+    }
+}
+
 /// Batterie en pourcentage (capture : `2A` = 42 %).
 pub fn parse_battery(payload: &[u8]) -> Result<u8, ProtocolError> {
     payload
@@ -413,6 +498,12 @@ fn describe_extended(request: CommandId, p: &[u8]) -> Option<Result<String, Prot
         switch("Smart Pause", true)
     } else if request == get::ON_HEAD_DETECTION {
         switch("détection de port", true)
+    } else if request == get::ON_HEAD_STATE {
+        parse_on_head_state(p).map(|state| match state {
+            OnHeadState::NotWorn => "casque non porté".to_string(),
+            OnHeadState::Worn => "casque porté".to_string(),
+            OnHeadState::Unknown(value) => format!("état de port inconnu ({value:02X})"),
+        })
     } else if request == get::AUTO_ANSWER {
         switch("décroché automatique", false)
     } else if request == get::COMFORT_CALL {

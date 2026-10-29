@@ -4,14 +4,16 @@
 //! la zone de notification reste), sauf après « Quitter ».
 
 use momentum_core::i18n::tr;
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 
-use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
 use windows::Win32::System::Threading::GetCurrentThreadId;
+use windows::Win32::UI::HiDpi::GetDpiForWindow;
 use windows::Win32::UI::Shell::{DefSubclassProc, SetWindowSubclass};
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumThreadWindows, GetClassNameW, IsIconic, PostMessageW, SW_HIDE, SW_RESTORE, SW_SHOW,
-    SetForegroundWindow, ShowWindow, WM_CLOSE,
+    EnumThreadWindows, GetClassNameW, GetClientRect, IsIconic, PostMessageW, SW_HIDE, SW_RESTORE,
+    SW_SHOW, SetForegroundWindow, ShowWindow, WM_CLOSE, WM_DPICHANGED, WM_SIZE,
 };
 use windows::core::BOOL;
 
@@ -82,6 +84,34 @@ pub fn settings_file(save: bool) -> windows::core::Result<Option<std::path::Path
 static WINDOW: AtomicIsize = AtomicIsize::new(0);
 /// « Quitter » choisi : la fermeture n'est plus interceptée.
 static QUITTING: AtomicBool = AtomicBool::new(false);
+/// Seul le franchissement du seuil de disposition produit un message :
+/// aucun sondage ni reconstruction à chaque pixel du redimensionnement.
+static LAYOUT_HANDLER: OnceLock<fn(bool)> = OnceLock::new();
+static WIDE_LAYOUT: AtomicBool = AtomicBool::new(true);
+
+pub fn on_layout_changed(handler: fn(bool)) {
+    let _ = LAYOUT_HANDLER.set(handler);
+    if let Some(hwnd) = window() {
+        publish_layout(hwnd);
+    }
+}
+
+fn publish_layout(hwnd: HWND) {
+    let mut rect = RECT::default();
+    // SAFETY: poignée de notre fenêtre, tampon vivant pendant GetClientRect.
+    let width = unsafe {
+        if GetClientRect(hwnd, &mut rect).is_err() {
+            return;
+        }
+        f64::from(rect.right - rect.left) * 96.0 / f64::from(GetDpiForWindow(hwnd).max(96))
+    };
+    let wide = width >= 1000.0;
+    if WIDE_LAYOUT.swap(wide, Ordering::AcqRel) != wide
+        && let Some(handler) = LAYOUT_HANDLER.get()
+    {
+        handler(wide);
+    }
+}
 
 /// Fenêtre principale, une fois retrouvée par [`attach`].
 pub fn hwnd() -> Option<HWND> {
@@ -117,6 +147,9 @@ unsafe extern "system" fn close_hides(
     _id: usize,
     _data: usize,
 ) -> LRESULT {
+    if message == WM_SIZE || message == WM_DPICHANGED {
+        publish_layout(hwnd);
+    }
     if message == WM_CLOSE && !QUITTING.load(Ordering::Acquire) {
         // SAFETY: fenêtre de ce fil.
         unsafe {

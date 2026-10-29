@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(target_os = "linux")]
 pub mod dbus;
 pub mod demo;
+pub mod edits;
 pub mod essais;
 pub mod menu;
 #[cfg(windows)]
@@ -186,6 +187,15 @@ pub struct Snapshot {
 }
 
 impl Snapshot {
+    /// Fréquences documentées du M5 qualifié, pas des fréquences lues par GAIA.
+    pub fn eq_topology(&self) -> Option<momentum_core::presets::EqTopology> {
+        if self.state.is_none() || self.read_only.is_some() {
+            return None;
+        }
+        self.equalizer
+            .as_ref()
+            .and_then(momentum_core::presets::EqTopology::momentum5)
+    }
     /// Met l'état à jour d'après un événement (même règle dans le service
     /// et dans une interface qui suit les événements).
     pub fn apply(&mut self, event: &Event) {
@@ -332,6 +342,70 @@ mod tests {
             session: 1,
         });
         assert!(s.problem.is_none());
+    }
+
+    #[test]
+    fn charge_state_survives_ipc_but_not_a_connection_change() {
+        use momentum_core::device::{ChargeReading, ChargerStatus};
+
+        let state = ChargeReading {
+            primary_status: ChargerStatus::Unknown(2),
+            secondary_raw: Some(0),
+        };
+        let event = Event::State(HeadsetState {
+            charge_state: Some(state),
+            ..HeadsetState::default()
+        });
+        let event: Event = serde_json::from_str(&serde_json::to_string(&event).unwrap()).unwrap();
+        let mut snapshot = Snapshot::default();
+        snapshot.apply(&event);
+        assert_eq!(snapshot.state.unwrap().charge_state, Some(state));
+        snapshot.apply(&Event::Lost("perte simulée".into()));
+        assert!(snapshot.state.is_none());
+        snapshot.apply(&event);
+        snapshot.apply(&Event::Connected {
+            headset_id: None,
+            name: "Casque démo".into(),
+            read_only: None,
+            session: 2,
+        });
+        assert!(snapshot.state.is_none());
+    }
+
+    #[test]
+    fn wearing_state_survives_ipc_but_not_a_connection_change() {
+        use momentum_core::device::OnHeadState;
+
+        for state in [
+            OnHeadState::NotWorn,
+            OnHeadState::Worn,
+            OnHeadState::Unknown(1),
+        ] {
+            let event = Event::State(HeadsetState {
+                on_head_state: Some(state),
+                ..HeadsetState::default()
+            });
+            let json = serde_json::to_string(&event).unwrap();
+            let event: Event = serde_json::from_str(&json).unwrap();
+            let mut snapshot = Snapshot::default();
+            snapshot.apply(&event);
+            assert_eq!(snapshot.state.unwrap().on_head_state, Some(state));
+            snapshot.apply(&Event::Lost("perte simulée".into()));
+            assert!(snapshot.state.is_none());
+            snapshot.apply(&event);
+            snapshot.apply(&Event::Connected {
+                headset_id: None,
+                name: "Casque démo".into(),
+                read_only: None,
+                session: 2,
+            });
+            assert!(snapshot.state.is_none());
+        }
+        // Un service ancien omet ce champ ; absence et code inconnu sont distincts.
+        let json = serde_json::to_value(HeadsetState::default()).unwrap();
+        assert!(json.get("on_head_state").is_none());
+        let old: HeadsetState = serde_json::from_value(json).unwrap();
+        assert_eq!(old.on_head_state, None);
     }
 
     #[test]

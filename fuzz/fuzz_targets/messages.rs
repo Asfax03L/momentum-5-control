@@ -9,6 +9,7 @@ fuzz_target!(|payload: &[u8]| {
     // Toutes les fonctions parse_* publiques reçoivent le même payload
     // arbitraire ; black_box empêche de supprimer les résultats inutilisés.
     let _ = black_box(parse_battery(payload));
+    let _ = black_box(parse_on_head_state(payload));
     let _ = black_box(parse_codec(payload));
     let _ = black_box(parse_paired_device(payload));
     let _ = black_box(parse_sample_rate(payload));

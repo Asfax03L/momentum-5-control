@@ -1,5 +1,19 @@
 # Soumission à Flathub (préparée, non envoyée)
 
+## Renommage GitHub et contrôle local (29 octobre 2026)
+
+L'identifiant `io.github.asfax03l.openheadset-control` reste inchangé pour
+préserver les installations et leur dossier de données. L'ancienne URL du
+dépôt redirige vers `Asfax03L/momentum-5-control`. Le workflow vérifie cette
+redirection HTTPS et l'identifiant numérique du dépôt avant d'employer une
+exception locale limitée à `appid-url-not-reachable`.
+
+Cette exception suit le mécanisme
+[local du linter](https://github.com/flathub-infra/flatpak-builder-lint#local-exceptions).
+Elle ne constitue pas un accord de Flathub : une soumission à Flathub
+demanderait sa propre validation. Les permissions, les autres erreurs du
+manifeste et les contrôles du paquet restent vérifiés.
+
 État : **non soumis**. La soumission ouvre une PR publique sur
 `flathub/flathub` depuis le compte du mainteneur ; elle n'est faite
 qu'avec son accord. Ce document rassemble ce qui est prêt et ce qu'il
