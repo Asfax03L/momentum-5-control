@@ -5,6 +5,14 @@ pour tout ce qui passe par le casque, mais pensée pour un PC portable (souris,
 clavier, grand écran, barre système). L'icône reste le raccourci vers la
 fenêtre principale.
 
+**Mise à jour du 29/10/2026 — série 1.x** : le lot 2 (1.3.0) fiabilise
+curseurs, préréglages et A/B ; le [lot 3](LOT3-ASSISTANT-EQ.md) (1.4.0)
+ajoute l'assistant EQ guidé à WinUI et KDE. Ces parcours sont vérifiés en
+simulation et en CI, sans nouvelle qualification matérielle revendiquée.
+Le diagnostic BTD 700 reste facultatif et non réalisé ; le besoin retenu
+utilise le Bluetooth du PC. Le sidetone attend toujours la preuve du rejeu
+PC. Le bilan daté ci-dessous conserve l'historique de la 1.1.0.
+
 **État au 25/10/2026** : dernière publication **v1.1.0** (jalon 1.1 :
 autonomie mesurée, y compris selon le mode de réduction de bruit ; journal
 local des événements ; notifications au choix, dont « casque allumé sans

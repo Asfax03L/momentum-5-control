@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 
 use momentum_client::demo::{self, Demo};
 use momentum_client::edits::{SliderEdits, SliderKey};
+use momentum_client::sound_check::{Action as GuidedAction, GuidedEq};
 use momentum_client::tracker::Tracker;
 use momentum_client::{Client, ClientError, Command, Event, Outcome, Snapshot};
 use momentum_core::alerts::NotificationPrefs;
@@ -307,6 +308,9 @@ enum Msg {
     ImportCurve,
     RememberA,
     ToggleAb,
+    Guided(GuidedAction),
+    GuidedName(String),
+    GuidedSave,
     ExportProfile,
     HotkeyText(usize, String),
     /// Contenu du panneau rapide : bruit, curseur, profil.
@@ -411,6 +415,8 @@ struct Root {
     gains_text: String,
     eq_notice: Option<String>,
     ab: AbCompare,
+    guided_eq: GuidedEq,
+    guided_name: String,
     /// Curseurs déplacés, pas encore envoyés.
     slider_edits: SliderEdits,
     /// Volume des invites (valeur du casque), pas encore envoyé.
@@ -929,7 +935,16 @@ impl Root {
                 self.open_page(Page::Sound);
                 desktop::show();
             }
-            MenuAction::Quit => desktop::quit(),
+            MenuAction::Quit => {
+                if self.guided_eq.active() {
+                    self.eq_notice =
+                        Some(tr("Terminez ou restaurez l'assistant EQ en cours.").into());
+                    self.open_page(Page::Sound);
+                    desktop::show();
+                } else {
+                    desktop::quit();
+                }
+            }
             MenuAction::ReloadScenes => self.reload_scenes(),
             MenuAction::Autostart => {
                 let entry = Autostart::named(AUTOSTART_VALUE);
@@ -1025,6 +1040,15 @@ impl Root {
     }
 
     fn send(&mut self, command: Command) {
+        if self.guided_eq.active() {
+            self.eq_notice = Some(tr("Terminez ou restaurez l'assistant EQ en cours.").into());
+            self.open_page(Page::Sound);
+            return;
+        }
+        self.send_raw(command);
+    }
+
+    fn send_raw(&mut self, command: Command) -> bool {
         if matches!(command, Command::SetMode(_)) {
             self.slider_edits.discard(SliderKey::Level);
         }
@@ -1034,11 +1058,11 @@ impl Root {
         let reconnect = command == Command::ReconnectHeadset;
         if reconnect {
             if self.service_error.is_some() || self.busy {
-                return;
+                return false;
             }
             self.reconnect_notice = None;
         } else if !self.writable() {
-            return;
+            return false;
         }
         let session = if reconnect { 0 } else { self.snapshot.session };
         if self.commands.send((command.clone(), session)).is_ok() {
@@ -1046,6 +1070,45 @@ impl Root {
             self.requests.sent();
             self.busy = true;
             self.snapshot.problem = None;
+            return true;
+        }
+        false
+    }
+
+    fn guided_action(&mut self, action: GuidedAction) {
+        if action == GuidedAction::Start
+            && self
+                .guided_eq
+                .view(&self.snapshot, self.busy, !self.slider_edits.is_empty())
+                .can_start
+        {
+            let Some(eq) = self.snapshot.equalizer.as_ref() else {
+                return;
+            };
+            if let Err(error) = paths::save_guided_reference(eq) {
+                self.eq_notice = Some(trf(
+                    "Copie initiale impossible : {}. Assistant non démarré.",
+                    &[&error],
+                ));
+                return;
+            }
+            self.ab = AbCompare::default();
+            self.eq_notice = None;
+            self.guided_name.clear();
+        }
+        match self.guided_eq.action(
+            action,
+            &self.snapshot,
+            self.busy,
+            !self.slider_edits.is_empty(),
+        ) {
+            Ok(Some(command)) => {
+                if !self.send_raw(command) {
+                    self.guided_eq.rejected();
+                }
+            }
+            Ok(None) => {}
+            Err(reason) => self.eq_notice = Some(reason.into()),
         }
     }
 
@@ -1170,6 +1233,8 @@ impl Component for Root {
             gains_text: String::new(),
             eq_notice: None,
             ab: AbCompare::default(),
+            guided_eq: GuidedEq::default(),
+            guided_name: String::new(),
             slider_edits: SliderEdits::default(),
             edits: 0,
             new_name: String::new(),
@@ -1252,6 +1317,14 @@ impl Component for Root {
             Msg::PaneOpen(open) => self.nav_open = open,
             Msg::Service(cell) => {
                 let incoming = cell.lock().ok().and_then(|mut c| c.take());
+                match incoming.as_ref() {
+                    Some(Incoming::Submitted(id)) => self.guided_eq.submitted(*id),
+                    Some(Incoming::Rejected(_)) => self.guided_eq.rejected(),
+                    Some(Incoming::Event(Event::Done { id, outcome, .. })) => {
+                        self.guided_eq.done(*id, outcome)
+                    }
+                    _ => {}
+                }
                 if let Some(failure) = incoming.as_ref().and_then(|i| self.requests.on_incoming(i))
                 {
                     self.ab = AbCompare::default();
@@ -1312,6 +1385,7 @@ impl Component for Root {
                     self.ab = AbCompare::default();
                 }
                 self.slider_edits.finish_if_idle(self.busy);
+                self.guided_eq.sync(&self.snapshot);
                 self.listen(context);
             }
             Msg::ReconnectHeadset => self.send(Command::ReconnectHeadset),
@@ -1970,6 +2044,25 @@ impl Component for Root {
                         Some(tr("Export impossible : dossier Documents introuvable.").to_string());
                 }
             },
+            Msg::Guided(action) => self.guided_action(action),
+            Msg::GuidedName(name) => self.guided_name = name,
+            Msg::GuidedSave => {
+                let result = self
+                    .guided_eq
+                    .curve_to_save(&self.snapshot, self.busy)
+                    .map_err(str::to_string)
+                    .and_then(|(gains, topology)| {
+                        paths::create_user_preset_for(self.guided_name.trim(), &gains, &topology)
+                    });
+                match result {
+                    Ok(list) => {
+                        self.user_presets = list;
+                        self.guided_eq.saved();
+                        self.guided_name.clear();
+                    }
+                    Err(reason) => self.eq_notice = Some(reason),
+                }
+            }
             Msg::RememberA => {
                 if let Some(eq) = self.snapshot.equalizer.as_ref()
                     && let Some(topology) = self.snapshot.eq_topology()
@@ -2582,15 +2675,23 @@ impl Root {
             // Hauteur réservée : un retour de lecture ne déplace pas le
             // curseur sous la souris ni le point de défilement.
             TextBlock::new()
-                .text(
+                .text(if self.guided_eq.active() {
+                    tr("Assistant EQ en cours — ouvrez Égaliseur pour continuer ou restaurer.")
+                        .into()
+                } else {
                     self.slider_edits
                         .notice(&self.snapshot)
-                        .replace('\n', " · "),
-                )
+                        .replace('\n', " · ")
+                })
                 .height(20.0)
                 .text_trimming(TextTrimming::CharacterEllipsis)
                 .automation_id("intentions-curseurs")
-                .automation_name(self.slider_edits.notice(&self.snapshot)),
+                .automation_name(if self.guided_eq.active() {
+                    tr("Assistant EQ en cours — ouvrez Égaliseur pour continuer ou restaurer.")
+                        .into()
+                } else {
+                    self.slider_edits.notice(&self.snapshot)
+                }),
             InfoBar::new()
                 .is_open(!v.banner.is_empty())
                 .is_closable(false)
@@ -3017,6 +3118,9 @@ impl Root {
     fn sound(&self, context: &mut ViewContext<Self>) -> View {
         let v = self.main_view();
         let Some(eq) = self.snapshot.equalizer.as_ref().filter(|_| v.connected) else {
+            if self.guided_eq.active() {
+                return self.guided_eq_card(context);
+            }
             return TextBlock::new()
                 .text(v.waiting.clone())
                 .text_wrapping(TextWrapping::Wrap)
@@ -3031,6 +3135,7 @@ impl Root {
             v.writable,
         );
         let count = eq.gains.len();
+        let guided_card = self.guided_eq_card(context);
         let (min, max) = (f64::from(eq.min_gain) / 10.0, f64::from(eq.max_gain) / 10.0);
         let bands = eq.gains.iter().enumerate().map(|(i, &gain)| {
             let db = f64::from(gain) / 10.0;
@@ -3068,47 +3173,123 @@ impl Root {
             )
         });
         StackPanel::new().spacing(12.0).children((
-            card(
-                tr("Mode audio"),
-                RadioButtons::new()
-                    .items_source(viewmodel::AUDIO_MODES.map(tr))
-                    .max_columns(3)
-                    .selected_index(index(sv.audio_mode))
-                    .on_selection_changed(context.callback(Msg::AudioMode)),
-            ),
-            card(
-                &trf("Égaliseur graphique — {} bandes", &[&count]),
-                StackPanel::new().spacing(10.0).children((
-                    StackPanel::new()
-                        .orientation(Orientation::Horizontal)
-                        .keyed_children(bands),
-                    switch_row(
-                        tr("Amplification des basses"),
-                        "",
-                        eq.bass_boost,
-                        v.writable,
-                        context.callback(Msg::Bass),
-                    ),
-                    StackPanel::new()
-                        .orientation(Orientation::Horizontal)
-                        .spacing(8.0)
-                        .children((
-                            ComboBox::new()
-                                .items_source(sv.preset_names.clone())
-                                .selected_index(index(sv.current_preset))
-                                .placeholder_text(tr("Préréglage"))
-                                .automation_name(tr("Préréglage"))
-                                .is_enabled(v.writable)
-                                .on_selection_changed(context.callback(Msg::Preset)),
-                            Button::new()
-                                .is_enabled(v.writable)
-                                .on_click(context.message(Msg::Flat))
-                                .content(tr("Réinitialiser")),
-                        )),
-                )),
-            ),
-            self.curves_card(v.writable, context),
+            guided_card,
+            if self.guided_eq.active() {
+                View::empty()
+            } else {
+                card(
+                    tr("Mode audio"),
+                    RadioButtons::new()
+                        .items_source(viewmodel::AUDIO_MODES.map(tr))
+                        .max_columns(3)
+                        .selected_index(index(sv.audio_mode))
+                        .on_selection_changed(context.callback(Msg::AudioMode)),
+                )
+            },
+            if self.guided_eq.active() {
+                View::empty()
+            } else {
+                card(
+                    &trf("Égaliseur graphique — {} bandes", &[&count]),
+                    StackPanel::new().spacing(10.0).children((
+                        StackPanel::new()
+                            .orientation(Orientation::Horizontal)
+                            .keyed_children(bands),
+                        switch_row(
+                            tr("Amplification des basses"),
+                            "",
+                            eq.bass_boost,
+                            v.writable,
+                            context.callback(Msg::Bass),
+                        ),
+                        StackPanel::new()
+                            .orientation(Orientation::Horizontal)
+                            .spacing(8.0)
+                            .children((
+                                ComboBox::new()
+                                    .items_source(sv.preset_names.clone())
+                                    .selected_index(index(sv.current_preset))
+                                    .placeholder_text(tr("Préréglage"))
+                                    .automation_name(tr("Préréglage"))
+                                    .is_enabled(v.writable)
+                                    .on_selection_changed(context.callback(Msg::Preset)),
+                                Button::new()
+                                    .is_enabled(v.writable)
+                                    .on_click(context.message(Msg::Flat))
+                                    .content(tr("Réinitialiser")),
+                            )),
+                    )),
+                )
+            },
+            if self.guided_eq.active() {
+                View::empty()
+            } else {
+                self.curves_card(v.writable, context)
+            },
         ))
+    }
+
+    fn guided_eq_card(&self, context: &mut ViewContext<Self>) -> View {
+        let g = self
+            .guided_eq
+            .view(&self.snapshot, self.busy, !self.slider_edits.is_empty());
+        let button = |label: &'static str, action, enabled, context: &mut ViewContext<Self>| {
+            Button::new()
+                .is_enabled(enabled)
+                .on_click(context.message(Msg::Guided(action)))
+                .automation_id(format!("assistant-eq-{action:?}"))
+                .content(tr(label))
+        };
+        let line = |text: String| {
+            TextBlock::new()
+                .text(text)
+                .text_wrapping(TextWrapping::Wrap)
+        };
+        card(tr("Assistant EQ guidé"), StackPanel::new().spacing(8.0).automation_id("assistant-eq").children((
+            line(tr("Comparez votre musique à volume modéré. Chaque variante change un groupe de ±1 dB, dans les limites lues. Aucun son automatique ; ce parcours ne mesure pas l'audition.").into()),
+            line(tr("Une copie initiale est conservée dans le sous-dossier assistant-eq des données de l'application. Restaurez ou enregistrez avant de quitter ; une fermeture forcée conserve la dernière courbe appliquée.").into()),
+            if g.active { line(g.title.clone()).font_weight(FontWeight::SEMI_BOLD).automation_id("assistant-eq-etape").into() } else { View::empty() },
+            line(g.status.clone()).automation_id("assistant-eq-etat"),
+            if !g.active {
+                button("Commencer les comparaisons", GuidedAction::Start, g.can_start, context)
+            } else { View::empty() },
+            if g.active {
+                line(trf("Courbe initiale (dB) : {}", &[&g.initial])).into()
+            } else { View::empty() },
+            if g.active {
+                line(trf("Courbe relue (dB) : {}", &[&g.current])).automation_id("assistant-eq-courbe-relue").into()
+            } else { View::empty() },
+            if g.active && !g.review {
+                StackPanel::new().orientation(if self.wide_home { Orientation::Horizontal } else { Orientation::Vertical }).spacing(8.0).children((
+                    button("Moins (−1 dB)", GuidedAction::Less, g.can_listen, context),
+                    button("Référence de l'étape", GuidedAction::Reference, g.can_listen, context),
+                    button("Plus (+1 dB)", GuidedAction::More, g.can_listen, context),
+                ))
+            } else { View::empty() },
+            if g.can_next || (g.active && !g.review) {
+                button("Garder ce choix et continuer", GuidedAction::Next, g.can_next, context)
+            } else { View::empty() },
+            if g.active && g.review {
+                StackPanel::new().spacing(8.0).children((
+                    StackPanel::new().orientation(if self.wide_home { Orientation::Horizontal } else { Orientation::Vertical }).spacing(8.0).children((
+                        button("Écouter la courbe initiale", GuidedAction::Initial, g.can_listen, context),
+                        button("Écouter le résultat", GuidedAction::Result, g.can_listen, context),
+                    )),
+                    TextBox::new().text(self.guided_name.clone()).placeholder_text(tr("Nom du nouveau préréglage"))
+                        .automation_name(tr("Nom du nouveau préréglage")).on_text_changed(context.callback(Msg::GuidedName)),
+                    Button::new().is_enabled(g.can_save && !self.guided_name.trim().is_empty())
+                        .automation_id("assistant-eq-enregistrer").on_click(context.message(Msg::GuidedSave)).content(tr("Enregistrer le résultat et terminer")),
+                    line(tr("Pour enregistrer, écoutez d'abord le résultat et attendez sa relecture. Un nom de préréglage existant n'est pas remplacé.").into()),
+                ))
+            } else { View::empty() },
+            if g.active {
+                button("Annuler et restaurer la courbe initiale", GuidedAction::Restore, g.can_restore, context)
+            } else { View::empty() },
+            if g.can_dismiss {
+                button("Fermer sans restauration", GuidedAction::Dismiss, true, context)
+            } else { View::empty() },
+            line(self.eq_notice.clone().unwrap_or_default()),
+        )))
     }
 
     /// Préréglages personnels, saisie des gains, fichiers de courbe et

@@ -2407,3 +2407,135 @@ Band {} requested: {} dB; read back: {} dB.
 
 Niveau confirmé : {} %.
 Confirmed level: {} %.
+
+Assistant EQ guidé
+Guided EQ assistant
+
+Étape 1/3 — graves (90 et 325 Hz)
+Step 1/3 — bass (90 and 325 Hz)
+
+Étape 2/3 — médiums (1,5 à 4,5 kHz)
+Step 2/3 — midrange (1.5 to 4.5 kHz)
+
+Étape 3/3 — aigus (8 à 16 kHz)
+Step 3/3 — treble (8 to 16 kHz)
+
+Comparaison finale — initiale / résultat
+Final comparison — initial / result
+
+Attente du résultat et de la courbe relue…
+Waiting for the result and confirmed curve…
+
+Courbe relue. Comparez à votre rythme, puis gardez votre choix.
+Curve read back. Compare at your own pace, then keep your choice.
+
+Connectez un M5 autorisé en écriture, puis choisissez Égaliseur graphique.
+Connect a write-qualified M5, then select Graphic Equalizer.
+
+Attendez la fin des réglages en cours avant de commencer.
+Wait for pending adjustments to finish before starting.
+
+Trois étapes : graves, médiums, aigus. Aucun son n'est lancé automatiquement.
+Three steps: bass, midrange, treble. No sound is played automatically.
+
+Assistant interrompu : connexion, mode ou égaliseur changé. Aucune restauration automatique. La copie initiale reste sur ce PC.
+Assistant interrupted: connection, mode or equalizer changed. No automatic restoration. The initial copy stays on this PC.
+
+Essai non confirmé. Vérifiez la connexion, puis restaurez la courbe initiale avant de recommencer.
+Trial not confirmed. Check the connection, then restore the initial curve before starting again.
+
+Une autre modification de l'égaliseur a interrompu l'assistant. Restaurez la courbe initiale ou fermez le parcours.
+Another equalizer change interrupted the assistant. Restore the initial curve or close the session.
+
+Courbe initiale restaurée et relue. Assistant terminé.
+Initial curve restored and read back. Assistant finished.
+
+Terminez ou restaurez l'assistant EQ en cours.
+Finish or restore the current EQ assistant session.
+
+Assistant EQ non démarré.
+EQ assistant not started.
+
+Assistant fermé sans restauration. La dernière courbe appliquée peut rester active ; la copie initiale est conservée sur ce PC.
+Assistant closed without restoration. The last applied curve may remain active; the initial copy is kept on this PC.
+
+Courbe initiale déjà relue. Assistant terminé.
+Initial curve already confirmed. Assistant finished.
+
+Action indisponible à cette étape de l'assistant.
+Action unavailable at this step of the assistant.
+
+Écoutez et faites relire le résultat final avant de l'enregistrer.
+Listen to the final result and wait for readback before saving it.
+
+Résultat enregistré sur ce PC. Assistant terminé.
+Result saved on this PC. Assistant finished.
+
+Un préréglage porte déjà ce nom. Choisissez un autre nom.
+A preset already has this name. Choose another name.
+
+Copie initiale impossible : {}. Assistant non démarré.
+Unable to save the initial copy: {}. Assistant not started.
+
+Assistant EQ en cours — ouvrez Égaliseur pour continuer ou restaurer.
+EQ assistant in progress — open Equalizer to continue or restore.
+
+Comparez votre musique à volume modéré. Chaque variante change un groupe de ±1 dB, dans les limites lues. Aucun son automatique ; ce parcours ne mesure pas l'audition.
+Compare your music at moderate volume. Each variant changes one group by ±1 dB within the read limits. No automatic sound; this session does not measure hearing.
+
+Une copie initiale est conservée dans le sous-dossier assistant-eq des données de l'application. Restaurez ou enregistrez avant de quitter ; une fermeture forcée conserve la dernière courbe appliquée.
+An initial copy is kept in the assistant-eq subfolder of the application data. Restore or save before quitting; a forced close leaves the last applied curve active.
+
+Courbe initiale (dB) : {}
+Initial curve (dB): {}
+
+Courbe initiale en dB
+Initial curve in dB
+
+Commencer les comparaisons
+Start comparisons
+
+Moins (−1 dB)
+Less (−1 dB)
+
+Référence de l'étape
+Step reference
+
+Plus (+1 dB)
+More (+1 dB)
+
+Garder ce choix et continuer
+Keep this choice and continue
+
+Écouter la courbe initiale
+Listen to the initial curve
+
+Écouter le résultat
+Listen to the result
+
+Nom du nouveau préréglage
+New preset name
+
+Enregistrer le résultat et terminer
+Save result and finish
+
+Pour enregistrer, écoutez d'abord le résultat et attendez sa relecture. Un nom de préréglage existant n'est pas remplacé.
+To save, listen to the result first and wait for readback. An existing preset name is never replaced.
+
+Annuler et restaurer la courbe initiale
+Cancel and restore the initial curve
+
+Fermer sans restauration
+Close without restoring
+
+Courbe relue : {}.
+Confirmed curve: {}.
+
+Courbe relue (dB) : {}
+Confirmed curve (dB): {}
+
+Courbe initiale
+Initial curve
+
+Résultat
+Result

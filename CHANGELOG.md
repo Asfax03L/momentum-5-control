@@ -12,6 +12,42 @@ refuse de publier sans elles) :
 - « À faire après la mise à jour » : les actions concrètes par système,
   ou « Rien de particulier » avec la raison.
 
+## v1.4.0 — 29/10/2026
+
+### En bref
+- **Windows et Linux KDE** : assistant EQ guidé dans la page Égaliseur.
+  Comparer graves, médiums et aigus avec des variantes bornées à ±1 dB par
+  groupe, puis comparer le résultat à la courbe initiale.
+- **Choix explicites** : chaque essai attend son résultat numéroté et ses
+  gains relus. Enregistrer sous un nouveau nom ou annuler avec restauration
+  confirmée. Une copie initiale locale est conservée avant le premier essai.
+- **Interruption sûre** : aucun réessai ni restauration automatique après
+  changement de connexion ou de contexte. Les autres commandes de la même
+  interface sont bloquées pendant le parcours.
+- Aucun son généré, aucun nouveau profil auditif, aucune nouvelle commande
+  GAIA. GTK conserve son périmètre actuel ; le diagnostic BTD 700 et le
+  sidetone ne sont pas ajoutés.
+
+### À faire après la mise à jour
+- **Windows** : quitter normalement la version précédente, installer
+  ensemble le service et l'interface 1.4.0, puis relancer. Windows App Runtime
+  2 reste nécessaire. Les réglages et préréglages sont conservés.
+- **Linux** : mettre à jour avec la méthode déjà utilisée (Flatpak, archive,
+  `.deb` ou `.rpm`), puis relancer. Le Flatpak garde son identifiant et ses
+  données ; aucune migration supplémentaire n'est nécessaire.
+- **Facultatif, Windows et KDE** : dans Égaliseur, sélectionner le mode
+  graphique et lancer les comparaisons. Restaurer ou enregistrer avant de
+  quitter ; un arrêt forcé laisse la dernière courbe appliquée sur le casque.
+  La copie initiale reste dans `assistant-eq/` sous le dossier des données.
+- Les anciens préréglages conservent les règles d'association de la 1.3.0.
+  L'assistant crée seulement de nouveaux noms et ne remplace aucune courbe
+  personnelle existante.
+
+### Qualification
+Le [lot 3](docs/LOT3-ASSISTANT-EQ.md) décrit le parcours et ses limites.
+Tests synthétiques, démonstrations et CI Windows/Linux restent distincts
+d'une séance d'écoute et d'une qualification Bluetooth matérielle.
+
 ## v1.3.0 — 29/10/2026
 
 ### En bref

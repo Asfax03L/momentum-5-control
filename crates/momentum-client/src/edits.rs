@@ -59,6 +59,10 @@ impl SliderEdits {
         self.epoch
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+
     pub fn edit(&mut self, key: SliderKey, value: i16, read: i16) -> bool {
         if !self.context.as_ref().is_some_and(|c| c.writable) {
             return false;

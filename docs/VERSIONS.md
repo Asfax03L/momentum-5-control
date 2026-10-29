@@ -13,9 +13,11 @@
 
 ## Ce que veut dire « 1.0 »
 
-- Toutes les fonctions présentes sont **essayées sur le casque**
-  (MOMENTUM 5, micrologiciel listé dans le README) ou affichées en lecture
-  seule.
+- Les commandes d'écriture du service et des interfaces sont **essayées sur le casque**
+  (MOMENTUM 5, micrologiciel listé dans le README). Les nouveaux parcours
+  d'interface peuvent être vérifiés en démonstration et en CI ; cela ne
+  constitue pas une séance d'écoute ni une nouvelle qualification matérielle.
+  Ces limites sont indiquées dans les notes de version.
 - Les fichiers, la ligne de commande et l'API ci-dessous sont **stables**
   pour toute la série 1.x.
 - Le périmètre reste celui de la [ROADMAP](ROADMAP.md) : jamais de mise à
@@ -69,6 +71,13 @@ Les interfaces WinUI et KDE proposent cette action sans écriture au casque.
 Une ancienne version peut retirer ces commentaires en réenregistrant le
 fichier ; il faudra alors réassocier les préréglages dans la version récente.
 
+## Assistant EQ depuis la 1.4.0
+
+L'assistant EQ (1.4.0) conserve le format des préréglages et n'ajoute aucune
+commande à l'API. Ses copies initiales sont des courbes indépendantes dans
+`assistant-eq/`, importables par le parcours existant. Elles ne sont pas
+incluses dans l'export JSON des réglages et ne sont pas purgées automatiquement.
+
 ## Micrologiciel du casque
 
 Une nouvelle version du micrologiciel peut changer le comportement d'une
@@ -82,5 +91,6 @@ Seule la dernière version mineure 1.x reçoit des corrections ; une faille
 corrigée sort en version CORRECTIF. Signalement des failles et délais :
 [SECURITY.md](../SECURITY.md).
 
-Pas de calendrier fixe : une version sort quand elle est prête et essayée
-sur le casque.
+Pas de calendrier fixe : une version sort quand les contrôles requis sont
+réussis. Toute nouvelle écriture attend son essai sur le casque ; les
+parcours logiciels et les limites des essais matériels sont signalés séparément.
