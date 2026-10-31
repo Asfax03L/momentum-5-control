@@ -39,6 +39,11 @@ impl Client {
         Ok(client)
     }
 
+    /// Comme [`Self::connect`] : sous Windows, rien ne démarre le service.
+    pub fn connect_running() -> Result<Self, ClientError> {
+        Self::connect()
+    }
+
     /// État courant du casque vu par le service.
     pub fn snapshot(&self) -> Result<Snapshot, ClientError> {
         match call(&Request::Snapshot)? {

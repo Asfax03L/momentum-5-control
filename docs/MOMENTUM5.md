@@ -625,6 +625,23 @@ Bluetooth fonctionne toujours (`ctl etat`). Le débranchement laisse le
 Bluetooth connecté. Les formats sont les formats **par défaut** de Windows ;
 la liste complète des formats acceptés n'a pas été interrogée.
 
+## Identifiants jamais envoyés
+
+Le client (`GaiaClient::request`, seul chemin d'envoi) refuse ces identifiants
+du vendor `0495` avant tout envoi, et le refus laisse la session intacte :
+
+| Identifiant | Raison | Origine |
+|---|---|---|
+| `0605` | a éteint un MOMENTUM 4 à trois reprises | momentum-menu, non essayé sur le M5 |
+| `0607`, `0613`, `0685` | ont coupé le lien d'un MOMENTUM 4 jusqu'au redémarrage du casque | momentum-menu, non essayé sur le M5 |
+| `060F` | redémarre le casque | capture sur le M5 (priorité du mode audio) |
+| `1405`, `1406` | suppression d'un appairage, exclue du projet | momentum-menu, non essayé sur le M5 |
+
+Le reste de la plage `06xx` n'est pas interdit : `0600`, `0601`, `0602`,
+`0603`, `060A` et `060B` figurent dans les captures de l'application officielle
+sur le M5. Cette liste protège, sans garantir qu'aucun autre identifiant n'est
+dangereux : le balayage d'identifiants reste exclu.
+
 ## Sources
 
 - Relevé `probe --deep` (ce dépôt, `tests/m5_captures.rs`).

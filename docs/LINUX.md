@@ -325,6 +325,29 @@ déclaration (`krunner/dbusplugins/openheadset-control-krunner.desktop`).
 Le Flatpak ne peut pas exporter ce fichier : avec le Flatpak, la recherche
 n'est pas disponible.
 
+## Barre d'état (Waybar, Hyprland)
+
+`ctl barre` écrit l'état en un objet JSON au format du module `custom` de
+Waybar : batterie (`text`, `percentage`), mode de bruit (`alt`), détail
+(`tooltip`) et classes CSS `connecte`, `arret`, `adaptatif`, `personnalise`,
+`faible`, `en-charge`, `deconnecte`, `service-arrete`. La commande lit l'état
+déjà connu du service : elle n'envoie rien au casque, n'ouvre aucune connexion
+directe et ne démarre pas un service arrêté.
+
+```jsonc
+// ~/.config/waybar/config.jsonc
+"custom/casque": {
+  "exec": "ctl barre",
+  "return-type": "json",
+  "interval": 30,
+  "format": "🎧 {}",
+  "on-click": "momentum-kirigami"
+}
+```
+
+Avec le Flatpak, remplacer `ctl barre` par
+`flatpak run --command=ctl io.github.asfax03l.openheadset-control barre`.
+
 ## Mode jeu (Decky Loader)
 
 En mode jeu de Bazzite ou du Steam Deck, l'extension Decky

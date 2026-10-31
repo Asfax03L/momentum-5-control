@@ -2539,3 +2539,21 @@ Initial curve
 
 Résultat
 Result
+
+commande {} interdite : refusée sans rien envoyer au casque
+command {} is forbidden: refused without sending anything to the headset
+
+Service OpenHeadset Control arrêté
+OpenHeadset Control service stopped
+
+Réduction de bruit : arrêt
+Noise cancelling: off
+
+Réduction de bruit : adaptative
+Noise cancelling: adaptive
+
+Réduction de bruit : personnalisée ({} %)
+Noise cancelling: custom ({} %)
+
+État de charge inconnu
+Unknown charging state

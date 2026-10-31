@@ -7,9 +7,13 @@
 //! Une valeur non lue vaut `null` ; une demande acquittée n'est pas décrite
 //! comme relue : `resultat` conserve la description de son issue.
 
-use crate::device::{AudioMode, EqState, HeadsetState, NoiseState, PromptMode, SoundProfileStatus};
+use crate::alerts::LOW_BATTERY;
+use crate::device::{
+    AudioMode, ChargerStatus, EqState, HeadsetState, NoiseState, PromptMode, SoundProfileStatus,
+};
 use crate::diagnostic::mask_addresses;
-use crate::protocol::messages::M5NoiseMode;
+use crate::i18n::{tr, trf};
+use crate::protocol::messages::{M5NoiseMode, OnHeadState};
 use crate::viewmodel::stream_label;
 use serde_json::{Value, json};
 
@@ -107,6 +111,67 @@ pub fn state_json(state: Option<&HeadsetState>) -> String {
         out.push_str(&field);
         out
     }) + "}"
+}
+
+/// État pour un module de barre d'état (`custom` de Waybar : `text`, `alt`,
+/// `tooltip`, `class`, `percentage`). Ce format suit Waybar : il n'est pas
+/// versionné comme les autres sorties. Ni nom ni adresse.
+///
+/// `state` vaut `None` sans casque ; `service_running` à `false` distingue le
+/// service arrêté, que cette sortie ne démarre pas.
+pub fn status_bar_json(state: Option<&HeadsetState>, service_running: bool) -> String {
+    let Some(s) = state else {
+        let (alt, tooltip) = if service_running {
+            ("deconnecte", tr("Casque non connecté"))
+        } else {
+            ("service-arrete", tr("Service OpenHeadset Control arrêté"))
+        };
+        return json!({"text": "—", "alt": alt, "tooltip": tooltip, "class": [alt]}).to_string();
+    };
+    let (alt, noise) = match s.noise.mode() {
+        M5NoiseMode::Off => ("arret", tr("Réduction de bruit : arrêt").to_string()),
+        M5NoiseMode::Adaptive => (
+            "adaptatif",
+            tr("Réduction de bruit : adaptative").to_string(),
+        ),
+        M5NoiseMode::Custom { level } => (
+            "personnalise",
+            trf("Réduction de bruit : personnalisée ({} %)", &[&level]),
+        ),
+    };
+    let mut classes = vec!["connecte", alt];
+    if s.battery <= LOW_BATTERY {
+        classes.push("faible");
+    }
+    let mut tooltip = vec![trf("Batterie : {} %", &[&s.battery]), noise];
+    if s.noise.anti_wind {
+        tooltip.push(tr("Anti-vent activé").to_string());
+    }
+    match s.charge_state.map(|c| c.primary_status) {
+        Some(ChargerStatus::Charging) => {
+            classes.push("en-charge");
+            tooltip.push(tr("En charge").to_string());
+        }
+        Some(ChargerStatus::Unknown(_)) => tooltip.push(tr("État de charge inconnu").to_string()),
+        Some(ChargerStatus::Disconnected) | None => {}
+    }
+    match s.on_head_state {
+        Some(OnHeadState::Worn) => tooltip.push(tr("Porté").to_string()),
+        Some(OnHeadState::NotWorn) => tooltip.push(tr("Non porté").to_string()),
+        Some(OnHeadState::Unknown(_)) | None => {}
+    }
+    let stream = stream_label(s.codec, s.sample_rate_hz);
+    if !stream.is_empty() {
+        tooltip.push(stream);
+    }
+    json!({
+        "text": format!("{} %", s.battery),
+        "alt": alt,
+        "tooltip": tooltip.join("\n"),
+        "class": classes,
+        "percentage": s.battery,
+    })
+    .to_string()
 }
 
 /// Connexion exportable : ni adresse, ni empreinte opaque du service.
