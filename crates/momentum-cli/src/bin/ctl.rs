@@ -68,6 +68,9 @@ enum Command {
     Man,
     /// Affiche l'état du casque. Passe par le service s'il tourne.
     Etat,
+    /// État pour un module de barre d'état (Waybar) : un objet JSON, toujours
+    /// par le service, sans le démarrer ni parler au casque.
+    Barre,
     /// Liste les scènes du fichier scenes.txt.
     Scenes,
     /// Suite d'essais avant une publication (service requis) : chaque
@@ -623,6 +626,7 @@ mod app {
             Command::Essais { .. } => bail!("la suite d'essais a son propre chemin"),
             Command::Reglages { .. } => bail!("les réglages locaux ne passent pas par le service"),
             Command::Scenes | Command::Completions { .. } | Command::Man => return Ok(false),
+            Command::Barre => bail!("la barre d'état a son propre chemin"),
             Command::Etat => {
                 eprintln!("(par le service momentum-daemon)");
                 output.readback.state = snapshot.state;
@@ -988,7 +992,26 @@ mod app {
         Ok((transport, chosen.device_name))
     }
 
+    /// Sortie de `ctl barre` : un service absent n'est pas une erreur, le
+    /// module l'affiche et réessaie à l'intervalle suivant.
+    fn status_bar() -> String {
+        use momentum_client::Client;
+        match Client::connect_running().and_then(|client| client.snapshot()) {
+            Ok(snapshot) => momentum_core::json::status_bar_json(snapshot.state.as_ref(), true),
+            Err(_) => momentum_core::json::status_bar_json(None, false),
+        }
+    }
+
     pub fn run(args: &Args, output: &mut Output) -> anyhow::Result<()> {
+        if matches!(args.command, Command::Barre) {
+            let text = status_bar();
+            if args.json {
+                output.value = Some(text);
+            } else {
+                super::print_json(&text)?;
+            }
+            return Ok(());
+        }
         // Avant toute connexion au service ou recherche Bluetooth.
         if let Command::Reglages { action } = &args.command {
             use super::SettingsAction;
@@ -1097,6 +1120,7 @@ mod app {
             }
             Command::Reglages { .. } => bail!("aucun accès au casque pour les réglages locaux"),
             Command::Etat => print_state(output, &headset.read_state()?),
+            Command::Barre => bail!("la barre d'état ne parle jamais au casque"),
             Command::Scenes | Command::Completions { .. } | Command::Man => {}
             Command::Scene { ref nom } => {
                 let (list, _) = paths::load_scenes();

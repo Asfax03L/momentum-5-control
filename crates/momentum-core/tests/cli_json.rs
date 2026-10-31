@@ -1,6 +1,9 @@
 //! Contrats JSON publics : lectures absentes, échappement et compatibilité.
 
-use momentum_core::device::{AudioMode, EqState, HeadsetState, NoiseState, PromptMode};
+use momentum_core::device::{
+    AudioMode, ChargeReading, ChargerStatus, EqState, HeadsetState, NoiseState, OnHeadState,
+    PromptMode,
+};
 use momentum_core::json::{self, ConnectionSummary, Readback};
 use serde_json::{Value, json};
 
@@ -136,4 +139,69 @@ fn reglages_optionnels_conservent_false_et_zero() {
     assert_eq!(value["etat"]["multipoint"], false);
     assert_eq!(value["etat"]["volume_invites"], 77);
     assert!(value.get("erreur").is_none());
+}
+
+fn bar_state() -> HeadsetState {
+    HeadsetState {
+        battery: 70,
+        noise: NoiseState {
+            anc_enabled: true,
+            adaptive: true,
+            anti_wind: false,
+            level: 0,
+        },
+        ..HeadsetState::default()
+    }
+}
+
+#[test]
+fn barre_distingue_service_arrete_et_casque_absent() {
+    let stopped = parse(json::status_bar_json(None, false));
+    assert_eq!(stopped["class"], json!(["service-arrete"]));
+    assert_eq!(stopped["text"], "—");
+    assert!(stopped.get("percentage").is_none());
+    let absent = parse(json::status_bar_json(None, true));
+    assert_eq!(absent["class"], json!(["deconnecte"]));
+    assert_eq!(absent["alt"], "deconnecte");
+}
+
+#[test]
+fn barre_decrit_batterie_et_mode_sans_inventer_la_charge() {
+    let value = parse(json::status_bar_json(Some(&bar_state()), true));
+    assert_eq!(value["text"], "70 %");
+    assert_eq!(value["percentage"], 70);
+    assert_eq!(value["alt"], "adaptatif");
+    assert_eq!(value["class"], json!(["connecte", "adaptatif"]));
+
+    // 100 % en charge reste « en charge », jamais « charge terminée ».
+    let state = HeadsetState {
+        battery: 100,
+        charge_state: Some(ChargeReading {
+            primary_status: ChargerStatus::Charging,
+            secondary_raw: Some(0),
+        }),
+        on_head_state: Some(OnHeadState::Worn),
+        ..bar_state()
+    };
+    let value = parse(json::status_bar_json(Some(&state), true));
+    assert_eq!(
+        value["class"],
+        json!(["connecte", "adaptatif", "en-charge"])
+    );
+}
+
+#[test]
+fn barre_signale_la_batterie_faible_au_meme_seuil_que_les_alertes() {
+    let at = |battery| {
+        let state = HeadsetState {
+            battery,
+            ..bar_state()
+        };
+        parse(json::status_bar_json(Some(&state), true))["class"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("faible"))
+    };
+    assert!(at(momentum_core::alerts::LOW_BATTERY));
+    assert!(!at(momentum_core::alerts::LOW_BATTERY + 1));
 }

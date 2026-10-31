@@ -109,6 +109,28 @@ impl Client {
         Ok(client)
     }
 
+    /// Comme [`Self::connect`], sans jamais démarrer le service : un affichage
+    /// interrogé en boucle ne doit pas relancer un service arrêté.
+    pub fn connect_running() -> Result<Self, ClientError> {
+        let (proxy, running) = block_on(async {
+            let connection = Connection::session().await?;
+            let bus = zbus::fdo::DBusProxy::new(&connection).await?;
+            let name = zbus::names::BusName::try_from(BUS_NAME)?;
+            let running = bus.name_has_owner(name).await?;
+            let proxy = ControlProxy::builder(&connection)
+                .destination(BUS_NAME)
+                .path(OBJECT_PATH)
+                .build()
+                .await?;
+            zbus::Result::Ok((proxy, running))
+        })
+        .map_err(service_error)?;
+        if !running {
+            return Err(ClientError::NoService);
+        }
+        Ok(Self { proxy })
+    }
+
     /// État courant du casque vu par le service.
     pub fn snapshot(&self) -> Result<Snapshot, ClientError> {
         let json = block_on(self.proxy.snapshot()).map_err(service_error)?;
