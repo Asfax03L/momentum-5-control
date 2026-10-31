@@ -24,6 +24,7 @@ use thiserror::Error;
 use tracing::{trace, warn};
 
 use crate::hex::to_hex;
+use crate::protocol::command::is_forbidden;
 use crate::protocol::{CommandId, Frame, FrameDecoder, PacketKind, ProtocolError};
 use crate::transport::{Transport, TransportError};
 
@@ -40,6 +41,8 @@ pub enum ClientError {
     },
     #[error("{}", trf("session désynchronisée après un échange interrompu sur {} : une réponse tardive serait ambiguë, il faut rouvrir la connexion", &[&.0]))]
     Desynchronized(CommandId),
+    #[error("{}", trf("commande {} interdite : refusée sans rien envoyer au casque", &[&.0]))]
+    Forbidden(CommandId),
 }
 
 /// Trace brute des échanges, pour le rapport du probe.
@@ -180,6 +183,11 @@ impl<T: Transport> GaiaClient<T> {
     /// la session est désynchronisée (voir le module) : les requêtes
     /// suivantes échouent sans rien envoyer.
     pub fn request(&mut self, request: &Frame, timeout: Duration) -> Result<Frame, ClientError> {
+        // Seul chemin d'envoi : aucun appelant ne peut contourner ce refus.
+        if is_forbidden(request.vendor, request.command) {
+            warn!(command = %request.command, "commande interdite refusée");
+            return Err(ClientError::Forbidden(request.command));
+        }
         if let Some(command) = self.desynchronized {
             return Err(ClientError::Desynchronized(command));
         }
@@ -280,6 +288,23 @@ mod tests {
             Err(ClientError::Desynchronized(_))
         ));
         assert_eq!(client.transport().sent().len(), 1);
+    }
+
+    #[test]
+    fn forbidden_commands_never_reach_the_transport() {
+        use crate::protocol::VENDOR_SENNHEISER;
+        use crate::protocol::command::FORBIDDEN_COMMANDS;
+        let mut client = GaiaClient::new(MockTransport::new());
+        for command in FORBIDDEN_COMMANDS {
+            let frame = Frame::new(VENDOR_SENNHEISER, command, vec![]);
+            assert!(matches!(
+                client.request(&frame, T),
+                Err(ClientError::Forbidden(c)) if c == command
+            ));
+        }
+        assert!(client.transport().sent().is_empty());
+        // Un refus n'est pas un échange interrompu : la session reste saine.
+        assert!(!client.is_desynchronized());
     }
 
     /// Transport dont le premier envoi échoue alors que les octets sont

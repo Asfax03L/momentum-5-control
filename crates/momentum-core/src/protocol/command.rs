@@ -121,6 +121,30 @@ impl fmt::Display for CommandId {
     }
 }
 
+/// Identifiants du vendor 0x0495 que le client n'envoie jamais, quel que soit
+/// l'appelant. Aucune fonction du projet n'en a besoin.
+///
+/// - `0605` : a éteint un MOMENTUM 4 à trois reprises ; `0607`, `0613`, `0685` :
+///   ont coupé le lien d'un MOMENTUM 4 jusqu'au redémarrage du casque. Source :
+///   momentum-menu (agrmohit), faits seulement ; effet sur le M5 non essayé.
+/// - `060F` : redémarre le M5 (capture du 09/10/2026, docs/MOMENTUM5.md).
+/// - `1405`, `1406` : suppression d'un appairage selon momentum-menu, exclue du
+///   projet ; effet sur le M5 non essayé.
+pub const FORBIDDEN_COMMANDS: [CommandId; 7] = [
+    CommandId::new(0x0605),
+    CommandId::new(0x0607),
+    CommandId::new(0x060F),
+    CommandId::new(0x0613),
+    CommandId::new(0x0685),
+    CommandId::new(0x1405),
+    CommandId::new(0x1406),
+];
+
+/// `true` : le client refuse cette commande avant tout envoi.
+pub fn is_forbidden(vendor: u16, command: CommandId) -> bool {
+    vendor == VENDOR_SENNHEISER && FORBIDDEN_COMMANDS.contains(&command)
+}
+
 /// Lectures (GET) du vendor 0x0495.
 ///
 /// Les écritures sont dans [`set`], chacune ajoutée après capture de l'app et
