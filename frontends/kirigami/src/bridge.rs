@@ -2188,7 +2188,7 @@ impl qobject::Headset {
                     Ok(PipeWireAudio {
                         outputs: vec![momentum_core::pipewire_audio::Output {
                             profile: Some(momentum_core::pipewire_audio::Profile::A2dp),
-                            codec: Some("SBC"),
+                            codec: Some("AAC"),
                             default: Some(true),
                         }],
                         default_headset: Some(true),

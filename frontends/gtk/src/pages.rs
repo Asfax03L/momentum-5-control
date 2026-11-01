@@ -1263,7 +1263,7 @@ impl Extras {
             let audio = PipeWireAudio {
                 outputs: vec![momentum_core::pipewire_audio::Output {
                     profile: Some(momentum_core::pipewire_audio::Profile::A2dp),
-                    codec: Some("SBC"),
+                    codec: Some("AAC"),
                     default: Some(true),
                 }],
                 default_headset: Some(true),
@@ -1276,7 +1276,7 @@ impl Extras {
             };
             *self.codec_card.borrow_mut() = Some(CodecCard {
                 card: "bluez_card.demo".to_string(),
-                choices: vec![choice("AAC", false), choice("SBC", true)],
+                choices: vec![choice("AAC", true), choice("SBC", false)],
             });
             let updating = self.updating.borrow().clone();
             self.refresh_codec(&updating);
