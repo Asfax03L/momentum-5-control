@@ -99,6 +99,15 @@ pub fn describe_state(state: &HeadsetState) -> String {
     );
     show(
         &mut lines,
+        tr("Retour de voix (sidetone)"),
+        state.sidetone,
+        |l| match l {
+            0 => tr("arrêt").to_string(),
+            l => trf("niveau {}", &[&l]),
+        },
+    );
+    show(
+        &mut lines,
         tr("Extinction automatique"),
         state.auto_off_seconds,
         |s| match s {

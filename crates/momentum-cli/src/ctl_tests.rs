@@ -94,3 +94,13 @@ fn reconnect_never_uses_the_direct_gaia_transport() {
         assert!(headset.client().transport().sent().is_empty());
     }
 }
+
+#[test]
+fn sidetone_accepts_only_the_observed_levels() {
+    for level in ["0", "1", "2"] {
+        assert!(Args::try_parse_from(["ctl", "sidetone", level]).is_ok());
+    }
+    for level in ["3", "4", "-1", "x"] {
+        assert!(Args::try_parse_from(["ctl", "sidetone", level]).is_err());
+    }
+}

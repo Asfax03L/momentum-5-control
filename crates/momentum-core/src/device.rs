@@ -550,6 +550,10 @@ pub struct HeadsetState {
     /// 100 % ne signifie jamais « charge terminée ». `None` : non lu.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub charge_state: Option<ChargeReading>,
+    /// Sidetone (`0806` / `0886`), valeur brute : une valeur hors de
+    /// [`SIDETONE_LEVELS`] reste affichable, jamais envoyée. `None` : non lu.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sidetone: Option<u8>,
 }
 
 impl HeadsetState {
@@ -557,7 +561,8 @@ impl HeadsetState {
     ///
     /// Notifications relevées dans la capture de Smart Control Plus :
     /// `0683` batterie, `1A85` ANC, `1A81` paires, `1A83` curseur,
-    /// `3685` audio spatial, `0482` état physique du port. Les autres sont ignorées.
+    /// `3685` audio spatial, `0482` état physique du port, `0886` sidetone. Les
+    /// autres sont ignorées.
     pub fn apply_notification(&mut self, frame: &Frame) -> bool {
         if frame.vendor != VENDOR_SENNHEISER || frame.kind() != PacketKind::Notification {
             return false;
@@ -578,6 +583,10 @@ impl HeadsetState {
                     primary_status: status,
                     secondary_raw: None,
                 });
+            }
+        } else if request == get::SIDETONE {
+            if let Ok(level) = parse_sidetone(p) {
+                self.sidetone = Some(level);
             }
         } else if request == get::BATTERY {
             if let Ok(v) = parse_battery(p) {
@@ -954,6 +963,7 @@ impl<T: Transport> Headset<T> {
             sample_rate_hz: None,
             on_head_state: self.optional(|h| h.on_head_state())?,
             charge_state: self.optional(|h| h.charge_state())?,
+            sidetone: self.optional(|h| h.sidetone())?,
         })
     }
 
@@ -1746,6 +1756,10 @@ mod tests {
             }
             mock = mock.expect(&h("FF 03 00 00 04 95 04 02"), &h(port_reply));
             mock = mock.expect(&h("FF 03 00 00 04 95 06 02"), &h(charge_reply));
+            mock = mock.expect(
+                &h("FF 03 00 00 04 95 08 06"),
+                &h("FF 03 00 01 04 95 09 06 01"),
+            );
             let mut headset = Headset::validated_for_tests(mock, T);
             let state = headset.read_state().unwrap();
             assert!(headset.client().transport().is_exhausted());
@@ -1759,6 +1773,7 @@ mod tests {
             assert_eq!(state.codec, Some(2));
             assert_eq!(state.on_head_state, expected_port);
             assert_eq!(state.charge_state, expected_charge);
+            assert_eq!(state.sidetone, Some(1));
         }
     }
 

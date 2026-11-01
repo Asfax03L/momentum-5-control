@@ -149,6 +149,11 @@ enum Command {
     ReponseAuto { etat: OnOff },
     /// Active ou désactive les appels confortables.
     AppelsConfort { etat: OnOff },
+    /// Retour de voix (sidetone) : 0 arrêt, 1 ou 2, seuls niveaux observés.
+    Sidetone {
+        #[arg(value_parser = clap::value_parser!(u8).range(0..=2))]
+        niveau: u8,
+    },
     /// Extinction automatique : jamais, 15, 30 ou 60 minutes.
     Extinction { duree: AutoOff },
     /// Invites : tonalités seules, ou tonalités et voix.
@@ -696,6 +701,7 @@ mod app {
             Command::SmartPause { etat } => Api::SetSmartPause(etat.is_on()),
             Command::ReponseAuto { etat } => Api::SetAutoAnswer(etat.is_on()),
             Command::AppelsConfort { etat } => Api::SetComfortCall(etat.is_on()),
+            Command::Sidetone { niveau } => Api::SetSidetone(*niveau),
             Command::Extinction { duree } => Api::SetAutoOff(duree.seconds()),
             Command::Invites { mode } => Api::SetPromptMode(match mode {
                 Prompts::Tonalites => PromptMode::TonesOnly,
@@ -1340,6 +1346,12 @@ mod app {
                 headset.set_comfort_call(etat.is_on())?;
                 check(headset, output, "les appels confortables", |s| {
                     s.comfort_call == Some(etat.is_on())
+                })?;
+            }
+            Command::Sidetone { niveau } => {
+                headset.set_sidetone(niveau)?;
+                check(headset, output, "le sidetone", |s| {
+                    s.sidetone == Some(niveau)
                 })?;
             }
             Command::Extinction { duree } => {

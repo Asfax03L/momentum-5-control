@@ -16,7 +16,8 @@ use momentum_core::assistant::{self, Platform, StepAction};
 use momentum_core::audio_check::WindowsAudio;
 use momentum_core::battery_log::{self, BatteryLog};
 use momentum_core::device::{
-    AUTO_OFF_CHOICES, NoiseModeRequest, PromptMode, check_name, prompt_volume_from_percent,
+    AUTO_OFF_CHOICES, NoiseModeRequest, PromptMode, SIDETONE_LEVELS, check_name,
+    prompt_volume_from_percent,
 };
 use momentum_core::diagnostic::{self, DiagnosticInput};
 use momentum_core::hotkeys::{self, HotkeyAction};
@@ -292,6 +293,7 @@ enum Msg {
     Comfort(bool),
     BatteryProtection(bool),
     AutoOff(Option<usize>),
+    Sidetone(Option<usize>),
     PromptMode(Option<usize>),
     AudioMode(Option<usize>),
     Band(usize, f64, u64),
@@ -1839,6 +1841,15 @@ impl Component for Root {
                     self.send(Command::SetBatteryProtection(on));
                 }
             }
+            Msg::Sidetone(Some(i)) => {
+                let st =
+                    viewmodel::settings_view(state.as_ref(), self.snapshot.info.as_ref(), true);
+                if i32::try_from(i).ok() != Some(st.sidetone)
+                    && let Some(&level) = SIDETONE_LEVELS.get(i)
+                {
+                    self.send(Command::SetSidetone(level));
+                }
+            }
             Msg::AutoOff(Some(i)) => {
                 let st =
                     viewmodel::settings_view(state.as_ref(), self.snapshot.info.as_ref(), true);
@@ -2211,6 +2222,7 @@ impl Component for Root {
             | Msg::Band(_, _, _)
             | Msg::PromptVolume(_, _)
             | Msg::AutoOff(None)
+            | Msg::Sidetone(None)
             | Msg::PromptMode(None)
             | Msg::AudioMode(None)
             | Msg::Preset(None) => {}
@@ -3604,6 +3616,14 @@ impl Root {
                         availability(v.connected, v.writable, self.snapshot.state.is_some_and(|s| s.comfort_call.is_some())),
                         context.callback(Msg::Comfort),
                     ),
+                    TextBlock::new().text(tr("Retour de voix (sidetone)")),
+                    availability_hint(availability(v.connected, v.writable, self.snapshot.state.is_some_and(|s| s.sidetone.is_some()))),
+                    ComboBox::new()
+                        .items_source(viewmodel::SIDETONE_LABELS.map(tr))
+                        .selected_index(index(st.sidetone))
+                        .is_enabled(st.sidetone_enabled)
+                        .automation_name(tr("Retour de voix (sidetone)"))
+                        .on_selection_changed(context.callback(Msg::Sidetone)),
                 )),
             ),
             card(

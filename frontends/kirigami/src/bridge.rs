@@ -73,6 +73,9 @@ pub mod qobject {
         #[qproperty(QStringList, auto_off_labels)]
         #[qproperty(i32, auto_off)]
         #[qproperty(bool, auto_off_enabled)]
+        #[qproperty(QStringList, sidetone_labels)]
+        #[qproperty(i32, sidetone)]
+        #[qproperty(bool, sidetone_enabled)]
         #[qproperty(QStringList, prompt_modes)]
         #[qproperty(i32, prompt_mode)]
         #[qproperty(bool, prompts_enabled)]
@@ -247,6 +250,8 @@ pub mod qobject {
         fn send_battery_protection(self: Pin<&mut Headset>, on: bool);
         #[qinvokable]
         fn send_auto_off_index(self: Pin<&mut Headset>, index: i32);
+        #[qinvokable]
+        fn send_sidetone_index(self: Pin<&mut Headset>, index: i32);
         #[qinvokable]
         fn send_prompt_mode_index(self: Pin<&mut Headset>, index: i32);
         /// Volume des invites en % (échelle de l'app).
@@ -463,7 +468,8 @@ use momentum_client::tracker::Tracker;
 use momentum_client::{Command, Event, Outcome, Snapshot};
 use momentum_core::battery_log::BatteryLog;
 use momentum_core::device::{
-    AUTO_OFF_CHOICES, NoiseModeRequest, PromptMode, check_name, prompt_volume_from_percent,
+    AUTO_OFF_CHOICES, NoiseModeRequest, PromptMode, SIDETONE_LEVELS, check_name,
+    prompt_volume_from_percent,
 };
 use momentum_core::diagnostic::{self, DiagnosticInput};
 use momentum_core::hotkeys::{self, HotkeyAction};
@@ -585,6 +591,9 @@ pub struct HeadsetRust {
     auto_off_labels: QStringList,
     auto_off: i32,
     auto_off_enabled: bool,
+    sidetone_labels: QStringList,
+    sidetone: i32,
+    sidetone_enabled: bool,
     prompt_modes: QStringList,
     prompt_mode: i32,
     prompts_enabled: bool,
@@ -765,6 +774,9 @@ impl Default for HeadsetRust {
             auto_off_labels: string_list(viewmodel::AUTO_OFF_LABELS.map(tr)),
             auto_off: -1,
             auto_off_enabled: false,
+            sidetone_labels: string_list(viewmodel::SIDETONE_LABELS.map(tr)),
+            sidetone: -1,
+            sidetone_enabled: false,
             prompt_modes: string_list(viewmodel::PROMPT_MODES.map(tr)),
             prompt_mode: -1,
             prompts_enabled: false,
@@ -1546,6 +1558,8 @@ impl qobject::Headset {
             .set_battery_protection_enabled(st.battery_protection.enabled);
         h.as_mut().set_auto_off(st.auto_off);
         h.as_mut().set_auto_off_enabled(st.auto_off_enabled);
+        h.as_mut().set_sidetone(st.sidetone);
+        h.as_mut().set_sidetone_enabled(st.sidetone_enabled);
         h.as_mut().set_prompt_mode(st.prompt_mode);
         h.as_mut().set_prompts_enabled(st.prompts_enabled);
         h.as_mut().set_prompt_volume(display_prompt);
@@ -1669,6 +1683,15 @@ impl qobject::Headset {
 
     fn send_battery_protection(self: Pin<&mut Self>, on: bool) {
         self.send(Command::SetBatteryProtection(on));
+    }
+
+    fn send_sidetone_index(self: Pin<&mut Self>, index: i32) {
+        if let Some(&level) = usize::try_from(index)
+            .ok()
+            .and_then(|i| SIDETONE_LEVELS.get(i))
+        {
+            self.send(Command::SetSidetone(level));
+        }
     }
 
     fn send_auto_off_index(self: Pin<&mut Self>, index: i32) {

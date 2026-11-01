@@ -251,6 +251,7 @@ impl Readback {
             "reponse_auto": s.and_then(|s| s.auto_answer),
             "appels_confort": s.and_then(|s| s.comfort_call),
             "extinction_secondes": s.and_then(|s| s.auto_off_seconds),
+            "sidetone": s.and_then(|s| s.sidetone),
             "invites": s.and_then(|s| s.prompt_mode).map(|p| match p {
                 PromptMode::TonesOnly => "tonalites", PromptMode::TonesAndVoice => "voix",
                 PromptMode::Unknown => "inconnu",

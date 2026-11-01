@@ -177,6 +177,7 @@ fn to_worker(command: Command, shared: &Shared) -> Result<WorkerCommand, String>
         Command::SetSmartPause(on) => WorkerCommand::SetSmartPause(on),
         Command::SetAutoAnswer(on) => WorkerCommand::SetAutoAnswer(on),
         Command::SetComfortCall(on) => WorkerCommand::SetComfortCall(on),
+        Command::SetSidetone(level) => WorkerCommand::SetSidetone(level),
         Command::SetAutoOff(s) => WorkerCommand::SetAutoOff(s),
         Command::SetPromptMode(m) => WorkerCommand::SetPromptMode(m),
         Command::SetPromptVolume(v) => WorkerCommand::SetPromptVolume(v),

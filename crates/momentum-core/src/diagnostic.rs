@@ -204,6 +204,7 @@ pub fn build(input: &DiagnosticInput) -> String {
                 ("réponse auto", s.auto_answer.is_some()),
                 ("appels confortables", s.comfort_call.is_some()),
                 ("extinction", s.auto_off_seconds.is_some()),
+                ("sidetone", s.sidetone.is_some()),
                 ("invites", s.prompt_mode.is_some()),
                 ("codec", s.codec.is_some()),
                 ("fréquence", s.sample_rate_hz.is_some()),

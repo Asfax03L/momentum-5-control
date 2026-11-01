@@ -68,7 +68,8 @@ The assistant can be reopened from **About** > “First-launch assistant”.
 - **Battery**: curve over 24 h, 7 or 30 days, measured on this PC (CSV
   export, confirmed clearing).
 - **Connection and audio**: link state and system audio output, read-only.
-- **Settings**: Smart Pause, auto-answer, comfort calls, auto-off, battery
+- **Settings**: Smart Pause, auto-answer, comfort calls, voice feedback
+  (sidetone), auto-off, battery
   protection, prompts, headphones name, touch controls; light or dark
   theme; **language**; quick panel content; keyboard shortcuts; settings
   backup and restore.

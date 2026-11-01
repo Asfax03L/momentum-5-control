@@ -278,9 +278,10 @@ mod tests {
         use crate::viewmodel as v;
         let known: std::collections::HashSet<String> =
             catalogue_entries().into_iter().map(|(fr, _)| fr).collect();
-        let lists: [&[&str]; 8] = [
+        let lists: [&[&str]; 9] = [
             &v::NOISE_MODES,
             &v::AUTO_OFF_LABELS,
+            &v::SIDETONE_LABELS,
             &v::PROMPT_MODES,
             &v::AUDIO_MODES,
             &v::SCENE_SWITCH_CHOICES,

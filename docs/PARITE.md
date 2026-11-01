@@ -19,6 +19,7 @@ commande ; le widget Plasma se limite aux réglages rapides.
 | Assistant EQ guidé, trois groupes et restauration | ✅ (1.4) | ✅ (1.4) | — parcours interactif | — |
 | Mode audio : Speech Clarity, profil personnalisé | ✅ | ✅ | ✅ | 🟡 profil personnalisé seul |
 | Smart Pause, réponse automatique, appels confortables | ✅ | ✅ | ✅ | — |
+| Retour de voix (sidetone) : arrêt, niveaux 1 et 2 | ✅ | ✅ | ✅ | — |
 | Extinction automatique, protection de la batterie | ✅ | ✅ | ✅ | — |
 | Invites, volume des invites, nom du casque | ✅ | ✅ | ✅ | — |
 | Commandes tactiles | ✅ | ✅ | ✅ | — |

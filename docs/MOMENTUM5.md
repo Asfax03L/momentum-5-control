@@ -487,6 +487,11 @@ Essai depuis le PC le 01/11/2026 (Windows 11, M5AEBT 6.21.5, outil
 `[01]` et `[00]`. Chaque écriture reçoit `0905` vide, la relecture `0906` rend
 la valeur demandée et `0886` suit ; la valeur d'origine est remise et relue.
 
+Depuis cet essai : `HeadsetState.sidetone`, lu à chaque relecture complète et
+suivi par `0886`, réglable par le service, `ctl sidetone`, WinUI et KDE. Seuls
+0, 1 et 2 sont envoyés ; une autre valeur lue reste affichée telle quelle.
+Le réglage ne fait pas partie des scènes.
+
 **À valider sur le matériel** : l'effet entendu pendant un appel (aucune écoute
 ni mesure acoustique), et tout le contrat sous Linux.
 

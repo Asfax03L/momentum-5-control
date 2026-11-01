@@ -72,6 +72,7 @@ lancement ».
 - **Connexion et audio** : état de la liaison et sortie audio du système, en
   lecture seule.
 - **Paramètres** : Smart Pause, réponse automatique, appels confortables,
+  retour de voix (sidetone),
   extinction automatique, protection de la batterie, invites, nom du casque,
   commandes tactiles ; thème clair ou sombre ; **langue** ; contenu du
   panneau rapide ; raccourcis clavier ; sauvegarde et restauration des
