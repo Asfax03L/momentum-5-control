@@ -16,15 +16,16 @@ param(
 $ErrorActionPreference = 'Stop'
 $id = 'Asfax03L.OpenHeadsetControl'
 $nom = "openheadset-control-v$Version-windows-x86_64-installateur.exe"
-$url = "https://github.com/Asfax03L/openheadset-control/releases/download/v$Version/$nom"
+$url = "https://github.com/Asfax03L/momentum-5-control/releases/download/v$Version/$nom"
 $dossier = Join-Path $Sortie "a\Asfax03L\OpenHeadsetControl\$Version"
 New-Item -ItemType Directory -Force $dossier | Out-Null
 if (-not $Installateur) {
-    $Installateur = Join-Path $dossier $nom
+    # Hors du dossier des manifestes : winget validate y lit chaque fichier.
+    $Installateur = Join-Path $Sortie $nom
     Invoke-WebRequest $url -OutFile $Installateur
 }
 $empreinte = (Get-FileHash -Algorithm SHA256 $Installateur).Hash
-$schema = '1.10.0'
+$schema = '1.12.0'
 
 function Ecrire($fichier, $type, $corps) {
     $texte = "# yaml-language-server: `$schema=https://aka.ms/winget-manifest.$type.$schema.schema.json`n" +
@@ -53,11 +54,11 @@ Ecrire "$id.locale.fr-FR.yaml" 'defaultLocale' @"
 PackageLocale: fr-FR
 Publisher: Asfax03L
 PublisherUrl: https://github.com/Asfax03L
-PublisherSupportUrl: https://github.com/Asfax03L/openheadset-control/issues
+PublisherSupportUrl: https://github.com/Asfax03L/momentum-5-control/issues
 PackageName: OpenHeadset Control
-PackageUrl: https://github.com/Asfax03L/openheadset-control
+PackageUrl: https://github.com/Asfax03L/momentum-5-control
 License: MIT OR Apache-2.0
-LicenseUrl: https://github.com/Asfax03L/openheadset-control/blob/main/LICENSE-MIT
+LicenseUrl: https://github.com/Asfax03L/momentum-5-control/blob/main/LICENSE-MIT
 ShortDescription: Réglages du casque Sennheiser MOMENTUM 5 (non officiel)
 Description: Contrôle léger du casque Sennheiser MOMENTUM 5 depuis le bureau (réduction de bruit, égaliseur, scènes, batterie). Projet non officiel, sans lien avec Sennheiser ni Sonova ; seules les écritures validées sur le casque sont envoyées.
 Moniker: openheadset-control
@@ -66,7 +67,7 @@ Tags:
 - sennheiser
 - momentum
 - bluetooth
-ReleaseNotesUrl: https://github.com/Asfax03L/openheadset-control/releases/tag/v$Version
+ReleaseNotesUrl: https://github.com/Asfax03L/momentum-5-control/releases/tag/v$Version
 
 "@
 Get-ChildItem $dossier -Filter '*.yaml' | Select-Object Name

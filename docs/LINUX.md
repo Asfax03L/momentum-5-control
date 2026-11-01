@@ -299,10 +299,11 @@ Wayland) :
 
 ## Client GNOME (GTK 4)
 
-Sous GNOME, `momentum-gtk` (libadwaita) est un client du même service :
-page Accueil (batterie, mode de bruit, curseur ANC ↔ transparence,
-anti-vent, audio spatial) en 0.12, les autres pages suivent
-([`PARITE.md`](PARITE.md)). Installé par `installer-linux.sh` depuis
+Ce qu'il couvre et ce qui lui manque encore : [`PARITE.md`](PARITE.md).
+
+Sous GNOME, `momentum-gtk` (libadwaita) est un client du même service, avec les
+pages Accueil, Mon son, Scènes, Paramètres, Batterie, Connexion et audio, et À
+propos. Il est essayé en démonstration, pas encore avec un casque. Installé par `installer-linux.sh` depuis
 l'archive (entrée « OpenHeadset Control (GTK) ») ; demande GTK 4.14 et
 libadwaita 1.5 ou plus récents. Depuis le dépôt :
 
@@ -324,6 +325,21 @@ notification. Le service sert l'objet `/runner` (`org.kde.krunner1`) ;
 déclaration (`krunner/dbusplugins/openheadset-control-krunner.desktop`).
 Le Flatpak ne peut pas exporter ce fichier : avec le Flatpak, la recherche
 n'est pas disponible.
+
+## Batterie lue par le système
+
+Tant que le service n'a pas ouvert le canal de réglage, l'en-tête peut afficher
+la batterie lue par BlueZ, notée « (système) ». Cette lecture n'envoie rien au
+casque ; sous Windows, elle reste à évaluer.
+
+## Codec Bluetooth
+
+`ctl codec` liste les codecs proposés par PipeWire pour le casque connecté, et
+`ctl codec aac` en choisit un (le son peut s'interrompre un instant). C'est un
+réglage du PC, relu après le changement : rien n'est envoyé au casque, et rien ne
+change sans une demande explicite. Il faut que le service tourne et que `pactl`
+soit présent, ce qui n'est pas le cas dans le Flatpak. La même liste figure dans
+la page « Connexion et audio » des clients KDE et GNOME.
 
 ## Barre d'état (Waybar, Hyprland)
 

@@ -9,6 +9,13 @@
 
 #[cfg(target_os = "linux")]
 mod app;
+#[cfg(target_os = "linux")]
+mod pages;
+#[cfg(target_os = "linux")]
+#[path = "../../kirigami/src/pipewire.rs"]
+mod pipewire;
+#[cfg(target_os = "linux")]
+mod scene_panel;
 
 fn main() {
     #[cfg(target_os = "linux")]

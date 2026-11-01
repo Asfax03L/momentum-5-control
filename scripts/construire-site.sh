@@ -57,7 +57,7 @@ page docs/FAQ.en.md en/faq.html en "FAQ" \
     "Frequently asked questions about OpenHeadset Control"
 
 cp site/style.css assets/logo/openheadset.svg "$sortie/"
-for capture in windows-accueil-sombre windows-son-sombre kde-accueil-sombre kde-scenes-sombre; do
+for capture in windows-accueil-sombre windows-son-sombre kde-accueil-sombre kde-scenes-sombre gnome-reglages-sombre; do
     cp "docs/captures/$capture.jpg" "$sortie/captures/"
 done
 echo "site construit dans $sortie"

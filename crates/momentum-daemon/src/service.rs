@@ -233,6 +233,7 @@ fn to_api(event: WorkerEvent, shared: &mut Shared) -> Event {
     match event {
         WorkerEvent::Searching => Event::Searching,
         WorkerEvent::NotFound(reason) => Event::NotFound(reason),
+        WorkerEvent::SystemBattery(percent) => Event::SystemBattery(percent),
         WorkerEvent::Connected {
             name,
             headset_id,

@@ -21,6 +21,7 @@ body:
       options:
         - WinUI 3 (Windows)
         - Client KDE (Linux)
+        - Client GNOME (Linux)
         - ctl
         - probe
         - Service momentum-daemon

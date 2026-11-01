@@ -14,6 +14,16 @@ Elle ne constitue pas un accord de Flathub : une soumission à Flathub
 demanderait sa propre validation. Les permissions, les autres erreurs du
 manifeste et les contrôles du paquet restent vérifiés.
 
+**Blocage constaté le 01/11/2026.** Les
+[exigences de Flathub](https://docs.flathub.org/docs/for-app-authors/requirements)
+interdisent à un agent d'IA d'ouvrir ou d'automatiser une soumission, et de
+rédiger ses messages ou réponses. Elles excluent tout contenu généré ou assisté
+par IA dans les manifestes, et imposent de déclarer le code et le packaging
+générés par IA, sans garantie d'acceptation ; un manquement peut valoir un
+bannissement. Ce projet et son manifeste ont été largement écrits avec une IA.
+Une soumission demanderait donc au mainteneur de réécrire lui-même le manifeste,
+d'ouvrir la PR, de tout déclarer et d'accepter le risque d'un refus.
+
 État : **non soumis**. La soumission ouvre une PR publique sur
 `flathub/flathub` depuis le compte du mainteneur ; elle n'est faite
 qu'avec son accord. Ce document rassemble ce qui est prêt et ce qu'il

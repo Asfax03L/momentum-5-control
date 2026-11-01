@@ -352,6 +352,20 @@ fn capitalize(text: &str) -> String {
         .unwrap_or_default()
 }
 
+impl MainView {
+    /// Tant que l'état n'est pas lu, affiche la batterie lue par le système, en
+    /// le disant : ce n'est pas une relecture du casque.
+    pub fn with_system_battery(mut self, percent: Option<u8>) -> Self {
+        if !self.connected
+            && let Some(percent) = percent
+        {
+            self.battery = Some(percent);
+            self.battery_text = trf("{} % (système)", &[&percent]);
+        }
+        self
+    }
+}
+
 /// Construit la vue à partir de l'état connu du casque.
 pub fn main_view(
     name: Option<&str>,
@@ -1089,6 +1103,20 @@ mod tests {
         s.spatial_audio = Some(true);
         assert!(home_controls(&s, true).head_tracking_enabled);
         assert!(!home_controls(&s, false).head_tracking_enabled);
+    }
+
+    #[test]
+    fn system_battery_is_only_used_without_a_read_state_and_says_so() {
+        let absent = main_view(None, None, &[], None, None);
+        assert_eq!(absent.clone().with_system_battery(None).battery, None);
+        let system = absent.with_system_battery(Some(90));
+        assert_eq!(system.battery, Some(90));
+        assert!(system.battery_text.contains("90") && system.battery_text.contains('('));
+        assert!(!system.connected);
+        // Une fois l'état lu, seule la valeur du casque compte.
+        let read =
+            main_view(Some("M"), Some(&state()), &[], None, None).with_system_battery(Some(10));
+        assert_eq!(read.battery_text, "80 %");
     }
 
     #[test]

@@ -137,6 +137,8 @@ pub enum WorkerEvent {
     Searching,
     /// Recherche terminée sans casque (raison), avant un nouvel essai.
     NotFound(String),
+    /// Batterie lue par le système quand le canal GAIA n'est pas ouvert.
+    SystemBattery(Option<u8>),
     /// `read_only` : raison de la lecture seule (modèle ou micrologiciel non
     /// validé pour les écritures). `session` : numéro de cette connexion
     /// (croissant, à partir de 1).
@@ -209,6 +211,17 @@ enum SessionEnd {
     Lost(String),
 }
 
+/// Batterie annoncée par le système, sans échange avec le casque.
+#[cfg(target_os = "linux")]
+fn system_battery() -> Option<u8> {
+    momentum_core::transport::bluez_rfcomm::connected_headset_battery()
+}
+
+#[cfg(not(target_os = "linux"))]
+fn system_battery() -> Option<u8> {
+    None
+}
+
 pub fn run(commands: Receiver<Job>, notify: impl Fn(WorkerEvent)) {
     // SAFETY: première chose faite par ce thread, avant tout objet WinRT.
     #[cfg(windows)]
@@ -256,6 +269,7 @@ pub fn run(commands: Receiver<Job>, notify: impl Fn(WorkerEvent)) {
             Err(reason) => {
                 debug!(%reason, "casque introuvable");
                 notify(WorkerEvent::NotFound(reason));
+                notify(WorkerEvent::SystemBattery(system_battery()));
             }
         }
         // Attente avant nouvel essai, en restant réactif à « Quitter ».

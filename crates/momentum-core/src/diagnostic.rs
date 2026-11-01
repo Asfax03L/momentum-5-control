@@ -238,6 +238,7 @@ pub const ISSUE_FORM: &str =
 /// Choix « Interface » du formulaire, au mot près.
 pub const ISSUE_INTERFACE_WINUI: &str = "WinUI 3 (Windows)";
 pub const ISSUE_INTERFACE_KDE: &str = "Client KDE (Linux)";
+pub const ISSUE_INTERFACE_GNOME: &str = "Client GNOME (Linux)";
 /// Longueur d'adresse sûre pour les navigateurs et GitHub.
 const MAX_ISSUE_URL: usize = 7000;
 /// Fin d'un diagnostic raccourci pour tenir dans l'adresse.
@@ -339,7 +340,11 @@ mod tests {
         ] {
             assert!(form.contains(id), "{id} absent du formulaire");
         }
-        for choice in [ISSUE_INTERFACE_WINUI, ISSUE_INTERFACE_KDE] {
+        for choice in [
+            ISSUE_INTERFACE_WINUI,
+            ISSUE_INTERFACE_KDE,
+            ISSUE_INTERFACE_GNOME,
+        ] {
             assert!(
                 form.contains(&format!("- {choice}\n")),
                 "{choice} absent du formulaire"

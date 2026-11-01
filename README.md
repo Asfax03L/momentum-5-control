@@ -169,15 +169,16 @@ seul la connexion au casque :
 - **Windows** : `momentum-winui`, en WinUI 3 (fond Mica, contrôles Fluent) ;
 - **KDE Plasma** : `momentum-kirigami`, en Qt 6 / Kirigami (couleurs du
   thème Plasma, Wayland natif) ;
-- **GNOME** : `momentum-gtk`, en GTK 4 / libadwaita, encore partielle (page
-  Accueil ; rattrapage prévu dans [`docs/PARITE.md`](docs/PARITE.md)).
+- **GNOME** : `momentum-gtk`, en GTK 4 / libadwaita : mêmes pages que le client
+  KDE, sans panneau rapide ni raccourcis globaux ; essayé en démonstration, pas
+  encore avec un casque ([`docs/PARITE.md`](docs/PARITE.md)).
 
 S'y ajoutent `ctl`, le widget Plasma, la recherche KRunner, la liste de
 raccourcis Windows et l'extension Decky du mode jeu, tous clients du même
 service.
 
-Elles offrent les mêmes fonctions et partagent les mêmes fichiers de
-réglages (`scenes.txt`, `raccourcis.txt`, `prereglages.txt`,
+WinUI et KDE offrent les mêmes fonctions ; les trois interfaces partagent les
+mêmes fichiers de réglages (`scenes.txt`, `raccourcis.txt`, `prereglages.txt`,
 `panneau.txt`, `apparence.txt`, `batterie.csv`).
 
 Captures en mode démonstration (`--demo` : casque simulé, valeurs
@@ -200,6 +201,14 @@ fictives).
 | ![Accueil sous KDE Plasma](docs/captures/kde-accueil-sombre.jpg) | ![Égaliseur sous KDE Plasma](docs/captures/kde-son-sombre.jpg) |
 | **Scènes** | **Paramètres** |
 | ![Scènes et éditeur sous KDE Plasma](docs/captures/kde-scenes-sombre.jpg) | ![Paramètres sous KDE Plasma](docs/captures/kde-reglages-sombre.jpg) |
+
+**GNOME (GTK 4 / libadwaita)**
+
+| Accueil | Égaliseur |
+|---|---|
+| ![Accueil sous GNOME](docs/captures/gnome-accueil-sombre.jpg) | ![Égaliseur sous GNOME](docs/captures/gnome-son-sombre.jpg) |
+| **Scènes** | **Paramètres** |
+| ![Scènes et éditeur sous GNOME](docs/captures/gnome-scenes-sombre.jpg) | ![Paramètres sous GNOME](docs/captures/gnome-reglages-sombre.jpg) |
 
 - **Pages** : **Accueil** (batterie, modes de bruit, curseur ANC ↔
   transparence, anti-vent, audio spatial et suivi de tête, appareils

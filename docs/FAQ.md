@@ -93,7 +93,7 @@ de ce qui changera.
 
 ### Fonctionne-t-il sous GNOME, sur le Steam Deck ?
 
-Sous GNOME, un client GTK existe mais reste partiel (page Accueil). En mode
+Sous GNOME, un client GTK couvre les mêmes pages que le client KDE, sans panneau rapide ni raccourcis globaux ; il n'a pas encore été essayé avec un casque. En mode
 jeu (Steam Deck, Bazzite), l'extension Decky Loader donne batterie,
 réduction de bruit, anti-vent et scènes.
 

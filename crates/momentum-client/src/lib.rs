@@ -134,6 +134,8 @@ pub enum Event {
     Searching,
     /// Recherche terminée sans casque (raison) ; le service réessaie.
     NotFound(String),
+    /// Batterie lue par le système, sans canal GAIA ouvert.
+    SystemBattery(Option<u8>),
     Connected {
         name: String,
         /// Empreinte de l'identifiant choisi par le service, jamais l'adresse.
@@ -182,6 +184,10 @@ pub struct Snapshot {
     pub session: u64,
     /// `None` tant que l'état n'a pas été lu.
     pub state: Option<HeadsetState>,
+    /// Batterie lue par le système tant que l'état n'est pas lu ; absente avec
+    /// un service ancien.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub system_battery: Option<u8>,
     pub equalizer: Option<EqState>,
     pub info: Option<DeviceInfo>,
     pub connections: Vec<ConnectionInfo>,
@@ -225,6 +231,7 @@ impl Snapshot {
             Event::Equalizer(eq) => self.equalizer = Some(eq.clone()),
             Event::Connections(list) => self.connections = list.clone(),
             Event::Info(info) => self.info = Some(info.clone()),
+            Event::SystemBattery(percent) => self.system_battery = *percent,
             Event::NotFound(reason) => {
                 self.problem = Some(format!("Casque introuvable : {reason}"));
             }

@@ -117,6 +117,34 @@ pub fn list_gaia_devices() -> Result<Vec<GaiaDevice>, TransportError> {
     }))
 }
 
+/// Pourcentage annoncé par BlueZ (`org.bluez.Battery1`) pour le seul casque
+/// GAIA connecté, sans aucune trame GAIA. `None` : aucun casque, plusieurs, ou
+/// pourcentage non annoncé.
+pub fn connected_headset_battery() -> Option<u8> {
+    let found = list_gaia_devices().ok()?;
+    let [one] = found.as_slice() else {
+        return None;
+    };
+    let address = one.address;
+    let rt = runtime().ok()?;
+    rt.block_on(bounded(
+        "batterie du casque",
+        DISCOVERY_TIMEOUT,
+        async move {
+            let session = Session::new().await.map_err(bt("connexion à BlueZ"))?;
+            let adapter = session
+                .default_adapter()
+                .await
+                .map_err(bt("adaptateur Bluetooth"))?;
+            let device = adapter.device(address).map_err(bt("appareil"))?;
+            device.battery_percentage().await.map_err(bt("batterie"))
+        },
+    ))
+    .ok()
+    .flatten()
+    .filter(|percent| *percent <= 100)
+}
+
 /// `org.bluez.Device1.Connect` sur le seul casque mémorisé. Les objets
 /// appairés sont lus en cache, y compris déconnectés, sur tous les adaptateurs.
 /// Aucune découverte, alimentation d'adaptateur, association ou trame GAIA.

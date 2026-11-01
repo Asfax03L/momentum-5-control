@@ -1,5 +1,11 @@
 # Soumissions aux catalogues (préparées, non envoyées)
 
+**État au 01/11/2026 :** rien n'est envoyé. L'AUR et le KDE Store demandent un
+compte du mainteneur. winget demande la signature du
+[CLA de Microsoft](https://cla.opensource.microsoft.com/) par le mainteneur et un
+essai `winget install --manifest`. Flathub : voir sa page, sa règle sur l'IA
+empêche pour l'instant une soumission.
+
 Chaque soumission publie le projet sous le compte du mainteneur, dans un
 dépôt ou un site qui n'est pas le nôtre : elle n'est faite qu'avec son
 accord. Flathub a sa propre page : [`FLATHUB.md`](FLATHUB.md).

@@ -82,6 +82,7 @@ impl Panel {
             self.service_error.as_deref(),
             read_only,
         )
+        .with_system_battery(self.snapshot.system_battery)
     }
 
     fn send(&mut self, command: Command) {

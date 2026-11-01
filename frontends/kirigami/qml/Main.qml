@@ -2063,6 +2063,24 @@ Kirigami.ApplicationWindow {
             ColumnLayout {
                 spacing: Kirigami.Units.largeSpacing
                 StatusHeader {}
+                QQC2.ComboBox {
+                    Accessible.name: headset.tr("Codec Bluetooth (PipeWire)")
+                    objectName: "audio-codec"
+                    Layout.fillWidth: true
+                    visible: headset.codecEnabled
+                    model: headset.codecLabels
+                    currentIndex: headset.codecIndex
+                    onActivated: index => {
+                        headset.sendCodecIndex(index)
+                        currentIndex = Qt.binding(() => headset.codecIndex)
+                    }
+                }
+                QQC2.Label {
+                    Layout.fillWidth: true
+                    visible: headset.codecEnabled
+                    wrapMode: Text.WordWrap
+                    text: headset.tr("Réglage du PC : le son peut s'interrompre un instant")
+                }
                 AudioSection { title: headset.tr("Constats"); section: "constats" }
                 AudioSection { title: headset.tr("Pilotage du casque"); section: "pilotage" }
                 AudioSection { title: headset.tr("Sortie audio du système"); section: "systeme" }
