@@ -11,6 +11,7 @@ pub mod appearance;
 pub mod assistant;
 pub mod audio_check;
 pub mod battery_log;
+pub mod bluetooth_codec;
 pub mod client;
 pub mod device;
 pub mod diagnostic;

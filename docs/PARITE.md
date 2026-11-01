@@ -38,6 +38,7 @@ commande ; le widget Plasma se limite aux réglages rapides.
 | Batterie : courbe 24 h / 7 j / 30 j, export, effacement | ✅ | ✅ | historique tenu par le service |
 | Connexion et audio : lectures et heures | ✅ | ✅ | |
 | Vérification de la sortie audio du système | ✅ | ✅ | Linux : PipeWire, lecture seule (depuis 0.10) |
+| Choix du codec Bluetooth | — | ✅ | réglage du PC par PipeWire, aussi `ctl codec` ; pas dans le Flatpak |
 | Thème clair ou sombre | ✅ | ✅ | sous Plasma : jeu Breeze clair ou sombre pour l'application seule |
 | Lancement à l'ouverture de session | ✅ | ✅ | Flatpak : portail du bureau |
 | Une seule instance | ✅ | ✅ | |
@@ -55,21 +56,25 @@ sans connexion directe au casque ; mêmes modèles de vue
 parité : le **client KDE**. Première étape livrée en 0.12 ; les suivantes
 reprennent les pages du client KDE dans cet ordre.
 
-| Fonction (client KDE) | Client GNOME | Étape |
-|---|---|---|
-| Batterie, mode de bruit, curseur ANC ↔ transparence, anti-vent | ✅ | 1 (0.12) |
-| Audio spatial | ✅ | 1 (0.12) |
-| Demandes suivies, refus et échecs affichés (notification) | ✅ | 1 (0.12) |
-| Mode démonstration (`--demo`), entrée de menu, une seule instance | ✅ | 1 (0.12) |
-| Suivi de tête, commandes tactiles, multipoint | — | 2 |
-| Appareils appairés (connecter, déconnecter), reconnexion | — | 2 |
-| Égaliseur 8 bandes, basses, préréglages, courbes, A/B | — | 3 |
-| Mode audio : Speech Clarity, profil personnalisé | — | 3 |
-| Paramètres : Smart Pause, réponse automatique, appels confortables, extinction, protection de la batterie, invites, nom | — | 4 |
-| Scènes : application, éditeur, enregistrement de l'état | — | 5 |
-| Batterie (courbe, export), connexion et audio (PipeWire), à propos et diagnostic | — | 6 |
-| Thème clair ou sombre, lancement à l'ouverture de session | — | 6 (thème : suit déjà GNOME) |
-| Icône de la zone de notification, panneau rapide, raccourcis globaux | — | à décider : GNOME n'a pas de zone de notification standard |
+| Fonction (client KDE) | Client GNOME |
+|---|---|
+| Batterie, mode de bruit, curseur ANC ↔ transparence, anti-vent, audio spatial | ✅ |
+| Demandes suivies, refus et échecs affichés (notification) | ✅ |
+| Mode démonstration (`--demo`), entrée de menu, une seule instance | ✅ |
+| Suivi de tête, commandes tactiles, multipoint | ✅ |
+| Appareils appairés (connecter, déconnecter), reconnexion | ✅ |
+| Égaliseur 8 bandes, basses, remise à plat, préréglages, A/B, courbes, assistant EQ | ✅ |
+| Mode audio : Speech Clarity, profil personnalisé, export du profil | ✅ |
+| Paramètres : Smart Pause, réponse automatique, appels confortables, sidetone, extinction, protection de la batterie, invites, volume, nom | ✅ |
+| Scènes : application, éditeur, enregistrement de l'état | ✅ |
+| Batterie : courbe, valeurs, autonomie, export ; connexion et audio (PipeWire), codec | ✅ |
+| À propos, diagnostic, rapport de bogue, lancement à l'ouverture de session | ✅ |
+| Saisie des gains en texte, export pour Equalizer APO, sauvegarde et restauration des réglages, langue, contenu du panneau, éditeur de raccourcis | — (`ctl reglages` couvre la sauvegarde) |
+| Icône de la zone de notification, panneau rapide, raccourcis globaux | — (GNOME n'a pas de zone de notification standard) |
+
+Toutes ces fonctions sont essayées en démonstration, pas encore avec un casque.
+Le thème clair ou sombre suit GNOME. Essai automatique sans écran :
+`momentum-gtk --demo --essai-interface`, avec Broadway (CI, tâche `gnome`).
 
 Distribution : dans l'archive Linux et installé par `installer-linux.sh`
 (entrée « OpenHeadset Control (GTK) ») ; pas encore dans les paquets

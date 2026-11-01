@@ -118,9 +118,24 @@ pub fn state_json(state: Option<&HeadsetState>) -> String {
 /// versionné comme les autres sorties. Ni nom ni adresse.
 ///
 /// `state` vaut `None` sans casque ; `service_running` à `false` distingue le
-/// service arrêté, que cette sortie ne démarre pas.
-pub fn status_bar_json(state: Option<&HeadsetState>, service_running: bool) -> String {
+/// service arrêté, que cette sortie ne démarre pas. `system_battery` : batterie
+/// lue par le système tant que l'état n'est pas lu.
+pub fn status_bar_json(
+    state: Option<&HeadsetState>,
+    service_running: bool,
+    system_battery: Option<u8>,
+) -> String {
     let Some(s) = state else {
+        if service_running && let Some(percent) = system_battery {
+            return json!({
+                "text": format!("{percent} %"),
+                "alt": "deconnecte",
+                "tooltip": trf("{} % (système)", &[&percent]),
+                "class": ["deconnecte", "batterie-systeme"],
+                "percentage": percent,
+            })
+            .to_string();
+        }
         let (alt, tooltip) = if service_running {
             ("deconnecte", tr("Casque non connecté"))
         } else {

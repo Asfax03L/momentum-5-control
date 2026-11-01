@@ -2595,6 +2595,7 @@ impl Root {
             problem.as_deref(),
             read_only.as_deref(),
         )
+        .with_system_battery(self.snapshot.system_battery)
     }
 
     /// En-tête commun : nom, état, avertissement, confirmation en attente.

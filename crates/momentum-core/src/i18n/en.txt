@@ -2572,3 +2572,150 @@ Level 2
 
 niveau {}
 level {}
+
+{} % (système)
+{} % (system)
+
+codec : carte du casque introuvable
+codec: headset card not found
+
+codec non proposé par PipeWire : {}
+codec not offered by PipeWire: {}
+
+codec : pactl est absent
+codec: pactl is missing
+
+codec : changement refusé par PipeWire
+codec: change refused by PipeWire
+
+codec : le changement n'a pas été relu
+codec: the change could not be read back
+
+Appels et port
+Calls and wearing
+
+Basses renforcées
+Bass boost
+
+Codec Bluetooth (PipeWire)
+Bluetooth codec (PipeWire)
+
+Comparaison
+Comparison
+
+Comparaison A/B
+A/B comparison
+
+Constat
+Finding
+
+Courbe du casque
+Headset curve
+
+Enregistrer la courbe sous ce nom
+Save the curve under this name
+
+Estimation
+Estimate
+
+Ligne ignorée
+Ignored line
+
+Mon son
+My sound
+
+Passer de A à B
+Switch between A and B
+
+Période
+Period
+
+Remettre à plat
+Reset to flat
+
+Réglage du PC : le son peut s'interrompre un instant
+PC setting: audio may drop for a moment
+
+sidetone simulé non relu à l'affichage
+simulated sidetone not read back on screen
+
+{} ({})
+{} ({})
+
+Aperçu
+Preview
+
+Associer
+Associate
+
+Autonomie
+Battery life
+
+Courbe (fichier)
+Curve (file)
+
+Diagnostic copié.
+Diagnostic copied.
+
+Enregistrer l'état actuel
+Save the current state
+
+Enregistrer le résultat sous ce nom
+Save the result under this name
+
+Exporter
+Export
+
+Fermer
+Close
+
+Fichiers
+Files
+
+Importer…
+Import…
+
+Lancement à l'ouverture de session
+Start at login
+
+Le brouillon n'est écrit qu'avec « Enregistrer » ; rien n'est envoyé au casque.
+The draft is only written with “Save”; nothing is sent to the headset.
+
+Niveau personnalisé (0 à 100)
+Custom level (0 to 100)
+
+Nom
+Name
+
+Profil auditif (fichier privé)
+Hearing profile (private file)
+
+Profil exporté dans {} (données personnelles, fichier privé).
+Profile exported to {} (personal data, private file).
+
+Restaurer la courbe initiale
+Restore the initial curve
+
+Sans adresse, numéro de série ni nom d'appareil
+No address, serial number or device name
+
+Scène
+Scene
+
+Signaler un bogue…
+Report a bug…
+
+assistant EQ non démarré
+EQ assistant not started
+
+restauration non terminée
+restore not finished
+
+À ne pas joindre à un rapport
+Do not attach to a report
+
+Éditeur de scènes
+Scene editor
+
+Commandes
+Controls

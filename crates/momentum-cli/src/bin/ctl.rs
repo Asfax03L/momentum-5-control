@@ -68,6 +68,9 @@ enum Command {
     Man,
     /// Affiche l'état du casque. Passe par le service s'il tourne.
     Etat,
+    /// Linux : codecs Bluetooth proposés par PipeWire, ou choix de l'un d'eux
+    /// (réglage du PC, aucune trame au casque ; le service doit tourner).
+    Codec { choix: Option<String> },
     /// État pour un module de barre d'état (Waybar) : un objet JSON, toujours
     /// par le service, sans le démarrer ni parler au casque.
     Barre,
@@ -632,6 +635,7 @@ mod app {
             Command::Reglages { .. } => bail!("les réglages locaux ne passent pas par le service"),
             Command::Scenes | Command::Completions { .. } | Command::Man => return Ok(false),
             Command::Barre => bail!("la barre d'état a son propre chemin"),
+            Command::Codec { .. } => bail!("le codec a son propre chemin"),
             Command::Etat => {
                 eprintln!("(par le service momentum-daemon)");
                 output.readback.state = snapshot.state;
@@ -1003,12 +1007,56 @@ mod app {
     fn status_bar() -> String {
         use momentum_client::Client;
         match Client::connect_running().and_then(|client| client.snapshot()) {
-            Ok(snapshot) => momentum_core::json::status_bar_json(snapshot.state.as_ref(), true),
-            Err(_) => momentum_core::json::status_bar_json(None, false),
+            Ok(snapshot) => momentum_core::json::status_bar_json(
+                snapshot.state.as_ref(),
+                true,
+                snapshot.system_battery,
+            ),
+            Err(_) => momentum_core::json::status_bar_json(None, false, None),
         }
     }
 
+    /// `ctl codec` : liste ou choix, sans démarrer le service ni parler au casque.
+    #[cfg(target_os = "linux")]
+    fn codec(choice: Option<&str>, json: bool, output: &mut Output) -> anyhow::Result<()> {
+        use momentum_core::bluetooth_codec;
+        let client = momentum_client::Client::connect_running()
+            .context("service momentum-daemon requis pour identifier le casque")?;
+        let snapshot = client.snapshot()?;
+        let id = snapshot
+            .headset_id
+            .filter(|_| snapshot.device_name.is_some())
+            .context("casque non connecté")?;
+        let card = match choice {
+            Some(wanted) => bluetooth_codec::select(&id, wanted).map_err(anyhow::Error::msg)?,
+            None => {
+                bluetooth_codec::read(&id).context("carte du casque introuvable dans PipeWire")?
+            }
+        };
+        if json {
+            let list: Vec<_> = card
+                .choices
+                .iter()
+                .map(|c| serde_json::json!({"codec": c.label, "actif": c.active}))
+                .collect();
+            output.value = Some(serde_json::json!({"version": 1, "codecs": list}).to_string());
+        } else {
+            for c in &card.choices {
+                println!("{} {}", if c.active { "*" } else { " " }, c.label);
+            }
+        }
+        Ok(())
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    fn codec(_: Option<&str>, _: bool, _: &mut Output) -> anyhow::Result<()> {
+        bail!("le choix du codec par PipeWire n'existe que sous Linux")
+    }
+
     pub fn run(args: &Args, output: &mut Output) -> anyhow::Result<()> {
+        if let Command::Codec { choix } = &args.command {
+            return codec(choix.as_deref(), args.json, output);
+        }
         if matches!(args.command, Command::Barre) {
             let text = status_bar();
             if args.json {
@@ -1127,6 +1175,7 @@ mod app {
             Command::Reglages { .. } => bail!("aucun accès au casque pour les réglages locaux"),
             Command::Etat => print_state(output, &headset.read_state()?),
             Command::Barre => bail!("la barre d'état ne parle jamais au casque"),
+            Command::Codec { .. } => bail!("le codec ne parle jamais au casque"),
             Command::Scenes | Command::Completions { .. } | Command::Man => {}
             Command::Scene { ref nom } => {
                 let (list, _) = paths::load_scenes();

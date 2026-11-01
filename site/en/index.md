@@ -41,4 +41,6 @@ Screenshots in demo mode (simulated headphones).
 ![Home on KDE Plasma, dark theme](../captures/kde-accueil-sombre.jpg)
 
 ![Scenes and editor on KDE Plasma](../captures/kde-scenes-sombre.jpg)
+
+![Settings on GNOME, with voice feedback (sidetone)](../captures/gnome-reglages-sombre.jpg)
 :::

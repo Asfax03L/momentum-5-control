@@ -163,6 +163,9 @@ pub mod qobject {
         #[qproperty(i32, battery_revision)]
         // Page « Connexion et audio » : change à chaque mise à jour.
         #[qproperty(i32, audio_revision)]
+        #[qproperty(QStringList, codec_labels)]
+        #[qproperty(i32, codec_index)]
+        #[qproperty(bool, codec_enabled)]
         #[qproperty(bool, audio_reading)]
         // Thème choisi : -1 aucun (système), 0 clair, 1 sombre.
         #[qproperty(i32, theme_choice)]
@@ -353,6 +356,9 @@ pub mod qobject {
         /// Relit uniquement le graphe PipeWire sur un fil séparé.
         #[qinvokable]
         fn reload_audio(self: Pin<&mut Headset>);
+        /// Choix du codec Bluetooth (PipeWire) : réglage du PC, relu.
+        #[qinvokable]
+        fn send_codec_index(self: Pin<&mut Headset>, index: i32);
         /// Copie `batterie.csv` dans Documents ; message à afficher.
         #[qinvokable]
         fn export_battery(self: &Headset) -> QString;
@@ -670,6 +676,10 @@ pub struct HeadsetRust {
     battery_revision: i32,
     audio_revision: i32,
     audio_reading: bool,
+    codec_labels: QStringList,
+    codec_index: i32,
+    codec_enabled: bool,
+    codec_card: Option<momentum_core::bluetooth_codec::CodecCard>,
     pipewire_audio: Option<Result<PipeWireAudio, AudioReadError>>,
     pipewire_at: Option<String>,
     theme_choice: i32,
@@ -865,6 +875,10 @@ impl Default for HeadsetRust {
             battery_revision: 0,
             audio_revision: 0,
             audio_reading: false,
+            codec_labels: QStringList::default(),
+            codec_index: -1,
+            codec_enabled: false,
+            codec_card: None,
             pipewire_audio: None,
             pipewire_at: None,
             theme_choice: momentum_core::appearance::load().map_or(-1, i32::from),
@@ -1423,7 +1437,8 @@ impl qobject::Headset {
             &[],
             problem.as_deref(),
             read_only.as_deref(),
-        );
+        )
+        .with_system_battery(s.system_battery);
         let can_reconnect = r.service_error.is_none() && !r.requests.busy();
         let st = viewmodel::settings_view(s.state.as_ref(), s.info.as_ref(), v.writable);
         let presets = r.all_presets();
@@ -2181,8 +2196,14 @@ impl qobject::Headset {
                 } else {
                     crate::pipewire::read(&id)
                 };
+                let codecs = if demo::requested() {
+                    None
+                } else {
+                    momentum_core::bluetooth_codec::read(&id)
+                };
                 let _ = qt_thread.queue(move |mut headset| {
                     headset.as_mut().set_audio_reading(false);
+                    headset.as_mut().show_codecs(codecs);
                     if !crate::pipewire::is_current(&headset.rust().snapshot, session, &id) {
                         // Un résultat de l'ancienne connexion ne devient jamais actuel.
                         headset.as_mut().reload_audio();
@@ -2199,6 +2220,59 @@ impl qobject::Headset {
             self.as_mut().rust_mut().pipewire_audio = Some(Err(AudioReadError::Unavailable));
             let revision = self.rust().audio_revision.wrapping_add(1);
             self.as_mut().set_audio_revision(revision);
+        }
+    }
+
+    /// Recopie les codecs proposés dans la liste de la page audio.
+    fn show_codecs(
+        mut self: Pin<&mut Self>,
+        card: Option<momentum_core::bluetooth_codec::CodecCard>,
+    ) {
+        let labels: Vec<String> = card
+            .iter()
+            .flat_map(|c| c.choices.iter().map(|x| x.label.clone()))
+            .collect();
+        let active = card
+            .as_ref()
+            .and_then(|c| c.choices.iter().position(|x| x.active))
+            .and_then(|i| i32::try_from(i).ok())
+            .unwrap_or(-1);
+        self.as_mut().rust_mut().codec_card = card;
+        self.as_mut().set_codec_enabled(!labels.is_empty());
+        self.as_mut()
+            .set_codec_labels(string_list(labels.iter().map(String::as_str)));
+        self.as_mut().set_codec_index(active);
+    }
+
+    fn send_codec_index(mut self: Pin<&mut Self>, index: i32) {
+        let r = self.rust();
+        let id = r.snapshot.headset_id.clone();
+        let wanted = usize::try_from(index).ok().and_then(|i| {
+            r.codec_card
+                .as_ref()
+                .and_then(|c| c.choices.get(i))
+                .filter(|c| !c.active)
+                .map(|c| c.profile.clone())
+        });
+        let (Some(id), Some(wanted)) = (id, wanted) else {
+            return;
+        };
+        let qt_thread = self.as_ref().qt_thread();
+        let spawned = std::thread::Builder::new()
+            .name("codec".into())
+            .spawn(move || {
+                let result = momentum_core::bluetooth_codec::select(&id, &wanted);
+                let reread = momentum_core::bluetooth_codec::read(&id);
+                let _ = qt_thread.queue(move |mut headset| {
+                    if let Err(reason) = result {
+                        headset.as_mut().notice(reason);
+                    }
+                    headset.as_mut().show_codecs(reread);
+                });
+            });
+        if spawned.is_err() {
+            self.as_mut()
+                .notice(tr("codec : changement refusé par PipeWire").to_string());
         }
     }
 

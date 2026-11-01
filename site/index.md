@@ -40,4 +40,6 @@ Captures en mode démonstration (casque simulé).
 ![Accueil sous KDE Plasma, thème sombre](captures/kde-accueil-sombre.jpg)
 
 ![Scènes et éditeur sous KDE Plasma](captures/kde-scenes-sombre.jpg)
+
+![Paramètres sous GNOME, avec le retour de voix (sidetone)](captures/gnome-reglages-sombre.jpg)
 :::

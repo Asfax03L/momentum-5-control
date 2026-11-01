@@ -110,6 +110,7 @@ impl Demo {
             read_only: None,
             session: 1,
             state: Some(self.state),
+            system_battery: None,
             equalizer: Some(self.eq.clone()),
             info: Some(self.info.clone()),
             connections: self.connections.clone(),

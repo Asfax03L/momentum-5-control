@@ -9,16 +9,19 @@ use std::time::Duration;
 use adw::prelude::*;
 use gtk::glib;
 use momentum_client::demo::{self, Demo};
+use momentum_client::sound_check::{Action as GuidedAction, GuidedEq};
 use momentum_client::tracker::Tracker;
 use momentum_client::{Client, ClientError, Command, Event, Outcome, Snapshot};
 use momentum_core::device::NoiseModeRequest;
 use momentum_core::viewmodel::{self, NOISE_MODES};
 
+use crate::pages::{Extras, Guided, GuidedSave, Notify, Send};
+
 const APP_ID: &str = "org.openheadset.ControlGnome";
 /// Pause avant de recontacter un service injoignable.
 const RETRY: Duration = Duration::from_secs(3);
 /// Le curseur n'envoie qu'après ce délai sans mouvement (comme WinUI).
-const SETTLE: Duration = Duration::from_millis(350);
+pub(crate) const SETTLE: Duration = Duration::from_millis(350);
 /// Option de l'essai de l'interface (CI, avec `--demo`).
 const SELF_TEST: &str = "--essai-interface";
 
@@ -38,6 +41,7 @@ struct State {
     snapshot: Snapshot,
     service_error: Option<String>,
     requests: Tracker,
+    guided: GuidedEq,
 }
 
 /// Contrôles mis à jour à chaque changement d'état.
@@ -56,6 +60,8 @@ struct Widgets {
     level_row: adw::ActionRow,
     anti_wind: adw::SwitchRow,
     spatial: adw::SwitchRow,
+    reconnect: gtk::Button,
+    extras: Rc<Extras>,
 }
 
 pub fn run() -> i32 {
@@ -92,23 +98,46 @@ fn build(app: &adw::Application, exit: Rc<Cell<i32>>) {
     let updating = Rc::new(Cell::new(false));
     let (commands, incoming) = spawn_service();
 
-    let send = {
+    // Envoi sans contrôle de l'assistant EQ ; `false` si le fil est fermé.
+    let send_raw = {
         let state = state.clone();
         let widgets = widgets.clone();
         let commands = commands.clone();
-        Rc::new(move |command: Command| {
-            let session = state.borrow().snapshot.session;
-            if commands.send((command.clone(), session)).is_ok() {
-                let mut state = state.borrow_mut();
-                if matches!(command, Command::SetMode(_)) {
-                    state
-                        .slider_edits
-                        .discard(momentum_client::edits::SliderKey::Level);
-                }
-                state.slider_edits.submitted(&command);
-                state.requests.sent();
-                widgets.spinner.set_spinning(true);
+        Rc::new(move |command: Command| -> bool {
+            let session = if command == Command::ReconnectHeadset {
+                0
+            } else {
+                state.borrow().snapshot.session
+            };
+            if commands.send((command.clone(), session)).is_err() {
+                return false;
             }
+            let mut state = state.borrow_mut();
+            if matches!(command, Command::SetMode(_)) {
+                state
+                    .slider_edits
+                    .discard(momentum_client::edits::SliderKey::Level);
+            }
+            state.slider_edits.submitted(&command);
+            state.requests.sent();
+            widgets.spinner.set_spinning(true);
+            true
+        })
+    };
+    let send = {
+        let state = state.clone();
+        let widgets = widgets.clone();
+        let send_raw = send_raw.clone();
+        Rc::new(move |command: Command| {
+            // Pendant l'assistant EQ, seuls ses propres essais partent.
+            if state.borrow().guided.active() {
+                widgets.toasts.add_toast(adw::Toast::new(tr(
+                    "Terminez ou restaurez l'assistant EQ en cours.",
+                )));
+                widgets.extras.stack.set_visible_child_name("son");
+                return;
+            }
+            send_raw(command);
         })
     };
 
@@ -163,6 +192,99 @@ fn build(app: &adw::Application, exit: Rc<Cell<i32>>) {
         });
     }
 
+    {
+        let send = send.clone();
+        widgets
+            .reconnect
+            .connect_clicked(move |_| send(Command::ReconnectHeadset));
+    }
+    let notify: Notify = {
+        let toasts = widgets.toasts.clone();
+        Rc::new(move |text: String| toasts.add_toast(adw::Toast::new(&text)))
+    };
+    let shared: Send = send.clone();
+    widgets.extras.connect(&shared, &notify, &updating);
+    let guided: Guided = {
+        let state = state.clone();
+        let widgets = widgets.clone();
+        let updating = updating.clone();
+        let notify = notify.clone();
+        Rc::new(move |action: GuidedAction| {
+            let result = {
+                let mut st = state.borrow_mut();
+                let snapshot = st.snapshot.clone();
+                let busy = st.requests.busy();
+                let drafts = !st.slider_edits.is_empty();
+                if action == GuidedAction::Start
+                    && st.guided.view(&snapshot, busy, drafts).can_start
+                {
+                    let Some(eq) = snapshot.equalizer.as_ref() else {
+                        return;
+                    };
+                    if let Err(error) = momentum_core::paths::save_guided_reference(eq) {
+                        drop(st);
+                        notify(trf(
+                            "Copie initiale impossible : {}. Assistant non démarré.",
+                            &[&error],
+                        ));
+                        return;
+                    }
+                }
+                st.guided.action(action, &snapshot, busy, drafts)
+            };
+            match result {
+                Ok(Some(command)) => {
+                    if !send_raw(command) {
+                        state.borrow_mut().guided.rejected();
+                    }
+                }
+                Ok(None) => {}
+                Err(reason) => notify(reason.to_string()),
+            }
+            refresh(&widgets, &state.borrow(), &updating);
+        })
+    };
+    let guided_save: GuidedSave = {
+        let state = state.clone();
+        let notify = notify.clone();
+        Rc::new(move |name: &str| {
+            let result = {
+                let st = state.borrow();
+                st.guided
+                    .curve_to_save(&st.snapshot, st.requests.busy())
+                    .map_err(str::to_string)
+                    .and_then(|(gains, topology)| {
+                        momentum_core::paths::create_user_preset_for(name, &gains, &topology)
+                    })
+            };
+            match result {
+                Ok(list) => {
+                    state.borrow_mut().guided.saved();
+                    Some(list)
+                }
+                Err(reason) => {
+                    notify(reason);
+                    None
+                }
+            }
+        })
+    };
+    widgets
+        .extras
+        .connect_guided(&guided, &guided_save, &notify);
+    {
+        // Fermer pendant l'assistant laisserait une courbe d'essai sur le casque.
+        let state = state.clone();
+        let extras = widgets.extras.clone();
+        widgets.window.connect_close_request(move |_| {
+            if state.borrow().guided.active() {
+                extras.stack.set_visible_child_name("son");
+                glib::Propagation::Stop
+            } else {
+                glib::Propagation::Proceed
+            }
+        });
+    }
     refresh(&widgets, &state.borrow(), &updating);
     {
         let widgets = widgets.clone();
@@ -177,11 +299,21 @@ fn build(app: &adw::Application, exit: Rc<Cell<i32>>) {
             if changed {
                 refresh(&widgets, &state.borrow(), &updating);
             }
+            widgets.extras.poll(&notify, &updating);
             glib::ControlFlow::Continue
         });
     }
     if demo::requested() && std::env::args().any(|a| a == SELF_TEST) {
         self_test(app, &widgets, &state, exit);
+    }
+    // `--page nom` : page d'ouverture (captures d'écran, essais).
+    let arguments: Vec<String> = std::env::args().collect();
+    if let Some(page) = arguments
+        .iter()
+        .position(|a| a == "--page")
+        .and_then(|i| arguments.get(i + 1))
+    {
+        widgets.extras.stack.set_visible_child_name(page);
     }
     widgets.window.present();
 }
@@ -191,11 +323,14 @@ fn layout(app: &adw::Application) -> Widgets {
     let header = adw::HeaderBar::new();
     let spinner = gtk::Spinner::new();
     header.pack_end(&spinner);
+    let reconnect = gtk::Button::with_label(tr("Reconnecter le casque"));
+    reconnect.set_halign(gtk::Align::Center);
 
     let banner = adw::Banner::new("");
     let waiting = adw::StatusPage::builder()
         .icon_name("network-bluetooth-symbolic")
         .title(tr("En attente du casque"))
+        .child(&reconnect)
         .build();
 
     let battery_bar = gtk::LevelBar::for_interval(0.0, 100.0);
@@ -268,9 +403,16 @@ fn layout(app: &adw::Application) -> Widgets {
         .vexpand(true)
         .child(&clamp)
         .build();
+    let extras = Extras::new(&scrolled, &pages);
+    let switcher = adw::ViewSwitcherBar::builder()
+        .stack(&extras.stack)
+        .reveal(true)
+        .build();
     let body = gtk::Box::new(gtk::Orientation::Vertical, 0);
     body.append(&banner);
-    body.append(&scrolled);
+    extras.stack.set_vexpand(true);
+    body.append(&extras.stack);
+    body.append(&switcher);
     let toasts = adw::ToastOverlay::new();
     toasts.set_child(Some(&body));
     let view = adw::ToolbarView::new();
@@ -299,6 +441,8 @@ fn layout(app: &adw::Application) -> Widgets {
         level_row,
         anti_wind,
         spatial,
+        reconnect,
+        extras,
     }
 }
 
@@ -314,6 +458,7 @@ fn handle(widgets: &Widgets, state: &mut State, message: Incoming) {
             if let Event::Done { id, outcome, .. } = &event {
                 // Seuls les échecs des demandes de cette fenêtre s'affichent ;
                 // une réussite se voit à l'état relu.
+                state.guided.done(*id, outcome);
                 if let Some(failure) = state.requests.done(*id, outcome) {
                     toast(failure);
                 }
@@ -321,14 +466,27 @@ fn handle(widgets: &Widgets, state: &mut State, message: Incoming) {
                     toast(notice);
                 }
             }
+            if let Event::Exported(result) = &event {
+                toast(match result {
+                    Ok(path) => trf(
+                        "Profil exporté dans {} (données personnelles, fichier privé).",
+                        &[&path.display()],
+                    ),
+                    Err(reason) => trf("Export du profil impossible : {}.", &[&reason]),
+                });
+            }
             state.snapshot.apply(&event);
         }
         Incoming::Submitted(id) => {
+            state.guided.submitted(id);
             if let Some(failure) = state.requests.submitted(id) {
                 toast(failure);
             }
         }
-        Incoming::Rejected(reason) => toast(state.requests.rejected(&reason)),
+        Incoming::Rejected(reason) => {
+            state.guided.rejected();
+            toast(state.requests.rejected(&reason));
+        }
         Incoming::ServiceError(reason) => {
             tracing::warn!(%reason, "service momentum-daemon");
             state.snapshot = Snapshot::default();
@@ -336,6 +494,8 @@ fn handle(widgets: &Widgets, state: &mut State, message: Incoming) {
             state.requests.reset();
         }
     }
+    let snapshot = state.snapshot.clone();
+    state.guided.sync(&snapshot);
     state.slider_edits.sync(&state.snapshot);
     state.slider_edits.finish_if_idle(state.requests.busy());
 }
@@ -363,7 +523,8 @@ fn refresh(widgets: &Widgets, state: &State, updating: &Cell<bool>) {
         &[],
         problem.as_deref(),
         read_only.as_deref(),
-    );
+    )
+    .with_system_battery(s.system_battery);
     let c = &v.controls;
     updating.set(true);
     widgets.window.set_title(Some(&v.title));
@@ -403,6 +564,15 @@ fn refresh(widgets: &Widgets, state: &State, updating: &Cell<bool>) {
     widgets.anti_wind.set_sensitive(v.writable);
     widgets.spatial.set_active(c.spatial_on);
     widgets.spatial.set_sensitive(c.spatial_enabled);
+    widgets
+        .reconnect
+        .set_sensitive(state.service_error.is_none());
+    widgets.extras.refresh(s, c, v.writable);
+    widgets.extras.refresh_guided(&state.guided.view(
+        s,
+        state.requests.busy(),
+        !state.slider_edits.is_empty(),
+    ));
     updating.set(false);
 }
 
@@ -549,9 +719,59 @@ fn self_test(
                         before.get(),
                         !before.get()
                     );
+                    for name in [
+                        "son",
+                        "scenes",
+                        "parametres",
+                        "batterie",
+                        "audio",
+                        "apropos",
+                    ] {
+                        widgets.extras.stack.set_visible_child_name(name);
+                        eprintln!("essai interface : page {name} affichée");
+                    }
+                    widgets.extras.sidetone.set_selected(1);
+                    step.set(6);
+                    return glib::ControlFlow::Continue;
+                }
+            }
+            6..=10 => {
+                if state
+                    .borrow()
+                    .snapshot
+                    .state
+                    .is_some_and(|s| s.sidetone == Some(1))
+                    && widgets.extras.sidetone.selected() == 1
+                {
+                    eprintln!("essai interface : sidetone relu à l'affichage");
+                    widgets.extras.press_guided_start();
+                    step.set(11);
+                    return glib::ControlFlow::Continue;
+                }
+                if step.get() == 10 {
+                    return fail(tr("sidetone simulé non relu à l'affichage"));
+                }
+            }
+            11..=15 => {
+                if state.borrow().guided.active() {
+                    eprintln!("essai interface : assistant EQ démarré");
+                    widgets.extras.press_guided_restore();
+                    step.set(16);
+                    return glib::ControlFlow::Continue;
+                }
+                if step.get() == 15 {
+                    return fail(tr("assistant EQ non démarré"));
+                }
+            }
+            16..=22 => {
+                if !state.borrow().guided.active() {
+                    eprintln!("essai interface : assistant EQ restauré");
                     eprintln!("ESSAI INTERFACE RÉUSSI");
                     app.quit();
                     return glib::ControlFlow::Break;
+                }
+                if step.get() == 22 {
+                    return fail(tr("restauration non terminée"));
                 }
             }
             _ => return fail(tr("anti-vent simulé non relu à l'affichage")),

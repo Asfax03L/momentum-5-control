@@ -156,18 +156,18 @@ fn bar_state() -> HeadsetState {
 
 #[test]
 fn barre_distingue_service_arrete_et_casque_absent() {
-    let stopped = parse(json::status_bar_json(None, false));
+    let stopped = parse(json::status_bar_json(None, false, None));
     assert_eq!(stopped["class"], json!(["service-arrete"]));
     assert_eq!(stopped["text"], "—");
     assert!(stopped.get("percentage").is_none());
-    let absent = parse(json::status_bar_json(None, true));
+    let absent = parse(json::status_bar_json(None, true, None));
     assert_eq!(absent["class"], json!(["deconnecte"]));
     assert_eq!(absent["alt"], "deconnecte");
 }
 
 #[test]
 fn barre_decrit_batterie_et_mode_sans_inventer_la_charge() {
-    let value = parse(json::status_bar_json(Some(&bar_state()), true));
+    let value = parse(json::status_bar_json(Some(&bar_state()), true, None));
     assert_eq!(value["text"], "70 %");
     assert_eq!(value["percentage"], 70);
     assert_eq!(value["alt"], "adaptatif");
@@ -183,7 +183,7 @@ fn barre_decrit_batterie_et_mode_sans_inventer_la_charge() {
         on_head_state: Some(OnHeadState::Worn),
         ..bar_state()
     };
-    let value = parse(json::status_bar_json(Some(&state), true));
+    let value = parse(json::status_bar_json(Some(&state), true, None));
     assert_eq!(
         value["class"],
         json!(["connecte", "adaptatif", "en-charge"])
@@ -197,11 +197,25 @@ fn barre_signale_la_batterie_faible_au_meme_seuil_que_les_alertes() {
             battery,
             ..bar_state()
         };
-        parse(json::status_bar_json(Some(&state), true))["class"]
+        parse(json::status_bar_json(Some(&state), true, None))["class"]
             .as_array()
             .unwrap()
             .contains(&json!("faible"))
     };
     assert!(at(momentum_core::alerts::LOW_BATTERY));
     assert!(!at(momentum_core::alerts::LOW_BATTERY + 1));
+}
+
+#[test]
+fn barre_donne_la_batterie_du_systeme_sans_se_dire_connectee() {
+    let value = parse(json::status_bar_json(None, true, Some(90)));
+    assert_eq!(value["text"], "90 %");
+    assert_eq!(value["percentage"], 90);
+    assert_eq!(value["class"], json!(["deconnecte", "batterie-systeme"]));
+    // Service arrêté : aucune valeur ne peut venir de lui.
+    let stopped = parse(json::status_bar_json(None, false, Some(90)));
+    assert!(stopped.get("percentage").is_none());
+    // L'état relu du casque passe avant.
+    let read = parse(json::status_bar_json(Some(&bar_state()), true, Some(10)));
+    assert_eq!(read["percentage"], 70);
 }
