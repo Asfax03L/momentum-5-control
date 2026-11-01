@@ -42,7 +42,9 @@ refuse de publier sans elles) :
 Essais sur un M5AEBT 6.21.5 sous Windows 11 et Bazzite 44, recensés dans
 [`docs/preuves/registre-m5.json`](docs/preuves/registre-m5.json) : charge, port
 et sidetone avec retour à la valeur d'origine. Le sidetone est aussi essayé à
-travers le vrai service, depuis WinUI sous Windows et depuis `ctl` sous Linux.
+travers le vrai service, depuis WinUI sous Windows et depuis `ctl` sous Linux, et
+écouté pendant un appel, à l'oreille, sans mesure : rien à l'arrêt, voix plus
+forte au niveau 1, plus forte encore au niveau 2.
 L'interface KDE et Waybar sont essayés sans écran, en démonstration pour KDE.
 Les niveaux 3 et 4 du sidetone restent exclus : jamais observés.
 

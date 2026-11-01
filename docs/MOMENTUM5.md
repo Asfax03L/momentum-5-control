@@ -506,8 +506,10 @@ Sous Bazzite 44 (BlueZ) le 01/11/2026 : mêmes résultats avec `essai_sidetone`
 depuis ce dépôt, sont relus à la bonne valeur ; `ctl sidetone 3` est refusé
 avant tout envoi.
 
-**À valider sur le matériel** : l'effet entendu pendant un appel (aucune écoute
-ni mesure acoustique), et le service réel sous Windows.
+Sous Windows, le service compilé et WinUI ont changé le niveau et l'ont relu sur
+le casque. Écoute pendant un appel téléphonique le 01/11/2026, jugée à l'oreille
+par l'utilisateur, sans mesure : rien à l'arrêt, voix plus forte au niveau 1,
+plus forte encore au niveau 2.
 
 ### Volume des invites : échelle (expérience F1, 09/10/2026)
 

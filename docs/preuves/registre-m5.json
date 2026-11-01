@@ -236,7 +236,7 @@
         "systeme": "Windows 11",
         "outil": "crates/momentum-cli/examples/essai_sidetone.rs",
         "commit": "e37ae28",
-        "resultat": "valeur initiale 00 ; 0805 [02], [01], [00] : accusé 0905, relecture 0906 identique, notification 0886 ; valeur d'origine remise et relue. Effet sonore non vérifié",
+        "resultat": "valeur initiale 00 ; 0805 [02], [01], [00] : accusé 0905, relecture 0906 identique, notification 0886 ; valeur d'origine remise et relue. Écoute en appel : rien à l'arrêt, voix plus forte au niveau 1, plus forte encore au niveau 2 (à l'oreille)",
         "journal_prive": true
       },
       "tests": ["crates/momentum-cli/examples/essai_sidetone.rs"]
@@ -274,6 +274,6 @@
   "a_valider_sur_le_materiel": [
     { "fonction": "port", "systeme": "Windows et Linux", "raison": "seul le micrologiciel 6.21.5 est essayé ; pause musicale non essayée" },
     { "fonction": "charge", "systeme": "Windows et Linux", "raison": "code 02 jamais observé sur le M5 ; seul le micrologiciel 6.21.5 est essayé" },
-    { "fonction": "sidetone", "systeme": "Windows et Linux", "raison": "effet entendu pendant un appel non vérifié ; niveaux 3 et 4 jamais observés" }
+    { "fonction": "sidetone", "systeme": "Windows et Linux", "raison": "effet entendu seulement à l'oreille, sans mesure ; niveaux 3 et 4 jamais observés" }
   ]
 }
