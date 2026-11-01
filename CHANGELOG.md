@@ -12,6 +12,41 @@ refuse de publier sans elles) :
 - « À faire après la mise à jour » : les actions concrètes par système,
   ou « Rien de particulier » avec la raison.
 
+## v1.5.0 — 01/11/2026
+
+### En bref
+- **Windows et Linux KDE** : **retour de voix (sidetone)** dans les paramètres :
+  Arrêt, Niveau 1 ou Niveau 2. Il s'ajuste aussi avec `ctl sidetone`. Chaque
+  changement est relu sur le casque.
+- **Linux** : `ctl barre` donne l'état au format de **Waybar** (Hyprland et
+  autres). Elle lit l'état du service, sans rien envoyer au casque et sans
+  démarrer un service arrêté.
+- **Plus sûr** : les commandes connues pour éteindre ou déconnecter un casque, ou
+  pour supprimer un appairage, sont refusées avant tout envoi.
+- **Mieux vérifié** : la charge, le port et le sidetone sont maintenant essayés
+  sur le casque sous Windows et sous Linux.
+- GTK conserve son périmètre actuel : pas de sidetone.
+
+### À faire après la mise à jour
+- **Windows** : quitter l'interface par le menu de son icône, installer ensemble
+  le service et l'interface 1.5.0, puis relancer. Windows App Runtime 2 reste
+  nécessaire. Les réglages sont conservés.
+- **Linux** : mettre à jour avec la méthode déjà utilisée (Flatpak, archive,
+  `.deb` ou `.rpm`), puis relancer. Le service et le client doivent être de la
+  même version pour proposer le sidetone.
+- **Facultatif, Windows et KDE** : Paramètres > « Retour de voix (sidetone) ».
+- **Facultatif, Waybar** : configuration d'exemple dans
+  [`docs/LINUX.md`](docs/LINUX.md).
+
+### Qualification
+Essais sur un M5AEBT 6.21.5 sous Windows 11 et Bazzite 44, recensés dans
+[`docs/preuves/registre-m5.json`](docs/preuves/registre-m5.json) : charge, port
+et sidetone avec retour à la valeur d'origine. Le sidetone est aussi essayé à
+travers le vrai service, depuis WinUI sous Windows et depuis `ctl` sous Linux.
+L'interface KDE et Waybar sont essayés sans écran, en démonstration pour KDE.
+Restent seulement observés sous Linux : l'annonce du débranchement du câble.
+Les niveaux 3 et 4 du sidetone restent exclus : jamais observés.
+
 ## v1.4.0 — 29/10/2026
 
 ### En bref
@@ -98,6 +133,24 @@ Le [lot 2](docs/LOT2-REGLAGES.md) décrit les garde-fous, les lectures ajoutées
 et les limites. Tests synthétiques et démonstrations sont distincts d'un
 essai matériel. Cette publication ne revendique aucune nouvelle validation
 Bluetooth ni qualification du sidetone.
+
+## windows-v1.2.1 — 29/10/2026
+
+Section ajoutée après coup : cette publication Windows n'avait pas sa section
+ici. Le tag `windows-v1.2.0` n'a pas de publication ; la 1.2.1 corrige sa
+préparation.
+
+### En bref
+- **Windows uniquement** : nouvel accueil illustré, cartes adaptées à la largeur
+  de la fenêtre, thèmes clair et sombre.
+- Batterie, charge déclarée, état porté et activité audio sont présentés
+  séparément ; 100 % ne signifie pas « charge terminée ».
+- Les réglages indisponibles sont expliqués.
+- La démonstration peut coexister avec l'application installée.
+
+### À faire après la mise à jour
+- Quitter OpenHeadset Control depuis le menu de son icône, lancer
+  l'installateur 1.2.1, puis relancer l'application. Les réglages sont conservés.
 
 ## v1.1.0 — 25/10/2026
 

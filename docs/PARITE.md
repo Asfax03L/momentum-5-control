@@ -44,6 +44,7 @@ commande ; le widget Plasma se limite aux réglages rapides.
 | Notifications (batterie, connexion) | ✅ | ✅ | envoyées par le service |
 | Diagnostic expurgé à copier | ✅ | ✅ | |
 | Mode démonstration (`--demo`) | ✅ | ✅ | casque simulé, aucun service |
+| Barre d'état (`ctl barre`, Waybar) | — | — | Linux, hors interface : voir `LINUX.md` |
 | Refus et résultats des demandes affichés | ✅ | ✅ | suivi par numéro de demande (aussi dans le widget Plasma) |
 
 ## Client GNOME (GTK 4, libadwaita)

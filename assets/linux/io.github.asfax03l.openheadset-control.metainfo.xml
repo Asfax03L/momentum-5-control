@@ -75,6 +75,11 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="1.5.0" date="2026-11-01">
+      <description>
+        <p>Voice feedback (sidetone) on Windows and KDE, with the two levels observed on the headset. Status bar output for Waybar. Commands known to power off or disconnect headsets are now refused before sending.</p>
+      </description>
+    </release>
     <release version="1.4.0" date="2026-10-29">
       <description>
         <p>Guided equalizer comparisons on Windows and KDE: bass, midrange and treble, bounded variants, confirmed readback, comparison with the initial curve, explicit restore or save under a new preset name. A local reference copy is kept before starting. No automatic sound playback or hearing profile is created.</p>
