@@ -10,8 +10,11 @@ curseurs, préréglages et A/B ; le [lot 3](LOT3-ASSISTANT-EQ.md) (1.4.0)
 ajoute l'assistant EQ guidé à WinUI et KDE. Ces parcours sont vérifiés en
 simulation et en CI, sans nouvelle qualification matérielle revendiquée.
 Le diagnostic BTD 700 reste facultatif et non réalisé ; le besoin retenu
-utilise le Bluetooth du PC. Le sidetone attend toujours la preuve du rejeu
-PC. Le bilan daté ci-dessous conserve l'historique de la 1.1.0.
+utilise le Bluetooth du PC. Le sidetone, rejoué depuis le PC sous Windows le
+01/11/2026, est intégré au service, à `ctl`, à WinUI et à KDE pour la
+prochaine version (niveaux 0, 1 et 2) ; son effet pendant un appel et Linux
+restent à valider sur le matériel. Le bilan daté ci-dessous conserve
+l'historique de la 1.1.0.
 
 **État au 25/10/2026** : dernière publication **v1.1.0** (jalon 1.1 :
 autonomie mesurée, y compris selon le mode de réduction de bruit ; journal
@@ -112,6 +115,7 @@ Statuts : ✅ écrit et validé sur le M5 (firmware 6.21.5) ; 👁 lu seulement 
 | Personnalisation du son : export du profil | Mon son (fichier dans Documents) | 👁 (lecture brute) |
 | Personnalisation du son : nouveau test, restauration d'un profil | — | ⛔ |
 | Smart Pause, réponse auto, appels confortables | Réglages | ✅ |
+| Retour de voix (sidetone) | Réglages | ✅ (0, 1, 2 ; effet en appel à valider) |
 | Mise hors tension automatique | Réglages | ✅ |
 | Invites : mode, volume | Réglages | ✅ |
 | Invites : langue | Réglages | 👁 (changer = installer un pack de voix ⛔) |

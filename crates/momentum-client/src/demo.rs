@@ -70,6 +70,7 @@ impl Demo {
                 smart_pause: Some(true),
                 auto_answer: Some(false),
                 comfort_call: Some(true),
+                sidetone: Some(0),
                 auto_off_seconds: Some(1800),
                 prompt_mode: Some(PromptMode::TonesAndVoice),
                 codec: None,
@@ -189,6 +190,7 @@ impl Demo {
             Command::SetSmartPause(on) => s.smart_pause = Some(on),
             Command::SetAutoAnswer(on) => s.auto_answer = Some(on),
             Command::SetComfortCall(on) => s.comfort_call = Some(on),
+            Command::SetSidetone(level) => s.sidetone = Some(level),
             Command::SetAutoOff(seconds) => s.auto_off_seconds = Some(seconds),
             Command::SetPromptMode(mode) => s.prompt_mode = Some(mode),
             Command::SetPromptVolume(v) => {

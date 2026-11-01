@@ -71,6 +71,7 @@ pub enum WorkerCommand {
     SetSmartPause(bool),
     SetAutoAnswer(bool),
     SetComfortCall(bool),
+    SetSidetone(u8),
     SetAutoOff(u16),
     SetPromptMode(PromptMode),
     /// Volume des invites, valeur du casque (−20 à +6).
@@ -855,6 +856,7 @@ fn verify(
         WorkerCommand::SetSmartPause(on) => Some(state.smart_pause == Some(*on)),
         WorkerCommand::SetAutoAnswer(on) => Some(state.auto_answer == Some(*on)),
         WorkerCommand::SetComfortCall(on) => Some(state.comfort_call == Some(*on)),
+        WorkerCommand::SetSidetone(level) => Some(state.sidetone == Some(*level)),
         WorkerCommand::SetAutoOff(seconds) => Some(state.auto_off_seconds == Some(*seconds)),
         WorkerCommand::SetPromptMode(mode) => Some(state.prompt_mode == Some(*mode)),
         WorkerCommand::SetPromptVolume(value) => Some(info.prompt_volume == Some(*value)),
@@ -983,6 +985,7 @@ impl WorkerCommand {
                 | WorkerCommand::SetSmartPause(_)
                 | WorkerCommand::SetAutoAnswer(_)
                 | WorkerCommand::SetComfortCall(_)
+                | WorkerCommand::SetSidetone(_)
                 | WorkerCommand::SetAutoOff(_)
                 | WorkerCommand::SetPromptMode(_)
                 | WorkerCommand::SetPromptVolume(_)
@@ -1012,6 +1015,7 @@ impl WorkerCommand {
             C::SetSmartPause(on) => C::SetSmartPause(*on),
             C::SetAutoAnswer(on) => C::SetAutoAnswer(*on),
             C::SetComfortCall(on) => C::SetComfortCall(*on),
+            C::SetSidetone(level) => C::SetSidetone(*level),
             C::SetAutoOff(s) => C::SetAutoOff(*s),
             C::SetPromptMode(m) => C::SetPromptMode(*m),
             C::SetPromptVolume(v) => C::SetPromptVolume(*v),
@@ -1122,6 +1126,7 @@ fn apply<T: Transport>(
         WorkerCommand::SetSmartPause(on) => headset.set_smart_pause(on),
         WorkerCommand::SetAutoAnswer(on) => headset.set_auto_answer(on),
         WorkerCommand::SetComfortCall(on) => headset.set_comfort_call(on),
+        WorkerCommand::SetSidetone(level) => headset.set_sidetone(level),
         WorkerCommand::SetAutoOff(seconds) => headset.set_auto_off(seconds),
         WorkerCommand::SetPromptMode(mode) => headset.set_prompt_mode(mode),
         WorkerCommand::SetPromptVolume(value) => headset.set_prompt_volume(value),
@@ -1693,6 +1698,19 @@ mod tests {
         );
         assert!(matches!(
             verify(&WorkerCommand::SetAntiWind(false), &state, &curve, &info),
+            Outcome::NotApplied(_)
+        ));
+        // Le sidetone relu doit être le niveau demandé.
+        let read = HeadsetState {
+            sidetone: Some(1),
+            ..HeadsetState::default()
+        };
+        assert_eq!(
+            verify(&WorkerCommand::SetSidetone(1), &read, &curve, &info),
+            Outcome::Applied
+        );
+        assert!(matches!(
+            verify(&WorkerCommand::SetSidetone(2), &read, &curve, &info),
             Outcome::NotApplied(_)
         ));
         // Non relu ici : accepté seulement.

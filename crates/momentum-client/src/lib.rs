@@ -67,6 +67,8 @@ pub enum Command {
     SetSmartPause(bool),
     SetAutoAnswer(bool),
     SetComfortCall(bool),
+    /// Sidetone : 0, 1 ou 2 (`SIDETONE_LEVELS`) ; toute autre valeur est refusée.
+    SetSidetone(u8),
     SetAutoOff(u16),
     SetPromptMode(PromptMode),
     /// Volume des invites, valeur du casque (−20 à +6).

@@ -7,7 +7,7 @@
 //! priorité du mode audio, ni aucune autre commande. La première anomalie
 //! arrête la suite après une tentative de remise à la valeur d'origine.
 
-use momentum_core::device::{AUTO_OFF_CHOICES, AudioMode, PromptMode};
+use momentum_core::device::{AUTO_OFF_CHOICES, AudioMode, PromptMode, SIDETONE_LEVELS};
 use momentum_core::request::Outcome;
 use serde::Serialize;
 
@@ -24,6 +24,7 @@ pub enum Essai {
     SmartPause,
     ReponseAuto,
     AppelsConfort,
+    Sidetone,
     Extinction,
     Invites,
     VolumeInvites,
@@ -31,7 +32,7 @@ pub enum Essai {
 }
 
 /// Tous les essais, dans l'ordre de la suite.
-pub const TOUS: [Essai; 12] = [
+pub const TOUS: [Essai; 13] = [
     Essai::Niveau,
     Essai::AntiVent,
     Essai::Bande,
@@ -40,6 +41,7 @@ pub const TOUS: [Essai; 12] = [
     Essai::SmartPause,
     Essai::ReponseAuto,
     Essai::AppelsConfort,
+    Essai::Sidetone,
     Essai::Extinction,
     Essai::Invites,
     Essai::VolumeInvites,
@@ -58,6 +60,7 @@ impl Essai {
             Essai::SmartPause => "smart-pause",
             Essai::ReponseAuto => "reponse-auto",
             Essai::AppelsConfort => "appels-confort",
+            Essai::Sidetone => "sidetone",
             Essai::Extinction => "extinction",
             Essai::Invites => "invites",
             Essai::VolumeInvites => "volume-invites",
@@ -101,6 +104,12 @@ impl Essai {
             Essai::SmartPause => flag(state.smart_pause),
             Essai::ReponseAuto => flag(state.auto_answer),
             Essai::AppelsConfort => flag(state.comfort_call),
+            // Un niveau non observé ne pourrait pas être remis : pas d'essai.
+            Essai::Sidetone => state
+                .sidetone
+                .filter(|level| SIDETONE_LEVELS.contains(level))
+                .map(i32::from)
+                .ok_or_else(unread),
             Essai::Extinction => state.auto_off_seconds.map(i32::from).ok_or_else(unread),
             Essai::Invites => match state.prompt_mode {
                 Some(PromptMode::TonesOnly) => Ok(1),
@@ -142,6 +151,13 @@ impl Essai {
                     value - 10
                 }
             }
+            Essai::Sidetone => {
+                if value == 1 {
+                    2
+                } else {
+                    1
+                }
+            }
             Essai::Extinction => {
                 let next = if value == i32::from(AUTO_OFF_CHOICES[1]) {
                     AUTO_OFF_CHOICES[2]
@@ -175,6 +191,7 @@ impl Essai {
             Essai::SmartPause => Command::SetSmartPause(on),
             Essai::ReponseAuto => Command::SetAutoAnswer(on),
             Essai::AppelsConfort => Command::SetComfortCall(on),
+            Essai::Sidetone => Command::SetSidetone(value.clamp(0, 2) as u8),
             Essai::Extinction => Command::SetAutoOff(value.clamp(0, 3600) as u16),
             Essai::Invites => Command::SetPromptMode(if value == 1 {
                 PromptMode::TonesOnly
@@ -400,6 +417,7 @@ mod tests {
                 smart_pause: Some(true),
                 auto_answer: Some(false),
                 comfort_call: Some(true),
+                sidetone: Some(0),
                 auto_off_seconds: Some(3600),
                 prompt_mode: Some(PromptMode::TonesAndVoice),
                 ..HeadsetState::default()
@@ -459,6 +477,7 @@ mod tests {
                 Command::SetSmartPause(v) => s.smart_pause = Some(v),
                 Command::SetAutoAnswer(v) => s.auto_answer = Some(v),
                 Command::SetComfortCall(v) => s.comfort_call = Some(v),
+                Command::SetSidetone(v) => s.sidetone = Some(v),
                 Command::SetAutoOff(v) => s.auto_off_seconds = Some(v),
                 Command::SetPromptMode(m) => s.prompt_mode = Some(m),
                 Command::SetPromptVolume(v) => info.prompt_volume = Some(v),
@@ -499,7 +518,9 @@ mod tests {
         // Bande au maximum (+6 dB) : l'essai descend d'un dB.
         assert_eq!(results[2].essai_valeur, Some(50));
         // Volume des invites au maximum (+6) : l'essai descend.
-        assert_eq!(results[10].essai_valeur, Some(4));
+        assert_eq!(results[11].essai_valeur, Some(4));
+        // Sidetone à 0 : l'essai passe à 1, puis revient à 0.
+        assert_eq!(results[8].essai_valeur, Some(1));
     }
 
     #[test]

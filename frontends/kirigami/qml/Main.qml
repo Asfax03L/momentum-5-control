@@ -1530,6 +1530,17 @@ Kirigami.ApplicationWindow {
                             root.confirmed(comfort, () => headset.comfort)
                         }
                     }
+                    QQC2.ComboBox {
+                        Accessible.name: headset.tr("Retour de voix (sidetone)")
+                        Kirigami.FormData.label: headset.tr("Retour de voix (sidetone) :")
+                        model: headset.sidetoneLabels
+                        currentIndex: headset.sidetone
+                        enabled: headset.sidetoneEnabled
+                        onActivated: index => {
+                            headset.sendSidetoneIndex(index)
+                            currentIndex = Qt.binding(() => headset.sidetone)
+                        }
+                    }
 
                     Kirigami.Separator {
                         Kirigami.FormData.isSection: true

@@ -11,7 +11,7 @@ use crate::audio_check::{
 use crate::battery_log::{BatteryLog, Entry, RETENTION_SECONDS, chart_path};
 use crate::device::NoiseModeRequest;
 use crate::device::{
-    AUTO_OFF_CHOICES, AudioMode, Connection, DeviceInfo, HeadsetState, PromptMode,
+    AUTO_OFF_CHOICES, AudioMode, Connection, DeviceInfo, HeadsetState, PromptMode, SIDETONE_LEVELS,
     SoundProfileStatus, prompt_volume_percent,
 };
 use crate::i18n::{tr, trf};
@@ -435,6 +435,9 @@ fn home_rows(s: &HeadsetState) -> Vec<Row> {
     ]
 }
 
+/// Choix du sidetone, dans l'ordre de `SIDETONE_LEVELS`.
+pub const SIDETONE_LABELS: [&str; 3] = ["Arrêt", "Niveau 1", "Niveau 2"];
+
 /// Choix d'extinction automatique, dans l'ordre de `AUTO_OFF_CHOICES`.
 pub const AUTO_OFF_LABELS: [&str; 4] = ["Jamais", "Après 15 min", "Après 30 min", "Après 60 min"];
 /// Modes d'invites, dans l'ordre des boutons.
@@ -464,6 +467,9 @@ pub struct SettingsView {
     /// Indice dans `AUTO_OFF_LABELS`, -1 si non lu ou durée inconnue.
     pub auto_off: i32,
     pub auto_off_enabled: bool,
+    /// Indice dans `SIDETONE_LABELS`, -1 si non lu ou niveau non observé.
+    pub sidetone: i32,
+    pub sidetone_enabled: bool,
     /// Indice dans `PROMPT_MODES`, -1 si non lu ou autre.
     pub prompt_mode: i32,
     pub prompts_enabled: bool,
@@ -486,6 +492,7 @@ pub fn settings_view(
     let Some(s) = state else {
         return SettingsView {
             auto_off: -1,
+            sidetone: -1,
             prompt_mode: -1,
             name: String::new(),
             rename_enabled: false,
@@ -496,6 +503,11 @@ pub fn settings_view(
     let auto_off = s
         .auto_off_seconds
         .and_then(|secs| AUTO_OFF_CHOICES.iter().position(|&c| c == secs))
+        .and_then(|i| i32::try_from(i).ok())
+        .unwrap_or(-1);
+    let sidetone = s
+        .sidetone
+        .and_then(|level| SIDETONE_LEVELS.iter().position(|&c| c == level))
         .and_then(|i| i32::try_from(i).ok())
         .unwrap_or(-1);
     let prompt_mode = match s.prompt_mode {
@@ -510,6 +522,8 @@ pub fn settings_view(
         battery_protection: toggle(s.battery_protection, writable),
         auto_off,
         auto_off_enabled: writable && s.auto_off_seconds.is_some(),
+        sidetone,
+        sidetone_enabled: writable && s.sidetone.is_some(),
         prompt_mode,
         prompts_enabled: writable && s.prompt_mode.is_some(),
         name: info.and_then(|i| i.name.clone()).unwrap_or_default(),
