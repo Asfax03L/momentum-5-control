@@ -159,8 +159,7 @@ pub mod get {
     /// deux octets, notification `0682` d'un octet. Captures de Smart Control
     /// Plus du 28/10/2026 (`0702 [00 00]` record 31362, `0702 [01 00]` record
     /// 56016) ; voir docs/MOMENTUM5.md. Lecture seule, aucun SET établi.
-    /// Rejouée depuis le PC sous Windows le 31/10/2026 ; Linux : à valider sur
-    /// le matériel.
+    /// Rejouée depuis le PC sous Windows (31/10/2026) et Linux (01/11/2026).
     pub const CHARGER_STATE: CommandId = CommandId::new(0x0602);
     /// GET codec → payload `[codec]` (5 = aptX HD). Répond sur M5, mais la
     /// valeur observée (1) n'est pas documentée.
@@ -184,7 +183,7 @@ pub mod get {
     pub const ON_HEAD_DETECTION: CommandId = CommandId::new(0x0401);
     /// GET état physique du port, distinct de l'activation `0401`.
     /// Capture du 25/10/2026, records 22342/22345 ; voir docs/MOMENTUM5.md.
-    /// Rejeu depuis le PC : à valider sur le matériel.
+    /// Rejoué depuis le PC sous Windows (27/10/2026) et Linux (01/11/2026).
     pub const ON_HEAD_STATE: CommandId = CommandId::new(0x0402);
 
     // Catalogue étendu : GET relevés dans le client macOS d'Oein (issus de
@@ -333,7 +332,7 @@ pub mod set {
     pub const SMART_PAUSE: CommandId = CommandId::new(0x080C);
     /// Sidetone : un octet, `00` arrêt, `01` minimum, `02` deuxième palier
     /// (capture du 25/10/2026, records 27904 à 28005). Rejouée depuis le PC
-    /// sous Windows le 01/11/2026 ; Linux : à valider sur le matériel.
+    /// sous Windows et Linux le 01/11/2026.
     pub const SIDETONE: CommandId = CommandId::new(0x0805);
     /// Réponse automatique aux appels : `[0|1]`.
     pub const AUTO_ANSWER: CommandId = CommandId::new(0x080A);

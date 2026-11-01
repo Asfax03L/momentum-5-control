@@ -256,11 +256,17 @@ fn run<T: Transport>(
             subscribe_once(headset, &mut budget, report)?;
             let positions = ["porté", "posé"].repeat(3);
             for (i, position) in positions.iter().enumerate() {
+                let action = if *position == "porté" {
+                    "METTEZ le casque SUR LA TÊTE et gardez-le"
+                } else {
+                    "ENLEVEZ le casque et POSEZ-LE À PLAT, sans plus le toucher"
+                };
                 report.note(
                     "consigne",
                     &format!(
-                        "cycle {} : casque {position}, puis Entrée après environ 10 s stables",
-                        i / 2 + 1
+                        "ÉTAPE {} SUR {} : {action}. Comptez 10 secondes, PUIS appuyez sur Entrée.",
+                        i + 1,
+                        positions.len()
                     ),
                 );
                 loop {

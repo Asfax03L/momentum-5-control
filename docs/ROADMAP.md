@@ -10,10 +10,10 @@ curseurs, préréglages et A/B ; le [lot 3](LOT3-ASSISTANT-EQ.md) (1.4.0)
 ajoute l'assistant EQ guidé à WinUI et KDE. Ces parcours sont vérifiés en
 simulation et en CI, sans nouvelle qualification matérielle revendiquée.
 Le diagnostic BTD 700 reste facultatif et non réalisé ; le besoin retenu
-utilise le Bluetooth du PC. Le sidetone, rejoué depuis le PC sous Windows le
-01/11/2026, est intégré au service, à `ctl`, à WinUI et à KDE pour la
-prochaine version (niveaux 0, 1 et 2) ; son effet pendant un appel et Linux
-restent à valider sur le matériel. Le bilan daté ci-dessous conserve
+utilise le Bluetooth du PC. Le sidetone, rejoué depuis le PC sous Windows et
+Linux le 01/11/2026, est intégré au service, à `ctl`, à WinUI et à KDE pour
+la prochaine version (niveaux 0, 1 et 2) ; son effet pendant un appel reste à
+valider sur le matériel. Le bilan daté ci-dessous conserve
 l'historique de la 1.1.0.
 
 **État au 25/10/2026** : dernière publication **v1.1.0** (jalon 1.1 :

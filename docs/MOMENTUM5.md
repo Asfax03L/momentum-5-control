@@ -71,10 +71,13 @@ ancien service qui l'omet reste lisible. Le JSON historique de `ctl etat`
 reste identique. Aucun indicateur graphique ni réglage supplémentaire n'est
 ajouté à ce stade.
 
-**Validation : transport simulé uniquement. Chaque échange ajouté reste
-« à valider sur le matériel » depuis le PC.** Les tests vérifient le décodage,
-le routage, les erreurs et la compatibilité JSON ; ils ne prouvent ni la
-réception réelle des notifications sous Windows/Linux ni la pause musicale.
+**Validation depuis le PC** (M5AEBT 6.21.5, outil `essai_port`, journaux
+privés) : paliers 1 à 3 sous Windows 11 le 27/10/2026 et sous Bazzite 44 (BlueZ)
+le 01/11/2026. Lecture `0402`, abonnement `0007 [02]`, notifications `0482`, et
+notification avant la réponse après un redémarrage du casque. Sous Linux, le
+suivi des gestes est confirmé par l'utilisateur : le journal ne le prouve pas à
+lui seul, car l'ordre des appuis sur Entrée n'y a pas suivi les consignes. La
+pause musicale n'est pas essayée.
 
 ## Transport
 
@@ -460,9 +463,14 @@ privés) :
 | 01/11/2026 | `0007 [03]`, sans `0602` | `0107` vide, puis aussitôt `0682 [00]` et `0683` ; `0682 [01]` au branchement du câble |
 
 L'abonnement suffit donc à recevoir l'état courant et le passage à `01`, mais
-`0602` reste lue : elle seule donne le second octet. **À valider sur le
-matériel** : le passage de `01` à `00` depuis le PC, et tout le contrat sous
-Linux.
+`0602` reste lue : elle seule donne le second octet.
+
+Sous Bazzite 44 (BlueZ) le 01/11/2026 : `0702 [00 00]` sans câble, `0702 [01 00]`
+câble branché, et après `0007 [03]` : `0682 [01]` aussitôt, `0682 [00]` au
+débranchement, `0682 [01]` au rebranchement.
+
+**À valider sur le matériel** : le passage de `01` à `00` depuis le PC sous
+Windows (observé seulement sous Linux).
 
 ### Sidetone (captures du 25/10/2026)
 
@@ -492,8 +500,13 @@ suivi par `0886`, réglable par le service, `ctl sidetone`, WinUI et KDE. Seuls
 0, 1 et 2 sont envoyés ; une autre valeur lue reste affichée telle quelle.
 Le réglage ne fait pas partie des scènes.
 
+Sous Bazzite 44 (BlueZ) le 01/11/2026 : mêmes résultats avec `essai_sidetone`
+(valeur initiale `00`). `ctl sidetone 1` puis `0`, à travers le service compilé
+depuis ce dépôt, sont relus à la bonne valeur ; `ctl sidetone 3` est refusé
+avant tout envoi.
+
 **À valider sur le matériel** : l'effet entendu pendant un appel (aucune écoute
-ni mesure acoustique), et tout le contrat sous Linux.
+ni mesure acoustique), et le service réel sous Windows.
 
 ### Volume des invites : échelle (expérience F1, 09/10/2026)
 
