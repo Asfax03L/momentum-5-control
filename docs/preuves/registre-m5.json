@@ -128,7 +128,7 @@
         "systeme": "Windows 11",
         "outil": "crates/momentum-cli/examples/essai_charge.rs",
         "commit": "6213543",
-        "resultat": "après 0007 [03] / 0107 : état courant reçu aussitôt (00, et 01 le 31/10/2026), sans 0602 ; 0682 [01] au branchement du câble ; passage de 01 à 00 non observé",
+        "resultat": "après 0007 [03] / 0107 : état courant reçu aussitôt (00, et 01 le 31/10/2026), sans 0602 ; 0682 [01] au branchement du câble, 0682 [00] au débranchement",
         "journal_prive": true
       },
       "tests": ["crates/momentum-cli/examples/essai_charge.rs"]
@@ -273,7 +273,7 @@
   ],
   "a_valider_sur_le_materiel": [
     { "fonction": "port", "systeme": "Windows et Linux", "raison": "seul le micrologiciel 6.21.5 est essayé ; pause musicale non essayée" },
-    { "fonction": "charge", "systeme": "Windows 11", "raison": "notification du passage de 01 à 00 observée seulement sous Linux" },
+    { "fonction": "charge", "systeme": "Windows et Linux", "raison": "code 02 jamais observé sur le M5 ; seul le micrologiciel 6.21.5 est essayé" },
     { "fonction": "sidetone", "systeme": "Windows et Linux", "raison": "effet entendu pendant un appel non vérifié ; niveaux 3 et 4 jamais observés" }
   ]
 }

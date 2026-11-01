@@ -44,7 +44,6 @@ Essais sur un M5AEBT 6.21.5 sous Windows 11 et Bazzite 44, recensés dans
 et sidetone avec retour à la valeur d'origine. Le sidetone est aussi essayé à
 travers le vrai service, depuis WinUI sous Windows et depuis `ctl` sous Linux.
 L'interface KDE et Waybar sont essayés sans écran, en démonstration pour KDE.
-Restent seulement observés sous Linux : l'annonce du débranchement du câble.
 Les niveaux 3 et 4 du sidetone restent exclus : jamais observés.
 
 ## v1.4.0 — 29/10/2026
