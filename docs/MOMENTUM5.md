@@ -461,6 +461,7 @@ privés) :
 | 31/10/2026 | `0602`, câble branché | `0702 [01 00]` |
 | 31/10/2026 | `0007 [03]`, câble branché | `0107` vide, puis aussitôt `0682 [01]` et `0683` |
 | 01/11/2026 | `0007 [03]`, sans `0602` | `0107` vide, puis aussitôt `0682 [00]` et `0683` ; `0682 [01]` au branchement du câble |
+| 01/11/2026 | `0007 [03]`, câble branché | `0107` vide, puis aussitôt `0682 [01]` et `0683` ; `0682 [00]` au débranchement du câble |
 
 L'abonnement suffit donc à recevoir l'état courant et le passage à `01`, mais
 `0602` reste lue : elle seule donne le second octet.
@@ -469,8 +470,8 @@ Sous Bazzite 44 (BlueZ) le 01/11/2026 : `0702 [00 00]` sans câble, `0702 [01 00
 câble branché, et après `0007 [03]` : `0682 [01]` aussitôt, `0682 [00]` au
 débranchement, `0682 [01]` au rebranchement.
 
-**À valider sur le matériel** : le passage de `01` à `00` depuis le PC sous
-Windows (observé seulement sous Linux).
+Sous Windows le 01/11/2026 : après `0007 [03]`, `0682 [01]` aussitôt, puis
+`0682 [00]` au débranchement du câble.
 
 ### Sidetone (captures du 25/10/2026)
 
@@ -505,8 +506,10 @@ Sous Bazzite 44 (BlueZ) le 01/11/2026 : mêmes résultats avec `essai_sidetone`
 depuis ce dépôt, sont relus à la bonne valeur ; `ctl sidetone 3` est refusé
 avant tout envoi.
 
-**À valider sur le matériel** : l'effet entendu pendant un appel (aucune écoute
-ni mesure acoustique), et le service réel sous Windows.
+Sous Windows, le service compilé et WinUI ont changé le niveau et l'ont relu sur
+le casque. Écoute pendant un appel téléphonique le 01/11/2026, jugée à l'oreille
+par l'utilisateur, sans mesure : rien à l'arrêt, voix plus forte au niveau 1,
+plus forte encore au niveau 2.
 
 ### Volume des invites : échelle (expérience F1, 09/10/2026)
 

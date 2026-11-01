@@ -78,6 +78,13 @@ commande à l'API. Ses copies initiales sont des courbes indépendantes dans
 `assistant-eq/`, importables par le parcours existant. Elles ne sont pas
 incluses dans l'export JSON des réglages et ne sont pas purgées automatiquement.
 
+## Sidetone depuis la 1.5.0
+
+Le champ `sidetone` s'ajoute au résultat JSON de `ctl` et à l'état du service.
+La sortie historique de `ctl etat --json` ne change pas. `ctl barre` suit le
+format du module `custom` de Waybar : elle n'est pas versionnée comme les autres
+sorties.
+
 ## Micrologiciel du casque
 
 Une nouvelle version du micrologiciel peut changer le comportement d'une

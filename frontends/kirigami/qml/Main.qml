@@ -248,6 +248,7 @@ Kirigami.ApplicationWindow {
     // (code 1). Jamais actif hors du mode démonstration.
     property int essaiEtape: 0
     property bool essaiAntiVent: false
+    property int essaiSidetone: -1
     property int essaiAttente: 0
     property var essaiGains: []
     function essaiEchec(message) {
@@ -355,6 +356,22 @@ Kirigami.ApplicationWindow {
                     if (headset.bandGain(i) !== root.essaiGains[i]) return root.essaiEchec("restauration incorrecte")
                 }
                 console.info("essai interface : assistant EQ et restauration relue réussis")
+                root.pageStack.replace(settingsPage)
+                const liste = root.essaiChercher(root.pageStack.currentItem, "parametres-sidetone")
+                if (!liste || !liste.enabled || liste.count !== 3)
+                    return root.essaiEchec("liste du sidetone indisponible")
+                root.essaiAttente = 0
+                headset.sendSidetoneIndex((headset.sidetone + 1) % 3)
+                root.essaiSidetone = (headset.sidetone + 1) % 3
+            } else if (root.essaiEtape === 11) {
+                const liste = root.essaiChercher(root.pageStack.currentItem, "parametres-sidetone")
+                if (headset.sidetone !== root.essaiSidetone || liste.currentIndex !== root.essaiSidetone) {
+                    root.essaiAttente += 1
+                    if (root.essaiAttente < 5)
+                        return
+                    return root.essaiEchec("sidetone simulé non relu à l'affichage")
+                }
+                console.info("essai interface : sidetone → " + liste.currentText)
                 console.info("ESSAI INTERFACE RÉUSSI")
                 Qt.exit(0)
             }
@@ -1532,6 +1549,7 @@ Kirigami.ApplicationWindow {
                     }
                     QQC2.ComboBox {
                         Accessible.name: headset.tr("Retour de voix (sidetone)")
+                        objectName: "parametres-sidetone"
                         Kirigami.FormData.label: headset.tr("Retour de voix (sidetone) :")
                         model: headset.sidetoneLabels
                         currentIndex: headset.sidetone

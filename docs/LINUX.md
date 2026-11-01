@@ -345,7 +345,8 @@ directe et ne démarre pas un service arrêté.
 }
 ```
 
-Avec le Flatpak, remplacer `ctl barre` par
+Essayé le 01/11/2026 avec Waybar 0.15 dans un écran virtuel (`sway` sans écran,
+Fedora 44). Avec le Flatpak, remplacer `ctl barre` par
 `flatpak run --command=ctl io.github.asfax03l.openheadset-control barre`.
 
 ## Mode jeu (Decky Loader)
