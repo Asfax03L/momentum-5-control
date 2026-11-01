@@ -480,8 +480,15 @@ records 22322 à 28852) :
 `00` = arrêt, `01` = minimum actif, `02` = deuxième palier actif.
 L'app prévoit cinq pas dans la configuration examinée, donc **0 à 4**
 (l'ancienne annotation « 0 à 5 » du code est corrigée) ; seuls **0, 1 et 2**
-ont été observés, 3 et 4 restent non essayés. Aucun essai pendant un appel ni
-mesure acoustique. Rejeu depuis le PC : **à valider sur le matériel**.
+ont été observés, 3 et 4 restent non essayés.
+
+Essai depuis le PC le 01/11/2026 (Windows 11, M5AEBT 6.21.5, outil
+`essai_sidetone`, journal privé) : valeur initiale `00`, puis `0805 [02]`,
+`[01]` et `[00]`. Chaque écriture reçoit `0905` vide, la relecture `0906` rend
+la valeur demandée et `0886` suit ; la valeur d'origine est remise et relue.
+
+**À valider sur le matériel** : l'effet entendu pendant un appel (aucune écoute
+ni mesure acoustique), et tout le contrat sous Linux.
 
 ### Volume des invites : échelle (expérience F1, 09/10/2026)
 

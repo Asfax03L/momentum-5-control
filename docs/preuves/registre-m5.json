@@ -168,6 +168,25 @@
       "tests": ["crates/momentum-cli/examples/essai_sidetone.rs"]
     },
     {
+      "id": "sidetone-essai-pc-windows",
+      "fonction": "sidetone",
+      "commande": "0805",
+      "sens": "ecriture",
+      "charge_utile": "02 | 01 | 00",
+      "reponse": "0905",
+      "reponse_charge_utile": "",
+      "nature": "essai_pc",
+      "source": {
+        "date": "2026-11-01",
+        "systeme": "Windows 11",
+        "outil": "crates/momentum-cli/examples/essai_sidetone.rs",
+        "commit": "e37ae28",
+        "resultat": "valeur initiale 00 ; 0805 [02], [01], [00] : accusé 0905, relecture 0906 identique, notification 0886 ; valeur d'origine remise et relue. Effet sonore non vérifié",
+        "journal_prive": true
+      },
+      "tests": ["crates/momentum-cli/examples/essai_sidetone.rs"]
+    },
+    {
       "id": "sidetone-notifications-capture",
       "fonction": "sidetone",
       "commande": "0886",
@@ -182,6 +201,7 @@
     { "fonction": "port", "systeme": "Linux (BlueZ)", "raison": "paliers 1 à 3 essayés sous Windows seulement" },
     { "fonction": "charge", "systeme": "Linux (BlueZ)", "raison": "essayée sous Windows seulement" },
     { "fonction": "charge", "systeme": "Windows et Linux", "raison": "notification du passage de 01 à 00 non observée depuis le PC" },
-    { "fonction": "sidetone", "systeme": "Windows et Linux", "raison": "aucune écriture depuis le PC ; niveaux 3 et 4 jamais observés" }
+    { "fonction": "sidetone", "systeme": "Linux (BlueZ)", "raison": "essayé sous Windows seulement" },
+    { "fonction": "sidetone", "systeme": "Windows et Linux", "raison": "effet entendu pendant un appel non vérifié ; niveaux 3 et 4 jamais observés" }
   ]
 }
