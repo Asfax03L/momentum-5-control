@@ -134,6 +134,61 @@
       "tests": ["crates/momentum-cli/examples/essai_charge.rs"]
     },
     {
+      "id": "port-essai-pc-linux",
+      "fonction": "port",
+      "commande": "0402",
+      "sens": "requete",
+      "charge_utile": "",
+      "reponse": "0502",
+      "reponse_charge_utile": "02 | 03",
+      "nature": "essai_pc",
+      "source": {
+        "date": "2026-11-01",
+        "systeme": "Bazzite 44 (BlueZ)",
+        "outil": "crates/momentum-cli/examples/essai_port.rs",
+        "commit": "f0f3577",
+        "resultat": "paliers 1 à 3 : 0402 → 0502 ; 0007 [02] → 0107 ; 0482 reçue, notification avant réponse après redémarrage ; suivi des gestes confirmé par l'utilisateur, l'ordre des appuis n'ayant pas suivi les consignes",
+        "journal_prive": true
+      },
+      "tests": ["crates/momentum-cli/examples/essai_port.rs"]
+    },
+    {
+      "id": "charge-lecture-essai-pc-linux",
+      "fonction": "charge",
+      "commande": "0602",
+      "sens": "requete",
+      "charge_utile": "",
+      "reponse": "0702",
+      "reponse_charge_utile": "00 00 | 01 00",
+      "nature": "essai_pc",
+      "source": {
+        "date": "2026-11-01",
+        "systeme": "Bazzite 44 (BlueZ)",
+        "outil": "crates/momentum-cli/examples/essai_charge.rs",
+        "commit": "16fdc6b",
+        "resultat": "0702 [00 00] sans câble, 0702 [01 00] câble branché ; une lecture par connexion, aucun refus",
+        "journal_prive": true
+      },
+      "tests": ["crates/momentum-cli/examples/essai_charge.rs"]
+    },
+    {
+      "id": "charge-notifications-essai-pc-linux",
+      "fonction": "charge",
+      "commande": "0682",
+      "sens": "notification",
+      "charge_utile": "00 | 01",
+      "nature": "essai_pc",
+      "source": {
+        "date": "2026-11-01",
+        "systeme": "Bazzite 44 (BlueZ)",
+        "outil": "crates/momentum-cli/examples/essai_charge.rs",
+        "commit": "16fdc6b",
+        "resultat": "après 0007 [03] / 0107 : 01 aussitôt, 00 au débranchement, 01 au rebranchement, sans 0602",
+        "journal_prive": true
+      },
+      "tests": ["crates/momentum-cli/examples/essai_charge.rs"]
+    },
+    {
       "id": "charge-cas-synthetiques",
       "fonction": "charge",
       "commande": "0702",
@@ -187,6 +242,25 @@
       "tests": ["crates/momentum-cli/examples/essai_sidetone.rs"]
     },
     {
+      "id": "sidetone-essai-pc-linux",
+      "fonction": "sidetone",
+      "commande": "0805",
+      "sens": "ecriture",
+      "charge_utile": "02 | 01 | 00",
+      "reponse": "0905",
+      "reponse_charge_utile": "",
+      "nature": "essai_pc",
+      "source": {
+        "date": "2026-11-01",
+        "systeme": "Bazzite 44 (BlueZ)",
+        "outil": "crates/momentum-cli/examples/essai_sidetone.rs",
+        "commit": "16fdc6b",
+        "resultat": "valeur initiale 00 ; 0805 [02], [01], [00] : accusé 0905, relecture 0906 identique, notification 0886 ; valeur d'origine remise et relue. ctl sidetone par le service compilé : relu. Effet sonore non vérifié",
+        "journal_prive": true
+      },
+      "tests": ["crates/momentum-cli/examples/essai_sidetone.rs"]
+    },
+    {
       "id": "sidetone-notifications-capture",
       "fonction": "sidetone",
       "commande": "0886",
@@ -198,10 +272,8 @@
     }
   ],
   "a_valider_sur_le_materiel": [
-    { "fonction": "port", "systeme": "Linux (BlueZ)", "raison": "paliers 1 à 3 essayés sous Windows seulement" },
-    { "fonction": "charge", "systeme": "Linux (BlueZ)", "raison": "essayée sous Windows seulement" },
-    { "fonction": "charge", "systeme": "Windows et Linux", "raison": "notification du passage de 01 à 00 non observée depuis le PC" },
-    { "fonction": "sidetone", "systeme": "Linux (BlueZ)", "raison": "essayé sous Windows seulement" },
+    { "fonction": "port", "systeme": "Windows et Linux", "raison": "seul le micrologiciel 6.21.5 est essayé ; pause musicale non essayée" },
+    { "fonction": "charge", "systeme": "Windows 11", "raison": "notification du passage de 01 à 00 observée seulement sous Linux" },
     { "fonction": "sidetone", "systeme": "Windows et Linux", "raison": "effet entendu pendant un appel non vérifié ; niveaux 3 et 4 jamais observés" }
   ]
 }
