@@ -51,6 +51,16 @@ struct Report {
     start: Instant,
     lines: Vec<String>,
     charge_notifications: usize,
+    last_status: Option<ChargerStatus>,
+}
+
+/// Geste demandé à l'utilisateur, d'après le dernier état annoncé.
+fn gesture(status: Option<ChargerStatus>) -> &'static str {
+    match status {
+        Some(ChargerStatus::Charging) => ">>> DÉBRANCHEZ LE CÂBLE MAINTENANT <<<",
+        Some(ChargerStatus::Disconnected) => ">>> BRANCHEZ LE CÂBLE MAINTENANT <<<",
+        _ => ">>> CHANGEZ L'ÉTAT DU CÂBLE MAINTENANT <<<",
+    }
 }
 
 fn describe(status: ChargerStatus) -> String {
@@ -67,6 +77,7 @@ impl Report {
             start: Instant::now(),
             lines: vec!["ms;evenement;detail".to_string()],
             charge_notifications: 0,
+            last_status: None,
         }
     }
 
@@ -99,6 +110,7 @@ impl Report {
                         anomaly.get_or_insert(format!("notification de charge {b:02X} inconnue"));
                     }
                     Ok(status) => {
+                        self.last_status = Some(status);
                         self.note(
                             "notification-charge",
                             &format!("{detail} : {}", describe(status)),
@@ -227,12 +239,18 @@ fn subscribe_and_listen<T: Transport>(
     report.note(
         "consigne",
         &format!(
-            "écoute {} s : brancher ou débrancher le câble si besoin",
+            "écoute {} s : NE TOUCHEZ À RIEN, le programme dira quand agir",
             listen.as_secs()
         ),
     );
-    let end = Instant::now() + listen;
-    while Instant::now() < end {
+    let start = Instant::now();
+    // Une durée trop courte pour un geste (tests) n'en demande aucun.
+    let mut pending = listen >= Duration::from_secs(20);
+    while start.elapsed() < listen {
+        if pending && start.elapsed() >= Duration::from_secs(5) {
+            pending = false;
+            report.note("geste", gesture(report.last_status));
+        }
         let frames = headset
             .client()
             .poll(Duration::from_millis(250))
@@ -394,6 +412,13 @@ mod tests {
         assert_eq!(sent, 3);
         assert!(logged(&report, "00 chargeur débranché"));
         assert!(logged(&report, "1 notification(s) 0682 reçue(s)"));
+    }
+
+    #[test]
+    fn the_gesture_follows_the_announced_state() {
+        assert!(gesture(Some(ChargerStatus::Charging)).contains("DÉBRANCHEZ"));
+        assert!(gesture(Some(ChargerStatus::Disconnected)).contains(">>> BRANCHEZ"));
+        assert!(gesture(None).contains("CHANGEZ"));
     }
 
     #[test]
