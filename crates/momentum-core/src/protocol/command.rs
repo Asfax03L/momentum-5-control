@@ -159,7 +159,8 @@ pub mod get {
     /// deux octets, notification `0682` d'un octet. Captures de Smart Control
     /// Plus du 28/10/2026 (`0702 [00 00]` record 31362, `0702 [01 00]` record
     /// 56016) ; voir docs/MOMENTUM5.md. Lecture seule, aucun SET établi.
-    /// Rejeu depuis le PC : à valider sur le matériel.
+    /// Rejouée depuis le PC sous Windows le 31/10/2026 ; Linux : à valider sur
+    /// le matériel.
     pub const CHARGER_STATE: CommandId = CommandId::new(0x0602);
     /// GET codec → payload `[codec]` (5 = aptX HD). Répond sur M5, mais la
     /// valeur observée (1) n'est pas documentée.

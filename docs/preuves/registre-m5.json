@@ -98,6 +98,42 @@
       "tests": ["crates/momentum-core/tests/charge.rs"]
     },
     {
+      "id": "charge-lecture-essai-pc-windows",
+      "fonction": "charge",
+      "commande": "0602",
+      "sens": "requete",
+      "charge_utile": "",
+      "reponse": "0702",
+      "reponse_charge_utile": "00 00 | 01 00",
+      "nature": "essai_pc",
+      "source": {
+        "date": "2026-10-31",
+        "systeme": "Windows 11",
+        "outil": "crates/momentum-cli/examples/essai_charge.rs",
+        "commit": "6213543",
+        "resultat": "0702 [00 00] sans câble, 0702 [01 00] câble branché ; une lecture par connexion, aucun refus",
+        "journal_prive": true
+      },
+      "tests": ["crates/momentum-cli/examples/essai_charge.rs"]
+    },
+    {
+      "id": "charge-notifications-essai-pc-windows",
+      "fonction": "charge",
+      "commande": "0682",
+      "sens": "notification",
+      "charge_utile": "00 | 01",
+      "nature": "essai_pc",
+      "source": {
+        "date": "2026-11-01",
+        "systeme": "Windows 11",
+        "outil": "crates/momentum-cli/examples/essai_charge.rs",
+        "commit": "6213543",
+        "resultat": "après 0007 [03] / 0107 : état courant reçu aussitôt (00, et 01 le 31/10/2026), sans 0602 ; 0682 [01] au branchement du câble ; passage de 01 à 00 non observé",
+        "journal_prive": true
+      },
+      "tests": ["crates/momentum-cli/examples/essai_charge.rs"]
+    },
+    {
       "id": "charge-cas-synthetiques",
       "fonction": "charge",
       "commande": "0702",
@@ -144,7 +180,8 @@
   ],
   "a_valider_sur_le_materiel": [
     { "fonction": "port", "systeme": "Linux (BlueZ)", "raison": "paliers 1 à 3 essayés sous Windows seulement" },
-    { "fonction": "charge", "systeme": "Windows et Linux", "raison": "aucun essai depuis le PC" },
+    { "fonction": "charge", "systeme": "Linux (BlueZ)", "raison": "essayée sous Windows seulement" },
+    { "fonction": "charge", "systeme": "Windows et Linux", "raison": "notification du passage de 01 à 00 non observée depuis le PC" },
     { "fonction": "sidetone", "systeme": "Windows et Linux", "raison": "aucune écriture depuis le PC ; niveaux 3 et 4 jamais observés" }
   ]
 }

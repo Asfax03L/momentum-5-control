@@ -447,9 +447,22 @@ Captures de Smart Control Plus (empreintes SHA-256) :
   autre longueur = erreur, sans nouvel état.
 
 Implémentation (branche d'essai, d'après la fiche de Codex du 28/10/2026) :
-`HeadsetState.charge_state`, lu à chaque relecture complète ; tests sur
-transport simulé seulement. Rejeu depuis le PC : **à valider sur le
-matériel**.
+`HeadsetState.charge_state`, lu à chaque relecture complète.
+
+Essais depuis le PC (Windows 11, M5AEBT 6.21.5, outil `essai_charge`, journaux
+privés) :
+
+| Date | Échange | Résultat |
+|---|---|---|
+| 31/10/2026 | `0602`, sans câble | `0702 [00 00]` |
+| 31/10/2026 | `0602`, câble branché | `0702 [01 00]` |
+| 31/10/2026 | `0007 [03]`, câble branché | `0107` vide, puis aussitôt `0682 [01]` et `0683` |
+| 01/11/2026 | `0007 [03]`, sans `0602` | `0107` vide, puis aussitôt `0682 [00]` et `0683` ; `0682 [01]` au branchement du câble |
+
+L'abonnement suffit donc à recevoir l'état courant et le passage à `01`, mais
+`0602` reste lue : elle seule donne le second octet. **À valider sur le
+matériel** : le passage de `01` à `00` depuis le PC, et tout le contrat sous
+Linux.
 
 ### Sidetone (captures du 25/10/2026)
 
