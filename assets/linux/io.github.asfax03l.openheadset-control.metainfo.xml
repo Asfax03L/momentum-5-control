@@ -75,6 +75,11 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="1.7.0" date="2026-11-04">
+      <description>
+        <p>Quick panel and global shortcuts for the GNOME client, which is now in the deb, rpm and AUR packages. Battery level reported by Windows when the service cannot reach the headset. Optional notice when the headset reports 100 % while plugged in.</p>
+      </description>
+    </release>
     <release version="1.6.0" date="2026-11-04">
       <description>
         <p>The GNOME client now has the same pages as the KDE client, without the quick panel or global shortcuts. Bluetooth codec choice through PipeWire on Linux. When the service cannot reach the headset, the battery level reported by the system is shown and labelled as such.</p>

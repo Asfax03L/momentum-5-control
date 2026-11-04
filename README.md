@@ -18,6 +18,10 @@ au casque, et deux outils en ligne de commande.
 
 ## État du projet
 
+La **1.7.0** ajoute au client GNOME un **panneau rapide** et des **raccourcis
+globaux**, le met dans les paquets `.deb`, `.rpm` et AUR, affiche la batterie
+annoncée par Windows et ajoute l'avis « Batterie à 100 % câble branché ».
+
 La **1.6.0** complète le **client GNOME** (mêmes pages que KDE, sans panneau
 rapide ni raccourcis globaux), ajoute le **choix du codec Bluetooth** sous Linux
 et affiche la **batterie annoncée par le système** quand le service ne joint pas
@@ -63,7 +67,7 @@ simulation ; aucune nouvelle séance matérielle n'est revendiquée.
 | X | Version stable : politique de versions (`docs/VERSIONS.md`), politique de sécurité (`SECURITY.md`), avis de nouvelle version désactivé par défaut, décisions écrites sur les points ouverts | ✅ v1.0.0 |
 | Y | Fonctions avancées : autonomie mesurée (aussi par mode de réduction de bruit), journal local des événements, notifications au choix (dont « casque allumé sans son »), scènes automatiques (connexion, heure fixe), export pour Equalizer APO | ✅ v1.1.0 ; scènes automatiques essayées sur le M5 (Bazzite) |
 
-Version du code : **v1.6.0** (publications sur la page Releases du dépôt), série
+Version du code : **v1.7.0** (publications sur la page Releases du dépôt), série
 stable 1.x. Ce qui reste compatible en 1.x : [`docs/VERSIONS.md`](docs/VERSIONS.md) ;
 signaler une faille : [`SECURITY.md`](SECURITY.md). **Guide
 d'utilisation et FAQ** : [`docs/GUIDE.md`](docs/GUIDE.md),
@@ -175,7 +179,7 @@ seul la connexion au casque :
 - **KDE Plasma** : `momentum-kirigami`, en Qt 6 / Kirigami (couleurs du
   thème Plasma, Wayland natif) ;
 - **GNOME** : `momentum-gtk`, en GTK 4 / libadwaita : mêmes pages que le client
-  KDE, sans panneau rapide ni raccourcis globaux ; avec le casque, l'affichage
+  KDE, avec panneau rapide et raccourcis globaux (1.7.0) ; avec le casque, l'affichage
   des vraies valeurs est essayé, pas encore les changements depuis l'interface ([`docs/PARITE.md`](docs/PARITE.md)).
 
 S'y ajoutent `ctl`, le widget Plasma, la recherche KRunner, la liste de

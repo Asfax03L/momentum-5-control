@@ -92,7 +92,7 @@ will change.
 
 ### Does it work on GNOME, on the Steam Deck?
 
-On GNOME, a GTK client covers the same pages as the KDE client, without the quick panel or global shortcuts; with the headset, displaying the real values has been tried, changing settings from the client has not yet. In game mode
+On GNOME, a GTK client covers the same pages as the KDE client, with a quick panel and global shortcuts since 1.7.0 (shortcuts not yet tried on a real desktop); with the headset, displaying the real values has been tried, changing settings from the client has not yet. In game mode
 (Steam Deck, Bazzite), the Decky Loader extension shows battery, noise
 cancelling, anti-wind and scenes.
 
