@@ -16,6 +16,8 @@ use momentum_core::device::NoiseModeRequest;
 use momentum_core::viewmodel::{self, NOISE_MODES};
 
 use crate::pages::{Extras, Guided, GuidedSave, Notify, Send};
+use crate::panel::Panel;
+use crate::shortcuts::Pressed;
 
 const APP_ID: &str = "org.openheadset.ControlGnome";
 /// Pause avant de recontacter un service injoignable.
@@ -24,6 +26,15 @@ const RETRY: Duration = Duration::from_secs(3);
 pub(crate) const SETTLE: Duration = Duration::from_millis(350);
 /// Option de l'essai de l'interface (CI, avec `--demo`).
 const SELF_TEST: &str = "--essai-interface";
+/// Ouvre le panneau rapide (dans l'instance déjà lancée, s'il y en a une).
+const PANEL: &str = "--panneau";
+/// Lancement à l'ouverture de session : aucune fenêtre, le client reste
+/// en arrière-plan pour les raccourcis globaux.
+const BACKGROUND: &str = "--cache";
+
+fn has_argument(name: &str) -> bool {
+    std::env::args().any(|a| a == name)
+}
 
 /// Ce qui arrive du service (ou du casque simulé).
 enum Incoming {
@@ -62,6 +73,7 @@ struct Widgets {
     spatial: adw::SwitchRow,
     reconnect: gtk::Button,
     extras: Rc<Extras>,
+    panel: Panel,
 }
 
 pub fn run() -> i32 {
@@ -74,6 +86,14 @@ pub fn run() -> i32 {
     tracing::info!("démarrage du client GTK");
 
     let app = adw::Application::builder().application_id(APP_ID).build();
+    // Instance déjà lancée : `--panneau` lui demande seulement le panneau.
+    if has_argument(PANEL)
+        && app.register(None::<&gtk::gio::Cancellable>).is_ok()
+        && app.is_remote()
+    {
+        app.activate_action("panneau", None);
+        return 0;
+    }
     let exit = Rc::new(Cell::new(0));
     let code = exit.clone();
     app.connect_activate(move |app| build(app, code.clone()));
@@ -87,11 +107,23 @@ pub fn run() -> i32 {
 }
 
 fn build(app: &adw::Application, exit: Rc<Cell<i32>>) {
-    if let Some(window) = app.active_window() {
+    if let Some(window) = app
+        .windows()
+        .into_iter()
+        .find(|w| w.is::<adw::ApplicationWindow>())
+    {
         window.present();
         return;
     }
     let widgets = layout(app);
+    let background = has_argument(BACKGROUND) && !demo::requested();
+    if background {
+        // Fermer la fenêtre la cache : les raccourcis restent actifs ; on
+        // quitte par le menu ou Ctrl+Q.
+        widgets.window.set_hide_on_close(true);
+        std::mem::forget(app.hold());
+    }
+    app_actions(app, &widgets);
     let state = Rc::new(RefCell::new(State::default()));
     // Vrai pendant que l'état est recopié dans les contrôles : leurs
     // signaux ne doivent alors rien envoyer.
@@ -141,7 +173,13 @@ fn build(app: &adw::Application, exit: Rc<Cell<i32>>) {
         })
     };
 
-    for (index, button) in widgets.noise.iter().enumerate() {
+    for (index, button) in widgets
+        .noise
+        .iter()
+        .chain(widgets.panel.noise.iter())
+        .enumerate()
+        .map(|(i, b)| (i % NOISE_MODES.len(), b))
+    {
         let send = send.clone();
         let updating = updating.clone();
         button.connect_toggled(move |b| {
@@ -155,10 +193,10 @@ fn build(app: &adw::Application, exit: Rc<Cell<i32>>) {
             }));
         });
     }
-    {
+    for level in [&widgets.level, &widgets.panel.level] {
         let send = send.clone();
         let updating = updating.clone();
-        widgets.level.connect_value_changed(move |scale| {
+        level.connect_value_changed(move |scale| {
             if updating.get() {
                 return;
             }
@@ -198,6 +236,15 @@ fn build(app: &adw::Application, exit: Rc<Cell<i32>>) {
             .reconnect
             .connect_clicked(move |_| send(Command::ReconnectHeadset));
     }
+    {
+        let window = widgets.window.clone();
+        let panel = widgets.panel.window.clone();
+        widgets.panel.open.connect_clicked(move |_| {
+            panel.set_visible(false);
+            window.present();
+        });
+    }
+    let pressed = spawn_shortcuts();
     let notify: Notify = {
         let toasts = widgets.toasts.clone();
         Rc::new(move |text: String| toasts.add_toast(adw::Toast::new(&text)))
@@ -296,6 +343,13 @@ fn build(app: &adw::Application, exit: Rc<Cell<i32>>) {
                 handle(&widgets, &mut state.borrow_mut(), message);
                 changed = true;
             }
+            while let Ok(action) = pressed.try_recv() {
+                // L'état est relâché avant l'envoi, qui le modifie.
+                let command = on_shortcut(&widgets, &state.borrow(), action);
+                if let Some(command) = command {
+                    send(command);
+                }
+            }
             if changed {
                 refresh(&widgets, &state.borrow(), &updating);
             }
@@ -315,7 +369,79 @@ fn build(app: &adw::Application, exit: Rc<Cell<i32>>) {
     {
         widgets.extras.stack.set_visible_child_name(page);
     }
-    widgets.window.present();
+    if has_argument(PANEL) {
+        widgets.panel.window.present();
+    } else if !background {
+        widgets.window.present();
+    }
+}
+
+/// Actions de l'application : panneau rapide (aussi depuis une autre
+/// instance ou l'entrée de menu) et Quitter (Ctrl+Q).
+fn app_actions(app: &adw::Application, widgets: &Widgets) {
+    let panel = gtk::gio::SimpleAction::new("panneau", None);
+    {
+        let window = widgets.panel.window.clone();
+        panel.connect_activate(move |_, _| window.present());
+    }
+    app.add_action(&panel);
+    let quit = gtk::gio::SimpleAction::new("quitter", None);
+    {
+        let app = app.clone();
+        quit.connect_activate(move |_, _| app.quit());
+    }
+    app.add_action(&quit);
+    app.set_accels_for_action("app.quitter", &["<Control>q"]);
+}
+
+/// Raccourcis globaux (portail XDG) dans un fil dédié ; rien en
+/// démonstration. Les appuis arrivent par le canal rendu.
+fn spawn_shortcuts() -> Receiver<Pressed> {
+    let (tx, rx) = mpsc::channel();
+    if demo::requested() {
+        return rx;
+    }
+    let (scenes, _) = momentum_core::paths::load_scenes();
+    let names: Vec<String> = scenes.into_iter().map(|s| s.name).collect();
+    let spawned = std::thread::Builder::new()
+        .name("raccourcis".into())
+        .spawn(move || {
+            if let Err(e) = crate::shortcuts::run(APP_ID, &names, |action| {
+                let _ = tx.send(action);
+            }) {
+                tracing::warn!(%e, "raccourcis globaux indisponibles");
+            }
+        });
+    if let Err(e) = spawned {
+        tracing::error!(%e, "lancement du fil des raccourcis");
+    }
+    rx
+}
+
+/// Appui sur un raccourci : mêmes règles que le client KDE. Rend la
+/// demande à envoyer, s'il y en a une.
+fn on_shortcut(widgets: &Widgets, state: &State, action: Pressed) -> Option<Command> {
+    use momentum_core::hotkeys::{self, HotkeyAction};
+    let snapshot = &state.snapshot;
+    let headset = snapshot.state.filter(|_| snapshot.read_only.is_none());
+    match (action, headset) {
+        (Pressed::Panel, _) => {
+            widgets.panel.window.present();
+            None
+        }
+        (Pressed::Action(HotkeyAction::OpenWindow), _) => {
+            widgets.window.present();
+            None
+        }
+        (Pressed::Action(HotkeyAction::CycleNoise), Some(s)) => {
+            Some(Command::SetMode(hotkeys::next_noise_mode(s.noise.mode())))
+        }
+        (Pressed::Action(HotkeyAction::ToggleProfile), Some(s)) => {
+            hotkeys::profile_toggle(&s).map(Command::SetSoundProfile)
+        }
+        (Pressed::Action(HotkeyAction::Scene(name)), Some(_)) => Some(Command::ApplyScene(name)),
+        _ => None,
+    }
 }
 
 /// Fenêtre : barre de titre, bandeau, attente du casque ou page Accueil.
@@ -419,6 +545,17 @@ fn layout(app: &adw::Application) -> Widgets {
     view.add_top_bar(&header);
     view.set_content(Some(&toasts));
 
+    // Menu principal : panneau rapide et Quitter.
+    let menu = gtk::gio::Menu::new();
+    menu.append(Some(tr("Panneau rapide")), Some("app.panneau"));
+    menu.append(Some(tr("Quitter")), Some("app.quitter"));
+    let menu_button = gtk::MenuButton::builder()
+        .icon_name("open-menu-symbolic")
+        .menu_model(&menu)
+        .tooltip_text(tr("Menu principal"))
+        .build();
+    header.pack_end(&menu_button);
+
     let window = adw::ApplicationWindow::builder()
         .application(app)
         .title(tr("OpenHeadset Control"))
@@ -443,6 +580,7 @@ fn layout(app: &adw::Application) -> Widgets {
         spatial,
         reconnect,
         extras,
+        panel: Panel::new(app),
     }
 }
 
@@ -567,6 +705,20 @@ fn refresh(widgets: &Widgets, state: &State, updating: &Cell<bool>) {
     widgets
         .reconnect
         .set_sensitive(state.service_error.is_none());
+    let panel = &widgets.panel;
+    panel.waiting.set_text(&v.waiting);
+    panel.waiting.set_visible(!v.connected);
+    panel.controls.set_visible(v.connected);
+    panel.battery.set_subtitle(&v.battery_text);
+    panel
+        .battery_bar
+        .set_value(f64::from(v.battery.unwrap_or(0)));
+    for (index, button) in panel.noise.iter().enumerate() {
+        button.set_active(usize::try_from(c.noise_mode).ok() == Some(index));
+        button.set_sensitive(v.writable);
+    }
+    panel.level.set_value(widgets.level.value());
+    panel.level.set_sensitive(v.writable);
     widgets.extras.refresh(s, c, v.writable);
     widgets.extras.refresh_guided(&state.guided.view(
         s,

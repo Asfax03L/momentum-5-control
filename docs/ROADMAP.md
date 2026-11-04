@@ -115,7 +115,7 @@ Statuts : ✅ écrit et validé sur le M5 (firmware 6.21.5) ; 👁 lu seulement 
 | Personnalisation du son : export du profil | Mon son (fichier dans Documents) | 👁 (lecture brute) |
 | Personnalisation du son : nouveau test, restauration d'un profil | — | ⛔ |
 | Smart Pause, réponse auto, appels confortables | Réglages | ✅ |
-| Retour de voix (sidetone) | Réglages | ✅ (0, 1, 2 ; effet en appel à valider) |
+| Retour de voix (sidetone) | Réglages | ✅ (0, 1, 2 ; effet en appel écouté le 01/11/2026) |
 | Mise hors tension automatique | Réglages | ✅ |
 | Invites : mode, volume | Réglages | ✅ |
 | Invites : langue | Réglages | 👁 (changer = installer un pack de voix ⛔) |
@@ -286,7 +286,9 @@ Points encore ouverts à la sortie de la 1.0, chacun avec sa décision :
 - ✅ **Notifications au choix** : batterie faible, connexion perdue et
   retrouvée, et **casque allumé sans son** (aucune lecture depuis
   30 minutes, désactivée par défaut). ⏭ **Charge terminée** : **reportée**,
-  le casque ne signale aucun état de charge connu.
+  le casque ne signale aucune fin de charge (la valeur `02` n'a jamais été
+  observée). Depuis la 1.7.0, un avis dit seulement « 100 % câble branché »,
+  d'après deux lectures validées en 1.5.0.
 - ✅ **Journal local des événements** (connexions, pertes, modes,
   refus, scènes) : consultable, exportable, effaçable, jamais envoyé.
 - ✅ **Automatisations des scènes** (à la connexion du casque ou chaque

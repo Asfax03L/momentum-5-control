@@ -92,6 +92,14 @@ par le système. `ctl barre` l'affiche avec la mention « (système) » et la cl
 `batterie-systeme`. La sortie historique de `ctl etat --json` ne change pas. `ctl codec` lit et change le
 profil de PipeWire : sa sortie texte n'est pas versionnée.
 
+## Depuis la 1.7.0
+
+`notifications.txt` gagne la clé `batterie-pleine` (`oui` par défaut) : avis
+quand le casque indique 100 % câble branché. Un fichier sans cette clé garde
+ses autres choix. Sous Windows, le service transmet aussi la batterie annoncée
+par le système quand il ne joint pas le casque, comme sous Linux depuis la 1.6.0.
+Le client GNOME accepte `--panneau` et `--cache`.
+
 ## Micrologiciel du casque
 
 Une nouvelle version du micrologiciel peut changer le comportement d'une

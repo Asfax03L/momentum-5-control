@@ -68,17 +68,20 @@ reprennent les pages du client KDE dans cet ordre.
 | Paramètres : Smart Pause, réponse automatique, appels confortables, sidetone, extinction, protection de la batterie, invites, volume, nom | ✅ |
 | Scènes : application, éditeur, enregistrement de l'état | ✅ |
 | Batterie : courbe, valeurs, autonomie, export ; connexion et audio (PipeWire), codec | ✅ |
-| À propos, diagnostic, rapport de bogue, lancement à l'ouverture de session | ✅ |
+| À propos, diagnostic, rapport de bogue, lancement à l'ouverture de session (en arrière-plan, `--cache`) | ✅ |
+| Panneau rapide (batterie, mode de bruit, curseur ANC) : menu principal, action « Panneau rapide » de l'entrée de menu, `--panneau`, raccourci | ✅ (1.7) |
+| Raccourcis globaux (mode suivant, profil, fenêtre, panneau, scènes) par le portail XDG `GlobalShortcuts` | ✅ (1.7, à valider sur un vrai bureau) |
 | Saisie des gains en texte, export pour Equalizer APO, sauvegarde et restauration des réglages, langue, contenu du panneau, éditeur de raccourcis | — (`ctl reglages` couvre la sauvegarde) |
-| Icône de la zone de notification, panneau rapide, raccourcis globaux | — (GNOME n'a pas de zone de notification standard) |
+| Icône de la zone de notification | — (GNOME n'a pas de zone de notification standard : le panneau rapide en tient lieu) |
 
 Toutes ces fonctions sont essayées en démonstration. Avec le casque, le 04/11/2026 (1.6.0, écran virtuel), l'affichage des vraies valeurs est essayé sur Accueil, Paramètres, Batterie et Connexion et audio ; les changements depuis l'interface ne le sont pas encore.
 Le thème clair ou sombre suit GNOME. Essai automatique sans écran :
 `momentum-gtk --demo --essai-interface`, avec Broadway (CI, tâche `gnome`).
 
 Distribution : dans l'archive Linux et installé par `installer-linux.sh`
-(entrée « OpenHeadset Control (GTK) ») ; pas encore dans les paquets
-`.deb` et `.rpm` ni dans un Flatpak GNOME.
+(entrée « OpenHeadset Control (GTK) »), et depuis la 1.7.0 dans les paquets
+`.deb` et `.rpm`. Pas dans le Flatpak : son environnement KDE n'a pas
+libadwaita.
 
 ## Distribution
 
@@ -86,4 +89,5 @@ Distribution : dans l'archive Linux et installé par `installer-linux.sh`
 |---|---|
 | Archive Windows | WinUI, service, `ctl`, `probe`, `installer.ps1` |
 | Archive Linux | client KDE, client GNOME (`momentum-gtk`), service, `ctl`, widget Plasma, recherche KRunner, `installer-linux.sh` |
+| `.deb` et `.rpm` | client KDE, client GNOME (depuis la 1.7.0), service, `ctl`, widget Plasma, recherche KRunner |
 | Flatpak | client KDE, service, `ctl` (le widget s'installe à part) |

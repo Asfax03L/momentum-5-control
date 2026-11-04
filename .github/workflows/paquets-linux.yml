@@ -14,6 +14,7 @@ on:
       - "rust-toolchain.toml"
       - "crates/**"
       - "frontends/kirigami/**"
+      - "frontends/gtk/**"
       - "assets/linux/**"
       - "assets/logo/**"
       - "plasma/**"

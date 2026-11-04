@@ -2719,3 +2719,18 @@ Scene editor
 
 Commandes
 Controls
+
+Batterie à 100 %
+Battery at 100 %
+
+Le casque indique 100 % et le câble est branché.
+The headphones report 100 % and the cable is plugged in.
+
+Batterie à 100 % câble branché
+Battery at 100 % while plugged in
+
+Le casque ne signale pas de fin de charge : l'avis dit seulement 100 %
+The headphones do not report the end of charging: this only says 100 %
+
+Menu principal
+Main menu

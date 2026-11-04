@@ -724,11 +724,15 @@ Kirigami.ApplicationWindow {
                             Layout.fillWidth: true
                             RowLayout {
                                 Kirigami.FormData.label: headset.tr("ANC ↔ transparence :")
+                                // Sans cela, le formulaire donne au curseur sa
+                                // largeur minimale.
+                                Layout.fillWidth: true
                                 QQC2.Slider {
                                     Accessible.name: headset.tr("ANC ↔ transparence")
                                     id: levelSlider
                                     property double dragEpoch: 0
                                     Layout.fillWidth: true
+                                    Layout.minimumWidth: Kirigami.Units.gridUnit * 12
                                     from: 0
                                     to: 100
                                     stepSize: 5
@@ -1465,6 +1469,12 @@ Kirigami.ApplicationWindow {
                         checked: headset.notifyIdle
                         onToggled: headset.setNotification(2, checked)
                     }
+                    QQC2.Switch {
+                        Accessible.name: headset.tr("Batterie à 100 % câble branché")
+                        text: headset.tr("Batterie à 100 % câble branché")
+                        checked: headset.notifyFull
+                        onToggled: headset.setNotification(3, checked)
+                    }
                     RowLayout {
                         visible: headset.updatePossible && headset.updateEnabled
                         QQC2.Label {
@@ -1604,11 +1614,13 @@ Kirigami.ApplicationWindow {
                     }
                     RowLayout {
                         Kirigami.FormData.label: headset.tr("Volume des invites :")
+                        Layout.fillWidth: true
                         QQC2.Slider {
                             Accessible.name: headset.tr("Volume des invites")
                             id: promptVolume
                             property double dragEpoch: 0
                             Layout.fillWidth: true
+                            Layout.minimumWidth: Kirigami.Units.gridUnit * 12
                             from: 0
                             to: 100
                             stepSize: 1

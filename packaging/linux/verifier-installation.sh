@@ -79,7 +79,7 @@ while IFS= read -r path; do
         echo "$path"
     fi
 done < "$test_root/contenu" > "$test_root/fichiers"
-for executable in ctl momentum-daemon momentum-kirigami; do
+for executable in ctl momentum-daemon momentum-kirigami momentum-gtk; do
     test -x "/usr/bin/$executable"
     ldd "/usr/bin/$executable" > "$test_root/liaison"
     if grep -q 'not found' "$test_root/liaison"; then cat "$test_root/liaison"; exit 1; fi
@@ -97,6 +97,7 @@ test -s /usr/share/fish/vendor_completions.d/ctl.fish
 test -s /usr/share/doc/openheadset-control/LICENSE-MIT
 test -s /usr/share/doc/openheadset-control/LICENSE-APACHE
 test -s /usr/share/applications/momentum-kirigami.desktop
+grep -qx 'Exec=momentum-gtk --panneau' /usr/share/applications/momentum-gtk.desktop
 grep -qx 'X-Plasma-DBusRunner-Path=/runner' /usr/share/krunner/dbusplugins/openheadset-control-krunner.desktop
 test -s /usr/share/icons/hicolor/scalable/apps/org.openheadset.control.svg
 for size in 16 22 24 32 48 64 128 256; do

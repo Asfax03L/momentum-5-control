@@ -160,6 +160,7 @@ pub mod qobject {
         #[qproperty(bool, notify_low_battery)]
         #[qproperty(bool, notify_connection)]
         #[qproperty(bool, notify_idle)]
+        #[qproperty(bool, notify_full)]
         #[qproperty(i32, battery_revision)]
         // Page « Connexion et audio » : change à chaque mise à jour.
         #[qproperty(i32, audio_revision)]
@@ -673,6 +674,7 @@ pub struct HeadsetRust {
     notify_low_battery: bool,
     notify_connection: bool,
     notify_idle: bool,
+    notify_full: bool,
     battery_revision: i32,
     audio_revision: i32,
     audio_reading: bool,
@@ -872,6 +874,7 @@ impl Default for HeadsetRust {
             notify_low_battery: momentum_core::alerts::NotificationPrefs::load().low_battery,
             notify_connection: momentum_core::alerts::NotificationPrefs::load().connection,
             notify_idle: momentum_core::alerts::NotificationPrefs::load().idle,
+            notify_full: momentum_core::alerts::NotificationPrefs::load().full,
             battery_revision: 0,
             audio_revision: 0,
             audio_reading: false,
@@ -2668,7 +2671,8 @@ impl qobject::Headset {
         match kind {
             0 => prefs.low_battery = on,
             1 => prefs.connection = on,
-            _ => prefs.idle = on,
+            2 => prefs.idle = on,
+            _ => prefs.full = on,
         }
         if let Err(e) = prefs.store() {
             tracing::warn!(%e, "notifications.txt");
@@ -2677,6 +2681,7 @@ impl qobject::Headset {
         self.as_mut().set_notify_low_battery(saved.low_battery);
         self.as_mut().set_notify_connection(saved.connection);
         self.as_mut().set_notify_idle(saved.idle);
+        self.as_mut().set_notify_full(saved.full);
     }
 
     fn export_apo(self: Pin<&mut Self>) {
