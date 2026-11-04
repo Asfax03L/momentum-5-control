@@ -12,6 +12,49 @@ refuse de publier sans elles) :
 - « À faire après la mise à jour » : les actions concrètes par système,
   ou « Rien de particulier » avec la raison.
 
+## v1.7.0 — 04/11/2026
+
+### En bref
+- **Linux GNOME** : **panneau rapide** (batterie, mode de bruit, curseur ANC),
+  ouvert par le menu principal, par l'action « Panneau rapide » de l'entrée de
+  menu ou par un raccourci. **Raccourcis globaux** (mode suivant, profil,
+  fenêtre, panneau, scènes) par le portail du bureau, qui demande votre accord
+  la première fois. Lancé à l'ouverture de session, le client reste en
+  arrière-plan ; Ctrl+Q le quitte.
+- **Linux** : le client GNOME est maintenant dans les paquets `.deb`, `.rpm` et
+  AUR, en plus de l'archive.
+- **Windows** : la **batterie annoncée par Windows** s'affiche, avec la mention
+  « (système) », quand le service ne joint pas le casque (comme sous Linux).
+- **Windows et KDE** : nouvel avis **« Batterie à 100 % câble branché »**
+  (activé par défaut, désactivable). Le casque ne signale aucune fin de charge :
+  l'avis dit seulement ce qu'il lit.
+- **Corrections** : curseurs ANC et volume des invites à pleine largeur sous
+  KDE ; courbe de batterie lisible sous GNOME avec peu de mesures.
+- Aucune nouvelle commande envoyée au casque.
+
+### À faire après la mise à jour
+- **Windows** : quitter l'interface par le menu de son icône, installer ensemble
+  le service et l'interface 1.7.0, puis relancer. Windows App Runtime 2 reste
+  nécessaire. Les réglages sont conservés.
+- **Linux** : mettre à jour avec la méthode déjà utilisée (Flatpak, archive,
+  `.deb`, `.rpm` ou AUR), puis relancer le service et les clients.
+- **Facultatif, GNOME** : à la première ouverture, accepter ou modifier les
+  raccourcis proposés par le bureau (Ctrl+Alt+N, P, M et O). Si le lancement à
+  l'ouverture de session était déjà activé, le désactiver puis le réactiver dans
+  À propos pour qu'il démarre en arrière-plan.
+- **Facultatif, avis 100 %** : Paramètres > Notifications sous Windows et KDE.
+
+### Qualification
+La batterie annoncée par le système est lue sur le matériel le 04/11/2026 : 80 %
+par Windows (portable) et par BlueZ (Bazzite 44), 80 % lu sur le casque.
+Le panneau rapide, la courbe et les curseurs KDE sont vérifiés en démonstration
+dans un écran virtuel ; l'essai automatique du client GNOME passe. Les paquets
+sont installés et retirés en CI sur Debian 13, Ubuntu 26.04, Fedora 43 et 44 et
+Arch. **À valider sur un vrai bureau** : les raccourcis globaux du client GNOME
+(portail `GlobalShortcuts`) et les changements de réglage depuis ce client.
+Alertes `minimatch` et `deepmerge` : outils de construction de l'extension Decky
+(`@decky/rollup` 1.0.2, dernière version), non livrés, sans correctif publié.
+
 ## v1.6.0 — 04/11/2026
 
 ### En bref
