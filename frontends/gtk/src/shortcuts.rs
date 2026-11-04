@@ -14,8 +14,8 @@ use std::pin::Pin;
 use futures_core::Stream;
 use momentum_core::hotkeys::HotkeyAction;
 use momentum_core::i18n::tr;
-use zbus::zvariant::{OwnedObjectPath, OwnedValue, Value};
 use zbus::{Connection, Proxy};
+use zbus::{OwnedObjectPath, OwnedVariant as OwnedValue, Variant as Value};
 
 const PORTAL: &str = "org.freedesktop.portal.Desktop";
 const PATH: &str = "/org/freedesktop/portal/desktop";
@@ -144,7 +144,7 @@ pub fn run(
             .get("session_handle")
             .and_then(|v| String::try_from(v.clone()).ok())
             .ok_or_else(|| zbus::Error::Failure("session_handle absent".into()))?;
-        let session = zbus::zvariant::ObjectPath::try_from(session.as_str())?.into_owned();
+        let session: OwnedObjectPath = zbus::ObjectPath::try_from(session.as_str())?.into();
 
         let list = proposals(scenes);
         let shortcuts: Vec<(&str, HashMap<&str, Value>)> = list

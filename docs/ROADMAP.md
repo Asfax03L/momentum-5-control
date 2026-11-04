@@ -286,7 +286,9 @@ Points encore ouverts à la sortie de la 1.0, chacun avec sa décision :
 - ✅ **Notifications au choix** : batterie faible, connexion perdue et
   retrouvée, et **casque allumé sans son** (aucune lecture depuis
   30 minutes, désactivée par défaut). ⏭ **Charge terminée** : **reportée**,
-  le casque ne signale aucun état de charge connu.
+  le casque ne signale aucune fin de charge (la valeur `02` n'a jamais été
+  observée). Depuis la 1.7.0, un avis dit seulement « 100 % câble branché »,
+  d'après deux lectures validées en 1.5.0.
 - ✅ **Journal local des événements** (connexions, pertes, modes,
   refus, scènes) : consultable, exportable, effaçable, jamais envoyé.
 - ✅ **Automatisations des scènes** (à la connexion du casque ou chaque

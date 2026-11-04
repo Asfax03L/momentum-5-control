@@ -68,9 +68,11 @@ reprennent les pages du client KDE dans cet ordre.
 | Paramètres : Smart Pause, réponse automatique, appels confortables, sidetone, extinction, protection de la batterie, invites, volume, nom | ✅ |
 | Scènes : application, éditeur, enregistrement de l'état | ✅ |
 | Batterie : courbe, valeurs, autonomie, export ; connexion et audio (PipeWire), codec | ✅ |
-| À propos, diagnostic, rapport de bogue, lancement à l'ouverture de session | ✅ |
+| À propos, diagnostic, rapport de bogue, lancement à l'ouverture de session (en arrière-plan, `--cache`) | ✅ |
+| Panneau rapide (batterie, mode de bruit, curseur ANC) : menu principal, action « Panneau rapide » de l'entrée de menu, `--panneau`, raccourci | ✅ (1.7) |
+| Raccourcis globaux (mode suivant, profil, fenêtre, panneau, scènes) par le portail XDG `GlobalShortcuts` | ✅ (1.7, à valider sur un vrai bureau) |
 | Saisie des gains en texte, export pour Equalizer APO, sauvegarde et restauration des réglages, langue, contenu du panneau, éditeur de raccourcis | — (`ctl reglages` couvre la sauvegarde) |
-| Icône de la zone de notification, panneau rapide, raccourcis globaux | — (GNOME n'a pas de zone de notification standard) |
+| Icône de la zone de notification | — (GNOME n'a pas de zone de notification standard : le panneau rapide en tient lieu) |
 
 Toutes ces fonctions sont essayées en démonstration. Avec le casque, le 04/11/2026 (1.6.0, écran virtuel), l'affichage des vraies valeurs est essayé sur Accueil, Paramètres, Batterie et Connexion et audio ; les changements depuis l'interface ne le sont pas encore.
 Le thème clair ou sombre suit GNOME. Essai automatique sans écran :

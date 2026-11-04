@@ -344,7 +344,11 @@ fn build(app: &adw::Application, exit: Rc<Cell<i32>>) {
                 changed = true;
             }
             while let Ok(action) = pressed.try_recv() {
-                on_shortcut(&widgets, &state.borrow(), &send, action);
+                // L'état est relâché avant l'envoi, qui le modifie.
+                let command = on_shortcut(&widgets, &state.borrow(), action);
+                if let Some(command) = command {
+                    send(command);
+                }
             }
             if changed {
                 refresh(&widgets, &state.borrow(), &updating);
@@ -414,12 +418,13 @@ fn spawn_shortcuts() -> Receiver<Pressed> {
     rx
 }
 
-/// Appui sur un raccourci : mêmes règles que le client KDE.
-fn on_shortcut(widgets: &Widgets, state: &State, send: &Rc<dyn Fn(Command)>, action: Pressed) {
+/// Appui sur un raccourci : mêmes règles que le client KDE. Rend la
+/// demande à envoyer, s'il y en a une.
+fn on_shortcut(widgets: &Widgets, state: &State, action: Pressed) -> Option<Command> {
     use momentum_core::hotkeys::{self, HotkeyAction};
     let snapshot = &state.snapshot;
     let headset = snapshot.state.filter(|_| snapshot.read_only.is_none());
-    let command = match (action, headset) {
+    match (action, headset) {
         (Pressed::Panel, _) => {
             widgets.panel.window.present();
             None
@@ -436,9 +441,6 @@ fn on_shortcut(widgets: &Widgets, state: &State, send: &Rc<dyn Fn(Command)>, act
         }
         (Pressed::Action(HotkeyAction::Scene(name)), Some(_)) => Some(Command::ApplyScene(name)),
         _ => None,
-    };
-    if let Some(command) = command {
-        send(command);
     }
 }
 
