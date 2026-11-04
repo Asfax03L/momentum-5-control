@@ -175,8 +175,8 @@ seul la connexion au casque :
 - **KDE Plasma** : `momentum-kirigami`, en Qt 6 / Kirigami (couleurs du
   thème Plasma, Wayland natif) ;
 - **GNOME** : `momentum-gtk`, en GTK 4 / libadwaita : mêmes pages que le client
-  KDE, sans panneau rapide ni raccourcis globaux ; essayé en démonstration, pas
-  encore avec un casque ([`docs/PARITE.md`](docs/PARITE.md)).
+  KDE, sans panneau rapide ni raccourcis globaux ; avec le casque, l'affichage
+  des vraies valeurs est essayé, pas encore les changements depuis l'interface ([`docs/PARITE.md`](docs/PARITE.md)).
 
 S'y ajoutent `ctl`, le widget Plasma, la recherche KRunner, la liste de
 raccourcis Windows et l'extension Decky du mode jeu, tous clients du même
