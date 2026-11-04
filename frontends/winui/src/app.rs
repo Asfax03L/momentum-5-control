@@ -505,6 +505,7 @@ enum NotificationKind {
     LowBattery,
     Connection,
     Idle,
+    Full,
 }
 
 /// Suit le service dans un fil dédié (reconnexion toutes les 3 s) ; avec
@@ -1621,6 +1622,7 @@ impl Component for Root {
                     NotificationKind::LowBattery => prefs.low_battery = on,
                     NotificationKind::Connection => prefs.connection = on,
                     NotificationKind::Idle => prefs.idle = on,
+                    NotificationKind::Full => prefs.full = on,
                 }
                 match prefs.store() {
                     Ok(()) => self.notifications = prefs,
@@ -3484,6 +3486,13 @@ impl Root {
                     self.notifications.idle,
                     true,
                     context.callback(|on| Msg::Notification(NotificationKind::Idle, on)),
+                ),
+                switch_row(
+                    tr("Batterie à 100 % câble branché"),
+                    tr("Le casque ne signale pas de fin de charge : l'avis dit seulement 100 %"),
+                    self.notifications.full,
+                    true,
+                    context.callback(|on| Msg::Notification(NotificationKind::Full, on)),
                 ),
             )),
         );

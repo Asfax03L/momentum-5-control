@@ -217,7 +217,12 @@ fn system_battery() -> Option<u8> {
     momentum_core::transport::bluez_rfcomm::connected_headset_battery()
 }
 
-#[cfg(not(target_os = "linux"))]
+#[cfg(windows)]
+fn system_battery() -> Option<u8> {
+    momentum_core::transport::windows_rfcomm::connected_headset_battery()
+}
+
+#[cfg(not(any(target_os = "linux", windows)))]
 fn system_battery() -> Option<u8> {
     None
 }

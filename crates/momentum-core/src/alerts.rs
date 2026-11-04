@@ -3,13 +3,18 @@
 //! Règles, pour ne jamais inonder l'écran :
 //! - batterie faible : une seule fois sous 15 %, réarmée au-dessus de 20 % ;
 //! - connexion perdue : seulement si le casque était connecté ;
-//! - casque retrouvé : seulement après une perte (pas au démarrage).
+//! - casque retrouvé : seulement après une perte (pas au démarrage) ;
+//! - batterie à 100 % câble branché : une fois, réarmée câble débranché ou
+//!   sous 95 %. Le casque ne signale aucune fin de charge connue : l'avis dit
+//!   seulement ce qui est lu.
 
 use crate::i18n::{tr, trf};
 /// Seuil d'alerte de batterie, en %.
 pub const LOW_BATTERY: u8 = 15;
 /// Seuil de réarmement de l'alerte, en %.
 const BATTERY_REARM: u8 = 20;
+/// Sous ce niveau, l'avis « batterie à 100 % » est réarmé.
+const FULL_REARM: u8 = 95;
 
 /// Notification à afficher.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -23,6 +28,7 @@ pub struct AlertTracker {
     connected: bool,
     lost: bool,
     battery_warned: bool,
+    full_warned: bool,
 }
 
 impl AlertTracker {
@@ -67,6 +73,22 @@ impl AlertTracker {
             body: trf("Il reste {} % de batterie au casque.", &[&percent]),
         })
     }
+
+    /// Niveau et état du câble (`charging` : le casque se dit en charge).
+    pub fn on_charge(&mut self, percent: u8, charging: bool) -> Option<Alert> {
+        if !charging || percent < FULL_REARM {
+            self.full_warned = false;
+            return None;
+        }
+        if percent < 100 || self.full_warned {
+            return None;
+        }
+        self.full_warned = true;
+        Some(Alert {
+            title: tr("Batterie à 100 %").to_string(),
+            body: tr("Le casque indique 100 % et le câble est branché.").to_string(),
+        })
+    }
 }
 
 /// Délai sans lecture avant l'avis « casque allumé sans son ».
@@ -80,6 +102,8 @@ pub struct NotificationPrefs {
     /// Casque connecté sans lecture depuis [`IDLE_SECONDS`] ; désactivé par
     /// défaut.
     pub idle: bool,
+    /// Batterie à 100 % câble branché.
+    pub full: bool,
 }
 
 impl Default for NotificationPrefs {
@@ -88,6 +112,7 @@ impl Default for NotificationPrefs {
             low_battery: true,
             connection: true,
             idle: false,
+            full: true,
         }
     }
 }
@@ -110,6 +135,7 @@ impl NotificationPrefs {
                 "batterie-faible" => prefs.low_battery = on,
                 "connexion" => prefs.connection = on,
                 "sans-son" => prefs.idle = on,
+                "batterie-pleine" => prefs.full = on,
                 _ => {}
             }
         }
@@ -122,10 +148,12 @@ impl NotificationPrefs {
             "# Notifications d'OpenHeadset Control : oui ou non\n\
              batterie-faible = {}\n\
              connexion = {}\n\
-             sans-son = {}\n",
+             sans-son = {}\n\
+             batterie-pleine = {}\n",
             yes(self.low_battery),
             yes(self.connection),
-            yes(self.idle)
+            yes(self.idle),
+            yes(self.full)
         )
     }
 
@@ -189,11 +217,12 @@ mod tests {
     fn notification_prefs_defaults_and_round_trip() {
         let d = NotificationPrefs::parse("");
         assert_eq!(d, NotificationPrefs::default());
-        assert!(d.low_battery && d.connection && !d.idle);
+        assert!(d.low_battery && d.connection && !d.idle && d.full);
         let p = NotificationPrefs {
             low_battery: false,
             connection: true,
             idle: true,
+            full: false,
         };
         assert_eq!(NotificationPrefs::parse(&p.to_text()), p);
         assert_eq!(NotificationPrefs::parse("sans-son = peut-être\n"), d);
@@ -243,5 +272,24 @@ mod tests {
             t.on_battery(10).unwrap().body,
             "Il reste 10 % de batterie au casque."
         );
+    }
+
+    #[test]
+    fn full_battery_alert_once_while_plugged_then_rearmed() {
+        let mut t = AlertTracker::new();
+        // 100 % sans câble, ou câble branché sous 100 % : rien.
+        assert!(t.on_charge(100, false).is_none());
+        assert!(t.on_charge(99, true).is_none());
+        assert_eq!(t.on_charge(100, true).unwrap().title, "Batterie à 100 %");
+        assert!(t.on_charge(100, true).is_none());
+        // Encore branché à 96 % : pas réarmé, pas d'avis au retour à 100 %.
+        assert!(t.on_charge(96, true).is_none());
+        assert!(t.on_charge(100, true).is_none());
+        // Câble débranché : réarmé.
+        assert!(t.on_charge(100, false).is_none());
+        assert!(t.on_charge(100, true).is_some());
+        // Sous 95 % : réarmé aussi.
+        assert!(t.on_charge(94, true).is_none());
+        assert!(t.on_charge(100, true).is_some());
     }
 }

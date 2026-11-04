@@ -12,3 +12,9 @@ Categories=AudioVideo;Audio;Settings;GTK;GNOME;
 Keywords=headphones;headset;sennheiser;momentum;bluetooth;anc;equalizer;
 Keywords[fr]=casque;sennheiser;momentum;bluetooth;anc;égaliseur;
 StartupWMClass=org.openheadset.ControlGnome
+Actions=panneau;
+
+[Desktop Action panneau]
+Name=Quick panel
+Name[fr]=Panneau rapide
+Exec=momentum-gtk --panneau

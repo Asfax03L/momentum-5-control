@@ -439,6 +439,9 @@ pub fn pump(
             }
             WorkerEvent::State(s) => {
                 toast(alerts.on_battery(s.battery), |p| p.low_battery);
+                let charging = s.charge_state.map(|c| c.primary_status)
+                    == Some(momentum_core::device::ChargerStatus::Charging);
+                toast(alerts.on_charge(s.battery, charging), |p| p.full);
                 toast(idle.on_codec(unix_now(), s.codec), |p| p.idle);
                 if let Ok(mut sh) = shared.lock() {
                     if sh.battery_log.record(unix_now(), s.battery) {

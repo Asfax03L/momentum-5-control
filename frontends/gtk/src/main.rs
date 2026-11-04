@@ -4,18 +4,21 @@
 //! le service tient la connexion au casque, ce client ne fait qu'afficher
 //! et demander. Mêmes modèles de vue (`momentum_core::viewmodel`) et même
 //! suivi des demandes (`momentum_client::tracker`) que les autres
-//! interfaces. Première étape (jalon 0.12) : page Accueil ; parité prévue
-//! dans `docs/PARITE.md`.
+//! interfaces. Parité avec le client KDE : `docs/PARITE.md`.
 
 #[cfg(target_os = "linux")]
 mod app;
 #[cfg(target_os = "linux")]
 mod pages;
 #[cfg(target_os = "linux")]
+mod panel;
+#[cfg(target_os = "linux")]
 #[path = "../../kirigami/src/pipewire.rs"]
 mod pipewire;
 #[cfg(target_os = "linux")]
 mod scene_panel;
+#[cfg(target_os = "linux")]
+mod shortcuts;
 
 fn main() {
     #[cfg(target_os = "linux")]

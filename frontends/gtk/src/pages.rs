@@ -61,7 +61,7 @@ mod autostart {
                 path,
                 format!(
                     "[Desktop Entry]\nType=Application\nName=OpenHeadset Control\n\
-                     Exec=\"{}\"\nIcon=org.openheadset.control\nTerminal=false\n",
+                     Exec=\"{}\" --cache\nIcon=org.openheadset.control\nTerminal=false\n",
                     exe.display()
                 ),
             )
@@ -76,21 +76,48 @@ mod autostart {
 
 /// Dessine un tracé `M x y L x y …` du repère 1000 × 100 (`chart_path`).
 fn draw_chart(context: &gtk::cairo::Context, path: &str, width: f64, height: f64) {
+    // Marge intérieure : un point à 100 % ou au bord droit reste visible.
+    const MARGIN: f64 = 12.0;
+    let (w, h) = (
+        (width - 2.0 * MARGIN).max(1.0),
+        (height - 2.0 * MARGIN).max(1.0),
+    );
+    // Repères discrets à 0, 50 et 100 %.
+    context.set_source_rgba(0.5, 0.5, 0.5, 0.25);
+    context.set_line_width(1.0);
+    for level in [0.0, 50.0, 100.0] {
+        let y = MARGIN + level / 100.0 * h;
+        context.move_to(MARGIN, y);
+        context.line_to(MARGIN + w, y);
+    }
+    let _ = context.stroke();
+    let mut points = Vec::new();
     let mut words = path.split_whitespace();
     while let (Some(command), Some(x), Some(y)) = (words.next(), words.next(), words.next()) {
         let (Ok(x), Ok(y)) = (x.parse::<f64>(), y.parse::<f64>()) else {
             return;
         };
-        let (x, y) = (x / 1000.0 * width, y / 100.0 * height);
-        if command == "M" {
+        points.push((
+            command == "M",
+            MARGIN + x / 1000.0 * w,
+            MARGIN + y / 100.0 * h,
+        ));
+    }
+    context.set_source_rgb(0.2, 0.6, 0.9);
+    context.set_line_width(2.0);
+    for &(start, x, y) in &points {
+        if start {
             context.move_to(x, y);
         } else {
             context.line_to(x, y);
         }
     }
-    context.set_source_rgb(0.2, 0.6, 0.9);
-    context.set_line_width(2.0);
     let _ = context.stroke();
+    // Chaque mesure est marquée : quelques mesures serrées restent lisibles.
+    for &(_, x, y) in &points {
+        context.arc(x, y, 3.0, 0.0, std::f64::consts::TAU);
+        let _ = context.fill();
+    }
 }
 
 /// Résultat d'une lecture faite hors du fil de l'interface.
