@@ -233,8 +233,10 @@ fn system_battery_for(address: &str) -> Option<u8> {
             continue;
         };
         let text: Vec<u16> = raw
-            .chunks_exact(2)
-            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|c| u16::from_le_bytes(*c))
             .take_while(|c| *c != 0)
             .collect();
         if !String::from_utf16_lossy(&text).eq_ignore_ascii_case(address) {

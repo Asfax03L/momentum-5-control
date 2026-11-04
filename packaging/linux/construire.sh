@@ -6,7 +6,7 @@ case "${1:-}" in
     *) echo "Famille attendue : deb ou rpm." >&2; exit 2 ;;
 esac
 cd "$(dirname "$0")/../.."
-cargo build --release --locked -p momentum-cli -p momentum-daemon -p momentum-kirigami
+cargo build --release --locked -p momentum-cli -p momentum-daemon -p momentum-kirigami -p momentum-gtk
 integration=target/paquets/integration
 mkdir -p "$integration/man" "$integration/completions" "target/paquets/$family"
 # Les fichiers de l'installation utilisateur et du Flatpak restent inchangés.

@@ -39,12 +39,14 @@ copyright = "2026 Asfax03L"
 section = "sound"
 priority = "optional"
 depends = "$auto, qml6-module-org-kde-kirigami, qml6-module-org-kde-desktop, qml6-module-qtquick, qml6-module-qtquick-controls, qml6-module-qtquick-dialogs, qml6-module-qtquick-layouts, qml6-module-qtquick-shapes, qml6-module-qtquick-window, qml6-module-qtqml-workerscript, qt6-wayland, dbus, bluez"
-extended-description = "Réglages du casque Sennheiser MOMENTUM 5 : client KDE, service D-Bus, ctl et widget Plasma. Projet non officiel."
+extended-description = "Réglages du casque Sennheiser MOMENTUM 5 : clients KDE et GNOME, service D-Bus, ctl et widget Plasma. Projet non officiel."
 assets = [
     ["target/release/momentum-kirigami", "usr/bin/momentum-kirigami", "755"],
+    ["target/release/momentum-gtk", "usr/bin/momentum-gtk", "755"],
     ["target/release/momentum-daemon", "usr/bin/momentum-daemon", "755"],
     ["target/release/ctl", "usr/bin/ctl", "755"],
     ["../../assets/linux/momentum-kirigami.desktop", "usr/share/applications/momentum-kirigami.desktop", "644"],
+    ["../../assets/linux/momentum-gtk.desktop", "usr/share/applications/momentum-gtk.desktop", "644"],
     ["../../assets/linux/openheadset-control-krunner.desktop", "usr/share/krunner/dbusplugins/openheadset-control-krunner.desktop", "644"],
     ["../../target/paquets/integration/momentum-daemon.service", "usr/lib/systemd/user/momentum-daemon.service", "644"],
     # Debian et Ubuntu : Ubuntu 24.04 et suivants restreignent les espaces de
@@ -73,7 +75,7 @@ assets = [
 
 [package.metadata.generate-rpm]
 name = "openheadset-control"
-summary = "Réglages du casque Sennheiser MOMENTUM 5 — client KDE, service et ctl"
+summary = "Réglages du casque Sennheiser MOMENTUM 5 — clients KDE et GNOME, service et ctl"
 release = "1"
 # cargo-generate-rpm 0.21 ne possède pas les répertoires parents.
 # Le retrait se limite aux répertoires vides du paquet sous /usr.
@@ -81,9 +83,11 @@ post_uninstall_script = "packaging/rpm/apres-retrait.sh"
 assets = [
 
     { source = "target/release/momentum-kirigami", dest = "/usr/bin/momentum-kirigami", mode = "755" },
+    { source = "target/release/momentum-gtk", dest = "/usr/bin/momentum-gtk", mode = "755" },
     { source = "target/release/momentum-daemon", dest = "/usr/bin/momentum-daemon", mode = "755" },
     { source = "target/release/ctl", dest = "/usr/bin/ctl", mode = "755" },
     { source = "assets/linux/momentum-kirigami.desktop", dest = "/usr/share/applications/momentum-kirigami.desktop", mode = "644" },
+    { source = "assets/linux/momentum-gtk.desktop", dest = "/usr/share/applications/momentum-gtk.desktop", mode = "644" },
     { source = "assets/linux/openheadset-control-krunner.desktop", dest = "/usr/share/krunner/dbusplugins/openheadset-control-krunner.desktop", mode = "644" },
     { source = "target/paquets/integration/momentum-daemon.service", dest = "/usr/lib/systemd/user/momentum-daemon.service", mode = "644" },
     { source = "target/paquets/integration/org.openheadset.Control.service", dest = "/usr/share/dbus-1/services/org.openheadset.Control.service", mode = "644" },

@@ -79,8 +79,9 @@ Le thème clair ou sombre suit GNOME. Essai automatique sans écran :
 `momentum-gtk --demo --essai-interface`, avec Broadway (CI, tâche `gnome`).
 
 Distribution : dans l'archive Linux et installé par `installer-linux.sh`
-(entrée « OpenHeadset Control (GTK) ») ; pas encore dans les paquets
-`.deb` et `.rpm` ni dans un Flatpak GNOME.
+(entrée « OpenHeadset Control (GTK) »), et depuis la 1.7.0 dans les paquets
+`.deb` et `.rpm`. Pas dans le Flatpak : son environnement KDE n'a pas
+libadwaita.
 
 ## Distribution
 
@@ -88,4 +89,5 @@ Distribution : dans l'archive Linux et installé par `installer-linux.sh`
 |---|---|
 | Archive Windows | WinUI, service, `ctl`, `probe`, `installer.ps1` |
 | Archive Linux | client KDE, client GNOME (`momentum-gtk`), service, `ctl`, widget Plasma, recherche KRunner, `installer-linux.sh` |
+| `.deb` et `.rpm` | client KDE, client GNOME (depuis la 1.7.0), service, `ctl`, widget Plasma, recherche KRunner |
 | Flatpak | client KDE, service, `ctl` (le widget s'installe à part) |
