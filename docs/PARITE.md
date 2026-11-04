@@ -72,7 +72,7 @@ reprennent les pages du client KDE dans cet ordre.
 | Saisie des gains en texte, export pour Equalizer APO, sauvegarde et restauration des réglages, langue, contenu du panneau, éditeur de raccourcis | — (`ctl reglages` couvre la sauvegarde) |
 | Icône de la zone de notification, panneau rapide, raccourcis globaux | — (GNOME n'a pas de zone de notification standard) |
 
-Toutes ces fonctions sont essayées en démonstration, pas encore avec un casque.
+Toutes ces fonctions sont essayées en démonstration. Avec le casque, le 04/11/2026 (1.6.0, écran virtuel), l'affichage des vraies valeurs est essayé sur Accueil, Paramètres, Batterie et Connexion et audio ; les changements depuis l'interface ne le sont pas encore.
 Le thème clair ou sombre suit GNOME. Essai automatique sans écran :
 `momentum-gtk --demo --essai-interface`, avec Broadway (CI, tâche `gnome`).
 
