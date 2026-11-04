@@ -85,6 +85,13 @@ La sortie historique de `ctl etat --json` ne change pas. `ctl barre` suit le
 format du module `custom` de Waybar : elle n'est pas versionnée comme les autres
 sorties.
 
+## Batterie système et codec depuis la 1.6.0
+
+Quand il ne joint pas le casque, le service transmet aussi la batterie annoncée
+par le système. `ctl barre` l'affiche avec la mention « (système) » et la classe
+`batterie-systeme`. La sortie historique de `ctl etat --json` ne change pas. `ctl codec` lit et change le
+profil de PipeWire : sa sortie texte n'est pas versionnée.
+
 ## Micrologiciel du casque
 
 Une nouvelle version du micrologiciel peut changer le comportement d'une

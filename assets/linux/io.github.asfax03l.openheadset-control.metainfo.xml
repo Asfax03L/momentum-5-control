@@ -75,6 +75,11 @@
     <control>keyboard</control>
   </supports>
   <releases>
+    <release version="1.6.0" date="2026-11-04">
+      <description>
+        <p>The GNOME client now has the same pages as the KDE client, without the quick panel or global shortcuts. Bluetooth codec choice through PipeWire on Linux. When the service cannot reach the headset, the battery level reported by the system is shown and labelled as such.</p>
+      </description>
+    </release>
     <release version="1.5.0" date="2026-11-01">
       <description>
         <p>Voice feedback (sidetone) on Windows and KDE, with the two levels observed on the headset. Status bar output for Waybar. Commands known to power off or disconnect headsets are now refused before sending.</p>
