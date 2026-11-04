@@ -12,6 +12,43 @@ refuse de publier sans elles) :
 - « À faire après la mise à jour » : les actions concrètes par système,
   ou « Rien de particulier » avec la raison.
 
+## v1.6.0 — 04/11/2026
+
+### En bref
+- **Linux GNOME** : le client `momentum-gtk` (GTK 4 / libadwaita) offre
+  maintenant les mêmes pages que le client KDE : Mon son (égaliseur, préréglages,
+  courbes, assistant EQ), Scènes et leur éditeur, Paramètres (dont le sidetone),
+  Batterie avec sa courbe, Connexion et audio, À propos et diagnostic. Il n'a ni
+  panneau rapide ni raccourcis globaux.
+- **Linux** : choix du **codec Bluetooth** (SBC, AAC, aptX, LDAC selon ce que
+  propose PipeWire) dans KDE, dans GNOME et avec `ctl codec`.
+- **Linux** : quand le service ne joint pas le casque (par exemple occupé par un
+  autre appareil), la **batterie annoncée par le système** (BlueZ) s'affiche,
+  avec la mention « (système) », aussi dans `ctl barre`.
+- **Démonstration** : le port, la charge et le codec ont maintenant des valeurs
+  simulées.
+- **winget** : le manifeste préparé suit le schéma 1.12 et la nouvelle adresse
+  du dépôt. Aucune soumission n'est faite.
+- Aucune nouvelle commande envoyée au casque.
+
+### À faire après la mise à jour
+- **Windows** : quitter l'interface par le menu de son icône, installer ensemble
+  le service et l'interface 1.6.0, puis relancer. Windows App Runtime 2 reste
+  nécessaire. Les réglages sont conservés. Rien d'autre ne change sous Windows.
+- **Linux** : mettre à jour avec la méthode déjà utilisée (Flatpak, archive,
+  `.deb` ou `.rpm`), puis relancer. Le service et les clients doivent être de la
+  même version pour afficher la batterie annoncée par le système.
+- **Facultatif, GNOME** : lancer « OpenHeadset Control » depuis les applications.
+  Le lancement à l'ouverture de session se règle dans À propos.
+- **Facultatif, codec** : KDE ou GNOME, page Connexion et audio, ou `ctl codec`.
+  Le choix est appliqué par PipeWire, pas par le casque.
+
+### Qualification
+Le choix du codec est essayé sur Bazzite 44 avec le M5 : passage à AAC, retour à
+aptX HD, refus d'un codec non proposé. Le client GNOME est essayé en
+démonstration et par son essai automatique, sans casque. La batterie annoncée par le
+système est vérifiée par les tests, pas encore avec le casque. Sous Windows, elle n'est pas encore lue.
+
 ## v1.5.0 — 01/11/2026
 
 ### En bref

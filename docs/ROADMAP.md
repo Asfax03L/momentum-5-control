@@ -12,7 +12,8 @@ simulation et en CI, sans nouvelle qualification matérielle revendiquée.
 Le diagnostic BTD 700 reste facultatif et non réalisé ; le besoin retenu
 utilise le Bluetooth du PC. Le sidetone, rejoué depuis le PC sous Windows et
 Linux le 01/11/2026, est intégré au service, à `ctl`, à WinUI et à KDE en
-1.5.0 (niveaux 0, 1 et 2). Le bilan daté ci-dessous conserve
+1.5.0 (niveaux 0, 1 et 2). La 1.6.0 complète le client GNOME et ajoute, sous
+Linux, le choix du codec et la batterie annoncée par le système. Le bilan daté ci-dessous conserve
 l'historique de la 1.1.0.
 
 **État au 25/10/2026** : dernière publication **v1.1.0** (jalon 1.1 :
