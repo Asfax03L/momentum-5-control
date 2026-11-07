@@ -93,7 +93,7 @@ de ce qui changera.
 
 ### Fonctionne-t-il sous GNOME, sur le Steam Deck ?
 
-Sous GNOME, un client GTK couvre les mêmes pages que le client KDE, avec un panneau rapide et des raccourcis globaux depuis la 1.7.0 (raccourcis pas encore essayés sur un vrai bureau) ; avec le casque, l'affichage est essayé, pas encore les changements depuis l'interface. En mode
+Sous GNOME, un client GTK couvre les mêmes pages que le client KDE, avec un panneau rapide et des raccourcis globaux depuis la 1.7.0 ; essayé avec le casque sur un vrai bureau (KDE Plasma) : affichage, changements de réglage et raccourci global. Pas encore sous GNOME lui-même. En mode
 jeu (Steam Deck, Bazzite), l'extension Decky Loader donne batterie,
 réduction de bruit, anti-vent et scènes.
 

@@ -46,7 +46,7 @@ assets = [
     ["target/release/momentum-daemon", "usr/bin/momentum-daemon", "755"],
     ["target/release/ctl", "usr/bin/ctl", "755"],
     ["../../assets/linux/momentum-kirigami.desktop", "usr/share/applications/momentum-kirigami.desktop", "644"],
-    ["../../assets/linux/momentum-gtk.desktop", "usr/share/applications/momentum-gtk.desktop", "644"],
+    ["../../assets/linux/org.openheadset.ControlGnome.desktop", "usr/share/applications/org.openheadset.ControlGnome.desktop", "644"],
     ["../../assets/linux/openheadset-control-krunner.desktop", "usr/share/krunner/dbusplugins/openheadset-control-krunner.desktop", "644"],
     ["../../target/paquets/integration/momentum-daemon.service", "usr/lib/systemd/user/momentum-daemon.service", "644"],
     # Debian et Ubuntu : Ubuntu 24.04 et suivants restreignent les espaces de
@@ -87,7 +87,7 @@ assets = [
     { source = "target/release/momentum-daemon", dest = "/usr/bin/momentum-daemon", mode = "755" },
     { source = "target/release/ctl", dest = "/usr/bin/ctl", mode = "755" },
     { source = "assets/linux/momentum-kirigami.desktop", dest = "/usr/share/applications/momentum-kirigami.desktop", mode = "644" },
-    { source = "assets/linux/momentum-gtk.desktop", dest = "/usr/share/applications/momentum-gtk.desktop", mode = "644" },
+    { source = "assets/linux/org.openheadset.ControlGnome.desktop", dest = "/usr/share/applications/org.openheadset.ControlGnome.desktop", mode = "644" },
     { source = "assets/linux/openheadset-control-krunner.desktop", dest = "/usr/share/krunner/dbusplugins/openheadset-control-krunner.desktop", mode = "644" },
     { source = "target/paquets/integration/momentum-daemon.service", dest = "/usr/lib/systemd/user/momentum-daemon.service", mode = "644" },
     { source = "target/paquets/integration/org.openheadset.Control.service", dest = "/usr/share/dbus-1/services/org.openheadset.Control.service", mode = "644" },

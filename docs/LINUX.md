@@ -303,7 +303,7 @@ Ce qu'il couvre et ce qui lui manque encore : [`PARITE.md`](PARITE.md).
 
 Sous GNOME, `momentum-gtk` (libadwaita) est un client du même service, avec les
 pages Accueil, Mon son, Scènes, Paramètres, Batterie, Connexion et audio, et À
-propos. Le 04/11/2026, en 1.6.0, il a affiché les vraies valeurs du casque (Accueil, Paramètres, Batterie, Connexion et audio avec le codec de PipeWire), dans un écran virtuel. Les changements depuis l'interface ne sont pas encore essayés avec le casque. Installé par `installer-linux.sh` depuis
+propos. Le 04/11/2026, en 1.6.0, il a affiché les vraies valeurs du casque (Accueil, Paramètres, Batterie, Connexion et audio avec le codec de PipeWire), dans un écran virtuel. Le 07/11/2026, sur le vrai bureau KDE Plasma de Bazzite avec le casque, des réglages changés depuis la fenêtre (anti-vent, mode) ont été relus sur le casque, et le raccourci global du panneau rapide a été accepté puis utilisé. Installé par `installer-linux.sh` depuis
 l'archive (entrée « OpenHeadset Control (GTK) ») ; demande GTK 4.14 et
 libadwaita 1.5 ou plus récents. Depuis le dépôt :
 
