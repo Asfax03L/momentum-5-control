@@ -82,9 +82,10 @@ version dans [`CHANGELOG.md`](CHANGELOG.md).
 
 L'état physique « porté / non porté » est disponible dans l'état transmis
 par l'API du service, distinct de l'activation du capteur et de Smart Pause.
-Cette lecture et ses notifications sont couvertes par des tests simulés,
-**à valider sur le matériel** depuis le PC ; aucun indicateur graphique
-n'est encore ajouté. Voir la [provenance et le contrat](docs/MOMENTUM5.md#état-physique-du-port--observation-complémentaire-du-27102026).
+Cette lecture et ses notifications sont essayées sur le casque depuis le PC,
+sous Windows (27/10/2026) et sous Linux (01/11/2026) ; l'accueil de WinUI
+l'affiche, pas encore KDE ni GNOME. La pause musicale au retrait n'est pas
+essayée. Voir la [provenance et le contrat](docs/MOMENTUM5.md#état-physique-du-port--observation-complémentaire-du-27102026).
 
 Le protocole du MOMENTUM 5 est décrit dans [docs/MOMENTUM5.md](docs/MOMENTUM5.md) : chaque commande y est marquée validée sur le casque, ou seulement lue. Seules les écritures validées sont envoyées.
 
