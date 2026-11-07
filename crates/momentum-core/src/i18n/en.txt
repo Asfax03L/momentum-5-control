@@ -2734,3 +2734,6 @@ The headphones do not report the end of charging: this only says 100 %
 
 Menu principal
 Main menu
+
+État du casque
+Headphones status

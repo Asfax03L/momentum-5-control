@@ -674,6 +674,12 @@ Kirigami.ApplicationWindow {
                                 text: headset.stream
                                 opacity: 0.7
                             }
+                            QQC2.Label {
+                                objectName: "accueil-etat-casque"
+                                visible: headset.connected && headset.headsetStatus !== ""
+                                text: headset.headsetStatus
+                                opacity: 0.7
+                            }
                         }
                     }
                 }

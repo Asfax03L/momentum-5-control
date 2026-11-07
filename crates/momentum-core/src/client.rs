@@ -429,4 +429,58 @@ mod tests {
             .collect();
         assert_eq!(levels, [10, 20, 30]);
     }
+
+    #[test]
+    fn unknown_device_error_keeps_its_raw_code_and_the_session() {
+        // Réponse d'erreur avec un code jamais vu : gardé brut, sans
+        // interprétation ; la session reste utilisable.
+        let mock = MockTransport::new()
+            .expect(
+                &h("FF 03 00 00 04 95 06 03"),
+                &h("FF 03 00 01 04 95 07 83 7E"),
+            )
+            .expect(
+                &h("FF 03 00 00 04 95 06 03"),
+                &h("FF 03 00 01 04 95 07 03 2A"),
+            );
+        let mut client = GaiaClient::new(mock);
+        match client.request(&Frame::sennheiser_request(get::BATTERY), T) {
+            Err(ClientError::Device { payload, .. }) => assert_eq!(payload, [0x7E]),
+            other => panic!("erreur du casque attendue : {other:?}"),
+        }
+        assert!(!client.is_desynchronized());
+        let frame = client
+            .request(&Frame::sennheiser_request(get::BATTERY), T)
+            .unwrap();
+        assert_eq!(frame.payload, [0x2A]);
+    }
+
+    #[test]
+    fn garbage_before_a_frame_is_skipped() {
+        // Octets parasites dans le flux : la réponse qui suit est retrouvée.
+        let mock = MockTransport::new().expect(
+            &h("FF 03 00 00 04 95 06 03"),
+            &h("00 13 37 FF 03 00 01 04 95 07 03 2A"),
+        );
+        let mut client = GaiaClient::new(mock);
+        let frame = client
+            .request(&Frame::sennheiser_request(get::BATTERY), T)
+            .unwrap();
+        assert_eq!(frame.payload, [0x2A]);
+    }
+
+    #[test]
+    fn a_frame_cut_by_the_stream_is_reassembled() {
+        // RFCOMM peut livrer une trame en plusieurs morceaux, jusque dans
+        // l'en-tête.
+        let mock = MockTransport::new().expect_chunked(
+            &h("FF 03 00 00 04 95 06 03"),
+            &[&h("FF 03 00"), &h("01 04 95 07"), &h("03"), &h("2A")],
+        );
+        let mut client = GaiaClient::new(mock);
+        let frame = client
+            .request(&Frame::sennheiser_request(get::BATTERY), T)
+            .unwrap();
+        assert_eq!(frame.payload, [0x2A]);
+    }
 }

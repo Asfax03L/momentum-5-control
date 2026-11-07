@@ -66,6 +66,7 @@ struct Widgets {
     pages: gtk::Box,
     battery: adw::ActionRow,
     battery_bar: gtk::LevelBar,
+    status: adw::ActionRow,
     noise: Vec<gtk::ToggleButton>,
     level: gtk::Scale,
     level_row: adw::ActionRow,
@@ -465,8 +466,13 @@ fn layout(app: &adw::Application) -> Widgets {
     battery_bar.set_width_request(160);
     let battery = adw::ActionRow::builder().title("Batterie").build();
     battery.add_suffix(&battery_bar);
+    // Charge et port, lus sur le casque (comme l'accueil de WinUI).
+    let status = adw::ActionRow::builder()
+        .title(tr("État du casque"))
+        .build();
     let headset = adw::PreferencesGroup::builder().title("Casque").build();
     headset.add(&battery);
+    headset.add(&status);
 
     let modes = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     modes.add_css_class("linked");
@@ -573,6 +579,7 @@ fn layout(app: &adw::Application) -> Widgets {
         pages,
         battery,
         battery_bar,
+        status,
         noise,
         level,
         level_row,
@@ -678,6 +685,10 @@ fn refresh(widgets: &Widgets, state: &State, updating: &Cell<bool>) {
     widgets.waiting.set_description(Some(&v.waiting));
     widgets.pages.set_visible(v.connected);
     widgets.battery.set_subtitle(&v.battery_text);
+    let summary = momentum_core::home_presentation::headset_summary(s.state.as_ref());
+    widgets
+        .status
+        .set_subtitle(&format!("{} · {}", summary.charge, summary.wearing));
     widgets
         .battery_bar
         .set_value(f64::from(v.battery.unwrap_or(0)));

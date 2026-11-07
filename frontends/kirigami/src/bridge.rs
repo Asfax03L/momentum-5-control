@@ -46,6 +46,7 @@ pub mod qobject {
         #[qproperty(i32, battery)]
         #[qproperty(QString, battery_text)]
         #[qproperty(QString, stream)]
+        #[qproperty(QString, headset_status)]
         #[qproperty(QString, model)]
         #[qproperty(QString, firmware)]
         // Contrôle du bruit.
@@ -573,6 +574,7 @@ pub struct HeadsetRust {
     battery: i32,
     battery_text: QString,
     stream: QString,
+    headset_status: QString,
     model: QString,
     firmware: QString,
     noise_modes: QStringList,
@@ -761,6 +763,7 @@ impl Default for HeadsetRust {
             battery: -1,
             battery_text: QString::default(),
             stream: QString::default(),
+            headset_status: QString::default(),
             model: QString::default(),
             firmware: QString::default(),
             noise_modes: string_list(viewmodel::NOISE_MODES.map(tr)),
@@ -1542,6 +1545,11 @@ impl qobject::Headset {
         h.as_mut()
             .set_battery_text(QString::from(v.battery_text.as_str()));
         h.as_mut().set_stream(QString::from(v.stream.as_str()));
+        // Charge et port, lus sur le casque (comme l'accueil de WinUI).
+        let summary = momentum_core::home_presentation::headset_summary(snapshot.state.as_ref());
+        h.as_mut().set_headset_status(QString::from(
+            format!("{} · {}", summary.charge, summary.wearing).as_str(),
+        ));
         h.as_mut().set_model(QString::from(model.as_str()));
         h.as_mut().set_firmware(QString::from(firmware.as_str()));
         h.as_mut().set_noise_mode(c.noise_mode);
