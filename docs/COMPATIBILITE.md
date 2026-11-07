@@ -69,8 +69,8 @@ Fiche détaillée (méthode, trames, séquence de démarrage de l'app, pistes) :
 L'état physique « porté / non porté » est transmis par l'API du service,
 distinct de l'activation du capteur et de Smart Pause. Sa lecture et ses
 notifications sont essayées sur le casque depuis le PC, sous Windows
-(27/10/2026) et sous Linux (01/11/2026) ; l'accueil de WinUI l'affiche, pas
-encore KDE ni GNOME. La pause musicale au retrait n'est pas essayée. Voir la
+(27/10/2026) et sous Linux (01/11/2026) ; l'accueil de WinUI, de KDE et de
+GNOME l'affiche (KDE et GNOME depuis la 1.8). La pause musicale au retrait n'est pas essayée. Voir la
 [provenance et le contrat](MOMENTUM5.md#état-physique-du-port--observation-complémentaire-du-27102026).
 
 ## Sources
