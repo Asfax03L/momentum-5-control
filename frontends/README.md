@@ -37,7 +37,7 @@ frontends/<nom>    affichage + appels système propres aux fenêtres
 |---|---|---|---|
 | `kirigami/` | Qt 6 / Kirigami (KDE), pont cxx-qt | Linux KDE | interface KDE (v0.8.0) |
 | `winui/` | WinUI 3 via [`windows-reactor`](https://github.com/microsoft/windows-rs) (Microsoft, 100 % Rust) | Windows | interface Windows (v0.8.0) |
-| `gtk/` | GTK 4 / libadwaita (GNOME) | Linux GNOME | à explorer |
+| `gtk/` | GTK 4 / libadwaita (GNOME) | Linux GNOME | interface GNOME (v0.12.0, complète en v1.6.0) |
 
 Notes pour les pistes « à explorer » (à vérifier au moment de s'y mettre) :
 

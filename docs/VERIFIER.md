@@ -39,7 +39,7 @@ Get-Content openheadset-control-v0.11.0-windows-x86_64.zip.sha256
 Avec l'outil `gh` de GitHub (une connexion à GitHub est demandée) :
 
 ```bash
-gh attestation verify openheadset-control-v0.11.0-linux-x86_64.tar.gz --repo Asfax03L/openheadset-control
+gh attestation verify openheadset-control-v1.7.0-linux-x86_64.tar.gz --repo Asfax03L/momentum-5-control
 ```
 
 La réponse indique le dépôt, le workflow et la révision qui ont produit le

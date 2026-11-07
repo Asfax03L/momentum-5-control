@@ -2,7 +2,7 @@
 
 > **Historique.** Plan de la v0.4.0. Depuis la v0.8.0, l'icône Slint et son
 > canal texte sont retirés : `ctl` passe par le service `momentum-daemon`
-> (voir [ARCHITECTURE.md](ARCHITECTURE.md)). Les scènes, elles, sont
+> (voir [ARCHITECTURE.md](../ARCHITECTURE.md)). Les scènes, elles, sont
 > inchangées.
 
 Étape 2 de la roadmap. Aucune nouvelle commande du casque : uniquement des

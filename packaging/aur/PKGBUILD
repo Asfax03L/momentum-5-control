@@ -10,7 +10,7 @@ pkgver=@VERSION@
 pkgrel=1
 pkgdesc="Réglages du casque Sennheiser MOMENTUM 5 : clients KDE et GNOME, service et ctl (non officiel)"
 arch=('x86_64')
-url="https://github.com/Asfax03L/openheadset-control"
+url="https://github.com/Asfax03L/momentum-5-control"
 license=('MIT OR Apache-2.0')
 depends=('gcc-libs' 'glibc' 'dbus' 'bluez' 'qt6-base' 'qt6-declarative'
          'qt6-wayland' 'kirigami' 'qqc2-desktop-style' 'gtk4' 'libadwaita')

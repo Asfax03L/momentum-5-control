@@ -156,7 +156,7 @@ copier et les montre (nombre de fichiers, date) : `--depuis flatpak` ou
 ses fichiers par défaut, qui sont alors gardés) et application fermée :
 
 ```bash
-curl -fsSLO https://raw.githubusercontent.com/Asfax03L/openheadset-control/v0.13.0/packaging/flatpak/migrer-reglages.sh
+curl -fsSLO https://raw.githubusercontent.com/Asfax03L/momentum-5-control/v0.13.0/packaging/flatpak/migrer-reglages.sh
 ```
 ```bash
 sh migrer-reglages.sh --essai
@@ -183,7 +183,7 @@ sh packaging/flatpak/sources-cargo.sh
 flatpak-builder --user --install --force-clean build-flatpak packaging/flatpak/io.github.asfax03l.openheadset-control.yml
 ```
 
-Préparation de la soumission à Flathub : [`FLATHUB.md`](FLATHUB.md).
+Préparation de la soumission à Flathub : [`historique/FLATHUB.md`](historique/FLATHUB.md).
 
 
 ## Installer les paquets Debian et Fedora

@@ -1,393 +1,135 @@
-# Roadmap : une vraie interface PC pour le MOMENTUM 5
+# Feuille de route
 
-Objectif : une application Windows complète, équivalente à Smart Control Plus
-pour tout ce qui passe par le casque, mais pensée pour un PC portable (souris,
-clavier, grand écran, barre système). L'icône reste le raccourci vers la
-fenêtre principale.
+Mise à jour du 07/11/2026. Version publiée : **1.7.0** (04/11/2026). Ce qui
+change à chaque version : [CHANGELOG.md](../CHANGELOG.md).
 
-**Mise à jour du 29/10/2026 — série 1.x** : le lot 2 (1.3.0) fiabilise
-curseurs, préréglages et A/B ; le [lot 3](LOT3-ASSISTANT-EQ.md) (1.4.0)
-ajoute l'assistant EQ guidé à WinUI et KDE. Ces parcours sont vérifiés en
-simulation et en CI, sans nouvelle qualification matérielle revendiquée.
-Le diagnostic BTD 700 reste facultatif et non réalisé ; le besoin retenu
-utilise le Bluetooth du PC. Le sidetone, rejoué depuis le PC sous Windows et
-Linux le 01/11/2026, est intégré au service, à `ctl`, à WinUI et à KDE en
-1.5.0 (niveaux 0, 1 et 2). La 1.6.0 complète le client GNOME et ajoute, sous
-Linux, le choix du codec et la batterie annoncée par le système. La 1.7.0
-donne au client GNOME un panneau rapide et des raccourcis globaux, la batterie
-système à Windows et l'avis « 100 % câble branché ». Le bilan daté ci-dessous conserve
-l'historique de la 1.1.0.
+## Règles qui ne changent pas
 
-**État au 25/10/2026** : dernière publication **v1.1.0** (jalon 1.1 :
-autonomie mesurée, y compris selon le mode de réduction de bruit ; journal
-local des événements ; notifications au choix, dont « casque allumé sans
-son » ; scènes automatiques à la connexion ou à heure fixe, essayées sur
-le M5 ; export de la courbe pour Equalizer APO. Reportés avec leur raison :
-égaliseur d'après des mesures publiques, export EasyEffects, avis de fin
-de charge). Avant elle, v1.0.0, version stable :
-politique de versions ([`VERSIONS.md`](VERSIONS.md)), politique de
-sécurité ([`SECURITY.md`](../SECURITY.md), signalement privé activé), avis
-de nouvelle version désactivé par défaut, et une décision écrite pour
-chaque point encore ouvert (section « Décisions de la 1.0 » plus bas).
-Avant elle, v0.16.0 (jalon 0.16 :
-interfaces en anglais avec choix de la langue, noms accessibles et
-parcours clavier vérifiés en CI, contrastes, assistant de premier
-lancement, rapport de bogue prérempli, guide et FAQ en deux langues, site
-GitHub Pages, Discussions ; écoute réelle au Narrateur et à Orca à faire).
-Avant elle, v0.15.1, version de
-fiabilisation qui traite les constats A01 à A12 de l'audit du 24/10/2026
-(données de l'utilisateur, confinement Linux, publication). Avant elle,
-v0.15.0 (jalon 0.15 :
-recherche KRunner servie par le service, liste de raccourcis Windows pour
-les scènes et pastille de batterie sur l'icône de la barre des tâches,
-extension Decky Loader pour le mode jeu ; tout passe par l'API du service.
-Widgets Windows 11 et Xbox Game Bar reportés après la signature : ils
-demandent une application empaquetée, MSIX). Avant elle, v0.14.0 (jalon 0.14 :
-installateur Windows par utilisateur, `.deb` et `.rpm` essayés en mise à
-jour par-dessus la version précédente, `PKGBUILD` pour l'AUR essayé dans
-Arch, widget Plasma seul en `.plasmoid` ; soumissions à winget, à l'AUR et
-au KDE Store préparées dans `SOUMISSIONS.md`, pas encore envoyées). Avant
-elle, v0.13.0 (jalon 0.13-bêta : Flatpak construit sans réseau à partir de sources figées,
-nouvel identifiant `io.github.asfax03l.openheadset-control`, permissions
-revues, migration des réglages ; soumission à Flathub préparée dans
-`FLATHUB.md`, pas encore envoyée). Avant elle, v0.12.0 (jalon 0.12 :
-client GNOME en GTK 4 et libadwaita, première étape — page Accueil — et
-parité définie avec le client KDE dans `PARITE.md`, étapes suivantes
-comprises). Avant elle, v0.11.0 (jalon 0.11 :
-service Linux durci, provenance et SBOM de chaque fichier publié, suite
-d'essais `ctl essais` rejouée sur le casque, tests d'interface, couverture
-et budget de ressources en CI ; droits réduits du service Windows étudiés
-dans `SECURITE.md`, en attente de la signature). Avant elle, v0.10.0 (jalon 0.10 :
-scène depuis l'état, export et import des réglages, reconnexion par le
-Bluetooth du système, diagnostic PipeWire, `ctl` scriptable ; en avance
-sur leur jalon : fuzzing des décodeurs, prévu en 0.11, et paquets `.deb`
-et `.rpm`, prévus en 0.14). Avant elle, v0.9.1 (panneau rapide KDE,
-widget Plasma enrichi) et v0.9.0 : service unique,
-WinUI 3, client KDE, Flatpak, widget Plasma, écritures réservées au
-micrologiciel 6.21.5, et la consolidation qui suit la revue du 21/10/2026
-(demandes numérotées et résultats exacts, identité du casque, cible
-multipoint opaque, installateurs récupérables, publication complète ou
-rien, journaux sans données personnelles ; suivi dans
-[`CONSOLIDATION.md`](CONSOLIDATION.md) ; fonctions de chaque interface dans
-[`PARITE.md`](PARITE.md)). Le détail du protocole est dans
-[`MOMENTUM5.md`](MOMENTUM5.md), le matériel validé dans le
-[tableau de compatibilité du README](../README.md#compatibilité-momentum-5),
-l'historique daté en fin de page.
+- Une commande n'est envoyée au casque qu'après avoir été **capturée** dans
+  l'application officielle, puis **validée sur le casque** avec relecture.
+  Toute commande nouvelle demande l'accord explicite du mainteneur.
+- **Jamais** : mise à jour du micrologiciel, réinitialisation d'usine,
+  suppression d'un appairage, installation d'un pack de voix, balayage
+  d'identifiants de commande.
+- Un réglage relu n'est pas une preuve d'effet audible : un effet sonore est
+  écrit comme « entendu » seulement après une écoute, sinon « non vérifié ».
+- Un autre casque ou micrologiciel reste en lecture seule tant que chaque
+  écriture n'y a pas été vérifiée.
 
-## Principes
+## Où en est le projet
 
-- **Un service, des interfaces natives** (depuis la v0.8.0) : le service
-  `momentum-daemon` (thread `worker`) est seul propriétaire de la connexion
-  GAIA ; WinUI 3 sous Windows et Kirigami sous KDE en sont clientes, comme
-  `ctl`. L'icône Slint des versions 0.7 et avant est retirée. Aucune
-  réécriture sans nécessité démontrée.
-- **Rien d'inventé** : chaque écriture provient d'une capture de l'app puis
-  d'une validation sur le casque. Ce qui n'est pas validé s'affiche en
-  lecture seule, ou n'apparaît pas.
-- **Jamais** : mise à jour du firmware ni installation d'un pack de voix,
-  réinitialisation d'usine, nouveau test auditif (algorithme propriétaire de
-  l'app), suppression d'un appairage.
-- **Session GAIA fiable** : après un échange interrompu (délai dépassé, envoi
-  ou lecture en erreur), la session est abandonnée ; aucune écriture n'est
-  renvoyée automatiquement. Le worker se reconnecte et relit l'état.
-- **Données privées** : ni adresse Bluetooth, ni numéro de série, ni profil
-  auditif dans l'interface, le journal ou le diagnostic à partager. Seul
-  l'export du profil (« Mon son »), demandé explicitement, contient le
-  profil auditif : c'est un fichier privé, à ne pas joindre à un rapport.
-- **Adapté au portable** : fenêtre redimensionnable, navigation latérale,
-  tout accessible au clavier, thème clair ou sombre selon Windows, mise à
-  l'échelle 100 à 200 %.
-
-## Correspondance actuelle avec l'app Android
-
-Statuts : ✅ écrit et validé sur le M5 (firmware 6.21.5) ; 👁 lu seulement ;
-⛔ exclu volontairement ; ➖ propre au téléphone.
-
-| Smart Control Plus | Application PC | Statut |
-|---|---|---|
-| Mon appareil : nom, batterie, Bluetooth | En-tête : nom lu sur le casque, batterie, codec et fréquence | 👁 |
-| Contrôle du bruit : Adaptatif / Personnalisé / ARRÊT, curseur, anti-vent | Accueil | ✅ |
-| Spatial audio (Dolby Atmos) : marche / arrêt, suivi de tête | Accueil | ✅ (`3604`, `3602`) |
-| Commandes (tactiles) | Accueil | ✅ |
-| Gestion des connexions : connecter, déconnecter | Accueil : appareils appairés, boutons (sauf ce PC) | ✅ (`140F` / `1410`) |
-| Gestion des connexions : Multipoint | Accueil : interrupteur (confirmation avant la coupure) | ✅ (`001D:0E00`) |
-| Gestion des connexions : suppression d'un appairage | — | ⛔ |
-| My sound : égaliseur, préréglages, basses | Mon son | ✅ (préréglages : courbes côté PC) |
-| My sound : Speech Clarity, sélection du profil personnalisé | Mon son | ✅ |
-| Personnalisation du son : export du profil | Mon son (fichier dans Documents) | 👁 (lecture brute) |
-| Personnalisation du son : nouveau test, restauration d'un profil | — | ⛔ |
-| Smart Pause, réponse auto, appels confortables | Réglages | ✅ |
-| Retour de voix (sidetone) | Réglages | ✅ (0, 1, 2 ; effet en appel écouté le 01/11/2026) |
-| Mise hors tension automatique | Réglages | ✅ |
-| Invites : mode, volume | Réglages | ✅ |
-| Invites : langue | Réglages | 👁 (changer = installer un pack de voix ⛔) |
-| Mode de protection de la batterie | Réglages | ✅ |
-| Donner un nom au casque | Réglages | ✅ (ASCII, 32 caractères au plus) |
-| Priorité du mode audio | Réglages | 👁 (redémarre le casque ; l'app du téléphone reste souvent bloquée) |
-| Codec, micrologiciel, informations produit | À propos | 👁 |
-| Mise à jour du micrologiciel, réinitialisation d'usine | — | ⛔ |
-| Zones sonores, Retrouver le casque, Nouvelles | — | ➖ |
-
-## Prochaines étapes (proposées ; dates indicatives)
-
-La qualité passe avant l'étendue : chaque jalon a un critère de sortie, et
-une fonction n'est dite « validée » qu'avec modèle, micrologiciel, système
-et date de l'essai sur le casque.
-
-| Jalon | Contenu | Critère de sortie |
-|---|---|---|
-| **0.9.0** (consolidation) ✅ | Constats F01 à F14 de la revue ([`CONSOLIDATION.md`](CONSOLIDATION.md)) ; CI élargie (versions verrouillées, dépendances auditées) ; documentation alignée | Aucune fausse réussite d'une commande ; publication complète ou rien ; installateurs récupérables |
-| **0.9.1** (KDE) ✅ | Panneau rapide KDE, widget enrichi | Commandes usuelles en deux clics, état relu affiché |
-| **0.10** (confort et audio Linux) ✅ | Audio Linux en lecture seule, petites fonctions à fort gain, `ctl` plus scriptable | Observations PipeWire cohérentes avec les réglages son du bureau ; aucun changement de routage silencieux ; chaque fonction essayée sur le casque |
-| **0.11** (sécurité et qualité) ✅ | Service durci, chaîne de confiance, tests automatisés | Service limité au Bluetooth et à ses fichiers ; suite d'essais rejouée avant la publication ; provenance vérifiable de chaque paquet |
-| **0.12** (GNOME) ✅ | Interface GTK 4 / libadwaita cliente du même service | Parité définie avec le client KDE, sans connexion directe au casque |
-| **0.13-bêta** (distribution) 🟡 | Flatpak à sources figées et Flathub | Installation, mise à jour et désinstallation propres sur Bazzite et Windows ; paquet accepté sur Flathub |
-| **0.14** (paquets natifs) 🟡 | Installateur Windows, winget, `.deb`, `.rpm`, AUR, KDE Store | Pour chaque format : installation, mise à jour par-dessus la version précédente et désinstallation propres, puis essai sur le casque |
-| **0.15** (intégration au bureau) 🟡 | KRunner, widgets Windows, mode jeu | Chaque intégration passe par l'API du service, avec les mêmes refus que les interfaces |
-| **0.16** (langues, accessibilité, accueil) 🟡 | Anglais, accessibilité, premier lancement, documentation | Interfaces complètes en anglais ; parcours au clavier et au lecteur d'écran sans blocage |
-| **1.0** (version stable) ✅ | Version stable | Critères de publication remplis, politique de versions publiée, aucun constat ouvert sans décision |
-| **1.1** (fonctions avancées) ✅ | Mesures, égaliseur, journal, automatisations | Fonctions désactivables ; aucune donnée envoyée ; seules les commandes validées |
-| **1.2** (recherche sur le matériel) | Nouvelles écritures, autres casques | Capture dans l'application officielle, puis essai sur le casque avec relecture et retour à la valeur d'origine ; accord avant chaque essai |
-| **Après la signature** | MSIX, COPR, widgets Windows 11 et Xbox Game Bar | Décision sur la signature prise ; mêmes critères que 0.14 |
-
-Formats écartés : `.rpm` sur Bazzite (il faudrait modifier le système
-avec `rpm-ostree` ; le Flatpak est la voie prévue), et Kubuntu 24.04 LTS
-(encore sous Plasma 5, alors que le client KDE demande Plasma 6).
-
-### Contenu des jalons
-
-**0.10 — confort et audio Linux**
-- Lecture PipeWire/WirePlumber de la sortie, du profil et du codec, en
-  lecture seule ; diagnostic guidé.
-- **Bouton « Reconnecter le casque »** : passe par le Bluetooth du système
-  (BlueZ, Windows), pas par une commande du casque.
-- **Enregistrer l'état actuel comme scène** : tous les réglages validés
-  relus sur le casque, en un clic.
-- **Exporter et importer mes réglages** : un fichier unique (scènes,
-  préréglages, raccourcis, panneau rapide, thème) pour retrouver la même
-  configuration sur un autre PC ou un autre système.
-- **`ctl` scriptable** : sortie JSON pour toutes les sous-commandes,
-  exemples pour Stream Deck et macros.
-- **Complétion du shell et page `man` pour `ctl`** (`clap_complete`,
-  `clap_mangen`).
-
-**0.11 — sécurité et qualité**
-- **Service Linux durci par systemd** : `NoNewPrivileges`,
-  `ProtectSystem=strict`, `ProtectHome` en lecture seule sauf le dossier
-  des données, `RestrictAddressFamilies=AF_UNIX AF_BLUETOOTH`.
-- **Service Windows aux droits réduits** : étude d'un AppContainer ou d'un
-  niveau d'intégrité bas pour `momentum-daemon`.
-- **Chaîne de confiance sans certificat** : attestations de provenance
-  GitHub (`actions/attest-build-provenance`) et SBOM joints aux
-  publications, compilation reproductible.
-- **Robustesse du protocole** : fuzzing du décodeur de trames et du
-  parseur SDP (`cargo-fuzz`), sur les captures existantes.
-- **Essais sur le casque automatisés** : les scripts d'essai (lecture,
-  écriture validée, relecture, retour à la valeur d'origine) réunis en une
-  suite rejouable avant chaque publication, avec un compte rendu daté.
-- **Tests d'interface automatisés** en mode démonstration (UI Automation
-  sous Windows, tests QML sous KDE), lancés par la CI.
-- **Couverture de tests** affichée par la CI, avec un seuil minimal pour le
-  cœur du protocole.
-- **Budget de ressources** : mémoire et processeur du service mesurés à
-  chaque version.
-
-**0.12 — GNOME**
-- Interface GTK 4 / libadwaita cliente du même service.
-
-**0.13-bêta — distribution**
-- Flatpak à sources figées (hors ligne), permissions revues, migration des
-  réglages ; soumission à **Flathub**.
-- Fait en v0.13.0 : tout sauf la soumission, préparée (`FLATHUB.md`) et
-  attendant l'accord du mainteneur ; le critère « paquet accepté sur
-  Flathub » reste ouvert.
-
-**0.14 — paquets natifs**
-- Windows : installateur par utilisateur, sans droits administrateur
-  (`.exe` Inno Setup ou `.msi` WiX), puis publication **winget** avec la
-  dépendance au Windows App Runtime 2.
-- Linux : `.deb` (Debian 13, Ubuntu 26.04 et suivantes) et `.rpm` (Fedora
-  43 et suivantes), compilés dans un conteneur par famille de distribution
-  (`cargo-deb`, `cargo-generate-rpm`) et joints aux publications ;
-  `PKGBUILD` pour l'**AUR** (Arch, CachyOS) ; widget Plasma sur le
-  **KDE Store**.
-- Fait en v0.14.0 : installateur Inno Setup (`.exe`, par utilisateur),
-  `PKGBUILD`, `.plasmoid` et manifestes winget, avec leurs essais
-  d'installation, de mise à jour et de retrait. Publications sur winget,
-  l'AUR et le KDE Store préparées (`SOUMISSIONS.md`), en attente de
-  l'accord du mainteneur.
-
-**0.15 — intégration au bureau**
-- **KRunner (KDE)** : « anc off », « scène Transport » depuis la recherche
-  de Plasma, par l'API D-Bus comme le widget.
-- **Liste de raccourcis Windows** (clic droit sur l'icône de la barre des
-  tâches) pour appliquer une scène.
-- **Pastille de batterie** sur l'icône de la barre des tâches Windows.
-- **Widget Windows 11** (tableau des widgets) et **widget Xbox Game Bar** :
-  batterie et réduction de bruit, sur le modèle du widget Plasma.
-  Reportés après la signature : ces deux widgets exigent une identité de
-  paquet (MSIX), que l'application n'a pas tant que ses exécutables ne
-  sont pas signés.
-- **Mode jeu de Bazzite et Steam Deck** : extension Decky Loader cliente
-  de l'API D-Bus (batterie, réduction de bruit, scènes).
-
-**0.16 — langues, accessibilité, accueil** (v0.16.0 ; reste l'écoute
-réelle au Narrateur et à Orca)
-- **Interface en anglais** (interfaces et documentation principale ; le
-  français reste la langue de référence).
-- **Accessibilité** : relecture au lecteur d'écran (Narrateur, Orca),
-  navigation complète au clavier, contrastes des deux thèmes.
-- **Assistant de premier lancement** : vérifie le Bluetooth, l'appairage
-  et le Windows App Runtime, explique le multipoint.
-- **Guide utilisateur** : installation pas à pas, dépannage Bluetooth
-  (casque appairé mais non connecté, multipoint), FAQ.
-- **Site de documentation** (GitHub Pages) : captures, guide, FAQ.
-- **Rapport de bogue en un clic** : issue GitHub pré-remplie avec le
-  diagnostic expurgé, relue par l'utilisateur avant l'envoi.
-- **Discussions GitHub** pour les questions ; les issues restent pour les
-  bogues et la compatibilité.
-
-**1.0 — version stable** (v1.0.0)
-- **Politique de versions écrite** ([`VERSIONS.md`](VERSIONS.md)) : sens de
-  la 1.0, interfaces stables (fichiers de réglages, sauvegarde JSON, `ctl`,
-  API D-Bus), délais de correction des failles
-  ([`SECURITY.md`](../SECURITY.md) : accusé de réception visé sous 7 jours,
-  correctif d'une faille sérieuse sous 30 jours).
-- **Avis de nouvelle version**, désactivé par défaut : simple lecture des
-  publications GitHub, sans télémétrie ni envoi de données (WinUI, KDE ;
-  pas dans le Flatpak, sans réseau).
-
-### Décisions de la 1.0
-
-Points encore ouverts à la sortie de la 1.0, chacun avec sa décision :
-
-| Point | Décision |
+| Domaine | État |
 |---|---|
-| Soumissions à Flathub, winget, l'AUR et au KDE Store (0.13, 0.14) | Prêtes (`FLATHUB.md`, `SOUMISSIONS.md`) ; envoyées seulement avec l'accord du mainteneur, après la 1.0. Les fichiers restent publiés sur la page Releases. |
-| Client GNOME partiel (page Accueil, 0.12) | Reste un aperçu en 1.x ; rattrapage selon [`PARITE.md`](PARITE.md). Les clients pris en charge sont WinUI et KDE. |
-| Extension Decky jamais essayée dans le vrai mode jeu (0.15) | Essai par le mainteneur s'il installe Decky Loader ; d'ici là, elle reste signalée comme essayée hors du mode jeu. |
-| Widgets Windows 11 et Xbox Game Bar, MSIX (0.15) | Après la décision sur la signature (section « Après la signature »). |
-| Écoute au Narrateur et à Orca (0.16) | Noms accessibles et parcours clavier vérifiés automatiquement à chaque PR ; écoute réelle par le mainteneur, tout défaut traité comme un bogue en 1.0.x. |
-| Reconnexion sous Windows : essai sur le matériel « à valider » | Comportement documenté (ouverture des paramètres Bluetooth, jamais de connexion forcée) ; essai par le mainteneur, défaut traité comme un bogue. |
+| Protocole du MOMENTUM 5 (micrologiciel 6.21.5) | Toutes les fonctions de Smart Control Plus qui passent par le casque sont lues ; celles qui sont sûres sont validées en écriture ([compatibilité](COMPATIBILITE.md)) |
+| Windows 11 (WinUI 3) | Complet, essayé sur le casque |
+| KDE Plasma (Kirigami, widget, KRunner) | Complet, essayé sur le casque |
+| GNOME (libadwaita) | Mêmes pages que KDE, panneau rapide et raccourcis ; affichage essayé sur le casque, changements depuis l'interface et raccourcis à essayer |
+| Ligne de commande, Waybar, Decky | `ctl` complet ; Decky essayé hors du mode jeu |
+| Distribution | Installateur Windows, Flatpak, `.deb`, `.rpm`, AUR (non soumis), archive ; publications attestées avec SBOM |
 
-**1.1 — fonctions avancées** (v1.1.0)
-- ✅ **Autonomie réelle mesurée** d'après `batterie.csv` : points perdus
-  par heure et durée d'une charge complète, puis consommation selon le mode
-  de réduction de bruit (noté au journal). Des mesures seulement, jamais
-  une « santé » de batterie inventée.
-- ⏭ **Égaliseur d'après des mesures publiques** : **reporté**. Raisons :
-  la forme des filtres des 8 bandes du casque (largeur, type) n'est pas
-  documentée, donc tout calcul de « meilleur réglage » serait inventé ; et
-  la licence des données de mesure publiques reste à vérifier. À reprendre
-  si la réponse des filtres est mesurée sur le casque.
-- ✅ **Export de la courbe vers Equalizer APO** (Windows, format GraphicEQ,
-  correspondance approchée et signalée comme telle). ⏭ **EasyEffects**
-  (Linux) : **reporté**, son format de préréglage exige la largeur des
-  filtres, non documentée ; l'import d'un fichier GraphicEQ par EasyEffects
-  reste à vérifier.
-- ✅ **Notifications au choix** : batterie faible, connexion perdue et
-  retrouvée, et **casque allumé sans son** (aucune lecture depuis
-  30 minutes, désactivée par défaut). ⏭ **Charge terminée** : **reportée**,
-  le casque ne signale aucune fin de charge (la valeur `02` n'a jamais été
-  observée). Depuis la 1.7.0, un avis dit seulement « 100 % câble branché »,
-  d'après deux lectures validées en 1.5.0.
-- ✅ **Journal local des événements** (connexions, pertes, modes,
-  refus, scènes) : consultable, exportable, effaçable, jamais envoyé.
-- ✅ **Automatisations des scènes** (à la connexion du casque ou chaque
-  jour à une heure donnée), avec les seules commandes validées ; essayées
-  sur le M5 sous Bazzite.
+## 1.8 — Vérifications sur le casque et robustesse
 
-**1.2 — recherche sur le matériel** (nouvelles captures de l'application
-et accord pour chaque essai)
-- **Réglages aujourd'hui en lecture seule** (priorité du mode audio,
-  détection de port…) : écriture seulement après capture dans
-  l'application officielle et vérification sur le casque.
-- **Autres casques** (ACCENTUM, MOMENTUM 4…) : à partir de rapports
-  « Compatibilité » et d'essais sur le matériel ; lecture seule jusque-là.
+Objectif : prouver sur le matériel ce qui ne l'est pas encore, sans nouvelle
+commande.
 
-**Après la signature**
-- **MSIX** (signature obligatoire), dépôt **COPR** pour Fedora (mises à
-  jour automatiques).
-- **Widget Windows 11** et **widget Xbox Game Bar** (venus de 0.15) :
-  possibles une fois l'application empaquetée en MSIX.
+| Travail | Pourquoi | Comment |
+|---|---|---|
+| **Égaliseur après extinction** | Un autre projet observe sur le M5 qu'une courbe réglée par l'application revient après extinction, mais qu'une courbe envoyée par un second appareil peut ne durer que la session | Courbe reconnaissable écrite par `1001`, extinction complète, relecture, puis restauration ; documenter ce qui reste |
+| **Longueur du nom du casque** | Une source indique 16 octets sur le M5 ; nous acceptons 32 caractères ASCII | Écriture de 17 caractères, relecture, restauration ; limite corrigée si besoin |
+| **Client GNOME sur un vrai bureau** | Raccourcis globaux (portail `GlobalShortcuts`) et changements de réglage jamais essayés hors démonstration | Séance guidée avec le mainteneur |
+| **Reconnexion sous Windows** | Comportement documenté, jamais essayé sur le matériel | Casque éteint puis rallumé, interface ouverte |
+| **État porté / non porté dans KDE et GNOME** | Lu et validé, affiché seulement par WinUI | Même présentation commune (`home_presentation`) |
+| **Robustesse de la session** | Cas relevés par d'autres projets : connexion sans réponse, accusé d'abonnement absent, notification avant la réponse, code d'erreur inconnu, changement de mode lent | Tests simulés sur `MockTransport`, codes inconnus gardés bruts |
+| **Comparaison avec des vecteurs publics** | Vérifier nos décodages de trames contre une source indépendante | Lire les vecteurs de [jarek102/ohr](https://github.com/jarek102/ohr) (MIT) comme données de comparaison, sans reprendre de code |
 
-Les versions sont indicatives : un jalon peut être scindé, mais une
-fonction n'en change qu'avec une raison écrite ici.
+## 1.9 — Parité GNOME et confort
 
-Restent hors du périmètre de la 1.0 : mise à jour du micrologiciel,
-réinitialisation d'usine, nouveau test auditif ou restauration d'un profil
-auditif, suppression d'un appairage. D'autres casques ne seront pris en
-charge qu'après validation sur le matériel ; jusque-là, ils restent en
-lecture seule.
+| Travail | Détail |
+|---|---|
+| Ce qui manque au client GNOME | Saisie des gains en texte, sauvegarde et restauration des réglages, choix de la langue, éditeur de raccourcis ([parité](PARITE.md)) |
+| Dépendances de l'audio spatial expliquées | Suivi de tête sans audio spatial, profil personnalisé incompatible : l'interface dit pourquoi un réglage est grisé |
+| Barres d'état | Exemples pour Waybar, et modules pour d'autres barres (Noctalia, Omarchy) à partir de `ctl barre` |
+| Écoute au lecteur d'écran | Narrateur (Windows) et Orca (Linux), par le mainteneur ; défauts traités comme des bogues |
+| Extension Decky | Essai dans le vrai mode jeu de Bazzite |
 
-### Étapes terminées (résumé)
+## Recherche (chaque commande nouvelle demande un feu vert)
 
-1. Fiabilité : session abandonnée après un envoi ambigu (v0.4.0).
-2. Scènes nommées, appliquées une par une avec relecture (v0.4.0 ; plan
-   historique dans [`PLAN-SCENES-IPC.md`](PLAN-SCENES-IPC.md)).
-3. Confort : historique de la batterie, diagnostic expurgé, courbes, A/B,
-   raccourcis éditables, panneau rapide (v0.4.0).
-4. Recherche séparée : sidetone, suivi de tête, audio USB, paramètres du
-   profil (v0.5.0 ; résultats dans [`MOMENTUM5.md`](MOMENTUM5.md)).
-5. Distribution : archives Windows et Linux (v0.8.0) ; Flatpak, widget
-   Plasma, guide de contribution et tableau de compatibilité (v0.9.0).
-   Reste : signature des exécutables Windows (décision en attente),
-   paquets natifs (jalon 0.14).
-6. Plusieurs interfaces et Linux (v0.7.0).
-7. Service unique et interfaces natives, retrait de Slint (v0.8.0).
-8. Migration vers zbus 6 : plus tard, quand elle apportera un gain concret
-   (elle demande de passer le service et le client en asynchrone).
+Pistes vues dans des captures ou d'autres projets, **à valider sur le matériel**
+avant toute écriture :
+
+| Piste | Source | État ici |
+|---|---|---|
+| Pause de la musique en transparence totale (`1800`/`1801`) | Captures M5 d'un autre projet | Jamais lue ni écrite ici |
+| Mode faible latence (`0817`/`0818`) | Carte de commandes de l'application | `0818` lu ; écriture non vérifiée ailleurs non plus |
+| Niveau de transparence séparé (`1802`/`1803`) | Modèles intra-auriculaires ; couplage avec `1A03` observé sur M5 par un autre projet | À lire seulement |
+| État USB du dongle BTD 700 | Projet tiers, par USB HID | Lecture seule envisageable ; le micrologiciel du dongle reste exclu |
+
+## Bloqué, avec la raison
+
+| Fonction | Raison |
+|---|---|
+| Égaliseur d'après des mesures publiques, export EasyEffects | La forme des filtres du casque (largeur, type) n'est pas documentée ; la licence des mesures est à vérifier |
+| Avis « charge terminée » | Le casque n'a jamais envoyé de valeur « fin de charge » (`02` jamais observé) ; l'avis 100 % câble branché en tient lieu |
+| Priorité du mode audio (haute résolution, sans perte) | L'application officielle redémarre le casque et reste souvent bloquée ; écriture non exposée |
+| Langue des invites | La changer installe un pack de voix (interdit) |
+| Widgets Windows 11, Xbox Game Bar, signature des exécutables | Demandent une identité signée (payante) |
+
+## Abandonné
+
+- Soumissions à **Flathub** (refus des soumissions faites par un agent d'IA)
+  et à **winget** : abandonnées le 04/11/2026. Les paquets restent publiés sur
+  la page Releases ; les fichiers de préparation restent dans `packaging/`.
 
 ## Historique
 
-Chaque phase s'est terminée par : tests (`cargo test`, fmt, clippy), essai
-sur le M5, captures d'écran de la fenêtre, PR vers `main` après CI verte.
+Les étapes de la série 0.x et des versions 1.0 à 1.7, avec leurs décisions :
+[historique/ROADMAP-1.x.md](historique/ROADMAP-1.x.md). Plans terminés :
+[consolidation](historique/CONSOLIDATION.md),
+[réglages (lot 2)](historique/LOT2-REGLAGES.md),
+[assistant EQ (lot 3)](historique/LOT3-ASSISTANT-EQ.md),
+[scènes et IPC](historique/PLAN-SCENES-IPC.md),
+[accueil WinUI](historique/WINUI-ACCUEIL.md),
+[Flathub](historique/FLATHUB.md).
 
-### Phase A : socle de la fenêtre principale — ✅ 09/10/2026 (PR #6)
-- Fenêtre `MainWindow` Slint à navigation latérale (Accueil, Mon son,
-  Réglages, À propos), à la place de la fenêtre d'égaliseur seule.
-- Modèle de vue unique en Rust alimenté par le worker.
-- Écrans « recherche du casque », « déconnecté », « lecture seule (modèle
-  non validé) » ; clic sur l'icône pour ouvrir la fenêtre.
+| Version | Date | Apport principal |
+|---|---|---|
+| 1.7.0 | 04/11/2026 | GNOME : panneau rapide, raccourcis globaux, paquets ; batterie système sous Windows ; avis 100 % |
+| 1.6.0 | 04/11/2026 | Client GNOME complet ; choix du codec sous Linux ; batterie annoncée par le système |
+| 1.5.0 | 01/11/2026 | Retour de voix (sidetone) ; module Waybar ; commandes dangereuses refusées avant envoi |
+| 1.4.0 | 29/10/2026 | Assistant EQ guidé |
+| 1.3.0 | 29/10/2026 | Curseurs, préréglages et comparaison A/B fiabilisés |
+| 1.1.0 | 25/10/2026 | Autonomie mesurée, journal local, notifications au choix, scènes automatiques |
+| 1.0.0 | 25/10/2026 | Version stable : politique de versions et de sécurité |
 
-### Phase B : Accueil — ✅ 09/10/2026 (PR #7)
-- Carte du casque, contrôle du bruit, audio spatial, commandes tactiles.
-- Appareils appairés au casque, d'abord en lecture seule (`1400`/`1401`),
-  remplacés en F6 par la liste avec actions (`140D`/`140E`).
+Étapes de développement avant la 1.0 :
 
-### Phase C : Mon son — ✅ 09/10/2026 (PR #8)
-- Égaliseur intégré, basses, remise à plat, préréglages (Neutre et
-  Audiophile relevés dans l'app, plus les préréglages personnels).
-- Choix du mode audio et export du profil.
-
-### Phase D : Réglages et À propos — ✅ 09/10/2026 (PR #9)
-- Smart Pause, réponse automatique, appels confortables, extinction
-  automatique, invites, protection de la batterie.
-- Langue, volume des invites et priorité affichés en lecture seule en
-  attendant la phase F.
-
-### Phase E : intégration au PC portable — ✅ 09/10/2026 (PR #10, v0.2.0)
-- Raccourcis clavier globaux, notifications Windows, archive publiée par la
-  CI avec empreinte SHA-256, installateur par utilisateur.
-- Validé sur le PC : Ctrl+Alt+M, notification de test, archive v0.2.0. À
-  vérifier en usage réel : Ctrl+Alt+N, Ctrl+Alt+P, alertes de batterie et
-  de connexion.
-
-### Phase F : expériences sur le casque — ✅ 09/10/2026 (PR #11 à #14, v0.3.0)
-
-Méthode : journal HCI du téléphone, appuis dans l'app horodatés par ADB,
-relecture depuis le PC, puis restauration de la valeur initiale. Une
-expérience à la fois, avec accord.
-
-| Expérience | Résultat |
-|---|---|
-| F1 Volume des invites | ✅ échelle relevée (−20 à +6, 0 = 77 %), écriture validée, curseur dans Réglages |
-| F2 Persistance du profil | ✅ identique et toujours sélectionné après extinction complète |
-| F3 Nom du casque | ✅ `2801` capturé, aller-retour validé depuis le PC, champ dans Réglages |
-| F4 Langue des invites | 👁 changer de langue installe un pack de voix : arrêté avant de confirmer, aucune trame envoyée |
-| F5 Priorité du mode audio | 👁 le PC se reconnecte seul, mais l'app du téléphone reste bloquée deux fois sur trois |
-| F6 Gestion des connexions | ✅ `140F` / `1410` capturés et validés (`ctl`, puis boutons de l'Accueil) ; Multipoint et suppression non touchés |
-
-Avant la phase F : sélection du profil personnalisé (mode 3), capturée et
-validée le 09/10/2026 (PR #4).
+| Phase | Contenu | État |
+|---|---|---|
+| 1 | Protocole GAIA V3 pur, `MockTransport`, tests sur captures | ✅ |
+| 2 | `probe` : diagnostic Bluetooth en lecture seule | ✅ |
+| 3 | Réglages du bruit et de l'audio spatial (`ctl`) | ✅ validé sur M5 |
+| 4 | Icône dans la barre système, notifications, reconnexion | ✅ validé sur M5 |
+| 5 | Fenêtre d'égaliseur | ✅ validé sur M5 |
+| A–D | Fenêtre principale complète : Accueil, Mon son, Réglages, À propos | ✅ validé sur M5 |
+| E | Raccourcis clavier globaux, notifications Windows, archive publiée | ✅ validé sur le PC (v0.2.0) |
+| F | Expériences sur le casque : volume des invites, nom, connexions | ✅ validé sur M5 (v0.3.0) |
+| G | Espace de travail Cargo : cœur, service, outils, interfaces séparés | ✅ (v0.7.0) |
+| H | Linux : `ctl` et icône par BlueZ, KDE Plasma sous Wayland | ✅ validé sur M5 (v0.7.0) |
+| I | Interface OpenHeadset Control (thèmes, disposition adaptative, démo) | ✅ validé sur M5 (v0.7.0) |
+| J | Client natif KDE Qt 6 / Kirigami (Linux), logo, entrées de menu ; client du service, icône de la zone de notification, raccourcis KDE | ✅ essayé sur M5 (v0.8.0) |
+| K | Service `momentum-daemon` et API D-Bus, `ctl` client du service (Linux) | ✅ essayé sur M5, lecture et écriture (v0.8.0) |
+| L | Logo sous Windows : exécutable, menu Démarrer, notifications, icône d'état | ✅ (v0.8.0) |
+| M | Service sous Windows (canal nommé) et client WinUI 3 (`windows-reactor`) | ✅ essayé sur M5 (v0.8.0) |
+| N | Fonctions de l'icône Slint reprises par WinUI et KDE, puis retrait de Slint | ✅ essayé sur M5 (v0.8.0) |
+| O | Consolidation (revue du 21/10) : demandes suivies, identité du casque, installateurs et publication sûrs, Flatpak, widget Plasma | ✅ essayé sur M5 (v0.9.0) |
+| P | KDE : panneau rapide, widget Plasma enrichi (demandes suivies, scènes), icône sur zbus 6 | ✅ essayé sur M5 (v0.9.1) |
+| Q | Confort et audio Linux : scène depuis l'état, export et import des réglages, reconnexion par le Bluetooth du système, diagnostic PipeWire, `ctl --json`, complétions et `man`, paquets `.deb` et `.rpm` | ✅ essayé sur M5 sous Bazzite (v0.10.0) |
+| R | Sécurité et qualité : service Linux durci, provenance et SBOM des publications, `ctl essais`, tests d'interface, couverture, budget de ressources | ✅ suite d'essais rejouée sur M5 (v0.11.0) |
+| S | Client GNOME (GTK 4, libadwaita), première étape : page Accueil, demandes suivies, `--demo` ; parité définie avec le client KDE | 🟡 état du M5 lu (v0.12.0) ; écritures essayées en démonstration |
+| T | Distribution : Flatpak construit sans réseau (sources figées), identifiant `io.github.asfax03l.openheadset-control`, permissions revues, migration des réglages ; soumission à Flathub préparée | 🟡 installation, mise à jour, migration et désinstallation essayées sur Bazzite (v0.13.0) ; Flathub non soumis |
+| U | Paquets natifs : installateur Windows (Inno Setup, par utilisateur), `.deb` et `.rpm` mis à jour par-dessus la version précédente, `PKGBUILD` (AUR), widget `.plasmoid` ; winget, AUR et KDE Store préparés | 🟡 installateur essayé sur Windows 11 avec le M5 (v0.14.0) ; paquets Linux essayés en conteneurs ; catalogues non soumis |
+| V | Intégration au bureau : recherche KRunner (« anc off », « scène Transport »), liste de raccourcis Windows (scènes) et pastille de batterie, extension Decky Loader pour le mode jeu ; tout par l'API du service | 🟡 KRunner essayé sur le M5 (Bazzite) et scènes de la liste de raccourcis sur le M5 (Windows 11), v0.15.0 ; extension Decky essayée hors du mode jeu |
+| W | Langues et accueil : interfaces en anglais (choix de la langue), accessibilité (noms lus par les lecteurs d'écran, parcours clavier, contrastes), assistant de premier lancement, rapport de bogue prérempli, guide et FAQ, site GitHub Pages | 🟡 vérifié en CI (UI Automation, KDE hors écran) dans les deux langues (v0.16.0) ; écoute au Narrateur et à Orca à faire |
+| X | Version stable : politique de versions (`docs/VERSIONS.md`), politique de sécurité (`SECURITY.md`), avis de nouvelle version désactivé par défaut, décisions écrites sur les points ouverts | ✅ v1.0.0 |
+| Y | Fonctions avancées : autonomie mesurée (aussi par mode de réduction de bruit), journal local des événements, notifications au choix (dont « casque allumé sans son »), scènes automatiques (connexion, heure fixe), export pour Equalizer APO | ✅ v1.1.0 ; scènes automatiques essayées sur le M5 (Bazzite) |
 

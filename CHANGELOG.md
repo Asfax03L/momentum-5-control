@@ -160,7 +160,7 @@ Les niveaux 3 et 4 du sidetone restent exclus : jamais observés.
   personnelle existante.
 
 ### Qualification
-Le [lot 3](docs/LOT3-ASSISTANT-EQ.md) décrit le parcours et ses limites.
+Le [lot 3](docs/historique/LOT3-ASSISTANT-EQ.md) décrit le parcours et ses limites.
 Tests synthétiques, démonstrations et CI Windows/Linux restent distincts
 d'une séance d'écoute et d'une qualification Bluetooth matérielle.
 
@@ -210,7 +210,7 @@ d'une séance d'écoute et d'une qualification Bluetooth matérielle.
   commentaires de topologie ; une nouvelle association sera alors requise.
 
 ### Qualification
-Le [lot 2](docs/LOT2-REGLAGES.md) décrit les garde-fous, les lectures ajoutées
+Le [lot 2](docs/historique/LOT2-REGLAGES.md) décrit les garde-fous, les lectures ajoutées
 et les limites. Tests synthétiques et démonstrations sont distincts d'un
 essai matériel. Cette publication ne revendique aucune nouvelle validation
 Bluetooth ni qualification du sidetone.
@@ -669,7 +669,7 @@ Version bêta de la distribution, surtout pour le Flatpak :
 - **Migration des réglages** : un script recopie réglages, scènes et
   historique de l'ancien Flatpak, ou de l'installation par l'archive, vers
   le nouveau Flatpak, sans rien supprimer ni écraser.
-- **Flathub** : la soumission est prête (`docs/FLATHUB.md`) mais **pas
+- **Flathub** : la soumission est prête (`docs/historique/FLATHUB.md`) mais **pas
   envoyée** ; elle attend l'accord du mainteneur.
 
 Rien ne change pour Windows, l'archive Linux ni les paquets `.deb`/`.rpm`,
@@ -717,7 +717,7 @@ sauf le nom de la fiche AppStream.
   Flatpak démarré par activation, état du casque lu par le Bluetooth du
   bac à sable, scènes migrées retrouvées, mise à jour par-dessus,
   désinstallation (exports retirés, réglages gardés).
-- **Flathub** (`docs/FLATHUB.md`, `packaging/flatpak/flathub.sh`) :
+- **Flathub** (`docs/historique/FLATHUB.md`, `packaging/flatpak/flathub.sh`) :
   manifeste à source git figée (étiquette et révision), sources Cargo,
   `flathub.json`, permissions justifiées et texte de la PR. Non soumis.
 - CI : le workflow Flatpak sert aussi à la publication (même construction),
@@ -1053,7 +1053,7 @@ Version de fiabilité et de sécurité, après une relecture complète :
   micrologiciel par une issue « Compatibilité ».
 
 ### Consolidation (revue du 21/10/2026)
-- Suivi des constats F01 à F14 dans `docs/CONSOLIDATION.md`.
+- Suivi des constats F01 à F14 dans `docs/historique/CONSOLIDATION.md`.
 - F02 : un casque connecté mais pas encore identifié refuse toute écriture
   (avant, `Headset::new` les autorisait jusqu'à `identify`). Les tests
   obtiennent un casque validé par un constructeur réservé

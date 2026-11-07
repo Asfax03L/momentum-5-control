@@ -12,7 +12,7 @@ documentation and captures of the official app
 ### Which headphones are supported?
 
 The Sennheiser MOMENTUM 5 (and its tested firmware: see the compatibility
-table in the [README](../README.md#compatibilité-momentum-5)). Other models
+[compatibility table](COMPATIBILITE.md)). Other models
 are not supported; the repository's “Compatibilité” form lets you report a
 test.
 
@@ -112,4 +112,4 @@ privately ([SECURITY.md](../SECURITY.md)).
 ### How do I report a problem or ask a question?
 
 A bug: About > “Report a problem…”. A question, an idea:
-[Discussions](https://github.com/Asfax03L/openheadset-control/discussions).
+[Discussions](https://github.com/Asfax03L/momentum-5-control/discussions).

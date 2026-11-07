@@ -1,6 +1,6 @@
 #!/bin/sh
 # Prépare les fichiers d'une soumission à Flathub pour une version publiée
-# (docs/FLATHUB.md), sans rien envoyer :
+# (docs/historique/FLATHUB.md), sans rien envoyer :
 #   sh packaging/flatpak/flathub.sh v0.13.0 dossier
 # Écrit dans « dossier » :
 #   - io.github.asfax03l.openheadset-control.yml : le manifeste du dépôt,
@@ -22,7 +22,7 @@ mkdir -p "$sortie"
 awk -v tag="$tag" -v rev="$revision" '
     /^      - type: dir$/ {
         print "      - type: git"
-        print "        url: https://github.com/Asfax03L/openheadset-control.git"
+        print "        url: https://github.com/Asfax03L/momentum-5-control.git"
         print "        tag: " tag
         print "        commit: " rev
         skip = 1

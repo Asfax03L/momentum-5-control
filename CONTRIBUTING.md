@@ -13,7 +13,7 @@ les fonctions.
   été capturée dans l'application officielle, puis rejouée et relue sur le
   casque. Les écritures sont réservées au modèle et au micrologiciel sur
   lesquels elles ont été vérifiées (voir le tableau de compatibilité du
-  [README](README.md#compatibilité-momentum-5)).
+  [tableau de compatibilité](docs/COMPATIBILITE.md)).
 - **Jamais** : mise à jour du micrologiciel (DFU), réinitialisation d'usine,
   balayage d'identifiants de commande, options de développeur, suppression
   d'un appairage, installation d'un pack de voix.

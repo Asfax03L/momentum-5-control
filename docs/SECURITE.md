@@ -147,7 +147,7 @@ Le service n'a jamais accès au réseau. Les interfaces WinUI et KDE n'y
 accèdent que pour l'**avis de nouvelle version**, désactivé par défaut et
 activé seulement par l'utilisateur dans les Paramètres
 (`mises-a-jour.txt`) : au lancement, une requête GET vers
-`api.github.com/repos/Asfax03L/openheadset-control/releases/latest`, avec
+`api.github.com/repos/Asfax03L/momentum-5-control/releases/latest`, avec
 le seul en-tête `User-Agent: OpenHeadset-Control`. GitHub voit l'adresse IP,
 rien d'autre n'est envoyé. La réponse est analysée par
 `momentum_core::update_check`, qui n'accepte qu'une publication du dépôt

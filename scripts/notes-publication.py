@@ -17,7 +17,7 @@ import re
 import sys
 
 ROOT = Path(__file__).resolve().parent.parent
-REPO = "https://github.com/Asfax03L/openheadset-control"
+REPO = "https://github.com/Asfax03L/momentum-5-control"
 TODO = "À faire après la mise à jour"
 BRIEF = "En bref"
 FLATPAK_ID = "io.github.asfax03l.openheadset-control"
@@ -219,7 +219,7 @@ def main():
           "(copie seulement, rien n'est supprimé ni écrasé ; `--essai` "
           "montre d'abord ce qui sera copié).")
         w("   ```sh")
-        w(f"   curl -fsSLO https://raw.githubusercontent.com/Asfax03L/openheadset-control/{tag}/packaging/flatpak/migrer-reglages.sh")
+        w(f"   curl -fsSLO https://raw.githubusercontent.com/Asfax03L/momentum-5-control/{tag}/packaging/flatpak/migrer-reglages.sh")
         w("   sh migrer-reglages.sh --essai")
         w("   sh migrer-reglages.sh")
         w("   ```")

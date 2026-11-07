@@ -18,7 +18,8 @@ protocole Qualcomm GAIA V3 (Bluetooth RFCOMM). Projet non officiel, en Rust :
   Windows) ;
 - `crates/momentum-cli` : `ctl` et `probe` ;
 - `frontends/winui` (Windows), `frontends/kirigami` (KDE, Qt 6),
-  `plasma/` (widget Plasma, QML) : clients du service.
+  `frontends/gtk` (GNOME, GTK 4), `plasma/` (widget Plasma, QML) : clients
+  du service.
 
 Architecture : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Protocole :
 [docs/MOMENTUM5.md](docs/MOMENTUM5.md). Feuille de route :

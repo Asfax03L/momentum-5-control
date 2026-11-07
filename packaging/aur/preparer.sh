@@ -16,7 +16,7 @@ if [ -n "$archive" ]; then
     cp "$archive" "$sortie/$nom"
 else
     curl -fsSLo "$sortie/$nom" \
-        "https://github.com/Asfax03L/openheadset-control/archive/refs/tags/v$version.tar.gz"
+        "https://github.com/Asfax03L/momentum-5-control/archive/refs/tags/v$version.tar.gz"
 fi
 empreinte=$(sha256sum "$sortie/$nom" | cut -d' ' -f1)
 sed -e "s/@VERSION@/$version/" -e "s/@SHA256@/$empreinte/" "$ici/PKGBUILD" > "$sortie/PKGBUILD"
