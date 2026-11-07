@@ -1,7 +1,7 @@
 -- Liens des pages du site : guide et FAQ vers leurs pages HTML, autres
 -- fichiers du dépôt vers GitHub. Le chemin de la page (variable « source »,
 -- relative à docs/) sert à résoudre les liens relatifs.
-local depot = "https://github.com/Asfax03L/openheadset-control/blob/main/"
+local depot = "https://github.com/Asfax03L/momentum-5-control/blob/main/"
 
 local pages = {
   ["docs/GUIDE.md"] = "guide.html",

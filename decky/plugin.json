@@ -6,6 +6,6 @@
   "publish": {
     "tags": ["audio", "bluetooth", "headset"],
     "description": "Batterie, réduction de bruit et scènes du casque Sennheiser MOMENTUM 5 (non officiel), par le service OpenHeadset Control.",
-    "image": "https://raw.githubusercontent.com/Asfax03L/openheadset-control/main/docs/captures/kde-accueil-sombre.jpg"
+    "image": "https://raw.githubusercontent.com/Asfax03L/momentum-5-control/main/docs/captures/kde-accueil-sombre.jpg"
   }
 }

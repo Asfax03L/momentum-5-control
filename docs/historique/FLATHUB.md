@@ -87,7 +87,7 @@ Add io.github.asfax03l.openheadset-control
 
 OpenHeadset Control is an unofficial desktop controller for the Sennheiser
 MOMENTUM 5 headphones (KDE client, background service and `ctl` CLI). I am
-the upstream author (https://github.com/Asfax03L/openheadset-control).
+the upstream author (https://github.com/Asfax03L/momentum-5-control).
 
 Permissions:
 - --allow=bluetooth, --system-talk-name=org.bluez: RFCOMM link to the

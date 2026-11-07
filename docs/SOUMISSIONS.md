@@ -1,5 +1,9 @@
 # Soumissions aux catalogues (préparées, non envoyées)
 
+> **07/11/2026 :** les soumissions à **winget** et à **Flathub** sont
+> abandonnées. Les paquets restent publiés sur la page Releases ; ce document
+> garde la préparation pour mémoire.
+
 **État au 01/11/2026 :** rien n'est envoyé. L'AUR et le KDE Store demandent un
 compte du mainteneur. winget demande la signature du
 [CLA de Microsoft](https://cla.opensource.microsoft.com/) par le mainteneur et un
@@ -8,7 +12,7 @@ empêche pour l'instant une soumission.
 
 Chaque soumission publie le projet sous le compte du mainteneur, dans un
 dépôt ou un site qui n'est pas le nôtre : elle n'est faite qu'avec son
-accord. Flathub a sa propre page : [`FLATHUB.md`](FLATHUB.md).
+accord. Flathub a sa propre page : [`historique/FLATHUB.md`](historique/FLATHUB.md).
 
 | Catalogue | Fichiers préparés | Essai | État |
 |---|---|---|---|

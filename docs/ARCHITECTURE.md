@@ -4,6 +4,55 @@ Direction choisie le 20/10/2026, en place depuis la v0.8.0 : **séparer le
 back (un service qui tient le casque) des fronts (interfaces natives de
 chaque système)**, tout en Rust.
 
+## Vue d'ensemble du code
+
+Espace de travail Cargo. Le cœur et le service ne dépendent d'aucune
+bibliothèque d'interface ; chaque interface vit dans `frontends/` (voir
+[frontends/README.md](../frontends/README.md)). Direction choisie : un service
+qui tient seul le casque et des interfaces natives clientes (WinUI 3 sous
+Windows, Kirigami sous KDE), tout en Rust — voir
+[docs/ARCHITECTURE.md](ARCHITECTURE.md).
+
+```
+crates/momentum-core/      protocole, casque, scènes, modèles d'affichage (sans interface)
+  src/protocol/            trames GAIA V3 : encodage, décodage de flux, interprétation
+  src/transport/           trait Transport + MockTransport + RFCOMM WinRT (Windows) / BlueZ (Linux)
+  src/client.rs            requête → réponse, réception des notifications
+  src/device.rs            couche casque : état, réglages validés, notifications
+  src/viewmodel.rs, ui.rs  modèles d'affichage et libellés, communs à toutes les interfaces
+  tests/                   captures vérifiées (ACCENTUM/M4 et M5)
+crates/momentum-service/   worker (seul propriétaire de la connexion), notifications,
+                           raccourcis, démarrage auto et instance unique (Windows)
+crates/momentum-client/    API du service : Command, Event, Snapshot ; client D-Bus / canal nommé
+crates/momentum-daemon/    momentum-daemon : le service (D-Bus sous Linux, canal nommé sous Windows)
+crates/momentum-cli/       ctl (réglages en ligne de commande), probe (diagnostic en lecture seule)
+frontends/winui/           momentum-winui : interface WinUI 3 (Windows)
+frontends/kirigami/        momentum-kirigami : interface Qt 6 / Kirigami (KDE Plasma)
+scripts/                   installer.ps1, installer-linux.sh (installation utilisateur)
+```
+
+Choix principaux :
+
+- **Un seul propriétaire de la connexion** : le service ; les interfaces
+  et `ctl` lui envoient des commandes et reçoivent l'état et les
+  événements, donc une seule connexion GAIA.
+- **Pas de Tokio sous Windows** : les appels WinRT sont bloqués dans un
+  thread dédié au casque, qui communique avec le service par un canal
+  `mpsc`.
+- **Écritures uniquement capturées** : chaque commande d'écriture provient
+  d'une capture de l'app officielle, puis est validée sur le casque.
+- **Écritures réservées au M5 en micrologiciel validé** : à la connexion,
+  le nom de modèle (`1206`) puis le micrologiciel (`1201`) sont lus ; si le
+  modèle ne commence pas par `M5AEBT` ou si le micrologiciel n'est pas
+  6.21.5 (le seul sur lequel les écritures ont été vérifiées), le service et
+  `ctl` passent en lecture seule (aucune trame de réglage envoyée) et le
+  bandeau en donne la raison. Un nouveau micrologiciel est ajouté après
+  vérification de chaque écriture.
+- **Délais maximaux** : recherche du casque, connexion et envoi ont chacun un
+  délai (10 s, 15 s, 5 s) ; une pile Bluetooth figée ne bloque pas le
+  service.
+
+
 ## Avant (v0.7.0)
 
 Chaque interface (icône Slint, client KDE) **embarquait** le worker : une

@@ -2303,7 +2303,7 @@ Kirigami.ApplicationWindow {
                 Kirigami.Action {
                     text: headset.tr("Guide d'utilisation")
                     icon.name: "help-contents"
-                    onTriggered: Qt.openUrlExternally("https://asfax03l.github.io/openheadset-control/")
+                    onTriggered: Qt.openUrlExternally("https://asfax03l.github.io/momentum-5-control/")
                 },
                 Kirigami.Action {
                     text: headset.tr("Signaler un problème…")

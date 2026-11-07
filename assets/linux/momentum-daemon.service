@@ -1,6 +1,6 @@
 [Unit]
 Description=OpenHeadset Control — service du casque (seul propriétaire de la connexion)
-Documentation=https://github.com/Asfax03L/openheadset-control/blob/main/docs/ARCHITECTURE.md
+Documentation=https://github.com/Asfax03L/momentum-5-control/blob/main/docs/ARCHITECTURE.md
 After=bluetooth.target
 
 [Service]

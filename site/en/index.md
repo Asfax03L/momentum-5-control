@@ -15,7 +15,7 @@ factory reset.
 ## Download
 
 Latest version on the
-[Releases](https://github.com/Asfax03L/openheadset-control/releases) page:
+[Releases](https://github.com/Asfax03L/momentum-5-control/releases) page:
 Windows installer, Flatpak, `.deb` and `.rpm` packages, `PKGBUILD`, Decky
 extension for game mode. Step-by-step installation: [guide,
 section 1](guide.html#1-install).
@@ -26,8 +26,8 @@ section 1](guide.html#1-install).
   language, accessibility, backup, bug report.
 - [FAQ](faq.html).
 - A question, an idea:
-  [Discussions](https://github.com/Asfax03L/openheadset-control/discussions).
-- Code and history: [GitHub repository](https://github.com/Asfax03L/openheadset-control).
+  [Discussions](https://github.com/Asfax03L/momentum-5-control/discussions).
+- Code and history: [GitHub repository](https://github.com/Asfax03L/momentum-5-control).
 
 ## Preview
 

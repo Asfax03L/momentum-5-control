@@ -13,7 +13,7 @@ la hiérarchie de la maquette SonyBridge : bandeau horizontal illustré,
 indicateurs regroupés, modes de bruit dans un sélecteur et cartes compactes.
 Les couleurs et les contrôles restent natifs et suivent le thème Windows.
 
-L'[illustration originale](../frontends/winui/assets/README.md) représente
+L'[illustration originale](../../frontends/winui/assets/README.md) représente
 un casque générique sans marque. Elle est intégrée à l'exécutable et
 n'est pas une photographie du matériel. Aucune ressource Sony ou
 Sennheiser n'est distribuée.

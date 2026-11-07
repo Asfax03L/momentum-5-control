@@ -33,7 +33,7 @@ pub struct Step {
 }
 
 /// Site du guide d'utilisation et de la FAQ.
-pub const GUIDE_URL: &str = "https://asfax03l.github.io/openheadset-control/";
+pub const GUIDE_URL: &str = "https://asfax03l.github.io/momentum-5-control/";
 
 /// Étapes dans l'ordre, pour ce système.
 pub fn steps(platform: Platform) -> Vec<Step> {
@@ -86,7 +86,7 @@ pub fn steps(platform: Platform) -> Vec<Step> {
     ));
     list.push(step(
         tr("C'est prêt"),
-        tr("Cet assistant reste accessible depuis « À propos ». Guide d'utilisation et questions fréquentes : asfax03l.github.io/openheadset-control."),
+        tr("Cet assistant reste accessible depuis « À propos ». Guide d'utilisation et questions fréquentes : asfax03l.github.io/momentum-5-control."),
     ));
     list
 }

@@ -14,7 +14,7 @@ update, no factory reset.
 
 1. Download the installer
    `openheadset-control-vX.Y.Z-windows-x86_64-installateur.exe` from the
-   [Releases](https://github.com/Asfax03L/openheadset-control/releases) page.
+   [Releases](https://github.com/Asfax03L/momentum-5-control/releases) page.
 2. Run it: per-user installation, no administrator rights. The executables
    are not signed: SmartScreen may ask for confirmation (“More info” > “Run
    anyway”).
@@ -104,7 +104,7 @@ The assistant plays no sound and creates no hearing profile. An initial
 copy is kept in `assistant-eq/` under the application data folder. A
 disconnection interrupts the session without automatic restoration.
 Finish or restore before quitting; a forced close leaves the last applied
-curve active. [Workflow, recovery and limits (French)](LOT3-ASSISTANT-EQ.md).
+curve active. [Workflow, recovery and limits (French)](historique/LOT3-ASSISTANT-EQ.md).
 
 ## 4. Icon and shortcuts
 
@@ -160,7 +160,7 @@ device identifier is exported.
 
 The form is in French; answers in English are welcome. A question rather
 than a bug:
-[Discussions](https://github.com/Asfax03L/openheadset-control/discussions).
+[Discussions](https://github.com/Asfax03L/momentum-5-control/discussions).
 
 ## 9. New versions
 

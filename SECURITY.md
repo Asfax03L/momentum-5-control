@@ -11,7 +11,7 @@
 
 **Pas d'issue publique.** Utiliser le signalement privé de GitHub :
 onglet **Security** du dépôt > **Report a vulnerability**
-(<https://github.com/Asfax03L/openheadset-control/security/advisories/new>).
+(<https://github.com/Asfax03L/momentum-5-control/security/advisories/new>).
 
 Indiquer : version, système, étapes pour reproduire, effet observé. Ne
 joindre ni adresse Bluetooth, ni numéro de série, ni profil auditif, ni

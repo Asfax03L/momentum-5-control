@@ -14,7 +14,7 @@ jour du micrologiciel, ni réinitialisation d'usine.
 
 1. Télécharger l'installateur
    `openheadset-control-vX.Y.Z-windows-x86_64-installateur.exe` sur la page
-   [Releases](https://github.com/Asfax03L/openheadset-control/releases).
+   [Releases](https://github.com/Asfax03L/momentum-5-control/releases).
 2. Le lancer : installation pour l'utilisateur courant, sans droits
    administrateur. Les exécutables ne sont pas signés : SmartScreen peut
    demander une confirmation (« Informations complémentaires » > « Exécuter
@@ -110,7 +110,7 @@ Le parcours ne lance aucun son et ne crée aucun profil auditif. Une copie
 locale est conservée dans `assistant-eq/` sous le dossier des données.
 Une déconnexion interrompt le parcours sans restauration automatique.
 Terminer ou restaurer avant de quitter ; un arrêt forcé laisse la dernière
-courbe appliquée. [Parcours, récupération et limites](LOT3-ASSISTANT-EQ.md).
+courbe appliquée. [Parcours, récupération et limites](historique/LOT3-ASSISTANT-EQ.md).
 
 ## 4. Icône et raccourcis
 
@@ -169,7 +169,7 @@ demande. Aucun profil auditif ni identifiant d'appareil n'est exporté.
    nécessaire). Rien n'est envoyé avant.
 
 Une question plutôt qu'un bogue :
-[Discussions](https://github.com/Asfax03L/openheadset-control/discussions).
+[Discussions](https://github.com/Asfax03L/momentum-5-control/discussions).
 
 ## 9. Nouvelles versions
 

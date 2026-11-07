@@ -4270,7 +4270,7 @@ impl Root {
                         )),
                     TextBlock::new().text(copied),
                     TextBlock::new().text(if self.report_failed {
-                        tr("Navigateur introuvable : copier le diagnostic et ouvrir github.com/Asfax03L/openheadset-control/issues.")
+                        tr("Navigateur introuvable : copier le diagnostic et ouvrir github.com/Asfax03L/momentum-5-control/issues.")
                     } else {
                         ""
                     })

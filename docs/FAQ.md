@@ -12,7 +12,7 @@ documentation publique et de captures de l'application officielle
 ### Quels casques sont pris en charge ?
 
 Le Sennheiser MOMENTUM 5 (et son micrologiciel testé : voir le tableau de
-compatibilité du [README](../README.md#compatibilité-momentum-5)). Un autre
+[compatibilité](COMPATIBILITE.md)). Un autre
 modèle n'est pas pris en charge ; le formulaire « Compatibilité » du dépôt
 permet de signaler un essai.
 
@@ -113,4 +113,4 @@ et l'API D-Bus restent compatibles pour toute la série 1.x : voir la
 ### Comment signaler un problème ou poser une question ?
 
 Un bogue : À propos > « Signaler un problème… ». Une question, une idée :
-[Discussions](https://github.com/Asfax03L/openheadset-control/discussions).
+[Discussions](https://github.com/Asfax03L/momentum-5-control/discussions).

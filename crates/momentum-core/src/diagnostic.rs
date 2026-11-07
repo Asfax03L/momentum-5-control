@@ -234,7 +234,7 @@ pub fn build(input: &DiagnosticInput) -> String {
 
 /// Formulaire « Bogue » du dépôt (`.github/ISSUE_TEMPLATE/bogue.yml`).
 pub const ISSUE_FORM: &str =
-    "https://github.com/Asfax03L/openheadset-control/issues/new?template=bogue.yml";
+    "https://github.com/Asfax03L/momentum-5-control/issues/new?template=bogue.yml";
 /// Choix « Interface » du formulaire, au mot près.
 pub const ISSUE_INTERFACE_WINUI: &str = "WinUI 3 (Windows)";
 pub const ISSUE_INTERFACE_KDE: &str = "Client KDE (Linux)";

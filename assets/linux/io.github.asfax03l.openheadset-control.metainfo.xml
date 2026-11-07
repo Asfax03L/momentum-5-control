@@ -47,9 +47,9 @@
     <dbus type="user">org.openheadset.Control</dbus>
     <binary>ctl</binary>
   </provides>
-  <url type="homepage">https://github.com/Asfax03L/openheadset-control</url>
-  <url type="bugtracker">https://github.com/Asfax03L/openheadset-control/issues</url>
-  <url type="vcs-browser">https://github.com/Asfax03L/openheadset-control</url>
+  <url type="homepage">https://github.com/Asfax03L/momentum-5-control</url>
+  <url type="bugtracker">https://github.com/Asfax03L/momentum-5-control/issues</url>
+  <url type="vcs-browser">https://github.com/Asfax03L/momentum-5-control</url>
   <branding>
     <color type="primary" scheme_preference="light">#d6e6ff</color>
     <color type="primary" scheme_preference="dark">#123a8c</color>
@@ -58,12 +58,12 @@
     <screenshot type="default">
       <caption>Home page (demo mode)</caption>
       <caption xml:lang="fr">Accueil (mode démonstration)</caption>
-      <image>https://raw.githubusercontent.com/Asfax03L/openheadset-control/main/docs/captures/kde-accueil-sombre.jpg</image>
+      <image>https://raw.githubusercontent.com/Asfax03L/momentum-5-control/main/docs/captures/kde-accueil-sombre.jpg</image>
     </screenshot>
     <screenshot>
       <caption>Equalizer (demo mode)</caption>
       <caption xml:lang="fr">Égaliseur (mode démonstration)</caption>
-      <image>https://raw.githubusercontent.com/Asfax03L/openheadset-control/main/docs/captures/kde-son-sombre.jpg</image>
+      <image>https://raw.githubusercontent.com/Asfax03L/momentum-5-control/main/docs/captures/kde-son-sombre.jpg</image>
     </screenshot>
   </screenshots>
   <content_rating type="oars-1.1"/>

@@ -10,7 +10,7 @@
 # Sources figées : la construction se fait sans réseau. Les dépendances
 # Rust viennent de cargo-sources.json, produit depuis Cargo.lock par
 # sources-cargo.sh (empreinte SHA-256 de chaque crate). Le manifeste pour
-# Flathub ne diffère que par la source du dépôt (docs/FLATHUB.md).
+# Flathub ne diffère que par la source du dépôt (docs/historique/FLATHUB.md).
 id: io.github.asfax03l.openheadset-control
 runtime: org.kde.Platform
 runtime-version: '6.11'
