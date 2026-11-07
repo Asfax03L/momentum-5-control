@@ -38,9 +38,9 @@ commande.
 | **Longueur du nom du casque** | Une source indique 16 octets sur le M5 ; nous acceptons 32 caractères ASCII | Écriture de 17 caractères, relecture, restauration ; limite corrigée si besoin |
 | **Client GNOME sur un vrai bureau** | Raccourcis globaux (portail `GlobalShortcuts`) et changements de réglage jamais essayés hors démonstration | Séance guidée avec le mainteneur |
 | **Reconnexion sous Windows** | Comportement documenté, jamais essayé sur le matériel | Casque éteint puis rallumé, interface ouverte |
-| **État porté / non porté dans KDE et GNOME** | Lu et validé, affiché seulement par WinUI | Même présentation commune (`home_presentation`) |
-| **Robustesse de la session** | Cas relevés par d'autres projets : connexion sans réponse, accusé d'abonnement absent, notification avant la réponse, code d'erreur inconnu, changement de mode lent | Tests simulés sur `MockTransport`, codes inconnus gardés bruts |
-| **Comparaison avec des vecteurs publics** | Vérifier nos décodages de trames contre une source indépendante | Lire les vecteurs de [jarek102/ohr](https://github.com/jarek102/ohr) (MIT) comme données de comparaison, sans reprendre de code |
+| ✅ **État porté / non porté dans KDE et GNOME** | Lu et validé, affiché seulement par WinUI | Fait : ligne « charge · port » de l'accueil, même présentation commune (`home_presentation`) |
+| ✅ **Robustesse de la session** | Cas relevés par d'autres projets : connexion sans réponse, notification avant la réponse, code d'erreur inconnu, octets parasites, trame coupée | Fait : tests simulés sur `MockTransport` ; un code d'erreur inconnu est gardé brut et la session reste utilisable. Reste : accusé d'abonnement absent, changement de mode lent |
+| ✅ **Comparaison avec des vecteurs publics** | Vérifier nos décodages de trames contre une source indépendante | Fait le 07/11/2026 : les 37 vecteurs de trames et de flux de [jarek102/ohr](https://github.com/jarek102/ohr) sont reproduits sans écart (`examples/comparer_vecteurs.rs`, vecteurs non copiés) |
 
 ## 1.9 — Parité GNOME et confort
 
