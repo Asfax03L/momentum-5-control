@@ -34,8 +34,8 @@ commande.
 
 | Travail | Pourquoi | Comment |
 |---|---|---|
-| **Égaliseur après extinction** | Un autre projet observe sur le M5 qu'une courbe réglée par l'application revient après extinction, mais qu'une courbe envoyée par un second appareil peut ne durer que la session | Courbe reconnaissable écrite par `1001`, extinction complète, relecture, puis restauration ; documenter ce qui reste |
-| **Longueur du nom du casque** | Une source indique 16 octets sur le M5 ; nous acceptons 32 caractères ASCII | Écriture de 17 caractères, relecture, restauration ; limite corrigée si besoin |
+| ✅ **Égaliseur après extinction** | Un autre projet observe sur le M5 qu'une courbe réglée par l'application revient après extinction, mais qu'une courbe envoyée par un second appareil peut ne durer que la session | Fait le 07/11/2026 : la courbe écrite depuis le PC survit à l'extinction ([fiche](MOMENTUM5.md#égaliseur-après-extinction-07112026)) |
+| ✅ **Longueur du nom du casque** | Une source indique 16 octets sur le M5 ; nous acceptions 32 caractères ASCII | Fait le 07/11/2026 : 16 caractères relus, 17 refusés ; limite ramenée à 16 |
 | **Client GNOME sur un vrai bureau** | Raccourcis globaux (portail `GlobalShortcuts`) et changements de réglage jamais essayés hors démonstration | Séance guidée avec le mainteneur |
 | **Reconnexion sous Windows** | Comportement documenté, jamais essayé sur le matériel | Casque éteint puis rallumé, interface ouverte |
 | ✅ **État porté / non porté dans KDE et GNOME** | Lu et validé, affiché seulement par WinUI | Fait : ligne « charge · port » de l'accueil, même présentation commune (`home_presentation`) |

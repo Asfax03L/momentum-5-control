@@ -38,7 +38,7 @@ service GATT (ce qui ne prouve pas qu'il n'en existe aucun).
 | Activer / désactiver l'anti-vent | `1A00 [01 x]` | ✅ |
 | Activer / désactiver l'audio spatial | `3604 [0/1]` | ✅ |
 | Notifications (batterie, bruit, audio spatial, égaliseur) | `0495:0007 [feature]` | ✅ |
-| Régler une bande de l'égaliseur | `1001 [bande, gain]` | ✅ |
+| Régler une bande de l'égaliseur | `1001 [bande, gain]` | ✅ (la courbe survit à l'extinction du casque) |
 | Activer / désactiver l'Amplification des basses | `1008 [0/1]` | ✅ |
 | Speech Clarity (mode audio) | `0803 [00, 02]` ; égaliseur : `[00, 01]` | ✅ |
 | Commandes tactiles | `1606 [1 = désactivées]`, lecture `1607` | ✅ |
@@ -47,7 +47,7 @@ service GATT (ce qui ne prouve pas qu'il n'en existe aucun).
 | Extinction automatique | `0600 [00, secondes u16]` | ✅ jamais / 15 / 30 / 60 min |
 | Invites (tonalités / tonalités et voix) | `0801 [1/2]` | ✅ |
 | Volume des invites | `081C [i8]` (−20 à +6), lecture `081D` | ✅ validé sur M5 (échelle relevée, `ctl volume-invites`) |
-| Nom du casque | `2801 [nom]`, lecture `2802` | ✅ validé sur M5 (`ctl nom`, page Réglages ; ASCII, 32 caractères au plus) |
+| Nom du casque | `2801 [nom]`, lecture `2802` | ✅ validé sur M5 (`ctl nom`, page Réglages ; ASCII, 16 caractères au plus, limite relevée sur le casque) |
 | Gestion des connexions : connecter, déconnecter un appareil appairé | `140F` / `1410 [adresse]`, liste `140D`/`140E`, ce PC `1413` | ✅ validé sur M5 (`ctl connexions`, Accueil) ; suppression d'un appairage et Multipoint non exposés |
 | Suivi de tête (Dolby Atmos) | `3602 [0/1]`, lecture `3603` | ✅ validé sur M5 (`ctl suivi-tete`, audio spatial activé) |
 | Multipoint | `001D:0E00 [0/1]`, lecture `0495:1409` (1 ou 2 connexions) | ✅ validé sur M5 (`ctl multipoint` ; le couper ne garde qu'un appareil) |

@@ -547,8 +547,29 @@ puis `ctl nom "<nom d'origine>"` restaure le nom, relu par le PC puis par
 l'app après sa relance (sans relance, l'app garde son cache). Windows garde
 l'ancien nom jusqu'à une nouvelle connexion, comme l'app l'annonce.
 
-Non relevés : la longueur maximale acceptée et les caractères accentués. Le
-projet se limite donc à 32 caractères ASCII imprimables.
+**Longueur maximale (07/11/2026, Bazzite 44, par le service et `ctl nom`)** :
+un nom de 16 caractères ASCII est relu à l'identique ; un nom de 17 caractères
+n'est pas relu tel quel (`ctl` signale « non appliqué »). Le nom d'origine
+(16 octets) est remis et relu. Le projet se limite donc à **16 caractères ASCII
+imprimables**, ce que décrit aussi un autre projet communautaire
+(Ariazonaa/momentum4-control). Les caractères accentués ne sont pas relevés.
+
+### Égaliseur après extinction (07/11/2026)
+
+Question ouverte par un autre projet (perlindgren/momentum) : une courbe envoyée
+par un second appareil pourrait ne durer que la session. Essai par le service et
+`ctl` sur Bazzite 44, M5AEBT 6.21.5, mode égaliseur graphique :
+
+| Étape | Gains relus (dixièmes de dB, bandes 1 à 8) |
+|---|---|
+| Avant | `0 0 0 0 0 0 0 0` |
+| Courbe d'essai écrite bande par bande (`1001`) | `30 −20 15 −10 25 −30 10 −5` |
+| Casque éteint au bouton, puis rallumé ; relecture après la reconnexion | `30 −20 15 −10 25 −30 10 −5` |
+| Courbe d'origine remise | `0 0 0 0 0 0 0 0` |
+
+La courbe écrite depuis le PC **survit à l'extinction**. Le téléphone a pu se
+reconnecter pendant l'essai ; sa propre application ne l'a pas remplacée.
+Journal privé : `journal-essai-eq.txt`.
 
 ### Langue des invites (expérience F4, 09/10/2026)
 
