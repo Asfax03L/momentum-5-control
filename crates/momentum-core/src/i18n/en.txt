@@ -1244,8 +1244,8 @@ New name:
 Renommer
 Rename
 
-Lettres sans accent, chiffres et espaces, 32 caractères au plus. Le système et le téléphone peuvent garder l'ancien nom jusqu'à la prochaine connexion.
-Letters without accents, digits and spaces, 32 characters at most. The system and the phone may keep the old name until the next connection.
+Lettres sans accent, chiffres et espaces, 16 caractères au plus. Le système et le téléphone peuvent garder l'ancien nom jusqu'à la prochaine connexion.
+Letters without accents, digits and spaces, 16 characters at most. The system and the phone may keep the old name until the next connection.
 
 Modifier scenes.txt
 Edit scenes.txt

@@ -429,9 +429,9 @@ fn parse_connection(payload: &[u8], own: Option<[u8; 6]>) -> Result<Connection, 
     })
 }
 
-/// Longueur maximale d'un nom, en octets. Limite prudente choisie par le
-/// projet : celle de l'app n'a pas été relevée.
-pub const NAME_MAX_LEN: usize = 32;
+/// Longueur maximale d'un nom, en octets : relevée sur le M5 6.21.5 le
+/// 07/11/2026 (16 caractères relus à l'identique, 17 refusés à la relecture).
+pub const NAME_MAX_LEN: usize = 16;
 
 /// Vérifie un nom avant l'écriture `2801`. Seuls les caractères ASCII
 /// imprimables sont acceptés : les accents n'ont pas été essayés sur le
@@ -441,7 +441,7 @@ pub fn check_name(name: &str) -> Result<(), DeviceError> {
         return Err(DeviceError::InvalidName("nom vide"));
     }
     if name.len() > NAME_MAX_LEN {
-        return Err(DeviceError::InvalidName("plus de 32 caractères"));
+        return Err(DeviceError::InvalidName("plus de 16 caractères"));
     }
     if !name.bytes().all(|b| (0x20..0x7F).contains(&b)) {
         return Err(DeviceError::InvalidName(
@@ -1919,7 +1919,7 @@ mod tests {
             "M5 ",
             "Écouteurs",
             "a\tb",
-            &"x".repeat(33),
+            &"x".repeat(17),
         ] {
             assert!(
                 matches!(headset.set_name(bad), Err(DeviceError::InvalidName(_))),
@@ -1927,7 +1927,7 @@ mod tests {
             );
         }
         assert_eq!(headset.client().transport().sent().len(), 1);
-        assert!(check_name(&"x".repeat(32)).is_ok());
+        assert!(check_name(&"x".repeat(16)).is_ok());
     }
 
     #[test]

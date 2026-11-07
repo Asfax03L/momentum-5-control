@@ -3710,7 +3710,7 @@ impl Root {
                         )),
                     TextBlock::new()
                         .text(self.name_problem.clone().unwrap_or_else(|| {
-                            tr("Lettres sans accent, chiffres et espaces, 32 caractères au plus. Le système et le téléphone peuvent garder l'ancien nom jusqu'à la prochaine connexion.")
+                            tr("Lettres sans accent, chiffres et espaces, 16 caractères au plus. Le système et le téléphone peuvent garder l'ancien nom jusqu'à la prochaine connexion.")
                                 .to_string()
                         }))
                         .font_size(12.0)

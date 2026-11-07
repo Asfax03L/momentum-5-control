@@ -1657,7 +1657,7 @@ Kirigami.ApplicationWindow {
                             Layout.fillWidth: true
                             placeholderText: headset.headsetName === "" ? headset.tr("non lu") : headset.headsetName
                             enabled: headset.renameEnabled
-                            maximumLength: 32
+                            maximumLength: 16
                             onTextEdited: nameProblem.text = ""
                         }
                         QQC2.Button {
@@ -1682,7 +1682,7 @@ Kirigami.ApplicationWindow {
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         opacity: 0.7
-                        text: headset.tr("Lettres sans accent, chiffres et espaces, 32 caractères au plus. Le système et le téléphone peuvent garder l'ancien nom jusqu'à la prochaine connexion.")
+                        text: headset.tr("Lettres sans accent, chiffres et espaces, 16 caractères au plus. Le système et le téléphone peuvent garder l'ancien nom jusqu'à la prochaine connexion.")
                     }
                 }
             }
