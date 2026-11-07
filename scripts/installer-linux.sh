@@ -34,7 +34,7 @@ exes="momentum-daemon momentum-kirigami ctl"
 # Client GNOME, facultatif : s'il est fourni, il est sauvegardé et remis
 # comme les autres binaires (A08 de l'audit du 24/10/2026).
 gtk=false
-if [ -x "$bins/momentum-gtk" ] && [ -f "$assets/linux/momentum-gtk.desktop" ]; then
+if [ -x "$bins/momentum-gtk" ] && [ -f "$assets/linux/org.openheadset.ControlGnome.desktop" ]; then
     gtk=true
     exes="$exes momentum-gtk"
 fi
@@ -51,7 +51,8 @@ refresh_caches() {
 if [ "${1:-}" = "--desinstaller" ]; then
     systemctl --user stop momentum-daemon.service 2>/dev/null || true
     for f in "$bin/momentum-daemon" "$bin/momentum-kirigami" "$bin/ctl" \
-        "$bin/momentum-gtk" "$data/applications/momentum-gtk.desktop" \
+        "$bin/momentum-gtk" "$data/applications/org.openheadset.ControlGnome.desktop" \
+        "$data/applications/momentum-gtk.desktop" \
         "$bin/momentum-daemon.ancien" "$bin/momentum-kirigami.ancien" "$bin/ctl.ancien" \
         "$bin/momentum-gtk.ancien" \
         "$data/applications/momentum-kirigami.desktop" \
@@ -200,9 +201,14 @@ if [ -f "$assets/linux/openheadset-control-krunner.desktop" ]; then
 fi
 
 # Client GNOME (GTK 4, libadwaita), facultatif : binaire déjà installé
-# avec les autres ; ici son entrée de menu.
+# avec les autres ; ici son entrée de menu. Son nom est l'identifiant de
+# l'application : le portail des raccourcis globaux l'exige (essai du
+# 07/11/2026). L'entrée des versions 1.7 et avant est retirée.
 if $gtk; then
-    install -m 644 "$assets/linux/momentum-gtk.desktop" "$data/applications/momentum-gtk.desktop"
+    install -m 644 "$assets/linux/org.openheadset.ControlGnome.desktop" "$data/applications/org.openheadset.ControlGnome.desktop"
+    if [ -e "$data/applications/momentum-gtk.desktop" ]; then
+        rm -f "$data/applications/momentum-gtk.desktop"
+    fi
     echo "client GNOME installé : $bin/momentum-gtk"
 fi
 
