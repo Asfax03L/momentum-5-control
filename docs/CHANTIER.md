@@ -23,7 +23,7 @@ l'essai de reconnexion sous Windows (dernier point de la 1.8).
 
 | Lot | Contenu | Preuve | État |
 |---|---|---|---|
-| 1 | GNOME, page Mon son : saisie des gains en texte, export pour Equalizer APO | essai sans écran étendu ; capture de la page | à faire |
+| 1 | GNOME, page Mon son : saisie des gains en texte, export pour Equalizer APO | essai sans écran étendu (gains saisis puis relus) | ✅ 12/11/2026 |
 | 2 | GNOME, page À propos : sauvegarde et restauration des réglages, langue, notifications au choix, journal local | essai sans écran ; export puis import relus | à faire |
 | 3 | GNOME : contenu du panneau rapide, raccourcis (liste et bouton de configuration du bureau) | essai sans écran ; panneau en démonstration | à faire |
 | 4 | KDE et GNOME : raison affichée sous un réglage grisé (suivi de tête, audio spatial, niveau) | tests du cœur ; essais d'interface | à faire |
@@ -52,3 +52,6 @@ après le lot 3 (l'avis demande un client HTTP que le client GNOME n'a pas).
 ## Journal
 
 - 12/11/2026 — Inventaire fait, plan écrit, branche `chantier-1.9`.
+- 12/11/2026 — Lot 1 : compilé dans la boîte `momentum-dev` (clippy sans avis), essai
+  sans écran réussi, avec l'étape nouvelle « gains saisis en texte relus ».
+  L'export APO n'a pas d'étape d'essai : il écrit dans le dossier Documents.

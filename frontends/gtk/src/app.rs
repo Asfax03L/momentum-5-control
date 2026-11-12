@@ -840,6 +840,10 @@ fn follow_service(to_window: &Sender<Incoming>) -> Result<(), ClientError> {
     ))
 }
 
+/// Gains saisis par l'essai de l'interface, et leur valeur en dixièmes de dB.
+const GAINS_TEXT: &str = "1 ; -0,5 ; 0 ; 0 ; 0 ; 0 ; 0 ; -1";
+const GAINS_WANTED: [i8; 8] = [10, -5, 0, 0, 0, 0, 0, -10];
+
 /// Essai de l'interface (CI) : l'anti-vent simulé est basculé comme par un
 /// clic, puis relu à l'affichage. « ESSAI INTERFACE RÉUSSI » et code 0,
 /// sinon code 1.
@@ -929,12 +933,29 @@ fn self_test(
             16..=22 => {
                 if !state.borrow().guided.active() {
                     eprintln!("essai interface : assistant EQ restauré");
+                    widgets.extras.enter_gains(GAINS_TEXT);
+                    step.set(23);
+                    return glib::ControlFlow::Continue;
+                }
+                if step.get() == 22 {
+                    return fail(tr("restauration non terminée"));
+                }
+            }
+            23..=28 => {
+                let relus = state
+                    .borrow()
+                    .snapshot
+                    .equalizer
+                    .as_ref()
+                    .is_some_and(|eq| eq.gains == GAINS_WANTED);
+                if relus {
+                    eprintln!("essai interface : gains saisis en texte relus");
                     eprintln!("ESSAI INTERFACE RÉUSSI");
                     app.quit();
                     return glib::ControlFlow::Break;
                 }
-                if step.get() == 22 {
-                    return fail(tr("restauration non terminée"));
+                if step.get() == 28 {
+                    return fail(tr("gains saisis en texte non relus"));
                 }
             }
             _ => return fail(tr("anti-vent simulé non relu à l'affichage")),
