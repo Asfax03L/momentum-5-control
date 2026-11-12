@@ -24,8 +24,8 @@ l'essai de reconnexion sous Windows (dernier point de la 1.8).
 | Lot | Contenu | Preuve | État |
 |---|---|---|---|
 | 1 | GNOME, page Mon son : saisie des gains en texte, export pour Equalizer APO | essai sans écran étendu (gains saisis puis relus) | ✅ 12/11/2026 |
-| 2 | GNOME, page À propos : sauvegarde et restauration des réglages, langue, notifications au choix, journal local | essai sans écran ; export puis import relus | à faire |
-| 3 | GNOME : contenu du panneau rapide, raccourcis (liste et bouton de configuration du bureau) | essai sans écran ; panneau en démonstration | à faire |
+| 2 | GNOME, pages À propos et Batterie : sauvegarde et restauration des réglages, langue, notifications au choix, journal local, effacement de l'historique | essai sans écran étendu (notification enregistrée puis remise, sauvegarde écrite puis examinée) ; captures relues | ✅ 12/11/2026 |
+| 3 | GNOME : contenu du panneau rapide (bruit, curseur, profil, quatre scènes), raccourcis (liste et bouton de configuration du bureau) | essai sans écran étendu (curseur du panneau retiré puis remis) ; captures relues | ✅ 12/11/2026, portail réel à essayer |
 | 4 | KDE et GNOME : raison affichée sous un réglage grisé (suivi de tête, audio spatial, niveau) | tests du cœur ; essais d'interface | à faire |
 | 5 | Barres d'état : exemples à partir de `ctl barre` | sortie de `ctl barre` relue contre chaque exemple | à faire |
 | 6 | Documentation : parité, feuille de route, journal des versions | vérificateur de liens | à faire |
@@ -55,3 +55,16 @@ après le lot 3 (l'avis demande un client HTTP que le client GNOME n'a pas).
 - 12/11/2026 — Lot 1 : compilé dans la boîte `momentum-dev` (clippy sans avis), essai
   sans écran réussi, avec l'étape nouvelle « gains saisis en texte relus ».
   L'export APO n'a pas d'étape d'essai : il écrit dans le dossier Documents.
+- 12/11/2026 — Lot 2 : essai sans écran réussi avec un dossier de données
+  temporaire (`XDG_DATA_HOME`). Captures des pages Mon son, Batterie et À propos
+  relues : mise en page correcte. Les fenêtres de choix de fichier et les
+  confirmations d'effacement ne sont pas essayées automatiquement.
+  Vu au passage, non corrigé : la page À propos affiche deux fois Modèle et
+  Micrologiciel (`about_rows` puis `device_rows`).
+- 12/11/2026 — Lot 3 : essai sans écran réussi ; captures de la page Scènes, de
+  la page À propos et du panneau relues. Interface du portail relevée sur le
+  PC fixe (xdg-desktop-portal 1.22, `GlobalShortcuts` version 2) :
+  `ConfigureShortcuts(o, s, a{sv})` et `ShortcutsChanged(o, a(sa{sv}))`.
+  **Non essayé** : la liste des touches et le bouton « Modifier dans les
+  réglages du bureau… » demandent un vrai bureau (rien en démonstration) ;
+  essai guidé avec le mainteneur à prévoir.

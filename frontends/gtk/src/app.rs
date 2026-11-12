@@ -17,7 +17,7 @@ use momentum_core::viewmodel::{self, NOISE_MODES};
 
 use crate::pages::{Extras, Guided, GuidedSave, Notify, Send};
 use crate::panel::Panel;
-use crate::shortcuts::Pressed;
+use crate::shortcuts::{Pressed, Report};
 
 const APP_ID: &str = "org.openheadset.ControlGnome";
 /// Pause avant de recontacter un service injoignable.
@@ -245,6 +245,51 @@ fn build(app: &adw::Application, exit: Rc<Cell<i32>>) {
             window.present();
         });
     }
+    // Contenu du panneau rapide : relu à chaque ouverture et à chaque choix
+    // fait dans la page Scènes.
+    let apply_panel: Rc<dyn Fn()> = {
+        let widgets = widgets.clone();
+        let state = state.clone();
+        let on_scene: Rc<dyn Fn(String)> = {
+            let send = send.clone();
+            Rc::new(move |name: String| send(Command::ApplyScene(name)))
+        };
+        Rc::new(move || {
+            let prefs = momentum_core::paths::load_panel_prefs();
+            let (scenes, _) = momentum_core::paths::load_scenes();
+            let all: Vec<String> = scenes.into_iter().map(|s| s.name).collect();
+            let snapshot = &state.borrow().snapshot;
+            let writable = snapshot.state.is_some() && snapshot.read_only.is_none();
+            widgets.panel.apply_prefs(&prefs, &all, writable, &on_scene);
+        })
+    };
+    apply_panel();
+    widgets.extras.on_panel_changed(apply_panel.clone());
+    {
+        let apply_panel = apply_panel.clone();
+        widgets.panel.window.connect_show(move |_| apply_panel());
+    }
+    {
+        let send = send.clone();
+        let state = state.clone();
+        let updating = updating.clone();
+        widgets.panel.profile.connect_active_notify(move |row| {
+            if updating.get() {
+                return;
+            }
+            // `profile_toggle` donne la valeur à envoyer : l'inverse de l'état.
+            let wanted = {
+                let snapshot = &state.borrow().snapshot;
+                snapshot
+                    .state
+                    .filter(|_| snapshot.read_only.is_none())
+                    .and_then(|s| momentum_core::hotkeys::profile_toggle(&s))
+            };
+            if wanted == Some(row.is_active()) {
+                send(Command::SetSoundProfile(row.is_active()));
+            }
+        });
+    }
     let pressed = spawn_shortcuts();
     let notify: Notify = {
         let toasts = widgets.toasts.clone();
@@ -344,11 +389,17 @@ fn build(app: &adw::Application, exit: Rc<Cell<i32>>) {
                 handle(&widgets, &mut state.borrow_mut(), message);
                 changed = true;
             }
-            while let Ok(action) = pressed.try_recv() {
-                // L'état est relâché avant l'envoi, qui le modifie.
-                let command = on_shortcut(&widgets, &state.borrow(), action);
-                if let Some(command) = command {
-                    send(command);
+            while let Ok(report) = pressed.try_recv() {
+                match report {
+                    Report::Pressed(action) => {
+                        // L'état est relâché avant l'envoi, qui le modifie.
+                        let command = on_shortcut(&widgets, &state.borrow(), action);
+                        if let Some(command) = command {
+                            send(command);
+                        }
+                    }
+                    Report::Ready(session) => widgets.extras.set_shortcut_session(session),
+                    Report::Bound(list) => widgets.extras.set_shortcuts(list),
                 }
             }
             if changed {
@@ -397,7 +448,7 @@ fn app_actions(app: &adw::Application, widgets: &Widgets) {
 
 /// Raccourcis globaux (portail XDG) dans un fil dédié ; rien en
 /// démonstration. Les appuis arrivent par le canal rendu.
-fn spawn_shortcuts() -> Receiver<Pressed> {
+fn spawn_shortcuts() -> Receiver<Report> {
     let (tx, rx) = mpsc::channel();
     if demo::requested() {
         return rx;
@@ -407,8 +458,8 @@ fn spawn_shortcuts() -> Receiver<Pressed> {
     let spawned = std::thread::Builder::new()
         .name("raccourcis".into())
         .spawn(move || {
-            if let Err(e) = crate::shortcuts::run(APP_ID, &names, |action| {
-                let _ = tx.send(action);
+            if let Err(e) = crate::shortcuts::run(APP_ID, &names, |report| {
+                let _ = tx.send(report);
             }) {
                 tracing::warn!(%e, "raccourcis globaux indisponibles");
             }
@@ -730,6 +781,16 @@ fn refresh(widgets: &Widgets, state: &State, updating: &Cell<bool>) {
     }
     panel.level.set_value(widgets.level.value());
     panel.level.set_sensitive(v.writable);
+    // `profile_toggle` donne la valeur à envoyer : `false` quand le profil
+    // est actif.
+    let toggle = s
+        .state
+        .and_then(|st| momentum_core::hotkeys::profile_toggle(&st));
+    panel.profile.set_active(toggle == Some(false));
+    panel.profile.set_sensitive(v.writable && toggle.is_some());
+    for button in panel.scene_buttons.borrow().iter() {
+        button.set_sensitive(v.writable);
+    }
     widgets.extras.refresh(s, c, v.writable);
     widgets.extras.refresh_guided(&state.guided.view(
         s,
@@ -950,6 +1011,39 @@ fn self_test(
                     .is_some_and(|eq| eq.gains == GAINS_WANTED);
                 if relus {
                     eprintln!("essai interface : gains saisis en texte relus");
+                    // Choix d'une notification : enregistré, puis remis.
+                    let load = || momentum_core::alerts::NotificationPrefs::load().idle;
+                    let before = load();
+                    let toggled = widgets.extras.toggle_idle_notification();
+                    let stored = load();
+                    let restored = widgets.extras.toggle_idle_notification();
+                    if toggled == before || stored != toggled || restored != before {
+                        return fail(tr("choix de notification non enregistré"));
+                    }
+                    eprintln!("essai interface : choix de notification enregistré puis remis");
+                    // Sauvegarde : écrite dans un fichier temporaire, puis
+                    // examinée ; rien n'est importé.
+                    let file = std::env::temp_dir()
+                        .join(format!("openheadset-essai-{}.json", std::process::id()));
+                    let _ = std::fs::remove_file(&file);
+                    widgets.extras.export_settings(&file);
+                    widgets.extras.preview_settings(&file);
+                    let ready = widgets.extras.import_ready();
+                    widgets.extras.cancel_settings();
+                    let _ = std::fs::remove_file(&file);
+                    if !ready {
+                        return fail(tr("sauvegarde des réglages non relue"));
+                    }
+                    eprintln!("essai interface : sauvegarde des réglages écrite puis examinée");
+                    // Contenu du panneau : le curseur retiré, puis remis.
+                    let shown = widgets.panel.level_box.get_visible();
+                    widgets.extras.set_panel_level_shown(!shown);
+                    let changed = widgets.panel.level_box.get_visible();
+                    widgets.extras.set_panel_level_shown(shown);
+                    if changed == shown || widgets.panel.level_box.get_visible() != shown {
+                        return fail(tr("contenu du panneau non appliqué"));
+                    }
+                    eprintln!("essai interface : contenu du panneau appliqué puis remis");
                     eprintln!("ESSAI INTERFACE RÉUSSI");
                     app.quit();
                     return glib::ControlFlow::Break;

@@ -1,10 +1,16 @@
-//! Panneau rapide : petite fenêtre avec la batterie, le mode de bruit et le
-//! curseur ANC ↔ transparence, ouverte par un raccourci global, par l'action
-//! « Panneau rapide » de l'entrée de menu ou par `--panneau`. GNOME n'a pas
-//! de zone de notification standard : ce panneau en tient lieu.
+//! Panneau rapide : petite fenêtre avec la batterie et, au choix de
+//! l'utilisateur (`panneau.txt`, comme le client KDE), le mode de bruit, le
+//! curseur ANC ↔ transparence, le profil personnalisé et quatre scènes au
+//! plus. Ouverte par un raccourci global, par l'action « Panneau rapide » de
+//! l'entrée de menu ou par `--panneau`. GNOME n'a pas de zone de
+//! notification standard : ce panneau en tient lieu.
+
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use adw::prelude::*;
 use momentum_core::i18n::tr;
+use momentum_core::quick_panel::PanelPrefs;
 use momentum_core::viewmodel::NOISE_MODES;
 
 #[derive(Clone)]
@@ -14,6 +20,12 @@ pub struct Panel {
     pub battery_bar: gtk::LevelBar,
     pub noise: Vec<gtk::ToggleButton>,
     pub level: gtk::Scale,
+    pub profile: adw::SwitchRow,
+    /// Parties que l'utilisateur peut retirer du panneau.
+    pub modes: gtk::Box,
+    pub level_box: gtk::Box,
+    pub scenes: gtk::Box,
+    pub scene_buttons: Rc<RefCell<Vec<gtk::Button>>>,
     pub open: gtk::Button,
     pub waiting: gtk::Label,
     pub controls: gtk::Box,
@@ -48,16 +60,26 @@ impl Panel {
         level_label.set_halign(gtk::Align::Start);
         level_label.add_css_class("dim-label");
 
+        let profile = adw::SwitchRow::builder()
+            .title(tr("Profil personnalisé"))
+            .build();
         let list = gtk::ListBox::new();
         list.add_css_class("boxed-list");
         list.set_selection_mode(gtk::SelectionMode::None);
         list.append(&battery);
+        list.append(&profile);
+
+        let level_box = gtk::Box::new(gtk::Orientation::Vertical, 6);
+        level_box.append(&level_label);
+        level_box.append(&level);
+        let scenes = gtk::Box::new(gtk::Orientation::Vertical, 6);
+        scenes.set_visible(false);
 
         let controls = gtk::Box::new(gtk::Orientation::Vertical, 12);
         controls.append(&list);
         controls.append(&modes);
-        controls.append(&level_label);
-        controls.append(&level);
+        controls.append(&level_box);
+        controls.append(&scenes);
 
         let waiting = gtk::Label::new(None);
         waiting.set_wrap(true);
@@ -105,9 +127,41 @@ impl Panel {
             battery_bar,
             noise,
             level,
+            profile,
+            modes,
+            level_box,
+            scenes,
+            scene_buttons: Rc::new(RefCell::new(Vec::new())),
             open,
             waiting,
             controls,
         }
+    }
+
+    /// Applique le contenu choisi. `all` : les scènes du fichier, dans leur
+    /// ordre ; `on_scene` : demande d'application d'une scène.
+    pub fn apply_prefs(
+        &self,
+        prefs: &PanelPrefs,
+        all: &[String],
+        writable: bool,
+        on_scene: &Rc<dyn Fn(String)>,
+    ) {
+        self.modes.set_visible(prefs.noise);
+        self.level_box.set_visible(prefs.level);
+        self.profile.set_visible(prefs.profile);
+        let mut buttons = self.scene_buttons.borrow_mut();
+        for button in buttons.drain(..) {
+            self.scenes.remove(&button);
+        }
+        for name in prefs.shown_scenes(all) {
+            let button = gtk::Button::with_label(&name);
+            button.set_sensitive(writable);
+            let on_scene = on_scene.clone();
+            button.connect_clicked(move |_| on_scene(name.clone()));
+            self.scenes.append(&button);
+            buttons.push(button);
+        }
+        self.scenes.set_visible(!buttons.is_empty());
     }
 }

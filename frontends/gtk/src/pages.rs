@@ -12,18 +12,22 @@ use gtk::glib;
 use momentum_client::demo;
 use momentum_client::sound_check::{Action as GuidedAction, GuidedView};
 use momentum_client::{Command, Snapshot};
+use momentum_core::alerts::NotificationPrefs;
 use momentum_core::battery_log::{self, BatteryLog};
 use momentum_core::bluetooth_codec::{self, CodecCard};
 use momentum_core::device::{AUTO_OFF_CHOICES, PromptMode, SIDETONE_LEVELS, check_name};
 use momentum_core::diagnostic::{self, DiagnosticInput};
-use momentum_core::i18n::{tr, trf};
+use momentum_core::i18n::{Lang, load_pref, store_pref, tr, trf};
 use momentum_core::paths;
 use momentum_core::pipewire_audio::{AudioReadError, PipeWireAudio};
 use momentum_core::presets::{self, AbCompare, Preset};
+use momentum_core::quick_panel::PanelPrefs;
+use momentum_core::settings_transfer::{self, ImportPlan};
 use momentum_core::viewmodel::{self, AUDIO_MODES, AUTO_OFF_LABELS, PROMPT_MODES, SIDETONE_LABELS};
 
 use crate::pipewire;
 use crate::scene_panel::ScenePanel;
+use crate::shortcuts::{Binding, Session};
 
 /// Envoi d'une demande au service, suivi par la fenêtre.
 pub type Send = Rc<dyn Fn(Command)>;
@@ -122,6 +126,8 @@ fn draw_chart(context: &gtk::cairo::Context, path: &str, width: f64, height: f64
 
 /// Résultat d'une lecture faite hors du fil de l'interface.
 enum AudioRead {
+    /// Message d'un fil de travail, à montrer à l'utilisateur.
+    Notice(String),
     /// Connexion et empreinte de la lecture, puis son résultat.
     Pipewire(u64, String, Result<PipeWireAudio, AudioReadError>),
     Codecs(Option<CodecCard>),
@@ -250,6 +256,16 @@ pub struct Extras {
     scenes: gtk::ListBox,
     scene_panel: Rc<ScenePanel>,
     scene_capture: adw::EntryRow,
+    // Contenu du panneau rapide (`panneau.txt`).
+    panel_group: adw::PreferencesGroup,
+    /// Bruit, niveau, profil.
+    panel_options: [adw::SwitchRow; 3],
+    panel_scene_rows: RefCell<Vec<adw::SwitchRow>>,
+    panel_prefs: RefCell<PanelPrefs>,
+    /// Texte lu : une modification faite ailleurs n'est pas écrasée.
+    panel_loaded: RefCell<Option<String>>,
+    panel_updating: Cell<bool>,
+    panel_changed: RefCell<Option<Rc<dyn Fn()>>>,
     // Paramètres.
     smart_pause: adw::SwitchRow,
     auto_answer: adw::SwitchRow,
@@ -265,6 +281,10 @@ pub struct Extras {
     battery_rows: Lines,
     battery_span: adw::ComboRow,
     battery_export: gtk::Button,
+    battery_clear: gtk::Button,
+    journal: Lines,
+    journal_export: gtk::Button,
+    journal_clear: gtk::Button,
     battery_chart: gtk::DrawingArea,
     battery_path: Rc<RefCell<String>>,
     // Connexion et audio.
@@ -282,6 +302,21 @@ pub struct Extras {
     autostart: adw::SwitchRow,
     copy_diagnostic: gtk::Button,
     report: gtk::Button,
+    language: adw::ComboRow,
+    /// Ordre de `NotificationPrefs` : batterie faible, connexion, casque
+    /// sans son, batterie pleine.
+    notifications: [adw::SwitchRow; 4],
+    settings_battery: adw::SwitchRow,
+    settings_export: adw::ActionRow,
+    settings_import: adw::ActionRow,
+    settings_status: adw::ActionRow,
+    settings_confirm: adw::ActionRow,
+    settings_cancel: adw::ActionRow,
+    /// Import examiné, en attente de confirmation.
+    settings_plan: RefCell<Option<ImportPlan>>,
+    shortcuts: Lines,
+    shortcuts_configure: adw::ActionRow,
+    shortcut_session: RefCell<Option<Session>>,
     incidents: RefCell<Vec<(u64, String)>>,
     snapshot: RefCell<Snapshot>,
     writable: Cell<bool>,
@@ -454,6 +489,22 @@ impl Extras {
         capture_group.add(&scene_capture);
         scene_page.append(&capture_group);
         let scene_panel = ScenePanel::new(&scene_page);
+        let panel_group = adw::PreferencesGroup::builder()
+            .title(tr("Panneau rapide"))
+            .description(tr(
+                "Batterie, plus ce qui est activé ici (quatre scènes au plus).",
+            ))
+            .build();
+        let panel_options = [
+            tr("Contrôle du bruit"),
+            tr("Curseur ANC ↔ transparence"),
+            tr("Profil personnalisé"),
+        ]
+        .map(|title| adw::SwitchRow::builder().title(title).build());
+        for row in &panel_options {
+            panel_group.add(row);
+        }
+        scene_page.append(&panel_group);
 
         // Paramètres.
         let settings = page(
@@ -514,8 +565,13 @@ impl Extras {
         battery_span.set_selected(0);
         let export = gtk::Button::with_label(tr("Exporter (CSV)"));
         export.set_valign(gtk::Align::Center);
+        let battery_clear = gtk::Button::with_label(tr("Effacer l'historique…"));
+        battery_clear.set_valign(gtk::Align::Center);
+        let battery_buttons = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        battery_buttons.append(&battery_clear);
+        battery_buttons.append(&export);
         let span_group = group(tr("Batterie"));
-        span_group.set_header_suffix(Some(&export));
+        span_group.set_header_suffix(Some(&battery_buttons));
         span_group.add(&battery_span);
         battery_page.append(&span_group);
         let battery_path = Rc::new(RefCell::new(String::new()));
@@ -532,6 +588,17 @@ impl Extras {
         battery_page.append(&battery_chart);
         let battery_rows = Lines::new();
         battery_page.append(&battery_rows.list);
+        let journal = Lines::new();
+        let journal_group = group(tr("Journal des événements"));
+        journal_group.add(&journal.list);
+        battery_page.append(&journal_group);
+        let journal_export = gtk::Button::with_label(tr("Exporter le journal (CSV)"));
+        let journal_clear = gtk::Button::with_label(tr("Effacer le journal…"));
+        let journal_buttons = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+        journal_buttons.set_halign(gtk::Align::End);
+        journal_buttons.append(&journal_clear);
+        journal_buttons.append(&journal_export);
+        battery_page.append(&journal_buttons);
 
         // Connexion et audio.
         let audio = page(
@@ -574,10 +641,91 @@ impl Extras {
             .build();
         diagnostic_row.add_suffix(&report);
         diagnostic_row.add_suffix(&copy_diagnostic);
+        // Chaque langue dans sa propre langue.
+        let language = adw::ComboRow::builder().title(tr("Langue")).build();
+        language.set_model(Some(&gtk::StringList::new(&[
+            tr("Langue du système"),
+            "Français",
+            "English",
+        ])));
+        language.set_selected(match load_pref() {
+            None => 0,
+            Some(Lang::Fr) => 1,
+            Some(Lang::En) => 2,
+        });
         let about_group = group(tr("Application"));
         about_group.add(&autostart_row);
+        about_group.add(&language);
         about_group.add(&diagnostic_row);
         about_page.append(&about_group);
+
+        let prefs = NotificationPrefs::load();
+        let notifications = [
+            (tr("Batterie faible"), prefs.low_battery),
+            (tr("Connexion perdue et retrouvée"), prefs.connection),
+            (tr("Casque allumé sans son"), prefs.idle),
+            (tr("Batterie à 100 % câble branché"), prefs.full),
+        ]
+        .map(|(title, on)| adw::SwitchRow::builder().title(title).active(on).build());
+        let notifications_group = group(tr("Notifications"));
+        for row in &notifications {
+            notifications_group.add(row);
+        }
+        about_page.append(&notifications_group);
+
+        let backup = adw::PreferencesGroup::builder()
+            .title(tr("Sauvegarder et retrouver mes réglages"))
+            .description(tr(
+                "Scènes, préréglages, raccourcis, panneau et apparence. Aucun profil auditif. Relancer l'interface après import ; un brouillon non enregistré n'est pas inclus.",
+            ))
+            .build();
+        let settings_battery = adw::SwitchRow::builder()
+            .title(tr(
+                "Inclure aussi l'historique de batterie (export et import)",
+            ))
+            .build();
+        // Ligne qui se presse comme un bouton.
+        let action = |title: &str| {
+            let row = adw::ActionRow::builder()
+                .title(title)
+                .activatable(true)
+                .build();
+            row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
+            row
+        };
+        let settings_export = action(tr("Exporter les réglages…"));
+        let settings_import = action(tr("Choisir un fichier à importer…"));
+        let settings_status = adw::ActionRow::builder().visible(false).build();
+        let settings_confirm = action(tr("Confirmer cet import"));
+        let settings_cancel = action(tr("Annuler l'import"));
+        settings_confirm.set_visible(false);
+        settings_cancel.set_visible(false);
+        backup.add(&settings_battery);
+        backup.add(&settings_export);
+        backup.add(&settings_import);
+        backup.add(&settings_status);
+        backup.add(&settings_confirm);
+        backup.add(&settings_cancel);
+        about_page.append(&backup);
+
+        let shortcuts = Lines::new();
+        let shortcuts_configure = action(tr("Modifier dans les réglages du bureau…"));
+        shortcuts_configure.set_visible(false);
+        let configure_list = boxed_list();
+        configure_list.append(&shortcuts_configure);
+        configure_list.set_visible(false);
+        shortcuts_configure
+            .bind_property("visible", &configure_list, "visible")
+            .build();
+        let shortcuts_group = adw::PreferencesGroup::builder()
+            .title(tr("Raccourcis clavier"))
+            .description(tr(
+                "Les touches sont choisies dans le bureau, qui les garde.",
+            ))
+            .build();
+        shortcuts_group.add(&shortcuts.list);
+        about_page.append(&shortcuts_group);
+        about_page.append(&configure_list);
 
         let (audio_tx, audio_rx) = mpsc::channel();
         Rc::new(Self {
@@ -623,6 +771,13 @@ impl Extras {
             scenes,
             scene_panel,
             scene_capture,
+            panel_group,
+            panel_options,
+            panel_scene_rows: RefCell::new(Vec::new()),
+            panel_prefs: RefCell::new(PanelPrefs::default()),
+            panel_loaded: RefCell::new(None),
+            panel_updating: Cell::new(false),
+            panel_changed: RefCell::new(None),
             smart_pause,
             auto_answer,
             comfort,
@@ -636,6 +791,10 @@ impl Extras {
             battery_rows,
             battery_span,
             battery_export: export,
+            battery_clear,
+            journal,
+            journal_export,
+            journal_clear,
             battery_chart,
             battery_path,
             findings,
@@ -651,6 +810,18 @@ impl Extras {
             autostart: autostart_row,
             copy_diagnostic,
             report,
+            language,
+            notifications,
+            settings_battery,
+            settings_export,
+            settings_import,
+            settings_status,
+            settings_confirm,
+            settings_cancel,
+            settings_plan: RefCell::new(None),
+            shortcuts,
+            shortcuts_configure,
+            shortcut_session: RefCell::new(None),
             incidents: RefCell::new(Vec::new()),
             snapshot: RefCell::new(Snapshot::default()),
             writable: Cell::new(false),
@@ -773,15 +944,22 @@ impl Extras {
         self.connect_files(send, notify);
         self.connect_scene_capture(notify);
         self.connect_about(notify, updating);
-        self.connect_battery(notify);
+        self.connect_application(notify);
+        self.connect_panel(notify);
+        self.connect_shortcuts();
+        self.connect_battery(send, notify);
         self.connect_codec(notify, updating);
         // Scènes et lectures locales : au moment où la page s'affiche.
         {
             let this = self.clone();
             let send = send.clone();
+            let notify = notify.clone();
             self.stack.connect_visible_child_name_notify(move |stack| {
                 match stack.visible_child_name().as_deref() {
-                    Some("scenes") => this.reload_scenes(&send),
+                    Some("scenes") => {
+                        this.reload_scenes(&send);
+                        this.reload_panel(&notify);
+                    }
                     Some("batterie") => this.reload_battery(),
                     Some("audio") => this.reload_audio(),
                     _ => {}
@@ -1137,6 +1315,344 @@ impl Extras {
         }
     }
 
+    /// Contenu du panneau rapide : chaque choix est enregistré aussitôt.
+    fn connect_panel(self: &Rc<Self>, notify: &Notify) {
+        for (index, row) in self.panel_options.iter().enumerate() {
+            let this = self.clone();
+            let notify = notify.clone();
+            row.connect_active_notify(move |row| {
+                if this.panel_updating.get() {
+                    return;
+                }
+                {
+                    let mut prefs = this.panel_prefs.borrow_mut();
+                    match index {
+                        0 => prefs.noise = row.is_active(),
+                        1 => prefs.level = row.is_active(),
+                        _ => prefs.profile = row.is_active(),
+                    }
+                }
+                this.store_panel(&notify);
+            });
+        }
+        self.reload_panel(notify);
+    }
+
+    /// Écrit `panneau.txt` ; relu si le fichier a changé entre-temps.
+    fn store_panel(self: &Rc<Self>, notify: &Notify) {
+        let text = self.panel_prefs.borrow().to_text();
+        let loaded = self.panel_loaded.borrow().clone();
+        let written = paths::panel_file()
+            .ok_or_else(|| tr("dossier des données introuvable").to_string())
+            .and_then(|path| paths::write_if_unchanged(&path, loaded.as_deref(), &text));
+        match written {
+            Ok(()) => *self.panel_loaded.borrow_mut() = Some(text),
+            Err(e) => {
+                notify(trf("Panneau non enregistré : {}.", &[&e]));
+                // Les lignes reviennent à l'état enregistré, hors du signal
+                // de la ligne qui vient de changer.
+                let this = self.clone();
+                let notify = notify.clone();
+                glib::idle_add_local_once(move || this.reload_panel(&notify));
+            }
+        }
+        let changed = self.panel_changed.borrow().clone();
+        if let Some(changed) = changed {
+            changed();
+        }
+    }
+
+    /// Relit `panneau.txt` et les scènes, puis refait les lignes.
+    fn reload_panel(self: &Rc<Self>, notify: &Notify) {
+        let prefs = paths::load_panel_prefs();
+        *self.panel_loaded.borrow_mut() = paths::read_panel_text();
+        let (scenes, _) = paths::load_scenes();
+        let all: Vec<String> = scenes.into_iter().map(|s| s.name).collect();
+        let shown = prefs.shown_scenes(&all);
+        self.panel_updating.set(true);
+        for (row, on) in self
+            .panel_options
+            .iter()
+            .zip([prefs.noise, prefs.level, prefs.profile])
+        {
+            row.set_active(on);
+        }
+        let mut rows = self.panel_scene_rows.borrow_mut();
+        for row in rows.drain(..) {
+            self.panel_group.remove(&row);
+        }
+        for name in &all {
+            let row = adw::SwitchRow::builder()
+                .title(glib::markup_escape_text(&trf("Scène « {} »", &[name])).as_str())
+                .active(shown.contains(name))
+                .build();
+            let this = self.clone();
+            let notify = notify.clone();
+            let all = all.clone();
+            let name = name.clone();
+            row.connect_active_notify(move |row| {
+                if this.panel_updating.get() {
+                    return;
+                }
+                let result = this
+                    .panel_prefs
+                    .borrow_mut()
+                    .set_scene(&all, &name, row.is_active());
+                match result {
+                    Ok(()) => this.store_panel(&notify),
+                    Err(reason) => {
+                        notify(reason);
+                        // La ligne revient à l'état enregistré.
+                        let this = this.clone();
+                        let notify = notify.clone();
+                        glib::idle_add_local_once(move || this.reload_panel(&notify));
+                    }
+                }
+            });
+            self.panel_group.add(&row);
+            rows.push(row);
+        }
+        drop(rows);
+        *self.panel_prefs.borrow_mut() = prefs;
+        self.panel_updating.set(false);
+    }
+
+    /// La fenêtre applique le contenu au panneau quand il change.
+    pub fn on_panel_changed(&self, changed: Rc<dyn Fn()>) {
+        *self.panel_changed.borrow_mut() = Some(changed);
+    }
+
+    /// Essai de l'interface : montre ou retire le curseur du panneau, comme
+    /// par un clic.
+    pub fn set_panel_level_shown(&self, shown: bool) {
+        self.panel_options[1].set_active(shown);
+    }
+
+    /// Raccourcis : ouverture des réglages du bureau, état de départ.
+    fn connect_shortcuts(self: &Rc<Self>) {
+        let this = self.clone();
+        self.shortcuts_configure.connect_activated(move |_| {
+            let Some(session) = this.shortcut_session.borrow().clone() else {
+                return;
+            };
+            let tx = this.audio_tx.clone();
+            let spawned = std::thread::Builder::new()
+                .name("raccourcis-reglages".into())
+                .spawn(move || {
+                    if let Err(e) = session.configure() {
+                        let _ = tx.send(AudioRead::Notice(trf(
+                            "Réglages du bureau non ouverts : {}.",
+                            &[&e],
+                        )));
+                    }
+                });
+            if let Err(e) = spawned {
+                tracing::error!(%e, "ouverture des réglages des raccourcis");
+            }
+        });
+        self.shortcuts.set(vec![(
+            tr("Raccourcis clavier").to_string(),
+            if demo::requested() {
+                tr("Indisponibles en démonstration.")
+            } else {
+                tr(
+                    "Pas déclarés pour l'instant : le bureau n'a pas accepté la demande, ou n'offre pas le portail des raccourcis.",
+                )
+            }
+            .to_string(),
+        )]);
+    }
+
+    /// Le bureau a accepté les raccourcis.
+    pub fn set_shortcut_session(&self, session: Session) {
+        self.shortcuts_configure
+            .set_visible(session.can_configure());
+        *self.shortcut_session.borrow_mut() = Some(session);
+    }
+
+    /// Liste des raccourcis, avec les touches choisies dans le bureau.
+    pub fn set_shortcuts(&self, list: Vec<Binding>) {
+        self.shortcuts.set(
+            list.into_iter()
+                .map(|b| {
+                    let trigger = if b.trigger.is_empty() {
+                        tr("Aucune touche choisie").to_string()
+                    } else {
+                        b.trigger
+                    };
+                    (b.description, trigger)
+                })
+                .collect(),
+        );
+    }
+
+    /// Langue, notifications au choix, sauvegarde et restauration.
+    fn connect_application(self: &Rc<Self>, notify: &Notify) {
+        {
+            let notify = notify.clone();
+            self.language.connect_selected_notify(move |row| {
+                let lang = match row.selected() {
+                    1 => Some(Lang::Fr),
+                    2 => Some(Lang::En),
+                    _ => None,
+                };
+                notify(match store_pref(lang) {
+                    Ok(()) => {
+                        tr("Langue enregistrée : appliquée au prochain lancement de l'interface.")
+                            .to_string()
+                    }
+                    Err(e) => trf("Langue non enregistrée : {}.", &[&e]),
+                });
+            });
+        }
+        for (kind, row) in self.notifications.iter().enumerate() {
+            let notify = notify.clone();
+            row.connect_active_notify(move |row| {
+                let mut prefs = NotificationPrefs::load();
+                let on = row.is_active();
+                match kind {
+                    0 => prefs.low_battery = on,
+                    1 => prefs.connection = on,
+                    2 => prefs.idle = on,
+                    _ => prefs.full = on,
+                }
+                if let Err(e) = prefs.store() {
+                    tracing::warn!(%e, "notifications.txt");
+                    notify(e.to_string());
+                }
+            });
+        }
+        {
+            // L'aperçu dépend de ce choix : un import en attente est annulé.
+            let this = self.clone();
+            self.settings_battery.connect_active_notify(move |_| {
+                if this.import_ready() {
+                    this.cancel_settings();
+                }
+            });
+        }
+        {
+            let this = self.clone();
+            self.settings_export.connect_activated(move |row| {
+                let this = this.clone();
+                let window = row.root().and_downcast::<gtk::Window>();
+                gtk::FileDialog::builder()
+                    .title(tr("Exporter vers un nouveau fichier"))
+                    .initial_name("openheadset-reglages.json")
+                    .build()
+                    .save(
+                        window.as_ref(),
+                        gtk::gio::Cancellable::NONE,
+                        move |result| {
+                            if let Some(path) = result.ok().and_then(|f| f.path()) {
+                                this.export_settings(&path);
+                            }
+                        },
+                    );
+            });
+        }
+        {
+            let this = self.clone();
+            self.settings_import.connect_activated(move |row| {
+                let this = this.clone();
+                let window = row.root().and_downcast::<gtk::Window>();
+                gtk::FileDialog::builder()
+                    .title(tr("Choisir les réglages à examiner"))
+                    .build()
+                    .open(
+                        window.as_ref(),
+                        gtk::gio::Cancellable::NONE,
+                        move |result| {
+                            if let Some(path) = result.ok().and_then(|f| f.path()) {
+                                this.preview_settings(&path);
+                            }
+                        },
+                    );
+            });
+        }
+        {
+            let this = self.clone();
+            self.settings_confirm
+                .connect_activated(move |_| this.confirm_settings());
+        }
+        {
+            let this = self.clone();
+            self.settings_cancel
+                .connect_activated(move |_| this.cancel_settings());
+        }
+    }
+
+    /// Message de la sauvegarde ; les lignes de confirmation suivent
+    /// l'import en attente.
+    fn settings_notice(&self, text: &str) {
+        self.settings_status
+            .set_title(&glib::markup_escape_text(text));
+        self.settings_status.set_visible(!text.is_empty());
+        let ready = self.import_ready();
+        self.settings_confirm.set_visible(ready);
+        self.settings_cancel.set_visible(ready);
+    }
+
+    /// Un import examiné attend sa confirmation.
+    pub fn import_ready(&self) -> bool {
+        self.settings_plan.borrow().is_some()
+    }
+
+    /// Écrit la sauvegarde dans un fichier nouveau.
+    pub fn export_settings(&self, path: &std::path::Path) {
+        *self.settings_plan.borrow_mut() = None;
+        let battery = self.settings_battery.is_active();
+        let result = paths::data_dir()
+            .ok_or_else(|| tr("Dossier des données introuvable.").to_string())
+            .and_then(|dir| {
+                settings_transfer::export(&dir, path, battery).map_err(|e| e.to_string())
+            });
+        self.settings_notice(&result.unwrap_or_else(|e| trf("Export refusé : {}", &[&e])));
+    }
+
+    /// Examine une sauvegarde sans rien modifier ; le résumé s'affiche.
+    pub fn preview_settings(&self, path: &std::path::Path) {
+        *self.settings_plan.borrow_mut() = None;
+        let battery = self.settings_battery.is_active();
+        let result = paths::data_dir()
+            .ok_or_else(|| tr("Dossier des données introuvable.").to_string())
+            .and_then(|dir| {
+                settings_transfer::prepare_import(&dir, path, battery).map_err(|e| e.to_string())
+            });
+        let message = match result {
+            Ok(plan) => {
+                let summary = plan.summary().to_string();
+                *self.settings_plan.borrow_mut() = Some(plan);
+                summary
+            }
+            Err(e) => trf("Import refusé : {}", &[&e]),
+        };
+        self.settings_notice(&message);
+    }
+
+    fn confirm_settings(&self) {
+        let Some(plan) = self.settings_plan.borrow_mut().take() else {
+            return;
+        };
+        let message = plan
+            .apply()
+            .unwrap_or_else(|e| trf("Import refusé : {}", &[&e]));
+        self.settings_notice(&message);
+    }
+
+    pub fn cancel_settings(&self) {
+        *self.settings_plan.borrow_mut() = None;
+        self.settings_notice(tr("Import annulé."));
+    }
+
+    /// Essai de l'interface : bascule l'avis « casque allumé sans son »
+    /// comme par un clic ; renvoie le nouvel état de la ligne.
+    pub fn toggle_idle_notification(&self) -> bool {
+        let row = &self.notifications[2];
+        row.set_active(!row.is_active());
+        row.is_active()
+    }
+
     fn connect_presets(self: &Rc<Self>, send: &Send, notify: &Notify) {
         {
             let this = self.clone();
@@ -1241,11 +1757,65 @@ impl Extras {
         }
     }
 
-    fn connect_battery(self: &Rc<Self>, notify: &Notify) {
+    fn connect_battery(self: &Rc<Self>, send: &Send, notify: &Notify) {
         {
             let this = self.clone();
             self.battery_span
                 .connect_selected_notify(move |_| this.reload_battery());
+        }
+        // Effacements : confirmés, puis faits par le service, qui réécrit le
+        // fichier ; relecture un peu plus tard.
+        for (button, heading, body, command, done) in [
+            (
+                &self.battery_clear,
+                tr("Effacer l'historique de la batterie ?"),
+                tr(
+                    "Toutes les mesures enregistrées sur ce PC sont supprimées. Exporter d'abord pour les garder.",
+                ),
+                Command::ClearBatteryHistory,
+                tr("Effacement de l'historique demandé au service."),
+            ),
+            (
+                &self.journal_clear,
+                tr("Effacer le journal des événements ?"),
+                tr(
+                    "Tous les événements notés sur ce PC sont supprimés. Exporter d'abord pour les garder.",
+                ),
+                Command::ClearJournal,
+                tr("Effacement du journal demandé au service."),
+            ),
+        ] {
+            let this = self.clone();
+            let send = send.clone();
+            let notify = notify.clone();
+            button.connect_clicked(move |button| {
+                let dialog = adw::AlertDialog::new(Some(heading), Some(body));
+                dialog.add_responses(&[("annuler", tr("Annuler")), ("effacer", tr("Effacer"))]);
+                dialog.set_response_appearance("effacer", adw::ResponseAppearance::Destructive);
+                dialog.set_default_response(Some("annuler"));
+                dialog.set_close_response("annuler");
+                let this = this.clone();
+                let send = send.clone();
+                let notify = notify.clone();
+                let command = command.clone();
+                dialog.connect_response(Some("effacer"), move |_, _| {
+                    send(command.clone());
+                    notify(done.to_string());
+                    let this = this.clone();
+                    glib::timeout_add_local_once(
+                        std::time::Duration::from_millis(600),
+                        move || {
+                            this.reload_battery();
+                        },
+                    );
+                });
+                dialog.present(Some(button));
+            });
+        }
+        {
+            let notify = notify.clone();
+            self.journal_export
+                .connect_clicked(move |_| notify(momentum_core::journal::export(unix_now())));
         }
         let notify = notify.clone();
         self.battery_export.connect_clicked(move |_| {
@@ -1345,6 +1915,18 @@ impl Extras {
                 .map(|line| (tr("Autonomie").to_string(), line)),
         );
         self.battery_rows.set(lines);
+        let mut journal: Vec<(String, String)> = events
+            .recent(30)
+            .into_iter()
+            .map(|e| (momentum_core::journal::ago(now, e.time), e.describe()))
+            .collect();
+        if journal.is_empty() {
+            journal.push((
+                tr("Journal des événements").to_string(),
+                tr("Aucun événement noté pour l'instant.").to_string(),
+            ));
+        }
+        self.journal.set(journal);
         *self.battery_path.borrow_mut() = view.path;
         self.battery_chart.queue_draw();
     }
@@ -1407,7 +1989,7 @@ impl Extras {
                 AudioRead::CodecSet(Ok(card)) => {
                     *self.codec_card.borrow_mut() = Some(card);
                 }
-                AudioRead::CodecSet(Err(reason)) => notify(reason),
+                AudioRead::CodecSet(Err(reason)) | AudioRead::Notice(reason) => notify(reason),
             }
             self.refresh_codec(updating);
         }
