@@ -39,6 +39,16 @@ impl Availability {
         }
         .to_string()
     }
+
+    /// Raison à montrer sous le contrôle quand rien d'autre ne la donne : une
+    /// dépendance entre réglages, ou une valeur non lue. Le casque absent et
+    /// la lecture seule sont déjà annoncés par le bandeau de la fenêtre.
+    pub fn hint(self) -> String {
+        match self {
+            Self::Available | Self::Disconnected | Self::ReadOnly => String::new(),
+            other => other.reason(),
+        }
+    }
 }
 
 pub fn availability(connected: bool, writable: bool, known: bool) -> Availability {

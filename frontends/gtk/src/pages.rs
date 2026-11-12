@@ -1009,6 +1009,14 @@ impl Extras {
         self.guided_restore.emit_clicked();
     }
 
+    /// Essai de l'interface : raison affichée sous le suivi de tête.
+    pub fn head_tracking_hint(&self) -> String {
+        self.head_tracking
+            .subtitle()
+            .map(|s| s.to_string())
+            .unwrap_or_default()
+    }
+
     /// Essai de l'interface : saisit des gains en texte et valide.
     pub fn enter_gains(&self, text: &str) {
         self.gains_text.set_text(text);
@@ -2212,6 +2220,19 @@ impl Extras {
         self.multipoint.set_active(multipoint == Some(true));
         self.multipoint
             .set_sensitive(writable && multipoint.is_some());
+        // Un réglage grisé dit pourquoi (audio spatial arrêté, valeur non lue).
+        let availability = momentum_core::home_presentation::home_availability(
+            s.state.as_ref(),
+            s.info.as_ref(),
+            writable,
+        );
+        self.head_tracking
+            .set_subtitle(&availability.tracking.hint());
+        self.touch.set_subtitle(&availability.touch.hint());
+        self.multipoint
+            .set_subtitle(&availability.multipoint.hint());
+        self.smart_pause
+            .set_subtitle(&availability.smart_pause.hint());
         self.refresh_devices(s, writable);
 
         let st = viewmodel::settings_view(s.state.as_ref(), s.info.as_ref(), writable);

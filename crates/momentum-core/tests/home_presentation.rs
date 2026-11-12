@@ -160,3 +160,26 @@ fn unknown_codec_is_not_replaced_with_demo_aac() {
     state.codec = Some(1);
     assert!(headset_summary(Some(&state)).stream.starts_with("AAC"));
 }
+
+#[test]
+fn a_hint_explains_dependencies_but_not_what_the_banner_already_says() {
+    let state = HeadsetState {
+        spatial_audio: Some(false),
+        head_tracking: Some(false),
+        audio_mode: Some(AudioMode::Personalization),
+        ..HeadsetState::default()
+    };
+    let a = home_availability(Some(&state), None, true);
+    assert_eq!(a.tracking.hint(), Availability::SpatialRequired.reason());
+    assert_eq!(a.spatial.hint(), Availability::ProfileSelected.reason());
+    assert_eq!(a.touch.hint(), Availability::Unread.reason());
+    assert!(!a.tracking.hint().is_empty());
+    // Bandeau de la fenêtre : casque absent, lecture seule.
+    assert_eq!(Availability::Disconnected.hint(), "");
+    assert_eq!(Availability::ReadOnly.hint(), "");
+    assert_eq!(Availability::Available.hint(), "");
+    assert_eq!(
+        home_availability(Some(&state), None, false).tracking.hint(),
+        ""
+    );
+}

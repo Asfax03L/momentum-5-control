@@ -297,6 +297,11 @@ Kirigami.ApplicationWindow {
                 const interrupteur = root.essaiChercher(root.pageStack.currentItem, "accueil-anti-vent")
                 if (!interrupteur)
                     return root.essaiEchec("interrupteur anti-vent introuvable")
+                // Casque simulé : audio spatial arrêté, donc suivi de tête
+                // grisé, avec sa raison.
+                if (headset.spatial || headset.headTrackingEnabled || headset.headTrackingReason === "")
+                    return root.essaiEchec("raison du suivi de tête grisé absente")
+                console.info("essai interface : raison du suivi de tête grisé affichée")
                 root.essaiAntiVent = headset.antiWind
                 headset.sendAntiWind(!root.essaiAntiVent)
             } else if (root.essaiEtape === 2) {
@@ -796,6 +801,14 @@ Kirigami.ApplicationWindow {
                                 root.confirmed(multipoint, () => headset.multipoint)
                             }
                         }
+                        QQC2.Label {
+                            visible: headset.multipointReason !== ""
+                            text: headset.multipointReason
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                            opacity: 0.7
+                            font: Kirigami.Theme.smallFont
+                        }
                         QQC2.Switch {
                             id: spatial
                             Kirigami.FormData.label: headset.tr("Audio spatial :")
@@ -806,6 +819,14 @@ Kirigami.ApplicationWindow {
                                 headset.sendSpatial(checked)
                                 root.confirmed(spatial, () => headset.spatial)
                             }
+                        }
+                        QQC2.Label {
+                            visible: headset.spatialReason !== ""
+                            text: headset.spatialReason
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                            opacity: 0.7
+                            font: Kirigami.Theme.smallFont
                         }
                         QQC2.Switch {
                             id: headTracking
@@ -818,6 +839,14 @@ Kirigami.ApplicationWindow {
                                 root.confirmed(headTracking, () => headset.headTracking)
                             }
                         }
+                        QQC2.Label {
+                            visible: headset.headTrackingReason !== ""
+                            text: headset.headTrackingReason
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                            opacity: 0.7
+                            font: Kirigami.Theme.smallFont
+                        }
                         QQC2.Switch {
                             Accessible.name: headset.tr("Commandes tactiles")
                             id: touch
@@ -829,6 +858,14 @@ Kirigami.ApplicationWindow {
                                 root.confirmed(touch, () => headset.touch)
                             }
                         }
+                        QQC2.Label {
+                            visible: headset.touchReason !== ""
+                            text: headset.touchReason
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                            opacity: 0.7
+                            font: Kirigami.Theme.smallFont
+                        }
                         QQC2.Switch {
                             id: smartPause
                             Kirigami.FormData.label: headset.tr("Smart Pause :")
@@ -839,6 +876,14 @@ Kirigami.ApplicationWindow {
                                 headset.sendSmartPause(checked)
                                 root.confirmed(smartPause, () => headset.smartPause)
                             }
+                        }
+                        QQC2.Label {
+                            visible: headset.smartPauseReason !== ""
+                            text: headset.smartPauseReason
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                            opacity: 0.7
+                            font: Kirigami.Theme.smallFont
                         }
                     }
                 }
