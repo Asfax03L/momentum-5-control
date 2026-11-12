@@ -231,6 +231,8 @@ pub struct Extras {
     curve_import: gtk::Button,
     profile_export: gtk::Button,
     bind_legacy: gtk::Button,
+    gains_text: adw::EntryRow,
+    apo_export: gtk::Button,
     // Assistant EQ.
     guided_status: adw::ActionRow,
     guided_curve: adw::ActionRow,
@@ -327,6 +329,11 @@ impl Extras {
         flat.set_valign(gtk::Align::Center);
         band_group.set_header_suffix(Some(&flat));
         band_group.add(&bass);
+        let gains_text = adw::EntryRow::builder()
+            .title(tr("Gains en dB : -3,5 ; -1 ; 0 ; …"))
+            .show_apply_button(true)
+            .build();
+        band_group.add(&gains_text);
         sound.append(&band_group);
         let preset = adw::ComboRow::builder().title(tr("Préréglage")).build();
         let preset_apply = gtk::Button::with_label(tr("Appliquer"));
@@ -382,8 +389,14 @@ impl Extras {
             .title(tr("Associer les anciens préréglages à cet égaliseur"))
             .build();
         legacy.add_suffix(&bind_legacy);
+        let apo_export = small(tr("Exporter"));
+        let apo = adw::ActionRow::builder()
+            .title(tr("Exporter pour Equalizer APO"))
+            .build();
+        apo.add_suffix(&apo_export);
         let files = group(tr("Fichiers"));
         files.add(&curves);
+        files.add(&apo);
         files.add(&profile);
         files.add(&legacy);
         sound.append(&files);
@@ -593,6 +606,8 @@ impl Extras {
             curve_import,
             profile_export,
             bind_legacy,
+            gains_text,
+            apo_export,
             guided_status,
             guided_curve,
             guided_start,
@@ -816,6 +831,12 @@ impl Extras {
         self.guided_restore.emit_clicked();
     }
 
+    /// Essai de l'interface : saisit des gains en texte et valide.
+    pub fn enter_gains(&self, text: &str) {
+        self.gains_text.set_text(text);
+        self.gains_text.emit_by_name::<()>("apply", &[]);
+    }
+
     /// Recopie l'assistant EQ dans ses contrôles.
     pub fn refresh_guided(&self, v: &GuidedView) {
         self.guided_status
@@ -918,6 +939,55 @@ impl Extras {
                         });
                     },
                 );
+            });
+        }
+        {
+            let this = self.clone();
+            let send = send.clone();
+            let notify = notify.clone();
+            self.gains_text.connect_apply(move |row| {
+                let Some(eq) = this.snapshot.borrow().equalizer.clone() else {
+                    return;
+                };
+                let parsed =
+                    presets::parse_gains_db(&row.text(), eq.gains.len(), eq.min_gain, eq.max_gain);
+                match parsed {
+                    Ok(gains) if gains == eq.gains => {
+                        notify(tr("Ce sont déjà les gains du casque.").to_string());
+                    }
+                    Ok(gains) => {
+                        send(Command::SetEqGains(gains));
+                        row.set_text("");
+                    }
+                    Err(reason) => notify(trf("Gains non appliqués : {}.", &[&reason])),
+                }
+            });
+        }
+        {
+            let this = self.clone();
+            let notify = notify.clone();
+            self.apo_export.connect_clicked(move |_| {
+                let snapshot = this.snapshot.borrow();
+                let Some(eq) = snapshot.equalizer.as_ref() else {
+                    return;
+                };
+                notify(match presets::format_graphic_eq(&eq.gains) {
+                    Err(reason) => reason,
+                    Ok(text) => {
+                        match paths::export_file("momentum-egaliseur-apo", "txt", unix_now()) {
+                            Some(path) => match std::fs::write(&path, text) {
+                                Ok(()) => trf(
+                                    "Courbe exportée pour Equalizer APO dans {}.",
+                                    &[&path.display()],
+                                ),
+                                Err(e) => trf("Export de la courbe impossible : {}.", &[&e]),
+                            },
+                            None => {
+                                tr("Export impossible : dossier personnel introuvable.").to_string()
+                            }
+                        }
+                    }
+                });
             });
         }
         {
@@ -1465,6 +1535,8 @@ impl Extras {
             });
             bands.push(scale);
         }
+        self.band_group.remove(&self.gains_text);
+        self.band_group.add(&self.gains_text);
     }
 
     fn refresh_devices(&self, s: &Snapshot, writable: bool) {
@@ -1542,6 +1614,8 @@ impl Extras {
         }
         let can_files = s.equalizer.is_some();
         self.curve_export.set_sensitive(can_files);
+        self.apo_export.set_sensitive(can_files);
+        self.gains_text.set_sensitive(writable && can_files);
         self.curve_import.set_sensitive(writable && can_files);
         self.profile_export.set_sensitive(writable);
         self.bind_legacy

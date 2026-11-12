@@ -2737,3 +2737,6 @@ Main menu
 
 État du casque
 Headphones status
+
+gains saisis en texte non relus
+gains entered as text not read back
