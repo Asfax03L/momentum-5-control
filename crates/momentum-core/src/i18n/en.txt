@@ -2749,3 +2749,27 @@ notification choice not saved
 
 sauvegarde des réglages non relue
 settings backup not read back
+
+Batterie, plus ce qui est activé ici (quatre scènes au plus).
+Battery, plus what is enabled here (four scenes at most).
+
+Les touches sont choisies dans le bureau, qui les garde.
+Keys are chosen in the desktop, which keeps them.
+
+Aucune touche choisie
+No key chosen
+
+Modifier dans les réglages du bureau…
+Change in the desktop settings…
+
+Indisponibles en démonstration.
+Not available in demo mode.
+
+Pas déclarés pour l'instant : le bureau n'a pas accepté la demande, ou n'offre pas le portail des raccourcis.
+Not registered for now: the desktop has not accepted the request, or has no shortcuts portal.
+
+Réglages du bureau non ouverts : {}.
+Desktop settings not opened: {}.
+
+contenu du panneau non appliqué
+panel content not applied

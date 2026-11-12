@@ -21,11 +21,13 @@ use momentum_core::i18n::{Lang, load_pref, store_pref, tr, trf};
 use momentum_core::paths;
 use momentum_core::pipewire_audio::{AudioReadError, PipeWireAudio};
 use momentum_core::presets::{self, AbCompare, Preset};
+use momentum_core::quick_panel::PanelPrefs;
 use momentum_core::settings_transfer::{self, ImportPlan};
 use momentum_core::viewmodel::{self, AUDIO_MODES, AUTO_OFF_LABELS, PROMPT_MODES, SIDETONE_LABELS};
 
 use crate::pipewire;
 use crate::scene_panel::ScenePanel;
+use crate::shortcuts::{Binding, Session};
 
 /// Envoi d'une demande au service, suivi par la fenêtre.
 pub type Send = Rc<dyn Fn(Command)>;
@@ -124,6 +126,8 @@ fn draw_chart(context: &gtk::cairo::Context, path: &str, width: f64, height: f64
 
 /// Résultat d'une lecture faite hors du fil de l'interface.
 enum AudioRead {
+    /// Message d'un fil de travail, à montrer à l'utilisateur.
+    Notice(String),
     /// Connexion et empreinte de la lecture, puis son résultat.
     Pipewire(u64, String, Result<PipeWireAudio, AudioReadError>),
     Codecs(Option<CodecCard>),
@@ -252,6 +256,16 @@ pub struct Extras {
     scenes: gtk::ListBox,
     scene_panel: Rc<ScenePanel>,
     scene_capture: adw::EntryRow,
+    // Contenu du panneau rapide (`panneau.txt`).
+    panel_group: adw::PreferencesGroup,
+    /// Bruit, niveau, profil.
+    panel_options: [adw::SwitchRow; 3],
+    panel_scene_rows: RefCell<Vec<adw::SwitchRow>>,
+    panel_prefs: RefCell<PanelPrefs>,
+    /// Texte lu : une modification faite ailleurs n'est pas écrasée.
+    panel_loaded: RefCell<Option<String>>,
+    panel_updating: Cell<bool>,
+    panel_changed: RefCell<Option<Rc<dyn Fn()>>>,
     // Paramètres.
     smart_pause: adw::SwitchRow,
     auto_answer: adw::SwitchRow,
@@ -300,6 +314,9 @@ pub struct Extras {
     settings_cancel: adw::ActionRow,
     /// Import examiné, en attente de confirmation.
     settings_plan: RefCell<Option<ImportPlan>>,
+    shortcuts: Lines,
+    shortcuts_configure: adw::ActionRow,
+    shortcut_session: RefCell<Option<Session>>,
     incidents: RefCell<Vec<(u64, String)>>,
     snapshot: RefCell<Snapshot>,
     writable: Cell<bool>,
@@ -472,6 +489,22 @@ impl Extras {
         capture_group.add(&scene_capture);
         scene_page.append(&capture_group);
         let scene_panel = ScenePanel::new(&scene_page);
+        let panel_group = adw::PreferencesGroup::builder()
+            .title(tr("Panneau rapide"))
+            .description(tr(
+                "Batterie, plus ce qui est activé ici (quatre scènes au plus).",
+            ))
+            .build();
+        let panel_options = [
+            tr("Contrôle du bruit"),
+            tr("Curseur ANC ↔ transparence"),
+            tr("Profil personnalisé"),
+        ]
+        .map(|title| adw::SwitchRow::builder().title(title).build());
+        for row in &panel_options {
+            panel_group.add(row);
+        }
+        scene_page.append(&panel_group);
 
         // Paramètres.
         let settings = page(
@@ -675,6 +708,25 @@ impl Extras {
         backup.add(&settings_cancel);
         about_page.append(&backup);
 
+        let shortcuts = Lines::new();
+        let shortcuts_configure = action(tr("Modifier dans les réglages du bureau…"));
+        shortcuts_configure.set_visible(false);
+        let configure_list = boxed_list();
+        configure_list.append(&shortcuts_configure);
+        configure_list.set_visible(false);
+        shortcuts_configure
+            .bind_property("visible", &configure_list, "visible")
+            .build();
+        let shortcuts_group = adw::PreferencesGroup::builder()
+            .title(tr("Raccourcis clavier"))
+            .description(tr(
+                "Les touches sont choisies dans le bureau, qui les garde.",
+            ))
+            .build();
+        shortcuts_group.add(&shortcuts.list);
+        about_page.append(&shortcuts_group);
+        about_page.append(&configure_list);
+
         let (audio_tx, audio_rx) = mpsc::channel();
         Rc::new(Self {
             stack,
@@ -719,6 +771,13 @@ impl Extras {
             scenes,
             scene_panel,
             scene_capture,
+            panel_group,
+            panel_options,
+            panel_scene_rows: RefCell::new(Vec::new()),
+            panel_prefs: RefCell::new(PanelPrefs::default()),
+            panel_loaded: RefCell::new(None),
+            panel_updating: Cell::new(false),
+            panel_changed: RefCell::new(None),
             smart_pause,
             auto_answer,
             comfort,
@@ -760,6 +819,9 @@ impl Extras {
             settings_confirm,
             settings_cancel,
             settings_plan: RefCell::new(None),
+            shortcuts,
+            shortcuts_configure,
+            shortcut_session: RefCell::new(None),
             incidents: RefCell::new(Vec::new()),
             snapshot: RefCell::new(Snapshot::default()),
             writable: Cell::new(false),
@@ -883,15 +945,21 @@ impl Extras {
         self.connect_scene_capture(notify);
         self.connect_about(notify, updating);
         self.connect_application(notify);
+        self.connect_panel(notify);
+        self.connect_shortcuts();
         self.connect_battery(send, notify);
         self.connect_codec(notify, updating);
         // Scènes et lectures locales : au moment où la page s'affiche.
         {
             let this = self.clone();
             let send = send.clone();
+            let notify = notify.clone();
             self.stack.connect_visible_child_name_notify(move |stack| {
                 match stack.visible_child_name().as_deref() {
-                    Some("scenes") => this.reload_scenes(&send),
+                    Some("scenes") => {
+                        this.reload_scenes(&send);
+                        this.reload_panel(&notify);
+                    }
                     Some("batterie") => this.reload_battery(),
                     Some("audio") => this.reload_audio(),
                     _ => {}
@@ -1245,6 +1313,177 @@ impl Extras {
                 );
             });
         }
+    }
+
+    /// Contenu du panneau rapide : chaque choix est enregistré aussitôt.
+    fn connect_panel(self: &Rc<Self>, notify: &Notify) {
+        for (index, row) in self.panel_options.iter().enumerate() {
+            let this = self.clone();
+            let notify = notify.clone();
+            row.connect_active_notify(move |row| {
+                if this.panel_updating.get() {
+                    return;
+                }
+                {
+                    let mut prefs = this.panel_prefs.borrow_mut();
+                    match index {
+                        0 => prefs.noise = row.is_active(),
+                        1 => prefs.level = row.is_active(),
+                        _ => prefs.profile = row.is_active(),
+                    }
+                }
+                this.store_panel(&notify);
+            });
+        }
+        self.reload_panel(notify);
+    }
+
+    /// Écrit `panneau.txt` ; relu si le fichier a changé entre-temps.
+    fn store_panel(self: &Rc<Self>, notify: &Notify) {
+        let text = self.panel_prefs.borrow().to_text();
+        let loaded = self.panel_loaded.borrow().clone();
+        let written = paths::panel_file()
+            .ok_or_else(|| tr("dossier des données introuvable").to_string())
+            .and_then(|path| paths::write_if_unchanged(&path, loaded.as_deref(), &text));
+        match written {
+            Ok(()) => *self.panel_loaded.borrow_mut() = Some(text),
+            Err(e) => {
+                notify(trf("Panneau non enregistré : {}.", &[&e]));
+                // Les lignes reviennent à l'état enregistré, hors du signal
+                // de la ligne qui vient de changer.
+                let this = self.clone();
+                let notify = notify.clone();
+                glib::idle_add_local_once(move || this.reload_panel(&notify));
+            }
+        }
+        let changed = self.panel_changed.borrow().clone();
+        if let Some(changed) = changed {
+            changed();
+        }
+    }
+
+    /// Relit `panneau.txt` et les scènes, puis refait les lignes.
+    fn reload_panel(self: &Rc<Self>, notify: &Notify) {
+        let prefs = paths::load_panel_prefs();
+        *self.panel_loaded.borrow_mut() = paths::read_panel_text();
+        let (scenes, _) = paths::load_scenes();
+        let all: Vec<String> = scenes.into_iter().map(|s| s.name).collect();
+        let shown = prefs.shown_scenes(&all);
+        self.panel_updating.set(true);
+        for (row, on) in self
+            .panel_options
+            .iter()
+            .zip([prefs.noise, prefs.level, prefs.profile])
+        {
+            row.set_active(on);
+        }
+        let mut rows = self.panel_scene_rows.borrow_mut();
+        for row in rows.drain(..) {
+            self.panel_group.remove(&row);
+        }
+        for name in &all {
+            let row = adw::SwitchRow::builder()
+                .title(glib::markup_escape_text(&trf("Scène « {} »", &[name])).as_str())
+                .active(shown.contains(name))
+                .build();
+            let this = self.clone();
+            let notify = notify.clone();
+            let all = all.clone();
+            let name = name.clone();
+            row.connect_active_notify(move |row| {
+                if this.panel_updating.get() {
+                    return;
+                }
+                let result = this
+                    .panel_prefs
+                    .borrow_mut()
+                    .set_scene(&all, &name, row.is_active());
+                match result {
+                    Ok(()) => this.store_panel(&notify),
+                    Err(reason) => {
+                        notify(reason);
+                        // La ligne revient à l'état enregistré.
+                        let this = this.clone();
+                        let notify = notify.clone();
+                        glib::idle_add_local_once(move || this.reload_panel(&notify));
+                    }
+                }
+            });
+            self.panel_group.add(&row);
+            rows.push(row);
+        }
+        drop(rows);
+        *self.panel_prefs.borrow_mut() = prefs;
+        self.panel_updating.set(false);
+    }
+
+    /// La fenêtre applique le contenu au panneau quand il change.
+    pub fn on_panel_changed(&self, changed: Rc<dyn Fn()>) {
+        *self.panel_changed.borrow_mut() = Some(changed);
+    }
+
+    /// Essai de l'interface : montre ou retire le curseur du panneau, comme
+    /// par un clic.
+    pub fn set_panel_level_shown(&self, shown: bool) {
+        self.panel_options[1].set_active(shown);
+    }
+
+    /// Raccourcis : ouverture des réglages du bureau, état de départ.
+    fn connect_shortcuts(self: &Rc<Self>) {
+        let this = self.clone();
+        self.shortcuts_configure.connect_activated(move |_| {
+            let Some(session) = this.shortcut_session.borrow().clone() else {
+                return;
+            };
+            let tx = this.audio_tx.clone();
+            let spawned = std::thread::Builder::new()
+                .name("raccourcis-reglages".into())
+                .spawn(move || {
+                    if let Err(e) = session.configure() {
+                        let _ = tx.send(AudioRead::Notice(trf(
+                            "Réglages du bureau non ouverts : {}.",
+                            &[&e],
+                        )));
+                    }
+                });
+            if let Err(e) = spawned {
+                tracing::error!(%e, "ouverture des réglages des raccourcis");
+            }
+        });
+        self.shortcuts.set(vec![(
+            tr("Raccourcis clavier").to_string(),
+            if demo::requested() {
+                tr("Indisponibles en démonstration.")
+            } else {
+                tr(
+                    "Pas déclarés pour l'instant : le bureau n'a pas accepté la demande, ou n'offre pas le portail des raccourcis.",
+                )
+            }
+            .to_string(),
+        )]);
+    }
+
+    /// Le bureau a accepté les raccourcis.
+    pub fn set_shortcut_session(&self, session: Session) {
+        self.shortcuts_configure
+            .set_visible(session.can_configure());
+        *self.shortcut_session.borrow_mut() = Some(session);
+    }
+
+    /// Liste des raccourcis, avec les touches choisies dans le bureau.
+    pub fn set_shortcuts(&self, list: Vec<Binding>) {
+        self.shortcuts.set(
+            list.into_iter()
+                .map(|b| {
+                    let trigger = if b.trigger.is_empty() {
+                        tr("Aucune touche choisie").to_string()
+                    } else {
+                        b.trigger
+                    };
+                    (b.description, trigger)
+                })
+                .collect(),
+        );
     }
 
     /// Langue, notifications au choix, sauvegarde et restauration.
@@ -1750,7 +1989,7 @@ impl Extras {
                 AudioRead::CodecSet(Ok(card)) => {
                     *self.codec_card.borrow_mut() = Some(card);
                 }
-                AudioRead::CodecSet(Err(reason)) => notify(reason),
+                AudioRead::CodecSet(Err(reason)) | AudioRead::Notice(reason) => notify(reason),
             }
             self.refresh_codec(updating);
         }
