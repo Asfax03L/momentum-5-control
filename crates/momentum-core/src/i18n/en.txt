@@ -2740,3 +2740,12 @@ Headphones status
 
 gains saisis en texte non relus
 gains entered as text not read back
+
+Langue
+Language
+
+choix de notification non enregistré
+notification choice not saved
+
+sauvegarde des réglages non relue
+settings backup not read back

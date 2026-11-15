@@ -950,6 +950,30 @@ fn self_test(
                     .is_some_and(|eq| eq.gains == GAINS_WANTED);
                 if relus {
                     eprintln!("essai interface : gains saisis en texte relus");
+                    // Choix d'une notification : enregistré, puis remis.
+                    let load = || momentum_core::alerts::NotificationPrefs::load().idle;
+                    let before = load();
+                    let toggled = widgets.extras.toggle_idle_notification();
+                    let stored = load();
+                    let restored = widgets.extras.toggle_idle_notification();
+                    if toggled == before || stored != toggled || restored != before {
+                        return fail(tr("choix de notification non enregistré"));
+                    }
+                    eprintln!("essai interface : choix de notification enregistré puis remis");
+                    // Sauvegarde : écrite dans un fichier temporaire, puis
+                    // examinée ; rien n'est importé.
+                    let file = std::env::temp_dir()
+                        .join(format!("openheadset-essai-{}.json", std::process::id()));
+                    let _ = std::fs::remove_file(&file);
+                    widgets.extras.export_settings(&file);
+                    widgets.extras.preview_settings(&file);
+                    let ready = widgets.extras.import_ready();
+                    widgets.extras.cancel_settings();
+                    let _ = std::fs::remove_file(&file);
+                    if !ready {
+                        return fail(tr("sauvegarde des réglages non relue"));
+                    }
+                    eprintln!("essai interface : sauvegarde des réglages écrite puis examinée");
                     eprintln!("ESSAI INTERFACE RÉUSSI");
                     app.quit();
                     return glib::ControlFlow::Break;
