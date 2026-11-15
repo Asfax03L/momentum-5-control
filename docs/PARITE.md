@@ -1,6 +1,6 @@
 # Parité des interfaces (après le retrait de Slint)
 
-État mis à jour le 29/10/2026 pour le lot 3. ✅ disponible · 🟡 partiel ou différent ·
+État mis à jour le 15/11/2026 (chantier 1.9). ✅ disponible · 🟡 partiel ou différent ·
 — absent (avec la raison). Toutes les interfaces passent par le service :
 aucune ne parle au casque elle-même.
 
@@ -71,7 +71,13 @@ reprennent les pages du client KDE dans cet ordre.
 | À propos, diagnostic, rapport de bogue, lancement à l'ouverture de session (en arrière-plan, `--cache`) | ✅ |
 | Panneau rapide (batterie, mode de bruit, curseur ANC) : menu principal, action « Panneau rapide » de l'entrée de menu, `--panneau`, raccourci | ✅ (1.7) |
 | Raccourcis globaux (mode suivant, profil, fenêtre, panneau, scènes) par le portail XDG `GlobalShortcuts` | ✅ (1.7 ; accepté puis utilisé sur KDE Plasma le 07/11/2026, entrée de menu renommée en 1.8 ; pas encore sous GNOME) |
-| Saisie des gains en texte, export pour Equalizer APO, sauvegarde et restauration des réglages, langue, contenu du panneau, éditeur de raccourcis | — (`ctl reglages` couvre la sauvegarde) |
+| Saisie des gains en texte, export pour Equalizer APO | ✅ (1.9) |
+| Sauvegarde et restauration des réglages, langue, notifications au choix | ✅ (1.9) |
+| Journal des événements (lecture, export, effacement), effacement de l'historique de batterie | ✅ (1.9 ; effacements essayés en démonstration seulement) |
+| Contenu du panneau rapide (bruit, curseur, profil personnalisé, quatre scènes au plus), même fichier `panneau.txt` | ✅ (1.9) |
+| Raccourcis : liste avec les touches retenues par le bureau, ouverture des réglages du bureau | 🟡 (1.9 ; les touches se changent dans le bureau, pas dans la fenêtre ; à essayer sur un vrai bureau) |
+| Raison affichée sous un réglage grisé (suivi de tête, audio spatial, valeur non lue) | ✅ (1.9, aussi dans le client KDE) |
+| Avis de nouvelle version, assistant de premier lancement | — (à décider : l'avis demande un client HTTP que ce client n'a pas) |
 | Icône de la zone de notification | — (GNOME n'a pas de zone de notification standard : le panneau rapide en tient lieu) |
 
 Toutes ces fonctions sont essayées en démonstration. Avec le casque, le 04/11/2026 (1.6.0, écran virtuel), l'affichage des vraies valeurs est essayé sur Accueil, Paramètres, Batterie et Connexion et audio ; le 07/11/2026, sur le vrai bureau KDE Plasma de Bazzite avec le casque, des réglages changés depuis la fenêtre (anti-vent, mode) ont été relus sur le casque, et le raccourci global du panneau rapide a été accepté puis utilisé.

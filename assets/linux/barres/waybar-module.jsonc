@@ -1,0 +1,23 @@
+// Module « casque » pour Waybar (et pour Omarchy, qui utilise Waybar).
+// 1. Copier ce bloc dans ~/.config/waybar/config.jsonc, au même niveau que
+//    les autres modules.
+// 2. Ajouter "custom/casque" à une liste de modules, par exemple
+//    "modules-right".
+// `ctl barre` lit l'état déjà connu du service : rien n'est envoyé au casque.
+"custom/casque": {
+  "exec": "ctl barre",
+  "return-type": "json",
+  "interval": 30,
+  "format": "{icon} {text}",
+  // Une icône par mode de bruit (champ « alt » de la sortie).
+  "format-icons": {
+    "adaptatif": "🎧 A",
+    "personnalise": "🎧 P",
+    "arret": "🎧",
+    "deconnecte": "🎧",
+    "service-arrete": "🎧"
+  },
+  // Clic gauche : la fenêtre. Clic droit : le panneau rapide du client GNOME.
+  "on-click": "momentum-kirigami",
+  "on-click-right": "momentum-gtk --panneau"
+}

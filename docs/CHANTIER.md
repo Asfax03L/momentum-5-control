@@ -27,8 +27,8 @@ l'essai de reconnexion sous Windows (dernier point de la 1.8).
 | 2 | GNOME, pages À propos et Batterie : sauvegarde et restauration des réglages, langue, notifications au choix, journal local, effacement de l'historique | essai sans écran étendu (notification enregistrée puis remise, sauvegarde écrite puis examinée) ; captures relues | ✅ 12/11/2026 |
 | 3 | GNOME : contenu du panneau rapide (bruit, curseur, profil, quatre scènes), raccourcis (liste et bouton de configuration du bureau) | essai sans écran étendu (curseur du panneau retiré puis remis) ; captures relues | ✅ 12/11/2026, portail réel à essayer |
 | 4 | KDE et GNOME : raison affichée sous un réglage grisé (suivi de tête, audio spatial, valeur non lue) | test du cœur ; essais sans écran des deux clients étendus ; captures relues | ✅ 15/11/2026 |
-| 5 | Barres d'état : exemples à partir de `ctl barre` | sortie de `ctl barre` relue contre chaque exemple | à faire |
-| 6 | Documentation : parité, feuille de route, journal des versions | vérificateur de liens | à faire |
+| 5 | Barres d'état : module et style Waybar à partir de `ctl barre` | Waybar 0.15 lancé dans un écran virtuel, deux captures relues | 🟡 15/11/2026 : Waybar fait ; Omarchy non essayé ; Noctalia non fourni |
+| 6 | Documentation : parité, feuille de route, journal des versions, FAQ | vérificateur de liens | ✅ 15/11/2026 |
 
 ## Décisions
 
@@ -74,3 +74,33 @@ après le lot 3 (l'avis demande un client HTTP que le client GNOME n'a pas).
   répétés sous chaque réglage : le bandeau les annonce. Le curseur
   ANC ↔ transparence n'est pas concerné : KDE et GNOME ne le grisent pas hors
   du mode Personnalisé.
+- 15/11/2026 — Lot 4 en PR #86. Lots 5 et 6 dans une seule PR (documentation et
+  deux fichiers d'exemple).
+  Lot 5 : l'essai réel a trouvé un défaut de l'exemple : Waybar 0.15 refuse
+  `{icon} {}` et exige `{icon} {text}` ; corrigé et noté dans `LINUX.md`.
+  Noctalia : la version 5 n'affiche pas la sortie d'une commande dans son
+  bouton personnalisé (page de sa documentation 5.0.1) ; la page des widgets
+  scriptés a répondu « introuvable ». Aucun module n'est écrit sans cette
+  lecture.
+  Vu au passage et corrigé : l'aide de `ctl nom` annonçait encore 32 caractères.
+  `CHANGELOG.md` a maintenant une section « À venir (non publié) » pour la 1.8
+  et la 1.9.
+
+## Ce qui reste
+
+Demande le mainteneur :
+1. **Essai de reconnexion sous Windows** (dernier point de la 1.8), puis
+   publication de la 1.8.
+2. **Raccourcis du client GNOME sur un vrai bureau** : la page À propos doit
+   lister les raccourcis avec leurs touches, et « Modifier dans les réglages du
+   bureau… » doit ouvrir les réglages.
+3. **Effacement du journal et de l'historique** depuis le client GNOME, avec le
+   service réel.
+4. Écoute au lecteur d'écran ; extension Decky en mode jeu.
+5. Publication de la 1.9 (accord requis).
+
+À décider :
+- avis de nouvelle version et assistant de premier lancement dans le client
+  GNOME ;
+- module pour Noctalia, sur une installation réelle ;
+- la page À propos du client GNOME affiche deux fois Modèle et Micrologiciel.

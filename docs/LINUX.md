@@ -341,14 +341,40 @@ change sans une demande explicite. Il faut que le service tourne et que `pactl`
 soit présent, ce qui n'est pas le cas dans le Flatpak. La même liste figure dans
 la page « Connexion et audio » des clients KDE et GNOME.
 
-## Barre d'état (Waybar, Hyprland)
+## Barre d'état (Waybar, Hyprland, Omarchy)
 
-`ctl barre` écrit l'état en un objet JSON au format du module `custom` de
-Waybar : batterie (`text`, `percentage`), mode de bruit (`alt`), détail
-(`tooltip`) et classes CSS `connecte`, `arret`, `adaptatif`, `personnalise`,
-`faible`, `en-charge`, `deconnecte`, `service-arrete`. La commande lit l'état
-déjà connu du service : elle n'envoie rien au casque, n'ouvre aucune connexion
-directe et ne démarre pas un service arrêté.
+`ctl barre` écrit l'état du casque en un seul objet JSON, au format du module
+`custom` de Waybar. La commande lit l'état déjà connu du service : elle
+n'envoie rien au casque, n'ouvre aucune connexion directe et ne démarre pas un
+service arrêté.
+
+| Champ | Contenu |
+|---|---|
+| `text` | Batterie (« 82 % »), ou « — » sans casque |
+| `percentage` | Batterie en nombre, absente sans casque |
+| `alt` | `adaptatif`, `personnalise`, `arret`, `deconnecte` ou `service-arrete` |
+| `tooltip` | Détail sur plusieurs lignes : batterie, réduction de bruit, anti-vent, port, lecture |
+| `class` | Classes CSS : `connecte`, le mode de bruit, `faible`, `en-charge`, `deconnecte`, `service-arrete`, `batterie-systeme` |
+
+### Waybar
+
+Deux fichiers prêts à copier sont dans
+[`assets/linux/barres/`](../assets/linux/barres/) :
+
+- [`waybar-module.jsonc`](../assets/linux/barres/waybar-module.jsonc) : le
+  module, avec une icône par mode de bruit, la fenêtre au clic gauche et le
+  panneau rapide au clic droit ;
+- [`waybar-style.css`](../assets/linux/barres/waybar-style.css) : batterie
+  faible en rouge, charge en vert, casque absent estompé.
+
+1. Copier le bloc `"custom/casque"` dans `~/.config/waybar/config.jsonc`, au
+   même niveau que les autres modules.
+2. Ajouter `"custom/casque"` à une liste de modules, par exemple
+   `"modules-right"`. Sans cela, Waybar n'affiche pas le module.
+3. Ajouter le contenu de `waybar-style.css` à `~/.config/waybar/style.css`.
+4. Relancer Waybar.
+
+Version courte, sans icône par mode :
 
 ```jsonc
 // ~/.config/waybar/config.jsonc
@@ -361,9 +387,35 @@ directe et ne démarre pas un service arrêté.
 }
 ```
 
-Essayé le 01/11/2026 avec Waybar 0.15 dans un écran virtuel (`sway` sans écran,
-Fedora 44). Avec le Flatpak, remplacer `ctl barre` par
+Avec `{icon}`, Waybar 0.15 exige `{text}` et refuse `{}` : écrire
+`"format": "{icon} {text}"`.
+
+Essayé le 15/11/2026 avec Waybar 0.15 dans un écran virtuel (`sway` sans écran,
+Fedora 44) : casque absent, puis casque connecté avec batterie faible (sortie
+figée). La version courte a été essayée le 01/11/2026. Avec le Flatpak,
+remplacer `ctl barre` par
 `flatpak run --command=ctl io.github.asfax03l.openheadset-control barre`.
+
+### Omarchy
+
+Omarchy utilise Waybar : le module ci-dessus s'y ajoute de la même façon, dans
+`~/.config/waybar/config.jsonc`. D'après des guides de la communauté, la barre
+se relance avec `omarchy-restart-waybar`. **Non essayé sur Omarchy** : à valider
+sur une installation réelle.
+
+### Autres barres
+
+Toute barre capable de lancer une commande à intervalle régulier peut afficher
+le casque. Pour une barre qui n'affiche que du texte :
+
+```sh
+ctl barre | jq -r .text
+```
+
+Aucun module n'est fourni pour **Noctalia**. Sa version 5 n'affiche pas la
+sortie d'une commande dans son bouton personnalisé ; il faut un widget scripté,
+dont la documentation n'a pas pu être relue le 15/11/2026. Un module écrit sans
+cette lecture serait inventé : il reste à faire, sur une installation réelle.
 
 ## Mode jeu (Decky Loader)
 

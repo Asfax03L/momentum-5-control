@@ -12,6 +12,35 @@ refuse de publier sans elles) :
 - « À faire après la mise à jour » : les actions concrètes par système,
   ou « Rien de particulier » avec la raison.
 
+## À venir (non publié)
+
+Déjà dans la branche principale, pas encore dans une version. À répartir
+dans les sections « v1.8.0 » et « v1.9.0 » à leur publication, avec « En bref »
+et « À faire après la mise à jour ».
+
+**1.8 — vérifications sur le casque**
+- Égaliseur : une courbe écrite depuis le PC survit à l'extinction du casque
+  (essai du 07/11/2026).
+- Nom du casque : limite ramenée à 16 caractères (16 relus, 17 refusés par le
+  casque) ; l'aide de `ctl nom` le dit.
+- Client GNOME : entrée de menu nommée d'après l'application
+  (`org.openheadset.ControlGnome.desktop`), exigée par le portail des raccourcis.
+- Clients KDE et GNOME : état porté ou non porté sur l'accueil.
+- Tests de robustesse de la session ; décodages comparés à 37 vecteurs publics.
+- Reste à faire avant la 1.8 : l'essai de reconnexion sous Windows.
+
+**1.9 — parité GNOME et confort**
+- Client GNOME : saisie des gains en texte, export pour Equalizer APO.
+- Client GNOME : sauvegarde et restauration des réglages, langue, notifications
+  au choix, journal des événements, effacement de l'historique de batterie.
+- Client GNOME : contenu du panneau rapide au choix (bruit, curseur, profil
+  personnalisé, quatre scènes), liste des raccourcis avec les touches retenues
+  par le bureau.
+- Clients KDE et GNOME : un réglage grisé dit pourquoi (suivi de tête sans
+  audio spatial, audio spatial avec le profil personnalisé, valeur non lue).
+- Waybar : module et feuille de style prêts à copier
+  (`assets/linux/barres/`), avec une icône par mode de bruit.
+
 ## v1.7.0 — 04/11/2026
 
 ### En bref

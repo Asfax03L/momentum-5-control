@@ -1,6 +1,6 @@
 # Feuille de route
 
-Mise à jour du 07/11/2026. Version publiée : **1.7.0** (04/11/2026). Ce qui
+Mise à jour du 15/11/2026. Version publiée : **1.7.0** (04/11/2026). Ce qui
 change à chaque version : [CHANGELOG.md](../CHANGELOG.md).
 
 ## Règles qui ne changent pas
@@ -23,7 +23,7 @@ change à chaque version : [CHANGELOG.md](../CHANGELOG.md).
 | Protocole du MOMENTUM 5 (micrologiciel 6.21.5) | Toutes les fonctions de Smart Control Plus qui passent par le casque sont lues ; celles qui sont sûres sont validées en écriture ([compatibilité](COMPATIBILITE.md)) |
 | Windows 11 (WinUI 3) | Complet, essayé sur le casque |
 | KDE Plasma (Kirigami, widget, KRunner) | Complet, essayé sur le casque |
-| GNOME (libadwaita) | Mêmes pages que KDE, panneau rapide et raccourcis ; affichage essayé sur le casque, changements depuis l'interface et raccourcis à essayer |
+| GNOME (libadwaita) | Mêmes pages et mêmes fonctions que KDE, sauf l'avis de nouvelle version et l'assistant de premier lancement ; essayé avec le casque sur un bureau KDE Plasma, pas encore sous GNOME lui-même |
 | Ligne de commande, Waybar, Decky | `ctl` complet ; Decky essayé hors du mode jeu |
 | Distribution | Installateur Windows, Flatpak, `.deb`, `.rpm`, AUR (non soumis), archive ; publications attestées avec SBOM |
 
@@ -44,13 +44,15 @@ commande.
 
 ## 1.9 — Parité GNOME et confort
 
-| Travail | Détail |
-|---|---|
-| Ce qui manque au client GNOME | Saisie des gains en texte, sauvegarde et restauration des réglages, choix de la langue, éditeur de raccourcis ([parité](PARITE.md)) |
-| Dépendances de l'audio spatial expliquées | Suivi de tête sans audio spatial, profil personnalisé incompatible : l'interface dit pourquoi un réglage est grisé |
-| Barres d'état | Exemples pour Waybar, et modules pour d'autres barres (Noctalia, Omarchy) à partir de `ctl barre` |
-| Écoute au lecteur d'écran | Narrateur (Windows) et Orca (Linux), par le mainteneur ; défauts traités comme des bogues |
-| Extension Decky | Essai dans le vrai mode jeu de Bazzite |
+Journal du chantier : [CHANTIER.md](CHANTIER.md).
+
+| Travail | Détail | État |
+|---|---|---|
+| ✅ **Ce qui manquait au client GNOME** | Saisie des gains en texte, export Equalizer APO, sauvegarde et restauration des réglages, langue, notifications au choix, journal local, contenu du panneau rapide, liste des raccourcis ([parité](PARITE.md)) | Fait le 15/11/2026, essayé sans écran. Reste : la liste des raccourcis sur un vrai bureau ; l'avis de nouvelle version et l'assistant de premier lancement, à décider |
+| ✅ **Dépendances de l'audio spatial expliquées** | Suivi de tête sans audio spatial, profil personnalisé incompatible : l'interface dit pourquoi un réglage est grisé | Fait le 15/11/2026 dans KDE et GNOME (WinUI le faisait déjà) |
+| 🟡 **Barres d'état** | Exemples à partir de `ctl barre` | Waybar : module et style prêts à copier, essayés avec Waybar 0.15 ([Linux](LINUX.md#barre-détat-waybar-hyprland-omarchy)). Omarchy : même module, non essayé sur place. Noctalia : rien de fourni, sa documentation n'a pas pu être relue |
+| **Écoute au lecteur d'écran** | Narrateur (Windows) et Orca (Linux), par le mainteneur ; défauts traités comme des bogues | À faire |
+| **Extension Decky** | Essai dans le vrai mode jeu de Bazzite | À faire |
 
 ## Recherche (chaque commande nouvelle demande un feu vert)
 
