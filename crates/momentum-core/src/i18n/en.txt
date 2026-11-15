@@ -2776,3 +2776,9 @@ panel content not applied
 
 raison du suivi de tête grisé absente
 reason for the greyed-out head tracking missing
+
+fenêtre fermée trop tôt
+window closed too early
+
+étape vide
+empty step

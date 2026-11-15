@@ -77,7 +77,8 @@ reprennent les pages du client KDE dans cet ordre.
 | Contenu du panneau rapide (bruit, curseur, profil personnalisé, quatre scènes au plus), même fichier `panneau.txt` | ✅ (1.9) |
 | Raccourcis : liste avec les touches retenues par le bureau, ouverture des réglages du bureau | 🟡 (1.9 ; les touches se changent dans le bureau, pas dans la fenêtre ; à essayer sur un vrai bureau) |
 | Raison affichée sous un réglage grisé (suivi de tête, audio spatial, valeur non lue) | ✅ (1.9, aussi dans le client KDE) |
-| Avis de nouvelle version, assistant de premier lancement | — (à décider : l'avis demande un client HTTP que ce client n'a pas) |
+| Assistant de premier lancement (mêmes étapes, rouvert depuis À propos) | ✅ (1.9) |
+| Avis de nouvelle version | — (à décider : il demande un client HTTP que ce client n'a pas) |
 | Icône de la zone de notification | — (GNOME n'a pas de zone de notification standard : le panneau rapide en tient lieu) |
 
 Toutes ces fonctions sont essayées en démonstration. Avec le casque, le 04/11/2026 (1.6.0, écran virtuel), l'affichage des vraies valeurs est essayé sur Accueil, Paramètres, Batterie et Connexion et audio ; le 07/11/2026, sur le vrai bureau KDE Plasma de Bazzite avec le casque, des réglages changés depuis la fenêtre (anti-vent, mode) ont été relus sur le casque, et le raccourci global du panneau rapide a été accepté puis utilisé.

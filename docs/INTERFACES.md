@@ -12,7 +12,7 @@ seul la connexion au casque :
   thème Plasma, Wayland natif) ;
 - **GNOME** : `momentum-gtk`, en GTK 4 / libadwaita : mêmes pages que le client
   KDE, avec panneau rapide et raccourcis globaux (1.7.0) ; depuis la 1.9, les
-  mêmes fonctions que le client KDE à deux exceptions près ; essayé avec le casque
+  mêmes fonctions que le client KDE, sauf l'avis de nouvelle version ; essayé avec le casque
   sur un vrai bureau KDE Plasma, pas encore sous GNOME lui-même ([`docs/PARITE.md`](PARITE.md)).
 
 S'y ajoutent `ctl`, le widget Plasma, la recherche KRunner, la liste de

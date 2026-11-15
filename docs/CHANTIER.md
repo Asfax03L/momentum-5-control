@@ -29,6 +29,7 @@ l'essai de reconnexion sous Windows (dernier point de la 1.8).
 | 4 | KDE et GNOME : raison affichée sous un réglage grisé (suivi de tête, audio spatial, valeur non lue) | test du cœur ; essais sans écran des deux clients étendus ; captures relues | ✅ 15/11/2026 |
 | 5 | Barres d'état : module et style Waybar à partir de `ctl barre` | Waybar 0.15 lancé dans un écran virtuel, deux captures relues | 🟡 15/11/2026 : Waybar fait ; Omarchy non essayé ; Noctalia non fourni |
 | 6 | Documentation : parité, feuille de route, journal des versions, FAQ | vérificateur de liens | ✅ 15/11/2026 |
+| 7 | GNOME : assistant de premier lancement ; page À propos sans doublon | essai de l'assistant sans écran, en français et en anglais (aussi en CI) ; capture relue | ✅ 15/11/2026 |
 
 ## Décisions
 
@@ -46,8 +47,9 @@ Absents du client GNOME et présents dans le client KDE, en plus de la liste
 de `docs/PARITE.md` : les notifications au choix, le journal local
 (consultation, export, effacement), l'effacement de l'historique de
 batterie, l'avis de nouvelle version et l'assistant de premier lancement.
-Les trois premiers entrent dans le lot 2. Les deux derniers sont à décider
-après le lot 3 (l'avis demande un client HTTP que le client GNOME n'a pas).
+Les trois premiers entrent dans le lot 2 et l'assistant dans le lot 7. L'avis
+de nouvelle version reste à décider (il demande un client HTTP que le client
+GNOME n'a pas).
 
 ## Journal
 
@@ -85,6 +87,12 @@ après le lot 3 (l'avis demande un client HTTP que le client GNOME n'a pas).
   Vu au passage et corrigé : l'aide de `ctl nom` annonçait encore 32 caractères.
   `CHANGELOG.md` a maintenant une section « À venir (non publié) » pour la 1.8
   et la 1.9.
+- 15/11/2026 — Lot 7, ajouté après l'inventaire : l'assistant de premier
+  lancement ne demandait aucun client HTTP, il est donc fait (`assistant.rs`,
+  action `app.assistant`, essai `--demo --essai-assistant` ajouté à la CI). Les
+  réglages Bluetooth s'ouvrent par `gnome-control-center bluetooth`, ou par
+  `systemsettings kcm_bluetooth` sous KDE : **non essayé**, l'essai sans écran
+  ne presse pas ce bouton. Le doublon de la page À propos est corrigé.
 
 ## Ce qui reste
 
@@ -100,7 +108,5 @@ Demande le mainteneur :
 5. Publication de la 1.9 (accord requis).
 
 À décider :
-- avis de nouvelle version et assistant de premier lancement dans le client
-  GNOME ;
-- module pour Noctalia, sur une installation réelle ;
-- la page À propos du client GNOME affiche deux fois Modèle et Micrologiciel.
+- avis de nouvelle version dans le client GNOME (demande un client HTTP) ;
+- module pour Noctalia, sur une installation réelle.
