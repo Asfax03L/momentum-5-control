@@ -7,9 +7,15 @@
 //! `Activated(o, s, t, a{sv})`. Le bureau demande l'accord de l'utilisateur
 //! et garde ses choix ; les touches proposées ne sont qu'une préférence.
 //! Les raccourcis vivent tant que ce client tourne.
+//!
+//! Depuis la version 2 de l'interface (relevée sur xdg-desktop-portal 1.22) :
+//! `ConfigureShortcuts(o, s, a{sv})` ouvre les réglages du bureau sur les
+//! raccourcis de cette application, et le signal
+//! `ShortcutsChanged(o, a(sa{sv}))` annonce les touches changées.
 
 use std::collections::HashMap;
 use std::pin::Pin;
+use std::task::Poll;
 
 use futures_core::Stream;
 use momentum_core::hotkeys::HotkeyAction;
@@ -28,6 +34,77 @@ pub const PANEL: &str = "panneau";
 pub enum Pressed {
     Action(HotkeyAction),
     Panel,
+}
+
+/// Raccourci déclaré, tel que le bureau le décrit.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Binding {
+    pub description: String,
+    /// Touches choisies dans le bureau, dans ses mots ; vide : aucune.
+    pub trigger: String,
+}
+
+/// Session ouverte auprès du portail ; sert à ouvrir la configuration.
+#[derive(Clone)]
+pub struct Session {
+    connection: Connection,
+    path: OwnedObjectPath,
+    version: u32,
+}
+
+impl Session {
+    /// `ConfigureShortcuts` existe depuis la version 2 de l'interface.
+    pub fn can_configure(&self) -> bool {
+        self.version >= 2
+    }
+
+    /// Ouvre les raccourcis de cette application dans les réglages du
+    /// bureau. Bloquant : à appeler hors du fil de l'interface.
+    pub fn configure(&self) -> zbus::Result<()> {
+        zbus::block_on(async {
+            let portal = Proxy::new(&self.connection, PORTAL, PATH, INTERFACE).await?;
+            let options: HashMap<&str, Value> = HashMap::new();
+            portal
+                .call_method("ConfigureShortcuts", &(&self.path, "", options))
+                .await?;
+            Ok(())
+        })
+    }
+}
+
+/// Ce que le fil des raccourcis annonce à la fenêtre.
+pub enum Report {
+    Pressed(Pressed),
+    /// Raccourcis acceptés par le bureau.
+    Ready(Session),
+    /// Liste à jour, avec les touches choisies.
+    Bound(Vec<Binding>),
+}
+
+type Declared = Vec<(String, HashMap<String, OwnedValue>)>;
+
+/// Une ligne de la liste : la description du bureau, sinon l'identifiant.
+fn binding(id: &str, description: Option<String>, trigger: Option<String>) -> Binding {
+    Binding {
+        description: description
+            .filter(|d| !d.trim().is_empty())
+            .unwrap_or_else(|| id.to_string()),
+        trigger: trigger.unwrap_or_default().trim().to_string(),
+    }
+}
+
+fn bindings(declared: Declared) -> Vec<Binding> {
+    declared
+        .into_iter()
+        .map(|(id, properties)| {
+            let text = |key: &str| {
+                properties
+                    .get(key)
+                    .and_then(|v| String::try_from(v.clone()).ok())
+            };
+            binding(&id, text("description"), text("trigger_description"))
+        })
+        .collect()
 }
 
 /// Raccourcis proposés : identifiant, description, touches préférées
@@ -98,11 +175,7 @@ async fn response(
 
 /// Déclare les raccourcis puis appelle `on_pressed` à chaque appui, jusqu'à
 /// la fin de la session D-Bus. À lancer dans un fil dédié.
-pub fn run(
-    app_id: &str,
-    scenes: &[String],
-    mut on_pressed: impl FnMut(Pressed),
-) -> zbus::Result<()> {
+pub fn run(app_id: &str, scenes: &[String], mut report: impl FnMut(Report)) -> zbus::Result<()> {
     zbus::block_on(async {
         let connection = Connection::session().await?;
         // Portails récents : rattache ce programme hors bac à sable à son
@@ -121,6 +194,7 @@ pub fn run(
             }
         }
         let portal = Proxy::new(&connection, PORTAL, PATH, INTERFACE).await?;
+        let version = portal.get_property::<u32>("version").await.unwrap_or(1);
         let unique = connection
             .unique_name()
             .map(|n| n.to_string())
@@ -161,36 +235,84 @@ pub fn run(
         let bind_token = "openheadset_bind";
         let mut options: HashMap<&str, Value> = HashMap::new();
         options.insert("handle_token", Value::from(bind_token));
-        if response(
+        // Abonnements avant la déclaration : aucun signal n'est manqué.
+        let mut activated = portal.receive_signal("Activated").await?;
+        let mut changed = portal.receive_signal("ShortcutsChanged").await?;
+        let Some(results) = response(
             &connection,
             &request_path(&unique, bind_token),
             portal.call("BindShortcuts", &(&session, shortcuts, "", options)),
         )
         .await?
-        .is_none()
-        {
+        else {
             tracing::info!("raccourcis refusés par l'utilisateur ou le bureau");
             return Ok(());
-        }
+        };
         tracing::info!("raccourcis déclarés au portail");
+        report(Report::Ready(Session {
+            connection: connection.clone(),
+            path: session.clone(),
+            version,
+        }));
+        // Sans liste dans la réponse : celle proposée, sans touches connues.
+        let declared = results
+            .get("shortcuts")
+            .and_then(|v| Declared::try_from(v.clone()).ok())
+            .map(bindings)
+            .unwrap_or_else(|| {
+                list.iter()
+                    .map(|(id, description, _)| binding(id, Some(description.clone()), None))
+                    .collect()
+            });
+        report(Report::Bound(declared));
 
-        let mut activated = portal.receive_signal("Activated").await?;
-        while let Some(message) =
-            std::future::poll_fn(|cx| Pin::new(&mut activated).poll_next(cx)).await
-        {
-            let Ok((from, id, _time, _options)) =
-                message
-                    .body()
-                    .deserialize::<(OwnedObjectPath, String, u64, HashMap<String, OwnedValue>)>()
-            else {
-                continue;
-            };
-            if from != session {
-                continue;
-            }
-            tracing::info!(action = %id, "raccourci");
-            if let Some(action) = pressed(&id) {
-                on_pressed(action);
+        enum Signal {
+            Activated(zbus::Message),
+            Changed(zbus::Message),
+        }
+        loop {
+            let next = std::future::poll_fn(|cx| {
+                match Pin::new(&mut activated).poll_next(cx) {
+                    Poll::Ready(Some(m)) => return Poll::Ready(Some(Signal::Activated(m))),
+                    Poll::Ready(None) => return Poll::Ready(None),
+                    Poll::Pending => {}
+                }
+                match Pin::new(&mut changed).poll_next(cx) {
+                    Poll::Ready(Some(m)) => Poll::Ready(Some(Signal::Changed(m))),
+                    Poll::Ready(None) => Poll::Ready(None),
+                    Poll::Pending => Poll::Pending,
+                }
+            })
+            .await;
+            match next {
+                None => break,
+                Some(Signal::Activated(message)) => {
+                    let Ok((from, id, _time, _options)) = message.body().deserialize::<(
+                        OwnedObjectPath,
+                        String,
+                        u64,
+                        HashMap<String, OwnedValue>,
+                    )>() else {
+                        continue;
+                    };
+                    if from != session {
+                        continue;
+                    }
+                    tracing::info!(action = %id, "raccourci");
+                    if let Some(action) = pressed(&id) {
+                        report(Report::Pressed(action));
+                    }
+                }
+                Some(Signal::Changed(message)) => {
+                    let Ok((from, declared)) =
+                        message.body().deserialize::<(OwnedObjectPath, Declared)>()
+                    else {
+                        continue;
+                    };
+                    if from == session {
+                        report(Report::Bound(bindings(declared)));
+                    }
+                }
             }
         }
         Ok(())
@@ -217,5 +339,19 @@ mod tests {
         }
         assert_eq!(pressed(PANEL), Some(Pressed::Panel));
         assert_eq!(pressed("inconnu"), None);
+    }
+
+    #[test]
+    fn a_binding_keeps_the_desktop_words_and_falls_back_to_the_identifier() {
+        let full = binding(
+            "bruit",
+            Some("Mode suivant".into()),
+            Some(" Ctrl+Alt+N ".into()),
+        );
+        assert_eq!(full.description, "Mode suivant");
+        assert_eq!(full.trigger, "Ctrl+Alt+N");
+        let bare = binding("scene:Train", Some("  ".into()), None);
+        assert_eq!(bare.description, "scene:Train");
+        assert_eq!(bare.trigger, "");
     }
 }
