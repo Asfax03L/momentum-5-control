@@ -26,7 +26,7 @@ l'essai de reconnexion sous Windows (dernier point de la 1.8).
 | 1 | GNOME, page Mon son : saisie des gains en texte, export pour Equalizer APO | essai sans écran étendu (gains saisis puis relus) | ✅ 12/11/2026 |
 | 2 | GNOME, pages À propos et Batterie : sauvegarde et restauration des réglages, langue, notifications au choix, journal local, effacement de l'historique | essai sans écran étendu (notification enregistrée puis remise, sauvegarde écrite puis examinée) ; captures relues | ✅ 12/11/2026 |
 | 3 | GNOME : contenu du panneau rapide (bruit, curseur, profil, quatre scènes), raccourcis (liste et bouton de configuration du bureau) | essai sans écran étendu (curseur du panneau retiré puis remis) ; captures relues | ✅ 12/11/2026, portail réel à essayer |
-| 4 | KDE et GNOME : raison affichée sous un réglage grisé (suivi de tête, audio spatial, niveau) | tests du cœur ; essais d'interface | à faire |
+| 4 | KDE et GNOME : raison affichée sous un réglage grisé (suivi de tête, audio spatial, valeur non lue) | test du cœur ; essais sans écran des deux clients étendus ; captures relues | ✅ 15/11/2026 |
 | 5 | Barres d'état : exemples à partir de `ctl barre` | sortie de `ctl barre` relue contre chaque exemple | à faire |
 | 6 | Documentation : parité, feuille de route, journal des versions | vérificateur de liens | à faire |
 
@@ -68,3 +68,9 @@ après le lot 3 (l'avis demande un client HTTP que le client GNOME n'a pas).
   **Non essayé** : la liste des touches et le bouton « Modifier dans les
   réglages du bureau… » demandent un vrai bureau (rien en démonstration) ;
   essai guidé avec le mainteneur à prévoir.
+- 15/11/2026 — Lots 1 à 3 fusionnés (PR #83, #84, #85). Lot 4 : la raison
+  vient de `home_presentation::Availability::hint`, déjà utilisée par WinUI
+  sous une autre forme. Le casque absent et la lecture seule ne sont pas
+  répétés sous chaque réglage : le bandeau les annonce. Le curseur
+  ANC ↔ transparence n'est pas concerné : KDE et GNOME ne le grisent pas hors
+  du mode Personnalisé.

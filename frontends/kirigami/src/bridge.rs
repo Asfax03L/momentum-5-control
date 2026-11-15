@@ -57,14 +57,19 @@ pub mod qobject {
         // Interrupteurs : valeur et disponibilité (lu et modifiable).
         #[qproperty(bool, spatial)]
         #[qproperty(bool, spatial_enabled)]
+        #[qproperty(QString, spatial_reason)]
         #[qproperty(bool, head_tracking)]
         #[qproperty(bool, head_tracking_enabled)]
+        #[qproperty(QString, head_tracking_reason)]
         #[qproperty(bool, touch)]
         #[qproperty(bool, touch_enabled)]
+        #[qproperty(QString, touch_reason)]
         #[qproperty(bool, multipoint)]
         #[qproperty(bool, multipoint_enabled)]
+        #[qproperty(QString, multipoint_reason)]
         #[qproperty(bool, smart_pause)]
         #[qproperty(bool, smart_pause_enabled)]
+        #[qproperty(QString, smart_pause_reason)]
         #[qproperty(bool, auto_answer)]
         #[qproperty(bool, auto_answer_enabled)]
         #[qproperty(bool, comfort)]
@@ -583,14 +588,19 @@ pub struct HeadsetRust {
     anti_wind: bool,
     spatial: bool,
     spatial_enabled: bool,
+    spatial_reason: QString,
     head_tracking: bool,
     head_tracking_enabled: bool,
+    head_tracking_reason: QString,
     touch: bool,
     touch_enabled: bool,
+    touch_reason: QString,
     multipoint: bool,
     multipoint_enabled: bool,
+    multipoint_reason: QString,
     smart_pause: bool,
     smart_pause_enabled: bool,
+    smart_pause_reason: QString,
     auto_answer: bool,
     auto_answer_enabled: bool,
     comfort: bool,
@@ -772,14 +782,19 @@ impl Default for HeadsetRust {
             anti_wind: false,
             spatial: false,
             spatial_enabled: false,
+            spatial_reason: QString::default(),
             head_tracking: false,
             head_tracking_enabled: false,
+            head_tracking_reason: QString::default(),
             touch: false,
             touch_enabled: false,
+            touch_reason: QString::default(),
             multipoint: false,
             multipoint_enabled: false,
+            multipoint_reason: QString::default(),
             smart_pause: false,
             smart_pause_enabled: false,
+            smart_pause_reason: QString::default(),
             auto_answer: false,
             auto_answer_enabled: false,
             comfort: false,
@@ -1484,6 +1499,11 @@ impl qobject::Headset {
             .unwrap_or_default();
         let eq = s.equalizer.clone();
         let c = v.controls.clone();
+        let availability = momentum_core::home_presentation::home_availability(
+            s.state.as_ref(),
+            s.info.as_ref(),
+            v.writable,
+        );
         let rows: Vec<viewmodel::ConnectionRow> = if s.state.is_some() {
             s.connections
                 .iter()
@@ -1564,6 +1584,18 @@ impl qobject::Headset {
         h.as_mut().set_profile_on(profile_on);
         h.as_mut()
             .set_profile_toggle_enabled(profile_toggle_enabled);
+        // Un réglage grisé dit pourquoi (audio spatial arrêté, profil
+        // personnalisé sélectionné, valeur non lue).
+        h.as_mut()
+            .set_spatial_reason(QString::from(availability.spatial.hint().as_str()));
+        h.as_mut()
+            .set_head_tracking_reason(QString::from(availability.tracking.hint().as_str()));
+        h.as_mut()
+            .set_touch_reason(QString::from(availability.touch.hint().as_str()));
+        h.as_mut()
+            .set_multipoint_reason(QString::from(availability.multipoint.hint().as_str()));
+        h.as_mut()
+            .set_smart_pause_reason(QString::from(availability.smart_pause.hint().as_str()));
         h.as_mut().set_spatial(c.spatial_on);
         h.as_mut().set_spatial_enabled(c.spatial_enabled);
         h.as_mut().set_head_tracking(c.head_tracking_on);

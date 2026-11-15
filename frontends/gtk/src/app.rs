@@ -764,6 +764,13 @@ fn refresh(widgets: &Widgets, state: &State, updating: &Cell<bool>) {
     widgets.anti_wind.set_sensitive(v.writable);
     widgets.spatial.set_active(c.spatial_on);
     widgets.spatial.set_sensitive(c.spatial_enabled);
+    // Un réglage grisé dit pourquoi (profil personnalisé sélectionné…).
+    let availability = momentum_core::home_presentation::home_availability(
+        s.state.as_ref(),
+        s.info.as_ref(),
+        v.writable,
+    );
+    widgets.spatial.set_subtitle(&availability.spatial.hint());
     widgets
         .reconnect
         .set_sensitive(state.service_error.is_none());
@@ -932,6 +939,12 @@ fn self_test(
                     return fail(tr("page Accueil non affichée"));
                 }
                 eprintln!("essai interface : page Accueil affichée");
+                // Casque simulé : audio spatial arrêté, donc suivi de tête
+                // grisé, avec sa raison.
+                if widgets.extras.head_tracking_hint().is_empty() {
+                    return fail(tr("raison du suivi de tête grisé absente"));
+                }
+                eprintln!("essai interface : raison du suivi de tête grisé affichée");
                 before.set(widgets.anti_wind.is_active());
                 widgets.anti_wind.set_active(!before.get());
             }

@@ -2773,3 +2773,6 @@ Desktop settings not opened: {}.
 
 contenu du panneau non appliqué
 panel content not applied
+
+raison du suivi de tête grisé absente
+reason for the greyed-out head tracking missing
