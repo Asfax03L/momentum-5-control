@@ -36,6 +36,8 @@ et « À faire après la mise à jour ».
 - Client GNOME : contenu du panneau rapide au choix (bruit, curseur, profil
   personnalisé, quatre scènes), liste des raccourcis avec les touches retenues
   par le bureau.
+- Client GNOME : assistant de premier lancement, rouvert depuis À propos ; la
+  page À propos n'affiche plus deux fois le modèle et le micrologiciel.
 - Clients KDE et GNOME : un réglage grisé dit pourquoi (suivi de tête sans
   audio spatial, audio spatial avec le profil personnalisé, valeur non lue).
 - Waybar : module et feuille de style prêts à copier

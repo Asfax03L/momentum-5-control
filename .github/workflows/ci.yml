@@ -202,6 +202,22 @@ jobs:
           cat essai-interface.log
           test "$code" -eq 0
           grep -q "ESSAI INTERFACE RÉUSSI" essai-interface.log
+      # Assistant de premier lancement, dans les deux langues : chaque étape
+      # a un titre et un texte, « Terminer » le ferme.
+      - name: Essai de l'assistant GNOME
+        run: |
+          gtk4-broadwayd :6 &
+          sleep 1
+          for langue in fr en; do
+            set +e
+            OPENHEADSET_LANG=$langue GDK_BACKEND=broadway BROADWAY_DISPLAY=:6 timeout 60 dbus-run-session -- \
+              target/debug/momentum-gtk --demo --essai-assistant > "essai-assistant-$langue.log" 2>&1
+            code=$?
+            set -e
+            cat "essai-assistant-$langue.log"
+            test "$code" -eq 0
+            grep -q "ESSAI ASSISTANT RÉUSSI" "essai-assistant-$langue.log"
+          done
 
   # Client KDE avec un Qt récent (Fedora 44 : Qt 6.11, comme Bazzite) : le
   # code réservé à Qt 6.8 et plus (thème clair ou sombre) n'est compilé

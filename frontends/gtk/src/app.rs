@@ -15,6 +15,7 @@ use momentum_client::{Client, ClientError, Command, Event, Outcome, Snapshot};
 use momentum_core::device::NoiseModeRequest;
 use momentum_core::viewmodel::{self, NOISE_MODES};
 
+use crate::assistant::Assistant;
 use crate::pages::{Extras, Guided, GuidedSave, Notify, Send};
 use crate::panel::Panel;
 use crate::shortcuts::{Pressed, Report};
@@ -31,6 +32,8 @@ const PANEL: &str = "--panneau";
 /// Lancement à l'ouverture de session : aucune fenêtre, le client reste
 /// en arrière-plan pour les raccourcis globaux.
 const BACKGROUND: &str = "--cache";
+/// Essai de l'assistant de premier lancement (CI), en démonstration.
+const ASSISTANT_TEST: &str = "--essai-assistant";
 
 fn has_argument(name: &str) -> bool {
     std::env::args().any(|a| a == name)
@@ -75,6 +78,7 @@ struct Widgets {
     reconnect: gtk::Button,
     extras: Rc<Extras>,
     panel: Panel,
+    assistant: Rc<Assistant>,
 }
 
 pub fn run() -> i32 {
@@ -410,8 +414,9 @@ fn build(app: &adw::Application, exit: Rc<Cell<i32>>) {
         });
     }
     if demo::requested() && std::env::args().any(|a| a == SELF_TEST) {
-        self_test(app, &widgets, &state, exit);
+        self_test(app, &widgets, &state, exit.clone());
     }
+    let assistant_test = demo::requested() && has_argument(ASSISTANT_TEST);
     // `--page nom` : page d'ouverture (captures d'écran, essais).
     let arguments: Vec<String> = std::env::args().collect();
     if let Some(page) = arguments
@@ -425,7 +430,51 @@ fn build(app: &adw::Application, exit: Rc<Cell<i32>>) {
         widgets.panel.window.present();
     } else if !background {
         widgets.window.present();
+        // Premier lancement : jamais en arrière-plan, jamais en démonstration
+        // (sauf pour son essai).
+        if assistant_test || momentum_core::assistant::should_show(demo::requested()) {
+            widgets.assistant.present(&widgets.window);
+        }
     }
+    if assistant_test {
+        assistant_self_test(app, &widgets, exit);
+    }
+}
+
+/// Essai de l'assistant (CI, `--demo --essai-assistant`) : chaque étape a un
+/// titre et un texte, « Terminer » ferme. « ESSAI ASSISTANT RÉUSSI » et code
+/// 0, sinon code 1.
+fn assistant_self_test(app: &adw::Application, widgets: &Widgets, exit: Rc<Cell<i32>>) {
+    let app = app.clone();
+    let assistant = widgets.assistant.clone();
+    let titles = Rc::new(RefCell::new(Vec::<String>::new()));
+    glib::timeout_add_local(Duration::from_millis(800), move || {
+        let fail = |message: &str| {
+            eprintln!("ESSAI ASSISTANT ÉCHEC : {message}");
+            exit.set(1);
+            app.quit();
+            glib::ControlFlow::Break
+        };
+        if !assistant.is_open() {
+            if titles.borrow().len() == assistant.count() {
+                eprintln!("ESSAI ASSISTANT RÉUSSI : {}", titles.borrow().join(" | "));
+                app.quit();
+                return glib::ControlFlow::Break;
+            }
+            return fail(tr("fenêtre fermée trop tôt"));
+        }
+        let (title, text) = assistant.shown();
+        if title.is_empty() || text.is_empty() {
+            return fail(tr("étape vide"));
+        }
+        eprintln!(
+            "essai assistant : étape {} : {title}",
+            titles.borrow().len() + 1
+        );
+        titles.borrow_mut().push(title);
+        assistant.press_next();
+        glib::ControlFlow::Continue
+    });
 }
 
 /// Actions de l'application : panneau rapide (aussi depuis une autre
@@ -437,6 +486,16 @@ fn app_actions(app: &adw::Application, widgets: &Widgets) {
         panel.connect_activate(move |_, _| window.present());
     }
     app.add_action(&panel);
+    // Assistant de premier lancement, rouvert depuis « À propos ».
+    let assistant = gtk::gio::SimpleAction::new("assistant", None);
+    {
+        let widgets = widgets.clone();
+        assistant.connect_activate(move |_, _| {
+            widgets.window.present();
+            widgets.assistant.present(&widgets.window);
+        });
+    }
+    app.add_action(&assistant);
     let quit = gtk::gio::SimpleAction::new("quitter", None);
     {
         let app = app.clone();
@@ -639,6 +698,7 @@ fn layout(app: &adw::Application) -> Widgets {
         reconnect,
         extras,
         panel: Panel::new(app),
+        assistant: Assistant::new(),
     }
 }
 
@@ -774,6 +834,7 @@ fn refresh(widgets: &Widgets, state: &State, updating: &Cell<bool>) {
     widgets
         .reconnect
         .set_sensitive(state.service_error.is_none());
+    widgets.assistant.set_connected(v.connected);
     let panel = &widgets.panel;
     panel.waiting.set_text(&v.waiting);
     panel.waiting.set_visible(!v.connected);

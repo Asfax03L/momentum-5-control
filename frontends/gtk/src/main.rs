@@ -9,6 +9,8 @@
 #[cfg(target_os = "linux")]
 mod app;
 #[cfg(target_os = "linux")]
+mod assistant;
+#[cfg(target_os = "linux")]
 mod pages;
 #[cfg(target_os = "linux")]
 mod panel;

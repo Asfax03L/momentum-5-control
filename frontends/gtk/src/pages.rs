@@ -693,6 +693,9 @@ impl Extras {
             row.add_suffix(&gtk::Image::from_icon_name("go-next-symbolic"));
             row
         };
+        let assistant_row = action(tr("Assistant de premier lancement"));
+        assistant_row.set_action_name(Some("app.assistant"));
+        about_group.add(&assistant_row);
         let settings_export = action(tr("Exporter les réglages…"));
         let settings_import = action(tr("Choisir un fichier à importer…"));
         let settings_status = adw::ActionRow::builder().visible(false).build();
@@ -2284,15 +2287,11 @@ impl Extras {
         self.refresh_ab();
         self.refresh_audio();
         let version = env!("CARGO_PKG_VERSION");
-        let mut about: Vec<(String, String)> = viewmodel::about_rows(version, s.info.as_ref())
-            .into_iter()
-            .map(|r| (r.label, r.value))
-            .collect();
-        about.extend(
-            viewmodel::device_rows(s.info.as_ref())
+        self.about.set(
+            viewmodel::about_rows(version, s.info.as_ref())
                 .into_iter()
-                .map(|r| (r.label, r.value)),
+                .map(|r| (r.label, r.value))
+                .collect(),
         );
-        self.about.set(about);
     }
 }
