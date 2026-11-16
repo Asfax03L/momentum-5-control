@@ -1,0 +1,19 @@
+/* Couleurs du module « casque » : à ajouter à ~/.config/waybar/style.css.
+   Classes écrites par `ctl barre` : connecte, adaptatif, personnalise, arret,
+   faible, en-charge, deconnecte, service-arrete, batterie-systeme. */
+#custom-casque {
+    padding: 0 8px;
+}
+
+#custom-casque.faible {
+    color: #e5534b;
+}
+
+#custom-casque.en-charge {
+    color: #57ab5a;
+}
+
+#custom-casque.deconnecte,
+#custom-casque.service-arrete {
+    opacity: 0.6;
+}

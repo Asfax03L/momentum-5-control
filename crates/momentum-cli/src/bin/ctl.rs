@@ -161,7 +161,7 @@ enum Command {
     Extinction { duree: AutoOff },
     /// Invites : tonalités seules, ou tonalités et voix.
     Invites { mode: Prompts },
-    /// Affiche le nom du casque, ou le change (ASCII sans accent, 32
+    /// Affiche le nom du casque, ou le change (ASCII sans accent, 16
     /// caractères au plus). Windows peut garder l'ancien nom jusqu'à la
     /// prochaine connexion.
     Nom { nouveau: Option<String> },
