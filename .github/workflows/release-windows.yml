@@ -71,7 +71,7 @@ jobs:
           $dir = "openheadset-control-v$env:VERSION-windows-x86_64"
           New-Item -ItemType Directory $dir | Out-Null
           Copy-Item target/release/momentum-winui.exe, target/release/momentum-daemon.exe, target/release/ctl.exe, target/release/probe.exe $dir
-          Copy-Item scripts/installer.ps1, README.md, LICENSE-MIT, LICENSE-APACHE $dir
+          Copy-Item scripts/installer.ps1, README.md, README.fr.md, LICENSE-MIT, LICENSE-APACHE $dir
           Compress-Archive -Path $dir -DestinationPath "$dir.zip"
           ./packaging/windows/construire-installateur.ps1 -Version $env:VERSION -Bin target/release -Sortie .
           ./scripts/essai-installateur-windows.ps1 -Installateur "openheadset-control-v$env:VERSION-windows-x86_64-installateur.exe" -Version $env:VERSION -SansRuntime

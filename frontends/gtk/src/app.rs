@@ -574,13 +574,13 @@ fn layout(app: &adw::Application) -> Widgets {
     battery_bar.set_hexpand(true);
     battery_bar.set_valign(gtk::Align::Center);
     battery_bar.set_width_request(160);
-    let battery = adw::ActionRow::builder().title("Batterie").build();
+    let battery = adw::ActionRow::builder().title(tr("Batterie")).build();
     battery.add_suffix(&battery_bar);
     // Charge et port, lus sur le casque (comme l'accueil de WinUI).
     let status = adw::ActionRow::builder()
         .title(tr("État du casque"))
         .build();
-    let headset = adw::PreferencesGroup::builder().title("Casque").build();
+    let headset = adw::PreferencesGroup::builder().title(tr("Casque")).build();
     headset.add(&battery);
     headset.add(&status);
 
@@ -596,7 +596,7 @@ fn layout(app: &adw::Application) -> Widgets {
         modes.append(&button);
         noise.push(button);
     }
-    let noise_row = adw::ActionRow::builder().title("Mode").build();
+    let noise_row = adw::ActionRow::builder().title(tr("Mode")).build();
     noise_row.add_suffix(&modes);
     let level = gtk::Scale::with_range(gtk::Orientation::Horizontal, 0.0, 100.0, 1.0);
     level.set_hexpand(true);
@@ -608,7 +608,7 @@ fn layout(app: &adw::Application) -> Widgets {
         .build();
     level_row.add_suffix(&level);
     let anti_wind = adw::SwitchRow::builder()
-        .title("Anti-vent")
+        .title(tr("Anti-vent"))
         .subtitle(tr("Réduit le bruit du vent sur les micros"))
         .build();
     let noise_group = adw::PreferencesGroup::builder()

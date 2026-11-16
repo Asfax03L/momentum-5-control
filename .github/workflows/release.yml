@@ -79,7 +79,7 @@ jobs:
           $dir = "openheadset-control-${{ github.ref_name }}-windows-x86_64"
           New-Item -ItemType Directory $dir | Out-Null
           Copy-Item target/release/momentum-winui.exe, target/release/momentum-daemon.exe, target/release/ctl.exe, target/release/probe.exe $dir
-          Copy-Item scripts/installer.ps1, README.md, LICENSE-MIT, LICENSE-APACHE $dir
+          Copy-Item scripts/installer.ps1, README.md, README.fr.md, LICENSE-MIT, LICENSE-APACHE $dir
           Compress-Archive -Path $dir -DestinationPath "$dir.zip"
       # Installateur par utilisateur (Inno Setup), essayé en silencieux :
       # installation, réinstallation, désinstallation (sans runtime sur le
@@ -120,7 +120,7 @@ jobs:
           cp target/release/ctl target/release/momentum-daemon target/release/momentum-kirigami target/release/momentum-gtk "$dir/"
           cp -r assets/linux assets/logo "$dir/assets/"
           cp -r plasma "$dir/"
-          cp scripts/installer-linux.sh README.md LICENSE-MIT LICENSE-APACHE "$dir/"
+          cp scripts/installer-linux.sh README.md README.fr.md LICENSE-MIT LICENSE-APACHE "$dir/"
           # Exécutable, comme l'indiquent les notes (./installer-linux.sh).
           chmod 755 "$dir/installer-linux.sh"
           mkdir -p "$dir/man" "$dir/completions"

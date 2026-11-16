@@ -111,7 +111,7 @@ politique de versions, mais une correction (version CORRECTIF).
 
 Seule la dernière version mineure 1.x reçoit des corrections ; une faille
 corrigée sort en version CORRECTIF. Signalement des failles et délais :
-[SECURITY.md](../SECURITY.md).
+[SECURITY.fr.md](../SECURITY.fr.md).
 
 Pas de calendrier fixe : une version sort quand les contrôles requis sont
 réussis. Toute nouvelle écriture attend son essai sur le casque ; les

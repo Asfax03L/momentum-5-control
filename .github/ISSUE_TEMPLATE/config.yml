@@ -1,8 +1,11 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Questions et aide (Discussions)
+  - name: Questions and help · Questions et aide (Discussions)
     url: https://github.com/Asfax03L/momentum-5-control/discussions
-    about: Une question, un retour d'usage, une idée à débattre — questions in English welcome.
-  - name: Guide de contribution
+    about: A question, feedback, an idea to discuss · Une question, un retour d'usage, une idée à débattre.
+  - name: Contributing guide (English)
     url: https://github.com/Asfax03L/momentum-5-control/blob/main/CONTRIBUTING.md
+    about: Project rules (read-only by default, nothing invented) and checks before a pull request.
+  - name: Guide de contribution (français)
+    url: https://github.com/Asfax03L/momentum-5-control/blob/main/CONTRIBUTING.fr.md
     about: Règles du projet (lecture seule par défaut, rien d'inventé) et vérifications avant une PR.
