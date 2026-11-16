@@ -93,6 +93,14 @@ GNOME n'a pas).
   réglages Bluetooth s'ouvrent par `gnome-control-center bluetooth`, ou par
   `systemsettings kcm_bluetooth` sous KDE : **non essayé**, l'essai sans écran
   ne presse pas ce bouton. Le doublon de la page À propos est corrigé.
+- 16/11/2026 — Lots 5 à 7 fusionnés (PR #87, #88). Hors chantier, à la demande
+  du mainteneur : vitrine du dépôt en anglais et en français. Convention
+  retenue : à la racine, l'anglais est le fichier sans suffixe (`README.md`,
+  `CONTRIBUTING.md`, `SECURITY.md`) et le français porte `.fr.md` ; dans
+  `docs/`, le français reste le fichier sans suffixe et l'anglais porte
+  `.en.md`. Les captures anglaises ont montré quatre textes de l'accueil GNOME
+  restés en français : corrigés. L'image d'aperçu (`assets/social-preview.png`)
+  se dépose à la main dans les réglages du dépôt.
 
 ## Ce qui reste
 

@@ -42,6 +42,15 @@ et « À faire après la mise à jour ».
   audio spatial, audio spatial avec le profil personnalisé, valeur non lue).
 - Waybar : module et feuille de style prêts à copier
   (`assets/linux/barres/`), avec une icône par mode de bruit.
+- Client GNOME : « Batterie », « Casque », « Mode » et « Anti-vent » de
+  l'accueil s'affichent en anglais quand l'interface est en anglais.
+
+**Documentation**
+- Le dépôt se présente en anglais et en français : `README.md` (anglais) et
+  `README.fr.md`, de même pour `CONTRIBUTING` et `SECURITY` ; installation et
+  compatibilité traduites (`docs/INSTALLATION.en.md`,
+  `docs/COMPATIBILITE.en.md`) ; modèles de tickets dans les deux langues ;
+  captures d'accueil en anglais.
 
 ## v1.7.0 — 04/11/2026
 
