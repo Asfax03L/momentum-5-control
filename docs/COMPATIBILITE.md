@@ -1,5 +1,7 @@
 # Compatibilité
 
+*[English version](COMPATIBILITE.en.md)*
+
 Casques et micrologiciels essayés, et commandes validées sur le MOMENTUM 5.
 Fiche complète du protocole : [MOMENTUM5.md](MOMENTUM5.md).
 
@@ -15,7 +17,7 @@ Fiche complète du protocole : [MOMENTUM5.md](MOMENTUM5.md).
 Un autre modèle ou micrologiciel reste en lecture seule (aucun réglage
 envoyé) tant que chaque écriture n'y a pas été vérifiée. Pour en signaler
 un, ouvrez une issue « Compatibilité » avec la sortie de `probe --deep`
-(voir [CONTRIBUTING.md](../CONTRIBUTING.md)).
+(voir [CONTRIBUTING.fr.md](../CONTRIBUTING.fr.md)).
 
 ## Détail des commandes
 
@@ -48,7 +50,7 @@ service GATT (ce qui ne prouve pas qu'il n'en existe aucun).
 | Invites (tonalités / tonalités et voix) | `0801 [1/2]` | ✅ |
 | Volume des invites | `081C [i8]` (−20 à +6), lecture `081D` | ✅ validé sur M5 (échelle relevée, `ctl volume-invites`) |
 | Nom du casque | `2801 [nom]`, lecture `2802` | ✅ validé sur M5 (`ctl nom`, page Réglages ; ASCII, 16 caractères au plus, limite relevée sur le casque) |
-| Gestion des connexions : connecter, déconnecter un appareil appairé | `140F` / `1410 [adresse]`, liste `140D`/`140E`, ce PC `1413` | ✅ validé sur M5 (`ctl connexions`, Accueil) ; suppression d'un appairage et Multipoint non exposés |
+| Gestion des connexions : connecter, déconnecter un appareil appairé | `140F` / `1410 [adresse]`, liste `140D`/`140E`, ce PC `1413` | ✅ validé sur M5 (`ctl connexions`, Accueil) ; la suppression d'un appairage n'est pas exposée |
 | Suivi de tête (Dolby Atmos) | `3602 [0/1]`, lecture `3603` | ✅ validé sur M5 (`ctl suivi-tete`, audio spatial activé) |
 | Multipoint | `001D:0E00 [0/1]`, lecture `0495:1409` (1 ou 2 connexions) | ✅ validé sur M5 (`ctl multipoint` ; le couper ne garde qu'un appareil) |
 | Langue des invites | lecture `0807` | 🟡 lecture seule : changer de langue télécharge et installe un pack de voix (non fait) |

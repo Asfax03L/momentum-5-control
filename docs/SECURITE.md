@@ -159,4 +159,4 @@ Flatpak (sans permission réseau ; mises à jour par Flatpak).
 
 Par le signalement privé de GitHub (onglet « Security » du dépôt >
 « Report a vulnerability »), pas par une issue publique. Délais visés et
-versions maintenues : [`SECURITY.md`](../SECURITY.md).
+versions maintenues : [`SECURITY.fr.md`](../SECURITY.fr.md).

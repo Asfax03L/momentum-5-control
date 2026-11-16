@@ -34,11 +34,11 @@ section 1](guide.html#1-install).
 Screenshots in demo mode (simulated headphones).
 
 ::: captures
-![Home on Windows 11, dark theme: battery, noise cancelling modes, ANC ↔ transparency slider](../captures/windows-accueil-sombre.jpg)
+![Home on Windows 11, dark theme: battery, noise cancelling modes, ANC ↔ transparency slider](../captures/windows-home-dark-en.jpg)
 
 ![Equalizer on Windows 11: eight bands and presets](../captures/windows-son-sombre.jpg)
 
-![Home on KDE Plasma, dark theme](../captures/kde-accueil-sombre.jpg)
+![Home on KDE Plasma, dark theme](../captures/kde-home-dark-en.jpg)
 
 ![Scenes and editor on KDE Plasma](../captures/kde-scenes-sombre.jpg)
 

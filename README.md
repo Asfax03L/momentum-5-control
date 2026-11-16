@@ -1,107 +1,163 @@
+<div align="center">
+
+<img src="assets/logo/openheadset.svg" alt="OpenHeadset Control logo" width="120">
+
 # OpenHeadset Control
 
-<img src="assets/logo/openheadset.svg" alt="Logo d'OpenHeadset Control" width="96" align="right">
+**Control your Sennheiser MOMENTUM 5 headphones from your PC.**<br>
+Noise control, equalizer, scenes and battery on Windows 11 and Linux, without the phone app.
 
 [![CI](https://github.com/Asfax03L/momentum-5-control/actions/workflows/ci.yml/badge.svg)](https://github.com/Asfax03L/momentum-5-control/actions/workflows/ci.yml)
-[![Dernière version](https://img.shields.io/github/v/release/Asfax03L/momentum-5-control?label=version)](https://github.com/Asfax03L/momentum-5-control/releases/latest)
-[![Licence](https://img.shields.io/badge/licence-MIT%20ou%20Apache--2.0-blue)](#licence)
+[![Latest release](https://img.shields.io/github/v/release/Asfax03L/momentum-5-control?label=release)](https://github.com/Asfax03L/momentum-5-control/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Asfax03L/momentum-5-control/total?label=downloads)](https://github.com/Asfax03L/momentum-5-control/releases)
+[![Platforms](https://img.shields.io/badge/platforms-Windows%2011%20%7C%20Linux-informational)](#install)
+[![License](https://img.shields.io/badge/license-MIT%20or%20Apache--2.0-blue)](#license)
 
-**Régler le casque Sennheiser MOMENTUM 5 depuis son PC**, sous Windows 11 et
-Linux (KDE Plasma, GNOME), sans l'application mobile Smart Control Plus :
-réduction de bruit, égaliseur, scènes, batterie, appels, appareils connectés.
-Écrit en Rust, avec une interface native par bureau.
+**English** · [Français](README.fr.md)
 
-> ⚠️ **Projet non officiel, sans lien avec Sennheiser ni Sonova.** Le protocole
-> a été reconstitué à partir de documentation publique et de captures de
-> l'application officielle. Seules les commandes capturées puis validées sur le
-> casque sont envoyées : **ni** mise à jour du micrologiciel, **ni**
-> réinitialisation d'usine, **ni** suppression d'appairage.
+[**Download**](https://github.com/Asfax03L/momentum-5-control/releases/latest) ·
+[User guide](docs/GUIDE.en.md) ·
+[FAQ](docs/FAQ.en.md) ·
+[Website](https://asfax03l.github.io/momentum-5-control/en/) ·
+[Discussions](https://github.com/Asfax03L/momentum-5-control/discussions)
 
-| Windows 11 (WinUI 3) | KDE Plasma (Kirigami) | GNOME (libadwaita) |
+</div>
+
+> [!IMPORTANT]
+> **Unofficial project, not affiliated with Sennheiser or Sonova.** The protocol
+> was reconstructed from public documentation and from captures of the official
+> app. Only commands that were captured and then validated on the headphones are
+> sent. The app never updates the firmware, never does a factory reset and never
+> removes a pairing.
+
+| Windows 11 · WinUI 3 | KDE Plasma · Kirigami | GNOME · libadwaita |
 |---|---|---|
-| ![Accueil sous Windows](docs/captures/windows-accueil-sombre.jpg) | ![Accueil sous KDE Plasma](docs/captures/kde-accueil-sombre.jpg) | ![Accueil sous GNOME](docs/captures/gnome-accueil-sombre.jpg) |
+| ![Home page on Windows](docs/captures/windows-home-dark-en.jpg) | ![Home page on KDE Plasma](docs/captures/kde-home-dark-en.jpg) | ![Home page on GNOME](docs/captures/gnome-home-dark-en.jpg) |
 
-Captures en mode démonstration (`--demo` : casque simulé). Toutes les pages :
-[docs/INTERFACES.md](docs/INTERFACES.md).
+<sub>Screenshots taken in demo mode (`--demo`: simulated headphones). Every page of
+the three apps: [docs/INTERFACES.md](docs/INTERFACES.md) (in French).</sub>
 
-## Fonctions
+## Why OpenHeadset Control
 
-- **Bruit** : Adaptatif, Personnalisé, Arrêt ; curseur ANC ↔ transparence ;
-  anti-vent ; audio spatial et suivi de tête.
-- **Son** : égaliseur 8 bandes, amplification des basses, préréglages, courbes
-  importées et exportées, comparaison A/B, assistant EQ guidé, Speech Clarity,
-  profil personnalisé.
-- **Scènes** : un ensemble de réglages en un clic, au raccourci clavier, à la
-  connexion du casque ou à heure fixe.
-- **Batterie** : niveau, courbe sur 30 jours, autonomie mesurée, avis
-  « batterie faible » et « 100 % câble branché ».
-- **Appels et confort** : Smart Pause, réponse automatique, appels
-  confortables, retour de voix (sidetone), invites, extinction automatique,
-  protection de la batterie, nom du casque.
-- **Connexions** : appareils appairés au casque, Multipoint, reconnexion ;
-  choix du codec Bluetooth sous Linux.
-- **Bureau** : icône de la zone de notification et panneau rapide, raccourcis
-  globaux, widget Plasma, recherche KRunner, module Waybar (`ctl barre`),
-  extension Decky pour le mode jeu, ligne de commande `ctl`.
-- **Vie privée** : tout reste sur le PC ; aucun compte, aucune télémétrie. Le
-  diagnostic à joindre à un bogue masque nom, adresse et numéro de série.
+- **A native app on each desktop.** WinUI 3 on Windows, Kirigami on KDE Plasma,
+  libadwaita on GNOME. One Rust core and one background service behind all of them.
+- **You see what the headphones report.** Each setting shows the value read back
+  from the headphones, never an assumed one.
+- **Private.** No account, no telemetry. Everything stays on your PC. The
+  diagnostic you attach to a bug report hides names, addresses and the serial number.
+- **Careful by design.** A command is sent only after it was captured in the
+  official app and validated on real headphones. Anything else stays read-only.
 
-Chaque réglage affiche l'état **relu sur le casque**, jamais une valeur supposée.
+## Features
 
-## Installer
-
-Télécharger la dernière version sur la page
-[Releases](https://github.com/Asfax03L/momentum-5-control/releases/latest),
-avec son empreinte SHA-256 ([vérifier un fichier](docs/VERIFIER.md)) :
-
-| Système | Fichier |
+| | |
 |---|---|
-| Windows 10/11 | `…-windows-x86_64-installateur.exe` (par utilisateur, sans droits administrateur ; demande Windows App Runtime 2) |
-| Bazzite et autres systèmes en lecture seule | `…-x86_64.flatpak` (`flatpak install --user …`) |
+| 🎧 **Noise** | Adaptive, Custom and Off modes, ANC ↔ transparency slider, anti-wind, spatial audio and head tracking |
+| 🎚️ **Sound** | 8-band equalizer, bass boost, presets, curve import and export, A/B comparison, guided EQ assistant, Speech Clarity, personal sound profile |
+| 🎬 **Scenes** | A set of settings applied in one click, by a keyboard shortcut, when the headphones connect, or at a fixed time |
+| 🔋 **Battery** | Level, 30-day chart, measured battery life, “low battery” and “100 % while plugged in” notices |
+| 📞 **Calls and comfort** | Smart Pause, auto-answer, comfort calls, sidetone, voice prompts, auto power-off, battery protection, headphones name |
+| 🔗 **Connections** | Devices paired with the headphones, Multipoint, reconnection, Bluetooth codec choice on Linux |
+| 🖥️ **Desktop** | Tray icon and quick panel, global shortcuts, Plasma widget, KRunner search, Waybar module, Decky plugin for game mode, `ctl` command line |
+| 🌍 **Languages** | English and French, in every app |
+
+## Install
+
+Download the latest version from the
+[Releases page](https://github.com/Asfax03L/momentum-5-control/releases/latest).
+Each file comes with its SHA-256 checksum ([how to verify a file](docs/VERIFIER.md), in French).
+
+| System | File |
+|---|---|
+| Windows 10/11 | `…-windows-x86_64-installateur.exe` — per-user installer, no administrator rights; needs Windows App Runtime 2 |
+| Bazzite and other read-only systems | `…-x86_64.flatpak` — `flatpak install --user …` |
 | Debian, Ubuntu | `openheadset-control_…_amd64.deb` |
 | Fedora | `openheadset-control-….x86_64.rpm` |
-| Autres Linux | archive `…-linux-x86_64.tar.gz`, puis `./installer-linux.sh` |
+| Other Linux | `…-linux-x86_64.tar.gz`, then `./installer-linux.sh` |
 
-Le casque doit être appairé et connecté au PC. Le téléphone peut rester
-connecté en même temps (Multipoint). Les exécutables ne sont pas signés :
-SmartScreen peut demander une confirmation.
+The headphones must be paired with the PC and connected. Your phone can stay
+connected at the same time (Multipoint). The executables are not code-signed:
+Windows SmartScreen may ask you to confirm.
 
-Détails, installation depuis les sources et désinstallation :
-[docs/INSTALLATION.md](docs/INSTALLATION.md) et [docs/LINUX.md](docs/LINUX.md).
+Step by step, from source, and how to uninstall:
+[docs/INSTALLATION.en.md](docs/INSTALLATION.en.md).
 
-## Compatibilité
+## Compatibility
 
-| Casque | Micrologiciel | Réglages |
+| Headphones | Firmware | Settings |
 |---|---|---|
-| MOMENTUM 5 Wireless (`M5AEBT`) | 6.21.5 | ✅ écritures validées sur le casque, sous Windows 11 et Bazzite 44 |
-| MOMENTUM 5, autre micrologiciel | — | 🔒 lecture seule jusqu'à vérification |
-| Autres casques GAIA (MOMENTUM 4, ACCENTUM…) | — | 🔒 lecture seule, jamais essayés |
+| MOMENTUM 5 Wireless (`M5AEBT`) | 6.21.5 | ✅ Writes validated on the headphones, on Windows 11 and Bazzite 44 |
+| MOMENTUM 5, other firmware | — | 🔒 Read-only until verified |
+| Other GAIA headphones (MOMENTUM 4, ACCENTUM…) | — | 🔒 Read-only, never tried |
 
-Détail commande par commande : [docs/COMPATIBILITE.md](docs/COMPATIBILITE.md).
-Fiche du protocole : [docs/MOMENTUM5.md](docs/MOMENTUM5.md).
+Command by command: [docs/COMPATIBILITE.en.md](docs/COMPATIBILITE.en.md).
+Do you own another model or firmware? A
+[compatibility report](https://github.com/Asfax03L/momentum-5-control/issues/new/choose)
+helps a lot.
+
+## Command line
+
+Everything the apps do is also available from a terminal:
+
+```bash
+ctl etat                 # state: battery, noise mode, codec…
+ctl mode adaptatif       # noise mode: arret | adaptatif | personnalise
+ctl niveau 50            # 0 = max ANC, 50 = neutral, 100 = max transparency
+ctl scene Travail        # apply a scene
+ctl --json etat          # one JSON object, for scripts
+```
+
+The command names are French words. The full list:
+[docs/CTL.md](docs/CTL.md) (in French), or `ctl --help`.
 
 ## Documentation
 
-| Pour… | Lire |
-|---|---|
-| Utiliser l'application | [Guide](docs/GUIDE.md) · [FAQ](docs/FAQ.md) · en anglais : [guide](docs/GUIDE.en.md), [FAQ](docs/FAQ.en.md) · [site](https://asfax03l.github.io/momentum-5-control/) |
-| Les interfaces en détail | [docs/INTERFACES.md](docs/INTERFACES.md) |
-| La ligne de commande | [docs/CTL.md](docs/CTL.md) |
-| Linux (Flatpak, paquets, service, Waybar) | [docs/LINUX.md](docs/LINUX.md) |
-| Ce qui change à chaque version | [CHANGELOG.md](CHANGELOG.md) · [compatibilité en 1.x](docs/VERSIONS.md) |
-| La suite du projet | [docs/ROADMAP.md](docs/ROADMAP.md) |
-| Le code | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [parité des interfaces](docs/PARITE.md) |
-| La sécurité | [SECURITY.md](SECURITY.md) · [docs/SECURITE.md](docs/SECURITE.md) |
+| Topic | English | Français |
+|---|---|---|
+| Using the app | [Guide](docs/GUIDE.en.md) · [FAQ](docs/FAQ.en.md) | [Guide](docs/GUIDE.md) · [FAQ](docs/FAQ.md) |
+| Installation | [INSTALLATION.en.md](docs/INSTALLATION.en.md) | [INSTALLATION.md](docs/INSTALLATION.md) |
+| Compatibility | [COMPATIBILITE.en.md](docs/COMPATIBILITE.en.md) | [COMPATIBILITE.md](docs/COMPATIBILITE.md) |
+| Contributing | [CONTRIBUTING.md](CONTRIBUTING.md) | [CONTRIBUTING.fr.md](CONTRIBUTING.fr.md) |
+| Security policy | [SECURITY.md](SECURITY.md) | [SECURITY.fr.md](SECURITY.fr.md) |
+| The apps, page by page | — | [INTERFACES.md](docs/INTERFACES.md) |
+| Linux: Flatpak, packages, service, Waybar | — | [LINUX.md](docs/LINUX.md) |
+| Command line | — | [CTL.md](docs/CTL.md) |
+| Protocol notes for the MOMENTUM 5 | — | [MOMENTUM5.md](docs/MOMENTUM5.md) |
+| Architecture | — | [ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Changelog and roadmap | — | [CHANGELOG.md](CHANGELOG.md) · [ROADMAP.md](docs/ROADMAP.md) |
 
-## Contribuer
+The project is written in French first. Release notes, code comments and the
+technical documents are in French; questions and issues in English are welcome.
 
-Rapports de bogue, de compatibilité et PR sont les bienvenus : voir
-[CONTRIBUTING.md](CONTRIBUTING.md). Questions :
+## Build from source
+
+You need Rust (the tested version is pinned in `rust-toolchain.toml`).
+
+```bash
+# Windows: the WinUI app, in demo mode (no headphones needed)
+cargo run --release --bin momentum-winui -- --demo
+```
+
+```bash
+# Linux: service, command line, KDE app and GNOME app
+cargo build --release -p momentum-daemon -p momentum-cli -p momentum-kirigami -p momentum-gtk
+```
+
+The Linux apps need Qt 6 with Kirigami (KDE) and GTK 4 with libadwaita (GNOME).
+Details: [docs/INSTALLATION.en.md](docs/INSTALLATION.en.md).
+
+## Contributing
+
+Bug reports, compatibility reports and pull requests are welcome, in English or
+in French: see [CONTRIBUTING.md](CONTRIBUTING.md). Questions go to
 [Discussions](https://github.com/Asfax03L/momentum-5-control/discussions).
-Une faille de sécurité se signale en privé : [SECURITY.md](SECURITY.md).
+Please report a security issue privately: [SECURITY.md](SECURITY.md).
 
-## Licence
+## License
 
-Au choix [MIT](LICENSE-MIT) ou [Apache-2.0](LICENSE-APACHE). Aucun code tiers
-n'est copié : tout est réimplémenté à partir de faits documentés ou observés
-([sources](docs/COMPATIBILITE.md#sources)).
+Your choice of [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE). No
+third-party code is copied: everything is reimplemented from documented or
+observed facts ([sources](docs/COMPATIBILITE.en.md#sources)).
+
+Sennheiser and MOMENTUM are trademarks of their respective owners. This project
+is independent and is not endorsed by them.

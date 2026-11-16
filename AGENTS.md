@@ -2,7 +2,7 @@
 
 Ce fichier s'adresse aux agents (Codex et autres) qui travaillent sur ce
 dépôt. Les règles complètes du projet sont dans
-[CONTRIBUTING.md](CONTRIBUTING.md) ; ce qui suit les résume et les complète.
+[CONTRIBUTING.fr.md](CONTRIBUTING.fr.md) ; ce qui suit les résume et les complète.
 
 ## Le projet
 

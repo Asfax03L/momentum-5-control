@@ -1,66 +1,78 @@
-# Contribuer à OpenHeadset Control
+# Contributing to OpenHeadset Control
 
-Merci de votre intérêt ! Le projet est **non officiel** et sans lien avec
-Sennheiser ni Sonova. Il pilote un appareil réel : la prudence passe avant
-les fonctions.
+**English** · [Français](CONTRIBUTING.fr.md)
 
-## Règles qui ne se discutent pas
+Thank you for your interest! The project is **unofficial** and not affiliated
+with Sennheiser or Sonova. It drives a real device: caution comes before
+features.
 
-- **Rien d'inventé.** Aucune commande, aucun identifiant de commande ni UUID
-  qui ne soit documenté ou observé. Ce qui n'est pas vérifié est marqué
-  « à valider sur le matériel ».
-- **Lecture seule par défaut.** Une écriture n'est ajoutée qu'après avoir
-  été capturée dans l'application officielle, puis rejouée et relue sur le
-  casque. Les écritures sont réservées au modèle et au micrologiciel sur
-  lesquels elles ont été vérifiées (voir le tableau de compatibilité du
-  [tableau de compatibilité](docs/COMPATIBILITE.md)).
-- **Jamais** : mise à jour du micrologiciel (DFU), réinitialisation d'usine,
-  balayage d'identifiants de commande, options de développeur, suppression
-  d'un appairage, installation d'un pack de voix.
-- **Aucun code copié** d'un autre projet ou de l'application officielle :
-  tout est réimplémenté à partir des faits documentés ou observés, sources
-  citées.
-- **Données personnelles** : ni adresse Bluetooth complète, ni numéro de
-  série, ni nom d'appareil personnel, ni chemin de dossier personnel, ni
-  profil auditif dans le code, les journaux, les captures d'écran, les
-  issues ou les PR. Le script `scripts/verifier-confidentialite.sh` (lancé
-  par la CI) refuse les cas les plus courants.
+## Rules that are not up for discussion
 
-## Signaler un problème ou un casque
+- **Nothing invented.** No command, command identifier or UUID that is not
+  documented or observed. Anything unverified is marked “to be validated on the
+  hardware”.
+- **Read-only by default.** A write is added only after it was captured in the
+  official app, then replayed and read back on the headphones. Writes are
+  limited to the model and firmware they were verified on (see the
+  [compatibility table](docs/COMPATIBILITE.en.md)).
+- **Never**: firmware update (DFU), factory reset, scanning of command
+  identifiers, developer options, removing a pairing, installing a voice pack.
+- **No copied code** from another project or from the official app: everything
+  is reimplemented from documented or observed facts, with sources cited.
+- **Personal data**: no full Bluetooth address, serial number, personal device
+  name, personal folder path or hearing profile in code, logs, screenshots,
+  issues or pull requests. The script `scripts/verifier-confidentialite.sh`
+  (run by CI) rejects the most common cases.
 
-Utilisez les modèles d'issue :
+## Reporting a problem or a headset
 
-- **Bogue** : version, système, interface, étapes, et le diagnostic expurgé
-  (page « À propos » > « Copier le diagnostic »).
-- **Compatibilité** : un autre modèle ou un autre micrologiciel. Joignez
-  la sortie de `probe --deep` (adresses et numéro de série sont masqués par
-  défaut ; relisez-la avant de la publier). Le projet reste en lecture seule
-  sur ce matériel tant qu'aucune écriture n'y a été vérifiée.
-- **Idée** : décrivez le besoin ; si la fonction suppose une nouvelle
-  écriture, dites d'où vient la commande (capture de l'app, documentation).
+Use the issue templates:
 
-## Préparer l'environnement
+- **Bug** (“Bogue”): version, system, app, steps, and the redacted diagnostic
+  (About page > “Copy the diagnostic”).
+- **Compatibility** (“Compatibilité”): another model or another firmware.
+  Attach the output of `probe --deep` (addresses and the serial number are
+  hidden by default; read it again before you publish it). The project stays
+  read-only on that hardware until a write has been verified on it.
+- **Idea** (“Idée”): describe the need. If the feature needs a new write, say
+  where the command comes from (capture of the app, documentation).
 
-- **Windows** : Rust stable (chaîne GNU ou MSVC). L'interface WinUI 3
-  demande le Windows App Runtime 2.
-- **Linux** : Rust stable, `dbus` et `pkg-config` ; pour le client KDE,
-  Qt 6 et Kirigami (voir [docs/LINUX.md](docs/LINUX.md) ; sur Bazzite, dans
-  une boîte distrobox Fedora).
+## Languages
+
+The project is written in French first: code comments, commit messages,
+changelog and most documents are in French. Issues, discussions and pull
+requests are welcome in English or in French. User-facing text exists in both
+languages: a new text in an app needs its English translation in
+`crates/momentum-core/src/i18n/en.txt` (a test fails without it).
+
+Bilingual documents come in pairs. At the repository root, English is the
+default (`README.md`, `CONTRIBUTING.md`, `SECURITY.md`) and French has the
+`.fr.md` suffix. In `docs/`, French is the default and English has the `.en.md`
+suffix. Please update both files of a pair.
+
+## Setting up
+
+- **Windows**: stable Rust (GNU or MSVC toolchain). The WinUI 3 app needs
+  Windows App Runtime 2.
+- **Linux**: stable Rust, `dbus` and `pkg-config`; for the KDE app, Qt 6 and
+  Kirigami; for the GNOME app, GTK 4 and libadwaita (see
+  [docs/LINUX.md](docs/LINUX.md), in French; on Bazzite, inside a Fedora
+  distrobox).
 
 ```bash
 cargo build
 ```
 
-Le client KDE n'est pas compilé par défaut (Qt 6 requis) :
+The KDE and GNOME apps are not built by default:
 
 ```bash
-cargo build -p momentum-kirigami
+cargo build -p momentum-kirigami -p momentum-gtk
 ```
 
-Pour essayer les interfaces sans casque : `--demo` (casque simulé, aucun
-service, aucune écriture).
+To try the apps without headphones: `--demo` (simulated headphones, no service,
+no write).
 
-## Avant d'ouvrir une PR
+## Before you open a pull request
 
 ```bash
 cargo fmt --check
@@ -75,21 +87,20 @@ cargo test
 sh scripts/verifier-confidentialite.sh
 ```
 
-- Une PR par sujet, en français, avec ce qui a été vérifié et comment.
-- Code nouveau testé quand c'est possible : le cœur (`momentum-core`) est
-  en Rust pur, testable sans casque grâce à `MockTransport`.
-- Toute écriture nouvelle ou modifiée : trames exactes, source (capture),
-  essai sur le casque avec relecture et retour à la valeur d'origine.
-- Documentation à jour : README et `docs/MOMENTUM5.md` pour le protocole.
-  `CHANGELOG.md` est écrit par le mainteneur à la publication : décrire les
-  changements dans la PR, avec les paragraphes « En bref » et « À faire
-  après la mise à jour » (`AGENTS.md`).
+- One pull request per topic, with what was verified and how.
+- New code is tested when possible: the core (`momentum-core`) is pure Rust and
+  can be tested without headphones thanks to `MockTransport`.
+- Any new or changed write: exact frames, source (capture), trial on the
+  headphones with read-back and return to the original value.
+- Documentation up to date: the README files, and `docs/MOMENTUM5.md` for the
+  protocol. `CHANGELOG.md` is written by the maintainer at release time:
+  describe the changes in the pull request (see `AGENTS.md`).
 
-## Couverture des tests
+## Test coverage
 
-La CI (tâche `couverture`) affiche la couverture par fichier dans l'onglet
-Summary et échoue si celle du protocole (`protocol/` et `sdp.rs` de
-`momentum-core`) passe sous 80 % des lignes. En local :
+CI (job `couverture`) shows per-file coverage in the Summary tab and fails if
+the protocol coverage (`protocol/` and `sdp.rs` in `momentum-core`) drops below
+80 % of lines. Locally:
 
 ```bash
 cargo install cargo-llvm-cov --version 0.9.1 --locked
@@ -98,10 +109,10 @@ cargo install cargo-llvm-cov --version 0.9.1 --locked
 cargo llvm-cov -p momentum-core --summary-only
 ```
 
-## Fuzzing des lectures
+## Fuzzing the decoders
 
-Sous Linux, installer un compilateur C++, `pkg-config`, les fichiers de
-développement D-Bus et Python 3, puis, depuis la racine du dépôt :
+On Linux, install a C++ compiler, `pkg-config`, the D-Bus development files and
+Python 3, then, from the repository root:
 
 ```sh
 rustup toolchain install nightly-2026-10-22 --profile minimal --component rust-src,rustfmt
@@ -109,39 +120,29 @@ cargo install cargo-fuzz --version 0.13.2 --locked
 sh fuzz/lancer.sh 60
 ```
 
-Le script lance **chacune** des quatre cibles pendant 60 secondes avec
-AddressSanitizer, des entrées limitées à 4096 octets, 10 secondes par cas et
-1 Gio de mémoire résidente. `fuzz/` est un workspace séparé : ni la
-toolchain stable ni `cargo test` ne lancent le fuzzing. Le corpus initial
-est conservé en hexadécimal relisible dans `fuzz/corpus-initial.json`, avec
-la provenance de chaque extrait des tests publics ; le script le transforme
-en fichiers binaires dans `fuzz/corpus/`, sans supprimer les découvertes.
-Aucune capture personnelle ni donnée de profil auditif n'est utilisée.
+The script runs **each** of the four targets for 60 seconds with
+AddressSanitizer, inputs limited to 4096 bytes, 10 seconds per case and 1 GiB of
+resident memory. `fuzz/` is a separate workspace: neither the stable toolchain
+nor `cargo test` runs the fuzzing. The seed corpus is kept as readable
+hexadecimal in `fuzz/corpus-initial.json`, with the origin of each excerpt from
+the public tests. No personal capture and no hearing-profile data is used.
 
-Pour une seule cible : `python3 fuzz/preparer-corpus.py`, puis
-`cargo +nightly-2026-10-22 fuzz run frame_decode -- -max_total_time=60 -max_len=4096 -timeout=10 -rss_limit_mb=1024`.
-Les autres cibles sont `frame_stream`, `sdp_element` et `messages`.
-`frame_stream` lit un préfixe de découpage (compte modulo 17, puis tailles
-moins un), puis compare le flux découpé au même flux fourni en un bloc.
-Sans plan, il avance octet par octet. `messages` appelle toutes les fonctions
-publiques `parse_*` sur des payloads arbitraires.
+The targets are `frame_decode`, `frame_stream`, `sdp_element` and `messages`.
+CI runs each target for 60 seconds on pull requests, and for 600 seconds weekly
+or on demand. Any panic or loop that is found must be fixed in the decoder and
+kept as an ordinary unit test. The French version of this page has the details
+for a single target.
 
-La CI lance chaque cible 60 secondes sur les PR, 600 secondes à la main ou
-chaque semaine. Les journaux et éventuels cas d'échec sont joints à son
-exécution ; ils restent localement dans `fuzz/logs/` et `fuzz/artifacts/`.
-Reproduire un cas avec `cargo +nightly-2026-10-22 fuzz run <cible> <fichier>`.
-Toute panique ou boucle découverte doit être corrigée dans le décodeur et
-conservée comme test unitaire ordinaire, sans changer les captures valides.
+## Architecture in short
 
-## Architecture en bref
-
-Le service `momentum-daemon` est le seul à parler au casque ; les
-interfaces (`frontends/winui`, `frontends/kirigami`) et `ctl` sont ses
-clients. Détails : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) et
+The service `momentum-daemon` is the only program that talks to the
+headphones. The apps (`frontends/winui`, `frontends/kirigami`, `frontends/gtk`)
+and `ctl` are its clients. Details, in French:
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
 [frontends/README.md](frontends/README.md).
 
-## Licence
+## License
 
-En contribuant, vous acceptez que votre contribution soit publiée sous la
-double licence du projet, au choix [MIT](LICENSE-MIT) ou
+By contributing, you agree that your contribution is published under the dual
+license of the project, your choice of [MIT](LICENSE-MIT) or
 [Apache-2.0](LICENSE-APACHE).

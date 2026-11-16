@@ -1,41 +1,36 @@
-# Sécurité
+# Security policy
 
-## Versions maintenues
+**English** · [Français](SECURITY.fr.md)
 
-| Version | Corrections de sécurité |
+## Supported versions
+
+| Version | Security fixes |
 |---|---|
-| 1.x (dernière version mineure) | ✅ |
-| Versions antérieures | ❌ (mettre à jour) |
+| 1.x (latest minor version) | ✅ |
+| Earlier versions | ❌ (please update) |
 
-## Signaler une faille
+## Reporting a vulnerability
 
-**Pas d'issue publique.** Utiliser le signalement privé de GitHub :
-onglet **Security** du dépôt > **Report a vulnerability**
+**No public issue.** Use GitHub's private reporting: the **Security** tab of
+the repository > **Report a vulnerability**
 (<https://github.com/Asfax03L/momentum-5-control/security/advisories/new>).
 
-Indiquer : version, système, étapes pour reproduire, effet observé. Ne
-joindre ni adresse Bluetooth, ni numéro de série, ni profil auditif, ni
-journal au niveau `trace`.
+Please give: version, system, steps to reproduce, observed effect. Do not
+attach a Bluetooth address, a serial number, a hearing profile or a log at the
+`trace` level.
 
-## Délais visés
+## Target response times
 
-- **Accusé de réception** : sous 7 jours.
-- **Correctif** d'une faille sérieuse : sous 30 jours, publié en version
-  CORRECTIF avec un avis de sécurité GitHub.
+- **Acknowledgement**: within 7 days.
+- **Fix** for a serious vulnerability: within 30 days, published as a patch
+  version with a GitHub security advisory.
 
-Ce sont des objectifs : le projet est tenu par une seule personne, sans
-contrat. L'auteur du signalement est cité dans l'avis s'il le souhaite.
+These are goals: the project is maintained by one person, without a contract.
+The reporter is credited in the advisory if they wish.
 
-## Périmètre
+## Scope
 
-Le service `momentum-daemon`, les interfaces, `ctl`, les installateurs et
-les paquets publiés ici. Le micrologiciel du casque n'en fait pas partie :
-le signaler à Sennheiser. Ce que le service peut faire sur le système, et
-ce qui le limite : [docs/SECURITE.md](docs/SECURITE.md).
-
----
-
-*English: please report vulnerabilities privately through the repository's
-**Security** tab > **Report a vulnerability**, not in a public issue. We
-aim to acknowledge within 7 days and to fix serious issues within 30
-days.*
+The service `momentum-daemon`, the apps, `ctl`, the installers and the packages
+published here. The firmware of the headphones is out of scope: report it to
+Sennheiser. What the service can do on the system, and what limits it:
+[docs/SECURITE.md](docs/SECURITE.md) (in French).

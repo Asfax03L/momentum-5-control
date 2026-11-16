@@ -1,23 +1,25 @@
-name: Bogue
-description: Un comportement inattendu d'OpenHeadset Control
+name: Bug · Bogue
+description: Unexpected behaviour of OpenHeadset Control · Un comportement inattendu
 labels: ["bogue"]
 body:
   - type: markdown
     attributes:
       value: |
-        Merci ! Avant d'envoyer : ni adresse Bluetooth complète, ni numéro de série, ni nom d'appareil personnel, ni chemin de dossier personnel.
+        Thank you! English or French, as you prefer. Before you send: no full Bluetooth address, serial number, personal device name or personal folder path.
+
+        Merci ! En français ou en anglais. Avant d'envoyer : ni adresse Bluetooth complète, ni numéro de série, ni nom d'appareil personnel, ni chemin de dossier personnel.
   - type: input
     id: version
     attributes:
       label: Version
-      description: Visible dans « À propos » ou avec `ctl --version`.
+      description: Shown in “About”, or by `ctl --version` · Visible dans « À propos » ou avec `ctl --version`.
       placeholder: "0.8.0"
     validations:
       required: true
   - type: dropdown
     id: interface
     attributes:
-      label: Interface
+      label: App · Interface
       options:
         - WinUI 3 (Windows)
         - Client KDE (Linux)
@@ -30,20 +32,20 @@ body:
   - type: input
     id: systeme
     attributes:
-      label: Système
+      label: System · Système
       placeholder: "Windows 11 24H2, ou Bazzite 44 (KDE Plasma 6, Wayland)"
     validations:
       required: true
   - type: textarea
     id: etapes
     attributes:
-      label: Étapes et résultat
-      description: Ce que vous avez fait, ce que vous attendiez, ce qui s'est passé.
+      label: Steps and result · Étapes et résultat
+      description: What you did, what you expected, what happened · Ce que vous avez fait, ce que vous attendiez, ce qui s'est passé.
     validations:
       required: true
   - type: textarea
     id: diagnostic
     attributes:
-      label: Diagnostic expurgé
-      description: Page « À propos » > « Copier le diagnostic ». Relisez-le avant de le coller.
+      label: Redacted diagnostic · Diagnostic expurgé
+      description: About page > “Copy the diagnostic”. Read it again before you paste it · Page « À propos » > « Copier le diagnostic ». Relisez-le avant de le coller.
       render: text

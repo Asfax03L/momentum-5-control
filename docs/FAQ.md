@@ -108,7 +108,7 @@ Releases (installateur, Flatpak, `.deb`, `.rpm`, `PKGBUILD`).
 Les fichiers de réglages, la sauvegarde JSON, la ligne de commande `ctl`
 et l'API D-Bus restent compatibles pour toute la série 1.x : voir la
 [politique de versions](VERSIONS.md). Une faille se signale en privé
-([SECURITY.md](../SECURITY.md)).
+([SECURITY.fr.md](../SECURITY.fr.md)).
 
 ### Comment signaler un problème ou poser une question ?
 
