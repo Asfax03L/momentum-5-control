@@ -6,11 +6,7 @@ all-features = false
 [advisories]
 # Une faille connue fait échouer la CI ; une exception se documente ici,
 # avec sa raison.
-ignore = [
-    # Arrive par gtk 0.18, dépendance Linux de tray-icon que le projet ne
-    # compile pas (tray-icon ne sert qu'à WinUI, sous Windows).
-    { id = "RUSTSEC-2024-0370", reason = "proc-macro-error : via gtk (tray-icon Linux), jamais compilé" },
-]
+ignore = []
 
 [licenses]
 # Licences compatibles avec la double licence du projet (MIT OR Apache-2.0)
